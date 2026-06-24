@@ -1,74 +1,71 @@
 import { Router } from 'express';
-import { dynamo, TABLE } from '../config/dynamodb.js';
-import { QueryCommand, GetCommand, PutCommand } from '@aws-sdk/lib-dynamodb';
-import jwt from 'jsonwebtoken';
+import {
+  CognitoIdentityProviderClient,
+  SignUpCommand,
+  InitiateAuthCommand,
+  ForgotPasswordCommand,
+  ConfirmForgotPasswordCommand,
+} from '@aws-sdk/client-cognito-identity-provider';
 import { env } from '../config/env.js';
 
 const router = Router();
-const TENANT = process.env.TENANT_ID || 'default';
+const cognito = new CognitoIdentityProviderClient({ region: env.AWS_REGION });
+const CLIENT_ID = process.env.COGNITO_USER_POOL_CLIENT_ID;
 
-router.post('/login', async (req, res) => {
+router.post('/signup', async (req, res) => {
   try {
-    const { email, senha } = req.body;
-    if (!email || !senha) return res.status(400).json({ success: false, message: 'Email e senha são obrigatórios' });
-
-    const result = await dynamo.send(new QueryCommand({
-      TableName: TABLE,
-      KeyConditionExpression: 'PK = :pk AND begins_with(SK, :sk)',
-      FilterExpression: 'email = :email',
-      ExpressionAttributeValues: { ':pk': `TENANT#${TENANT}`, ':sk': 'CLIENTE#', ':email': email },
-    }));
-    if (!result.Items || result.Items.length === 0) return res.status(401).json({ success: false, message: 'Credenciais inválidas' });
-
-    const cliente = result.Items[0];
-    const bcrypt = await import('bcrypt');
-    const senhaValida = await bcrypt.compare(senha, cliente.senha_hash);
-    if (!senhaValida) return res.status(401).json({ success: false, message: 'Credenciais inválidas' });
-
-    const token = jwt.sign({ id: cliente.id, email: cliente.email, tipo: 'cliente' }, env.JWT_SECRET, { expiresIn: '7d' });
-    res.json({ success: true, data: { token, cliente: { id: cliente.id, nome: cliente.nome, email: cliente.email } } });
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
-  }
-});
-
-router.post('/registro', async (req, res) => {
-  try {
-    const { nome, email, senha, whatsapp_numero } = req.body;
+    const { nome, email, senha } = req.body;
     if (!nome || !email || !senha) return res.status(400).json({ success: false, message: 'Nome, email e senha são obrigatórios' });
-
-    const existentes = await dynamo.send(new QueryCommand({
-      TableName: TABLE,
-      KeyConditionExpression: 'PK = :pk AND begins_with(SK, :sk)',
-      FilterExpression: 'email = :email',
-      ExpressionAttributeValues: { ':pk': `TENANT#${TENANT}`, ':sk': 'CLIENTE#', ':email': email },
+    await cognito.send(new SignUpCommand({
+      ClientId: CLIENT_ID,
+      Username: email,
+      Password: senha,
+      UserAttributes: [{ Name: 'name', Value: nome }, { Name: 'email', Value: email }],
     }));
-    if (existentes.Items && existentes.Items.length > 0) return res.status(409).json({ success: false, message: 'Email já cadastrado' });
-
-    const bcrypt = await import('bcrypt');
-    const senhaHash = await bcrypt.hash(senha, 10);
-    const id = crypto.randomUUID();
-    const item = { id, nome, email, senha_hash: senhaHash, whatsapp_numero: whatsapp_numero || '', status: 'ativo', PK: `TENANT#${TENANT}`, SK: `CLIENTE#${id}`, created: new Date().toISOString() };
-    await dynamo.send(new PutCommand({ TableName: TABLE, Item: item }));
-
-    res.status(201).json({ success: true, data: { id: item.id, nome: item.nome } });
+    res.status(201).json({ success: true, message: 'Cadastro realizado. Verifique seu e-mail.' });
   } catch (error) {
     res.status(400).json({ success: false, message: error.message });
   }
 });
 
-router.get('/me', async (req, res) => {
+router.post('/login', async (req, res) => {
   try {
-    const result = await dynamo.send(new QueryCommand({
-      TableName: TABLE,
-      KeyConditionExpression: 'PK = :pk AND SK = :sk',
-      ExpressionAttributeValues: { ':pk': `TENANT#${TENANT}`, ':sk': `CLIENTE#${req.clienteId}` },
+    const { email, senha } = req.body;
+    if (!email || !senha) return res.status(400).json({ success: false, message: 'Email e senha são obrigatórios' });
+    const result = await cognito.send(new InitiateAuthCommand({
+      AuthFlow: 'USER_PASSWORD_AUTH',
+      ClientId: CLIENT_ID,
+      AuthParameters: { USERNAME: email, PASSWORD: senha },
     }));
-    if (!result.Items || result.Items.length === 0) return res.status(404).json({ success: false, message: 'Cliente não encontrado' });
-    const { senha_hash, ...dadosSeguros } = result.Items[0];
-    res.json({ success: true, data: dadosSeguros });
+    const tokens = result.AuthenticationResult;
+    res.json({ success: true, data: { idToken: tokens.IdToken, accessToken: tokens.AccessToken, refreshToken: tokens.RefreshToken } });
   } catch (error) {
-    res.status(404).json({ success: false, message: 'Cliente não encontrado' });
+    res.status(401).json({ success: false, message: 'Credenciais inválidas' });
+  }
+});
+
+router.post('/forgot-password', async (req, res) => {
+  try {
+    const { email } = req.body;
+    await cognito.send(new ForgotPasswordCommand({ ClientId: CLIENT_ID, Username: email }));
+    res.json({ success: true, message: 'Código de recuperação enviado para o e-mail' });
+  } catch (error) {
+    res.status(400).json({ success: false, message: error.message });
+  }
+});
+
+router.post('/confirm-forgot-password', async (req, res) => {
+  try {
+    const { email, code, novaSenha } = req.body;
+    await cognito.send(new ConfirmForgotPasswordCommand({
+      ClientId: CLIENT_ID,
+      Username: email,
+      ConfirmationCode: code,
+      Password: novaSenha,
+    }));
+    res.json({ success: true, message: 'Senha alterada com sucesso' });
+  } catch (error) {
+    res.status(400).json({ success: false, message: error.message });
   }
 });
 

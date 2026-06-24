@@ -1,9 +1,18 @@
 import { Router } from 'express';
 import { dynamo, TABLE } from '../config/dynamodb.js';
 import { QueryCommand } from '@aws-sdk/lib-dynamodb';
+import { generateViewUrl } from '../services/s3Service.js';
 import { ALBUM_STATUS } from '../config/constants.js';
 
 const router = Router();
+
+async function assinarFotos(fotos) {
+  return Promise.all(fotos.map(async (f) => ({
+    ...f,
+    url: await generateViewUrl(f.s3_key),
+    url_thumb: f.s3_key_thumb ? await generateViewUrl(f.s3_key_thumb, 24) : null,
+  })));
+}
 
 router.get('/', async (req, res) => {
   try {
@@ -42,14 +51,14 @@ router.get('/publico/:slug', async (req, res) => {
       }
     }
 
-    const fotos = await dynamo.send(new QueryCommand({
+    const fotosResult = await dynamo.send(new QueryCommand({
       TableName: TABLE,
       KeyConditionExpression: 'PK = :pk AND begins_with(SK, :sk)',
       ExpressionAttributeValues: { ':pk': `ALBUM#${album.id}`, ':sk': 'FOTO#' },
     }));
-    const fotosOrdenadas = (fotos.Items || []).sort((a, b) => (a.ordem || 0) - (b.ordem || 0));
+    const fotos = await assinarFotos((fotosResult.Items || []).sort((a, b) => (a.ordem || 0) - (b.ordem || 0)));
 
-    res.json({ success: true, data: { ...album, fotos: fotosOrdenadas } });
+    res.json({ success: true, data: { ...album, fotos } });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
@@ -67,14 +76,14 @@ router.get('/:id', async (req, res) => {
 
     if (album.status === ALBUM_STATUS.EXPIRADO && !album.protegido) return res.status(410).json({ success: false, message: 'Álbum expirado' });
 
-    const fotos = await dynamo.send(new QueryCommand({
+    const fotosResult = await dynamo.send(new QueryCommand({
       TableName: TABLE,
       KeyConditionExpression: 'PK = :pk AND begins_with(SK, :sk)',
       ExpressionAttributeValues: { ':pk': `ALBUM#${album.id}`, ':sk': 'FOTO#' },
     }));
-    const fotosOrdenadas = (fotos.Items || []).sort((a, b) => (a.ordem || 0) - (b.ordem || 0));
+    const fotos = await assinarFotos((fotosResult.Items || []).sort((a, b) => (a.ordem || 0) - (b.ordem || 0)));
 
-    res.json({ success: true, data: { ...album, fotos: fotosOrdenadas } });
+    res.json({ success: true, data: { ...album, fotos } });
   } catch (error) {
     res.status(404).json({ success: false, message: 'Álbum não encontrado' });
   }

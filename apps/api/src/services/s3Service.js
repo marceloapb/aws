@@ -6,16 +6,10 @@ import { S3Client, PutObjectCommand, DeleteObjectCommand, ListObjectsV2Command, 
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import sharp from 'sharp';
 import { env } from '../config/env.js';
+import { v4 as uuid } from 'uuid';
 
-const s3 = new S3Client({
-  region: env.AWS_REGION,
-  credentials: {
-    accessKeyId: env.AWS_ACCESS_KEY_ID,
-    secretAccessKey: env.AWS_SECRET_ACCESS_KEY,
-  },
-});
-
-const BUCKET = env.S3_BUCKET;
+const s3 = new S3Client({ region: env.AWS_REGION });
+const BUCKET = process.env.S3_BUCKET_NAME || env.S3_BUCKET_NAME;
 const THUMB_WIDTH = 400;
 const THUMB_QUALITY = 80;
 
@@ -88,6 +82,27 @@ export async function deleteAlbumFolder(albumId) {
 export async function getSignedDownloadUrl(key, expiresIn = 3600) {
   const command = new GetObjectCommand({ Bucket: BUCKET, Key: key });
   return getSignedUrl(s3, command, { expiresIn });
+}
+
+export async function generateUploadUrl(tenantId, albumId, contentType) {
+  const allowed = ['image/jpeg', 'image/png', 'image/webp'];
+  if (!allowed.includes(contentType)) throw new Error('Content-Type não permitido');
+  const ext = contentType.split('/')[1];
+  const key = `fotos/${tenantId}/${albumId}/${uuid()}.${ext}`;
+  const command = new PutObjectCommand({ Bucket: BUCKET, Key: key, ContentType: contentType });
+  const uploadUrl = await getSignedUrl(s3, command, { expiresIn: 900 });
+  return { uploadUrl, key };
+}
+
+export async function generateViewUrl(key, expiresInHours = 24) {
+  const { getSignedUrl: cfSign } = await import('@aws-sdk/cloudfront-signer');
+  const url = `${process.env.CLOUDFRONT_DOMAIN}/${key}`;
+  return cfSign({
+    url,
+    keyPairId: process.env.CF_KEY_PAIR_ID,
+    privateKey: process.env.CF_PRIVATE_KEY,
+    dateLessThan: new Date(Date.now() + expiresInHours * 3600 * 1000).toISOString(),
+  });
 }
 
 export async function uploadBackup(buffer, filename) {

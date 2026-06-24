@@ -1,7 +1,8 @@
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
-import { authAdmin, authCliente } from './middlewares/authMiddleware.js';
+import { adminAuth } from './middlewares/adminAuth.js';
+import { clientAuth } from './middlewares/clientAuth.js';
 import { errorHandler, notFoundHandler } from './middlewares/errorHandler.js';
 import { env } from './config/env.js';
 
@@ -42,27 +43,27 @@ app.get('/api/health', (req, res) => {
 });
 
 // Admin (protegidas)
-app.use('/api/admin/agenda', authAdmin, adminAgenda);
-app.use('/api/admin/clientes', authAdmin, adminClientes);
-app.use('/api/admin/orcamentos', authAdmin, adminOrcamentos);
-app.use('/api/admin/cobrancas', authAdmin, adminCobrancas);
-app.use('/api/admin/albuns', authAdmin, adminAlbuns);
-app.use('/api/admin/fotos', authAdmin, adminFotos);
-app.use('/api/admin/contratos', authAdmin, adminContratos);
-app.use('/api/admin/instagram', authAdmin, adminInstagram);
-app.use('/api/admin/whatsapp', authAdmin, adminWhatsapp);
-app.use('/api/admin/google-calendar', authAdmin, adminGoogleCalendar);
-app.use('/api/admin/configuracoes', authAdmin, adminConfiguracoes);
-app.use('/api/admin/fotografos', authAdmin, adminFotografos);
-app.use('/api/admin/equipamentos', authAdmin, adminEquipamentos);
-app.use('/api/admin/pendencias', authAdmin, adminPendencias);
+app.use('/api/admin/agenda', adminAuth, adminAgenda);
+app.use('/api/admin/clientes', adminAuth, adminClientes);
+app.use('/api/admin/orcamentos', adminAuth, adminOrcamentos);
+app.use('/api/admin/cobrancas', adminAuth, adminCobrancas);
+app.use('/api/admin/albuns', adminAuth, adminAlbuns);
+app.use('/api/admin/fotos', adminAuth, adminFotos);
+app.use('/api/admin/contratos', adminAuth, adminContratos);
+app.use('/api/admin/instagram', adminAuth, adminInstagram);
+app.use('/api/admin/whatsapp', adminAuth, adminWhatsapp);
+app.use('/api/admin/google-calendar', adminAuth, adminGoogleCalendar);
+app.use('/api/admin/configuracoes', adminAuth, adminConfiguracoes);
+app.use('/api/admin/fotografos', adminAuth, adminFotografos);
+app.use('/api/admin/equipamentos', adminAuth, adminEquipamentos);
+app.use('/api/admin/pendencias', adminAuth, adminPendencias);
 
 // Cliente
 app.use('/api/client', clientAuth);
-app.use('/api/client/albuns', authCliente, clientAlbuns);
-app.use('/api/client/contratos', authCliente, clientContratos);
-app.use('/api/client/pagamentos', authCliente, clientPagamentos);
-app.use('/api/client/orcamentos', authCliente, clientOrcamentos);
+app.use('/api/client/albuns', clientAuth, clientAlbuns);
+app.use('/api/client/contratos', clientAuth, clientContratos);
+app.use('/api/client/pagamentos', clientAuth, clientPagamentos);
+app.use('/api/client/orcamentos', clientAuth, clientOrcamentos);
 
 // Webhooks (sem auth)
 app.use('/api/webhooks', webhooks);

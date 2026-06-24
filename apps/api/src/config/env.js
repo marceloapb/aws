@@ -1,48 +1,50 @@
-import 'dotenv/config';
+import { SSMClient, GetParametersByPathCommand } from '@aws-sdk/client-ssm';
 
+let cachedParams = null;
+
+export async function loadParams() {
+  if (cachedParams) return cachedParams;
+  if (process.env.IS_LOCAL === 'true') {
+    const { default: dotenv } = await import('dotenv');
+    dotenv.config();
+    cachedParams = process.env;
+    return cachedParams;
+  }
+  const ssm = new SSMClient({});
+  const path = `/horizons/${process.env.STAGE || 'prod'}/`;
+  const result = await ssm.send(new GetParametersByPathCommand({
+    Path: path, WithDecryption: true, Recursive: true,
+  }));
+  cachedParams = {};
+  for (const p of result.Parameters) {
+    const key = p.Name.split('/').pop();
+    cachedParams[key] = p.Value;
+  }
+  return cachedParams;
+}
+
+// Compatibilidade: valores não-sensíveis ainda disponíveis de process.env
 export const env = {
   PORT: process.env.PORT || 3000,
   NODE_ENV: process.env.NODE_ENV || 'development',
-  APP_URL: process.env.APP_URL || 'http://localhost:3000',
   FRONTEND_URL: process.env.FRONTEND_URL || 'http://localhost:5173',
-  JWT_SECRET: process.env.JWT_SECRET || 'horizons-secret-change-me',
-  POCKETBASE_URL: process.env.POCKETBASE_URL || 'http://localhost:8090',
-  POCKETBASE_ADMIN_EMAIL: process.env.POCKETBASE_ADMIN_EMAIL || '',
-  POCKETBASE_ADMIN_PASSWORD: process.env.POCKETBASE_ADMIN_PASSWORD || '',
   AWS_REGION: process.env.AWS_REGION || 'sa-east-1',
-  AWS_ACCESS_KEY_ID: process.env.AWS_ACCESS_KEY_ID || '',
-  AWS_SECRET_ACCESS_KEY: process.env.AWS_SECRET_ACCESS_KEY || '',
-  S3_BUCKET: process.env.S3_BUCKET || 'horizons-photos',
-  CLOUDFRONT_DOMAIN: process.env.CLOUDFRONT_DOMAIN || '',
-  GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID || '',
-  GOOGLE_CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET || '',
-  GOOGLE_REDIRECT_URI: process.env.GOOGLE_REDIRECT_URI || '',
-  WHATSAPP_ACCESS_TOKEN: process.env.WHATSAPP_ACCESS_TOKEN || '',
-  WHATSAPP_PHONE_NUMBER_ID: process.env.WHATSAPP_PHONE_NUMBER_ID || '',
-  WHATSAPP_BUSINESS_ACCOUNT_ID: process.env.WHATSAPP_BUSINESS_ACCOUNT_ID || '',
-  INSTAGRAM_ACCESS_TOKEN: process.env.INSTAGRAM_ACCESS_TOKEN || '',
-  INSTAGRAM_BUSINESS_ACCOUNT_ID: process.env.INSTAGRAM_BUSINESS_ACCOUNT_ID || '',
-  ASAAS_API_KEY: process.env.ASAAS_API_KEY || '',
-  STRIPE_SECRET_KEY: process.env.STRIPE_SECRET_KEY || '',
-  STRIPE_WEBHOOK_SECRET: process.env.STRIPE_WEBHOOK_SECRET || '',
-  MERCADOPAGO_ACCESS_TOKEN: process.env.MERCADOPAGO_ACCESS_TOKEN || '',
-  PAGARME_API_KEY: process.env.PAGARME_API_KEY || '',
-  PAGBANK_TOKEN: process.env.PAGBANK_TOKEN || '',
-  PAGBANK_EMAIL: process.env.PAGBANK_EMAIL || '',
-  PICPAY_TOKEN: process.env.PICPAY_TOKEN || '',
-  PICPAY_SELLER_TOKEN: process.env.PICPAY_SELLER_TOKEN || '',
-  SUMUP_API_KEY: process.env.SUMUP_API_KEY || '',
-  BANCO_INTER_CLIENT_ID: process.env.BANCO_INTER_CLIENT_ID || '',
-  BANCO_INTER_CLIENT_SECRET: process.env.BANCO_INTER_CLIENT_SECRET || '',
-  BANCO_INTER_PIX_KEY: process.env.BANCO_INTER_PIX_KEY || '',
-  STONE_API_KEY: process.env.STONE_API_KEY || '',
-  INFINITEPAY_API_KEY: process.env.INFINITEPAY_API_KEY || '',
-  SES_FROM_EMAIL: process.env.SES_FROM_EMAIL || '',
+  DYNAMODB_TABLE_NAME: process.env.DYNAMODB_TABLE_NAME || 'horizons',
+  S3_BUCKET_NAME: process.env.S3_BUCKET_NAME || '',
+  STAGE: process.env.STAGE || 'prod',
 };
 
 export const features = {
-  whatsapp: !!(env.WHATSAPP_ACCESS_TOKEN && env.WHATSAPP_PHONE_NUMBER_ID),
-  instagram: !!(env.INSTAGRAM_ACCESS_TOKEN && env.INSTAGRAM_BUSINESS_ACCOUNT_ID),
-  googleCalendar: !!(env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET),
-  email: !!env.SES_FROM_EMAIL,
+  whatsapp: false,   // será reavaliado após loadParams()
+  instagram: false,
+  googleCalendar: false,
+  email: false,
 };
+
+export async function initFeatures() {
+  const p = await loadParams();
+  features.whatsapp = !!(p.WHATSAPP_ACCESS_TOKEN && p.WHATSAPP_PHONE_NUMBER_ID);
+  features.instagram = !!(p.INSTAGRAM_ACCESS_TOKEN && p.INSTAGRAM_BUSINESS_ACCOUNT_ID);
+  features.googleCalendar = !!(p.GOOGLE_CLIENT_ID && p.GOOGLE_CLIENT_SECRET);
+  features.email = !!p.SES_FROM_EMAIL;
+}
