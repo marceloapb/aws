@@ -79,4 +79,6 @@ async function processarRetencao() {
   }
 }
 
-export default { startAlbumRetentionJob };
+export const handler = async () => { await processarRetencao(); };
+
+export default { handler };

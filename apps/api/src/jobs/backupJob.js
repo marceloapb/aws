@@ -77,4 +77,6 @@ async function executarBackup() {
   }
 }
 
-export default { startBackupJob };
+export const handler = async () => { await executarBackup(); };
+
+export default { handler };

@@ -1,16 +1,19 @@
 import { Router } from 'express';
-import { getPocketbaseClient } from '../config/pocketbase.js';
+import { dynamo, TABLE } from '../config/dynamodb.js';
+import { QueryCommand } from '@aws-sdk/lib-dynamodb';
 import { assinarContrato } from '../services/contratoService.js';
 
 const router = Router();
 
 router.get('/', async (req, res) => {
   try {
-    const pb = await getPocketbaseClient();
-    const contratos = await pb.collection('contratos').getFullList({
-      filter: `cliente_id = "${req.clienteId}"`, sort: '-created',
-    });
-    res.json({ success: true, data: contratos });
+    const result = await dynamo.send(new QueryCommand({
+      TableName: TABLE,
+      KeyConditionExpression: 'PK = :pk AND begins_with(SK, :sk)',
+      ExpressionAttributeValues: { ':pk': `CLIENTE#${req.clienteId}`, ':sk': 'CONTRATO#' },
+    }));
+    const items = (result.Items || []).sort((a, b) => (b.created || '').localeCompare(a.created || ''));
+    res.json({ success: true, data: items });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
@@ -18,12 +21,15 @@ router.get('/', async (req, res) => {
 
 router.get('/:token', async (req, res) => {
   try {
-    const pb = await getPocketbaseClient();
-    const contratos = await pb.collection('contratos').getFullList({
-      filter: `token_assinatura = "${req.params.token}"`, expand: 'cliente_id',
-    });
-    if (contratos.length === 0) return res.status(404).json({ success: false, message: 'Contrato não encontrado' });
-    res.json({ success: true, data: contratos[0] });
+    const result = await dynamo.send(new QueryCommand({
+      TableName: TABLE,
+      IndexName: 'GSI1',
+      KeyConditionExpression: 'GSI1PK = :pk',
+      FilterExpression: 'token_assinatura = :token',
+      ExpressionAttributeValues: { ':pk': 'CONTRATO', ':token': req.params.token },
+    }));
+    if (!result.Items || result.Items.length === 0) return res.status(404).json({ success: false, message: 'Contrato não encontrado' });
+    res.json({ success: true, data: result.Items[0] });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }

@@ -1,22 +1,22 @@
-// ══════════════════════════════════════════════════════════════
-// ROUTES/ADMIN-CONFIGURACOES.JS — Configurações do sistema
-// ══════════════════════════════════════════════════════════════
-
 import { Router } from 'express';
-import { getPocketbaseClient } from '../config/pocketbase.js';
+import { dynamo, TABLE } from '../config/dynamodb.js';
+import { QueryCommand, GetCommand, PutCommand } from '@aws-sdk/lib-dynamodb';
 
 const router = Router();
+const TENANT = process.env.TENANT_ID || 'default';
 
-// GET /api/admin/configuracoes — Obter todas as configurações
+// GET /api/admin/configuracoes
 router.get('/', async (req, res) => {
   try {
-    const pb = await getPocketbaseClient();
-    const configs = await pb.collection('configuracoes').getFullList();
+    const result = await dynamo.send(new QueryCommand({
+      TableName: TABLE,
+      KeyConditionExpression: 'PK = :pk AND begins_with(SK, :sk)',
+      ExpressionAttributeValues: { ':pk': `TENANT#${TENANT}`, ':sk': 'CONFIG#' },
+    }));
 
-    // Transformar em objeto chave-valor
     const resultado = {};
-    for (const config of configs) {
-      resultado[config.chave] = config.valor;
+    for (const item of (result.Items || [])) {
+      resultado[item.chave] = item.valor;
     }
 
     res.json({ success: true, data: resultado });
@@ -25,29 +25,29 @@ router.get('/', async (req, res) => {
   }
 });
 
-// PUT /api/admin/configuracoes — Atualizar configurações
+// PUT /api/admin/configuracoes
 router.put('/', async (req, res) => {
   try {
-    const pb = await getPocketbaseClient();
-    const dados = req.body; // { chave: valor, chave2: valor2 }
-
+    const dados = req.body;
     for (const [chave, valor] of Object.entries(dados)) {
-      const existentes = await pb.collection('configuracoes').getFullList({ filter: `chave = "${chave}"` });
-
-      if (existentes.length > 0) {
-        await pb.collection('configuracoes').update(existentes[0].id, { valor: String(valor) });
-      } else {
-        await pb.collection('configuracoes').create({ chave, valor: String(valor) });
-      }
+      await dynamo.send(new PutCommand({
+        TableName: TABLE,
+        Item: {
+          PK: `TENANT#${TENANT}`,
+          SK: `CONFIG#${chave}`,
+          chave,
+          valor: String(valor),
+          updated: new Date().toISOString(),
+        },
+      }));
     }
-
     res.json({ success: true, message: 'Configurações atualizadas' });
   } catch (error) {
     res.status(400).json({ success: false, message: error.message });
   }
 });
 
-// GET /api/admin/configuracoes/gateways — Listar gateways configurados
+// GET /api/admin/configuracoes/gateways
 router.get('/gateways', async (req, res) => {
   try {
     const gateways = [
@@ -62,7 +62,6 @@ router.get('/gateways', async (req, res) => {
       { id: 'stone', nome: 'Stone', configurado: !!process.env.STONE_API_KEY },
       { id: 'infinitepay', nome: 'InfinitePay', configurado: !!process.env.INFINITEPAY_API_KEY },
     ];
-
     res.json({ success: true, data: gateways });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });

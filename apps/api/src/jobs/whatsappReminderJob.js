@@ -58,4 +58,6 @@ async function verificarLembretes() {
   }
 }
 
-export default { startWhatsappReminderJob };
+export const handler = async () => { await verificarLembretes(); };
+
+export default { handler };

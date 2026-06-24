@@ -1,5 +1,6 @@
 import { Router } from 'express';
-import { getPocketbaseClient } from '../config/pocketbase.js';
+import { dynamo, TABLE } from '../config/dynamodb.js';
+import { QueryCommand, UpdateCommand, PutCommand } from '@aws-sdk/lib-dynamodb';
 import { processarWebhook as processarAsaas } from '../adapters/asaas.js';
 import { processarWebhook as processarStripe } from '../adapters/stripe.js';
 import { processarWebhook as processarMercadoPago } from '../adapters/mercadopago.js';
@@ -16,15 +17,9 @@ import { features } from '../config/env.js';
 const router = Router();
 
 const PROCESSADORES = {
-  asaas: processarAsaas,
-  stripe: processarStripe,
-  mercadopago: processarMercadoPago,
-  pagarme: processarPagarme,
-  pagbank: processarPagBank,
-  picpay: processarPicPay,
-  sumup: processarSumUp,
-  'banco-inter': processarBancoInter,
-  stone: processarStone,
+  asaas: processarAsaas, stripe: processarStripe, mercadopago: processarMercadoPago,
+  pagarme: processarPagarme, pagbank: processarPagBank, picpay: processarPicPay,
+  sumup: processarSumUp, 'banco-inter': processarBancoInter, stone: processarStone,
   infinitepay: processarInfinitePay,
 };
 
@@ -35,28 +30,47 @@ router.post('/:gateway', async (req, res) => {
     if (!processador) return res.status(400).json({ success: false, message: `Gateway ${gateway} não suportado` });
 
     const resultado = await processador(req.body, req.headers);
-    if (!resultado || !resultado.gateway_id) {
-      return res.status(200).json({ success: true, message: 'Webhook recebido (sem ação)' });
-    }
+    if (!resultado || !resultado.gateway_id) return res.status(200).json({ success: true, message: 'Webhook recebido (sem ação)' });
 
-    const pb = await getPocketbaseClient();
-    const cobrancas = await pb.collection('cobrancas').getFullList({
-      filter: `gateway_id = "${resultado.gateway_id}" && gateway = "${gateway}"`,
-      expand: 'cliente_id',
-    });
+    // Buscar cobrança por gateway_id
+    const cobrancas = await dynamo.send(new QueryCommand({
+      TableName: TABLE,
+      IndexName: 'GSI1',
+      KeyConditionExpression: 'GSI1PK = :pk',
+      FilterExpression: 'gateway_id = :gid AND gateway = :gw',
+      ExpressionAttributeValues: { ':pk': 'COBRANCA', ':gid': resultado.gateway_id, ':gw': gateway },
+    }));
 
-    if (cobrancas.length === 0) {
+    if (!cobrancas.Items || cobrancas.Items.length === 0) {
       console.warn(`[WEBHOOK] Cobrança não encontrada: ${gateway}/${resultado.gateway_id}`);
       return res.status(200).json({ success: true, message: 'Cobrança não encontrada' });
     }
 
-    const cobranca = cobrancas[0];
-    const updateData = { status: resultado.status };
-    if (resultado.status === 'pago') updateData.data_pagamento = new Date().toISOString();
-    await pb.collection('cobrancas').update(cobranca.id, updateData);
+    const cobranca = cobrancas.Items[0];
+    const updateExpr = resultado.status === 'pago'
+      ? 'SET #s = :s, data_pagamento = :d'
+      : 'SET #s = :s';
+    const updateVals = resultado.status === 'pago'
+      ? { ':s': resultado.status, ':d': new Date().toISOString() }
+      : { ':s': resultado.status };
 
-    if (resultado.status === 'pago' && features.whatsapp) {
-      const cliente = cobranca.expand?.cliente_id;
+    await dynamo.send(new UpdateCommand({
+      TableName: TABLE,
+      Key: { PK: cobranca.PK, SK: cobranca.SK },
+      UpdateExpression: updateExpr,
+      ExpressionAttributeNames: { '#s': 'status' },
+      ExpressionAttributeValues: updateVals,
+    }));
+
+    if (resultado.status === 'pago' && features.whatsapp && cobranca.cliente_id) {
+      // Buscar cliente via GSI
+      const cliResult = await dynamo.send(new QueryCommand({
+        TableName: TABLE,
+        IndexName: 'GSI1',
+        KeyConditionExpression: 'GSI1PK = :pk AND GSI1SK = :sk',
+        ExpressionAttributeValues: { ':pk': 'CLIENTE', ':sk': `CLIENTE#${cobranca.cliente_id}` },
+      }));
+      const cliente = cliResult.Items?.[0];
       if (cliente?.whatsapp_numero) {
         try {
           await enviarNotificacaoPagamento(cliente.whatsapp_numero, cliente.nome, cobranca.valor, 'confirmado');
@@ -66,13 +80,21 @@ router.post('/:gateway', async (req, res) => {
       }
     }
 
-    await pb.collection('webhook_logs').create({
-      gateway,
-      gateway_id: resultado.gateway_id,
-      status_recebido: resultado.status,
-      payload: JSON.stringify(resultado.dados_brutos || req.body),
-      processado: true,
-    });
+    // Registrar log
+    const logId = crypto.randomUUID();
+    await dynamo.send(new PutCommand({
+      TableName: TABLE,
+      Item: {
+        id: logId,
+        PK: `WEBHOOK_LOG#${logId}`, SK: `WEBHOOK_LOG#${logId}`,
+        GSI1PK: 'WEBHOOK_LOG', GSI1SK: new Date().toISOString(),
+        gateway, gateway_id: resultado.gateway_id,
+        status_recebido: resultado.status,
+        payload: JSON.stringify(resultado.dados_brutos || req.body),
+        processado: true,
+        created: new Date().toISOString(),
+      },
+    }));
 
     res.status(200).json({ success: true });
   } catch (error) {

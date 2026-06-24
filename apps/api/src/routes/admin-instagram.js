@@ -1,76 +1,90 @@
-// ══════════════════════════════════════════════════════════════
-// ROUTES/ADMIN-INSTAGRAM.JS — Gerenciamento de publicações Instagram
-// ══════════════════════════════════════════════════════════════
-
 import { Router } from 'express';
-import { getPocketbaseClient } from '../config/pocketbase.js';
+import { dynamo, TABLE } from '../config/dynamodb.js';
+import { QueryCommand, PutCommand, UpdateCommand, DeleteCommand } from '@aws-sdk/lib-dynamodb';
 import { publicarCarrossel, publicarFotoUnica } from '../services/instagramService.js';
 import { INSTAGRAM_STATUS } from '../config/constants.js';
 
 const router = Router();
 
-// GET /api/admin/instagram — Listar publicações
+// GET /api/admin/instagram
 router.get('/', async (req, res) => {
   try {
-    const pb = await getPocketbaseClient();
     const { status, page = 1, limit = 50 } = req.query;
 
-    let filter = '';
-    if (status) filter = `status = "${status}"`;
+    const params = {
+      TableName: TABLE,
+      IndexName: 'GSI1',
+      KeyConditionExpression: 'GSI1PK = :pk',
+      ExpressionAttributeValues: { ':pk': 'INSTAGRAM' },
+    };
+    if (status) {
+      params.FilterExpression = '#s = :status';
+      params.ExpressionAttributeNames = { '#s': 'status' };
+      params.ExpressionAttributeValues[':status'] = status;
+    }
 
-    const result = await pb.collection('instagram_publicacoes').getList(Number(page), Number(limit), {
-      filter,
-      sort: '-created',
-    });
+    const result = await dynamo.send(new QueryCommand(params));
+    const items = result.Items || [];
+    const total = items.length;
+    const start = (Number(page) - 1) * Number(limit);
+    const data = items.slice(start, start + Number(limit));
 
-    res.json({ success: true, data: result.items, pagination: { page: result.page, totalPages: result.totalPages, totalItems: result.totalItems } });
+    res.json({ success: true, data, pagination: { page: Number(page), totalPages: Math.ceil(total / Number(limit)), totalItems: total } });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
 });
 
-// POST /api/admin/instagram — Agendar publicação
+// POST /api/admin/instagram
 router.post('/', async (req, res) => {
   try {
-    const pb = await getPocketbaseClient();
     const { fotos_ids, caption, agendado_para, album_id } = req.body;
+    if (!fotos_ids || fotos_ids.length === 0) return res.status(400).json({ success: false, message: 'Selecione pelo menos 1 foto' });
+    if (fotos_ids.length > 10) return res.status(400).json({ success: false, message: 'Máximo 10 fotos por carrossel' });
 
-    if (!fotos_ids || fotos_ids.length === 0) {
-      return res.status(400).json({ success: false, message: 'Selecione pelo menos 1 foto' });
-    }
-
-    if (fotos_ids.length > 10) {
-      return res.status(400).json({ success: false, message: 'Máximo 10 fotos por carrossel' });
-    }
-
-    const publicacao = await pb.collection('instagram_publicacoes').create({
-      fotos_ids,
+    const id = crypto.randomUUID();
+    const item = {
+      id, fotos_ids,
+      PK: `INSTAGRAM#${id}`, SK: `INSTAGRAM#${id}`,
+      GSI1PK: 'INSTAGRAM', GSI1SK: `INSTAGRAM#${agendado_para || new Date().toISOString()}`,
       caption: caption || '',
       agendado_para: agendado_para || new Date().toISOString(),
       album_id: album_id || '',
-      status: agendado_para ? INSTAGRAM_STATUS.AGENDADO : INSTAGRAM_STATUS.AGENDADO,
-    });
-
-    res.status(201).json({ success: true, data: publicacao });
+      status: INSTAGRAM_STATUS.AGENDADO,
+      created: new Date().toISOString(),
+    };
+    await dynamo.send(new PutCommand({ TableName: TABLE, Item: item }));
+    res.status(201).json({ success: true, data: item });
   } catch (error) {
     res.status(400).json({ success: false, message: error.message });
   }
 });
 
-// POST /api/admin/instagram/:id/publicar-agora — Publicar imediatamente
+// POST /api/admin/instagram/:id/publicar-agora
 router.post('/:id/publicar-agora', async (req, res) => {
   try {
-    const pb = await getPocketbaseClient();
-    const pub = await pb.collection('instagram_publicacoes').getOne(req.params.id);
+    const pubResult = await dynamo.send(new QueryCommand({
+      TableName: TABLE,
+      IndexName: 'GSI1',
+      KeyConditionExpression: 'GSI1PK = :pk',
+      FilterExpression: 'id = :id',
+      ExpressionAttributeValues: { ':pk': 'INSTAGRAM', ':id': req.params.id },
+    }));
+    const pub = pubResult.Items?.[0];
+    if (!pub) return res.status(404).json({ success: false, message: 'Publicação não encontrada' });
 
     // Buscar fotos
-    const fotos = await pb.collection('fotos').getFullList({
-      filter: pub.fotos_ids.map((id) => `id = "${id}"`).join(' || '),
-    });
+    const fotosResults = await Promise.all(pub.fotos_ids.map(fid =>
+      dynamo.send(new QueryCommand({
+        TableName: TABLE,
+        IndexName: 'GSI1',
+        KeyConditionExpression: 'GSI1PK = :pk AND GSI1SK = :sk',
+        ExpressionAttributeValues: { ':pk': 'FOTO', ':sk': `FOTO#${fid}` },
+      }))
+    ));
+    const fotosKeys = fotosResults.flatMap(r => (r.Items || []).map(f => f.s3_key));
 
-    const fotosKeys = fotos.map((f) => f.s3_key);
     let resultado;
-
     if (fotosKeys.length === 1) {
       resultado = await publicarFotoUnica(fotosKeys[0], pub.caption || '');
     } else {
@@ -78,12 +92,18 @@ router.post('/:id/publicar-agora', async (req, res) => {
     }
 
     if (resultado.success) {
-      await pb.collection('instagram_publicacoes').update(pub.id, {
-        status: INSTAGRAM_STATUS.PUBLICADO,
-        publicado_em: new Date().toISOString(),
-        instagram_post_id: resultado.instagram_post_id,
-        instagram_permalink: resultado.instagram_permalink,
-      });
+      await dynamo.send(new UpdateCommand({
+        TableName: TABLE,
+        Key: { PK: pub.PK, SK: pub.SK },
+        UpdateExpression: 'SET #s = :s, publicado_em = :pe, instagram_post_id = :pi, instagram_permalink = :pp',
+        ExpressionAttributeNames: { '#s': 'status' },
+        ExpressionAttributeValues: {
+          ':s': INSTAGRAM_STATUS.PUBLICADO,
+          ':pe': new Date().toISOString(),
+          ':pi': resultado.instagram_post_id,
+          ':pp': resultado.instagram_permalink,
+        },
+      }));
       res.json({ success: true, data: resultado });
     } else {
       throw new Error(resultado.error);
@@ -93,11 +113,13 @@ router.post('/:id/publicar-agora', async (req, res) => {
   }
 });
 
-// DELETE /api/admin/instagram/:id — Cancelar publicação agendada
+// DELETE /api/admin/instagram/:id
 router.delete('/:id', async (req, res) => {
   try {
-    const pb = await getPocketbaseClient();
-    await pb.collection('instagram_publicacoes').delete(req.params.id);
+    await dynamo.send(new DeleteCommand({
+      TableName: TABLE,
+      Key: { PK: `INSTAGRAM#${req.params.id}`, SK: `INSTAGRAM#${req.params.id}` },
+    }));
     res.json({ success: true, message: 'Publicação cancelada' });
   } catch (error) {
     res.status(400).json({ success: false, message: error.message });

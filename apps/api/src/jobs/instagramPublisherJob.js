@@ -77,4 +77,6 @@ async function processarPublicacoes() {
   }
 }
 
-export default { startInstagramPublisherJob };
+export const handler = async () => { await processarPublicacoes(); };
+
+export default { handler };

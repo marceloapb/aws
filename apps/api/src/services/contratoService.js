@@ -1,8 +1,5 @@
-// ══════════════════════════════════════════════════════════════
-// SERVICES/CONTRATO-SERVICE.JS — Geração e assinatura de contratos
-// ══════════════════════════════════════════════════════════════
-
-import { getPocketbaseClient } from '../config/pocketbase.js';
+import { dynamo, TABLE } from '../config/dynamodb.js';
+import { QueryCommand, GetCommand, PutCommand, UpdateCommand } from '@aws-sdk/lib-dynamodb';
 import { enviarTemplate } from './whatsappService.js';
 import { env } from '../config/env.js';
 
@@ -15,19 +12,36 @@ const TEMPLATES = {
 };
 
 export async function gerarContrato(orcamentoId) {
-  const pb = await getPocketbaseClient();
+  // Buscar orçamento
+  const orcResult = await dynamo.send(new QueryCommand({
+    TableName: TABLE,
+    IndexName: 'GSI1',
+    KeyConditionExpression: 'GSI1PK = :pk AND GSI1SK = :sk',
+    ExpressionAttributeValues: { ':pk': 'ORCAMENTO', ':sk': `ORCAMENTO#${orcamentoId}` },
+  }));
+  const orcamento = orcResult.Items?.[0];
+  if (!orcamento) throw new Error('Orçamento não encontrado');
 
-  const orcamento = await pb.collection('orcamentos').getOne(orcamentoId, { expand: 'cliente_id' });
-  const cliente = orcamento.expand?.cliente_id;
-
+  // Buscar cliente
+  const cliResult = await dynamo.send(new QueryCommand({
+    TableName: TABLE,
+    IndexName: 'GSI1',
+    KeyConditionExpression: 'GSI1PK = :pk AND GSI1SK = :sk',
+    ExpressionAttributeValues: { ':pk': 'CLIENTE', ':sk': `CLIENTE#${orcamento.cliente_id}` },
+  }));
+  const cliente = cliResult.Items?.[0];
   if (!cliente) throw new Error('Cliente não encontrado no orçamento');
 
-  // Buscar template
+  // Buscar template de configuração
+  const TENANT = process.env.TENANT_ID || 'default';
   const templateKey = TEMPLATES[orcamento.tipo_evento] || TEMPLATES.default;
-  const templates = await pb.collection('configuracoes').getFullList({ filter: `chave = "${templateKey}"` });
-  let conteudo = templates[0]?.valor || getTemplateDefault(orcamento.tipo_evento);
+  const cfgResult = await dynamo.send(new QueryCommand({
+    TableName: TABLE,
+    KeyConditionExpression: 'PK = :pk AND SK = :sk',
+    ExpressionAttributeValues: { ':pk': `TENANT#${TENANT}`, ':sk': `CONFIG#${templateKey}` },
+  }));
+  let conteudo = cfgResult.Items?.[0]?.valor || getTemplateDefault(orcamento.tipo_evento);
 
-  // Substituir variáveis
   conteudo = conteudo
     .replace(/{{cliente_nome}}/g, cliente.nome)
     .replace(/{{cliente_cpf}}/g, cliente.cpf || '')
@@ -39,34 +53,51 @@ export async function gerarContrato(orcamentoId) {
     .replace(/{{valor_total}}/g, `R$ ${orcamento.valor_total?.toFixed(2)}`)
     .replace(/{{data_hoje}}/g, new Date().toLocaleDateString('pt-BR'));
 
-  // Criar contrato
-  const contrato = await pb.collection('contratos').create({
+  const id = crypto.randomUUID();
+  const contrato = {
+    id,
+    PK: `CLIENTE#${cliente.id}`, SK: `CONTRATO#${id}`,
+    GSI1PK: 'CONTRATO', GSI1SK: `CONTRATO#${id}`,
     cliente_id: cliente.id,
     orcamento_id: orcamentoId,
     conteudo_html: conteudo,
     status: 'rascunho',
     token_assinatura: crypto.randomUUID(),
-  });
-
+    created: new Date().toISOString(),
+  };
+  await dynamo.send(new PutCommand({ TableName: TABLE, Item: contrato }));
   return contrato;
 }
 
 export async function enviarParaAssinatura(contratoId) {
-  const pb = await getPocketbaseClient();
-  const contrato = await pb.collection('contratos').getOne(contratoId, { expand: 'cliente_id' });
-  const cliente = contrato.expand?.cliente_id;
+  const result = await dynamo.send(new QueryCommand({
+    TableName: TABLE,
+    IndexName: 'GSI1',
+    KeyConditionExpression: 'GSI1PK = :pk AND GSI1SK = :sk',
+    ExpressionAttributeValues: { ':pk': 'CONTRATO', ':sk': `CONTRATO#${contratoId}` },
+  }));
+  const contrato = result.Items?.[0];
+  if (!contrato) throw new Error('Contrato não encontrado');
 
+  const cliResult = await dynamo.send(new QueryCommand({
+    TableName: TABLE,
+    IndexName: 'GSI1',
+    KeyConditionExpression: 'GSI1PK = :pk AND GSI1SK = :sk',
+    ExpressionAttributeValues: { ':pk': 'CLIENTE', ':sk': `CLIENTE#${contrato.cliente_id}` },
+  }));
+  const cliente = cliResult.Items?.[0];
   if (!cliente) throw new Error('Cliente não encontrado');
 
   const link = `${env.FRONTEND_URL}/contrato/${contrato.token_assinatura}`;
 
-  // Atualizar status
-  await pb.collection('contratos').update(contratoId, {
-    status: 'enviado',
-    enviado_em: new Date().toISOString(),
-  });
+  await dynamo.send(new UpdateCommand({
+    TableName: TABLE,
+    Key: { PK: contrato.PK, SK: contrato.SK },
+    UpdateExpression: 'SET #s = :s, enviado_em = :e',
+    ExpressionAttributeNames: { '#s': 'status' },
+    ExpressionAttributeValues: { ':s': 'enviado', ':e': new Date().toISOString() },
+  }));
 
-  // Enviar WhatsApp se disponível
   if (cliente.whatsapp_numero) {
     try {
       await enviarTemplate(cliente.whatsapp_numero, 'contrato_assinatura', [cliente.nome, link]);
@@ -79,21 +110,30 @@ export async function enviarParaAssinatura(contratoId) {
 }
 
 export async function assinarContrato(token, dadosAssinatura) {
-  const pb = await getPocketbaseClient();
-
-  const contratos = await pb.collection('contratos').getFullList({ filter: `token_assinatura = "${token}"` });
-  if (contratos.length === 0) throw new Error('Contrato não encontrado');
-
-  const contrato = contratos[0];
+  const result = await dynamo.send(new QueryCommand({
+    TableName: TABLE,
+    IndexName: 'GSI1',
+    KeyConditionExpression: 'GSI1PK = :pk',
+    FilterExpression: 'token_assinatura = :token',
+    ExpressionAttributeValues: { ':pk': 'CONTRATO', ':token': token },
+  }));
+  if (!result.Items || result.Items.length === 0) throw new Error('Contrato não encontrado');
+  const contrato = result.Items[0];
   if (contrato.status === 'assinado') throw new Error('Contrato já foi assinado');
 
-  await pb.collection('contratos').update(contrato.id, {
-    status: 'assinado',
-    assinado_em: new Date().toISOString(),
-    ip_assinatura: dadosAssinatura.ip,
-    user_agent_assinatura: dadosAssinatura.userAgent,
-    assinatura_hash: dadosAssinatura.hash,
-  });
+  await dynamo.send(new UpdateCommand({
+    TableName: TABLE,
+    Key: { PK: contrato.PK, SK: contrato.SK },
+    UpdateExpression: 'SET #s = :s, assinado_em = :a, ip_assinatura = :ip, user_agent_assinatura = :ua, assinatura_hash = :h',
+    ExpressionAttributeNames: { '#s': 'status' },
+    ExpressionAttributeValues: {
+      ':s': 'assinado',
+      ':a': new Date().toISOString(),
+      ':ip': dadosAssinatura.ip,
+      ':ua': dadosAssinatura.userAgent,
+      ':h': dadosAssinatura.hash,
+    },
+  }));
 
   return { success: true };
 }

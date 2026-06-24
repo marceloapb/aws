@@ -1,72 +1,99 @@
-// ══════════════════════════════════════════════════════════════
-// ROUTES/ADMIN-CLIENTES.JS — CRUD de clientes
-// ══════════════════════════════════════════════════════════════
-
 import { Router } from 'express';
-import { getPocketbaseClient } from '../config/pocketbase.js';
+import { dynamo, TABLE } from '../config/dynamodb.js';
+import { QueryCommand, GetCommand, PutCommand, UpdateCommand, DeleteCommand, ScanCommand } from '@aws-sdk/lib-dynamodb';
 
 const router = Router();
+const TENANT = process.env.TENANT_ID || 'default';
 
-// GET /api/admin/clientes — Listar clientes
+// GET /api/admin/clientes
 router.get('/', async (req, res) => {
   try {
-    const pb = await getPocketbaseClient();
     const { search, page = 1, limit = 50 } = req.query;
 
-    let filter = '';
+    const result = await dynamo.send(new QueryCommand({
+      TableName: TABLE,
+      KeyConditionExpression: 'PK = :pk AND begins_with(SK, :sk)',
+      ExpressionAttributeValues: { ':pk': `TENANT#${TENANT}`, ':sk': 'CLIENTE#' },
+    }));
+
+    let items = result.Items || [];
     if (search) {
-      filter = `nome ~ "${search}" || email ~ "${search}" || whatsapp_numero ~ "${search}"`;
+      const s = search.toLowerCase();
+      items = items.filter(c =>
+        c.nome?.toLowerCase().includes(s) ||
+        c.email?.toLowerCase().includes(s) ||
+        c.whatsapp_numero?.includes(s)
+      );
     }
 
-    const result = await pb.collection('clientes').getList(Number(page), Number(limit), {
-      filter,
-      sort: '-created',
-    });
+    const total = items.length;
+    const start = (Number(page) - 1) * Number(limit);
+    const data = items.slice(start, start + Number(limit));
 
-    res.json({ success: true, data: result.items, pagination: { page: result.page, totalPages: result.totalPages, totalItems: result.totalItems } });
+    res.json({ success: true, data, pagination: { page: Number(page), totalPages: Math.ceil(total / Number(limit)), totalItems: total } });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
 });
 
-// GET /api/admin/clientes/:id — Detalhe do cliente
+// GET /api/admin/clientes/:id
 router.get('/:id', async (req, res) => {
   try {
-    const pb = await getPocketbaseClient();
-    const cliente = await pb.collection('clientes').getOne(req.params.id);
-    res.json({ success: true, data: cliente });
+    const result = await dynamo.send(new GetCommand({
+      TableName: TABLE,
+      Key: { PK: `TENANT#${TENANT}`, SK: `CLIENTE#${req.params.id}` },
+    }));
+    if (!result.Item) return res.status(404).json({ success: false, message: 'Cliente não encontrado' });
+    res.json({ success: true, data: result.Item });
   } catch (error) {
     res.status(404).json({ success: false, message: 'Cliente não encontrado' });
   }
 });
 
-// POST /api/admin/clientes — Criar cliente
+// POST /api/admin/clientes
 router.post('/', async (req, res) => {
   try {
-    const pb = await getPocketbaseClient();
-    const cliente = await pb.collection('clientes').create(req.body);
-    res.status(201).json({ success: true, data: cliente });
+    const id = crypto.randomUUID();
+    const item = { ...req.body, id, PK: `TENANT#${TENANT}`, SK: `CLIENTE#${id}`, created: new Date().toISOString() };
+    await dynamo.send(new PutCommand({ TableName: TABLE, Item: item }));
+    res.status(201).json({ success: true, data: item });
   } catch (error) {
     res.status(400).json({ success: false, message: error.message });
   }
 });
 
-// PUT /api/admin/clientes/:id — Atualizar cliente
+// PUT /api/admin/clientes/:id
 router.put('/:id', async (req, res) => {
   try {
-    const pb = await getPocketbaseClient();
-    const cliente = await pb.collection('clientes').update(req.params.id, req.body);
-    res.json({ success: true, data: cliente });
+    const updates = req.body;
+    const keys = Object.keys(updates);
+    if (keys.length === 0) return res.status(400).json({ success: false, message: 'Nenhum campo para atualizar' });
+
+    const expr = 'SET ' + keys.map((k, i) => `#f${i} = :v${i}`).join(', ');
+    const names = Object.fromEntries(keys.map((k, i) => [`#f${i}`, k]));
+    const vals = Object.fromEntries(keys.map((k, i) => [`:v${i}`, updates[k]]));
+
+    const result = await dynamo.send(new UpdateCommand({
+      TableName: TABLE,
+      Key: { PK: `TENANT#${TENANT}`, SK: `CLIENTE#${req.params.id}` },
+      UpdateExpression: expr,
+      ExpressionAttributeNames: names,
+      ExpressionAttributeValues: vals,
+      ReturnValues: 'ALL_NEW',
+    }));
+    res.json({ success: true, data: result.Attributes });
   } catch (error) {
     res.status(400).json({ success: false, message: error.message });
   }
 });
 
-// DELETE /api/admin/clientes/:id — Excluir cliente
+// DELETE /api/admin/clientes/:id
 router.delete('/:id', async (req, res) => {
   try {
-    const pb = await getPocketbaseClient();
-    await pb.collection('clientes').delete(req.params.id);
+    await dynamo.send(new DeleteCommand({
+      TableName: TABLE,
+      Key: { PK: `TENANT#${TENANT}`, SK: `CLIENTE#${req.params.id}` },
+    }));
     res.json({ success: true, message: 'Cliente excluído' });
   } catch (error) {
     res.status(400).json({ success: false, message: error.message });

@@ -34,4 +34,6 @@ async function executarSync() {
   }
 }
 
-export default { startCalendarSyncJob };
+export const handler = async () => { await executarSync(); };
+
+export default { handler };

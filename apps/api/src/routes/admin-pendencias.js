@@ -1,78 +1,97 @@
-// ══════════════════════════════════════════════════════════════
-// ROUTES/ADMIN-PENDENCIAS.JS — Gerenciamento de pendências/tarefas
-// ══════════════════════════════════════════════════════════════
-
 import { Router } from 'express';
-import { getPocketbaseClient } from '../config/pocketbase.js';
+import { dynamo, TABLE } from '../config/dynamodb.js';
+import { QueryCommand, PutCommand, UpdateCommand, DeleteCommand } from '@aws-sdk/lib-dynamodb';
 
 const router = Router();
+const TENANT = process.env.TENANT_ID || 'default';
 
-// GET /api/admin/pendencias — Listar pendências
+// GET /api/admin/pendencias
 router.get('/', async (req, res) => {
   try {
-    const pb = await getPocketbaseClient();
     const { status, prioridade, page = 1, limit = 50 } = req.query;
 
+    const params = {
+      TableName: TABLE,
+      KeyConditionExpression: 'PK = :pk AND begins_with(SK, :sk)',
+      ExpressionAttributeValues: { ':pk': `TENANT#${TENANT}`, ':sk': 'PENDENCIA#' },
+    };
     const filters = [];
-    if (status) filters.push(`status = "${status}"`);
-    if (prioridade) filters.push(`prioridade = "${prioridade}"`);
-    const filter = filters.join(' && ');
+    const names = {};
+    if (status) { filters.push('#s = :status'); names['#s'] = 'status'; params.ExpressionAttributeValues[':status'] = status; }
+    if (prioridade) { filters.push('prioridade = :p'); params.ExpressionAttributeValues[':p'] = prioridade; }
+    if (filters.length > 0) {
+      params.FilterExpression = filters.join(' AND ');
+      if (Object.keys(names).length > 0) params.ExpressionAttributeNames = names;
+    }
 
-    const result = await pb.collection('pendencias').getList(Number(page), Number(limit), {
-      filter,
-      sort: '-prioridade,-created',
-    });
+    const result = await dynamo.send(new QueryCommand(params));
+    const items = result.Items || [];
 
-    res.json({ success: true, data: result.items, pagination: { page: result.page, totalPages: result.totalPages, totalItems: result.totalItems } });
+    const total = items.length;
+    const start = (Number(page) - 1) * Number(limit);
+    const data = items.slice(start, start + Number(limit));
+
+    res.json({ success: true, data, pagination: { page: Number(page), totalPages: Math.ceil(total / Number(limit)), totalItems: total } });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
 });
 
-// POST /api/admin/pendencias — Criar
+// POST /api/admin/pendencias
 router.post('/', async (req, res) => {
   try {
-    const pb = await getPocketbaseClient();
-    const pendencia = await pb.collection('pendencias').create({
-      ...req.body,
-      status: 'pendente',
-    });
-    res.status(201).json({ success: true, data: pendencia });
+    const id = crypto.randomUUID();
+    const item = { ...req.body, id, status: 'pendente', PK: `TENANT#${TENANT}`, SK: `PENDENCIA#${id}`, created: new Date().toISOString() };
+    await dynamo.send(new PutCommand({ TableName: TABLE, Item: item }));
+    res.status(201).json({ success: true, data: item });
   } catch (error) {
     res.status(400).json({ success: false, message: error.message });
   }
 });
 
-// PUT /api/admin/pendencias/:id — Atualizar
+// PUT /api/admin/pendencias/:id
 router.put('/:id', async (req, res) => {
   try {
-    const pb = await getPocketbaseClient();
-    const pendencia = await pb.collection('pendencias').update(req.params.id, req.body);
-    res.json({ success: true, data: pendencia });
+    const updates = req.body;
+    const keys = Object.keys(updates);
+    const expr = 'SET ' + keys.map((k, i) => `#f${i} = :v${i}`).join(', ');
+    const names = Object.fromEntries(keys.map((k, i) => [`#f${i}`, k]));
+    const vals = Object.fromEntries(keys.map((k, i) => [`:v${i}`, updates[k]]));
+    const result = await dynamo.send(new UpdateCommand({
+      TableName: TABLE,
+      Key: { PK: `TENANT#${TENANT}`, SK: `PENDENCIA#${req.params.id}` },
+      UpdateExpression: expr,
+      ExpressionAttributeNames: names,
+      ExpressionAttributeValues: vals,
+      ReturnValues: 'ALL_NEW',
+    }));
+    res.json({ success: true, data: result.Attributes });
   } catch (error) {
     res.status(400).json({ success: false, message: error.message });
   }
 });
 
-// POST /api/admin/pendencias/:id/concluir — Marcar como concluída
+// POST /api/admin/pendencias/:id/concluir
 router.post('/:id/concluir', async (req, res) => {
   try {
-    const pb = await getPocketbaseClient();
-    const pendencia = await pb.collection('pendencias').update(req.params.id, {
-      status: 'concluida',
-      concluida_em: new Date().toISOString(),
-    });
-    res.json({ success: true, data: pendencia });
+    const result = await dynamo.send(new UpdateCommand({
+      TableName: TABLE,
+      Key: { PK: `TENANT#${TENANT}`, SK: `PENDENCIA#${req.params.id}` },
+      UpdateExpression: 'SET #s = :s, concluida_em = :c',
+      ExpressionAttributeNames: { '#s': 'status' },
+      ExpressionAttributeValues: { ':s': 'concluida', ':c': new Date().toISOString() },
+      ReturnValues: 'ALL_NEW',
+    }));
+    res.json({ success: true, data: result.Attributes });
   } catch (error) {
     res.status(400).json({ success: false, message: error.message });
   }
 });
 
-// DELETE /api/admin/pendencias/:id — Excluir
+// DELETE /api/admin/pendencias/:id
 router.delete('/:id', async (req, res) => {
   try {
-    const pb = await getPocketbaseClient();
-    await pb.collection('pendencias').delete(req.params.id);
+    await dynamo.send(new DeleteCommand({ TableName: TABLE, Key: { PK: `TENANT#${TENANT}`, SK: `PENDENCIA#${req.params.id}` } }));
     res.json({ success: true, message: 'Pendência excluída' });
   } catch (error) {
     res.status(400).json({ success: false, message: error.message });

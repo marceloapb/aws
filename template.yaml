@@ -1,0 +1,136 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+
+Globals:
+  Function:
+    Runtime: nodejs20.x
+    CodeUri: apps/api/
+    Environment:
+      Variables:
+        NODE_ENV: production
+        AWS_REGION: !Ref AWS::Region
+        DYNAMODB_TABLE_NAME: !Ref DynamoTable
+
+Resources:
+  DynamoTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: horizons
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: PK
+          AttributeType: S
+        - AttributeName: SK
+          AttributeType: S
+        - AttributeName: GSI1PK
+          AttributeType: S
+        - AttributeName: GSI1SK
+          AttributeType: S
+        - AttributeName: GSI2PK
+          AttributeType: S
+        - AttributeName: GSI2SK
+          AttributeType: S
+      KeySchema:
+        - AttributeName: PK
+          KeyType: HASH
+        - AttributeName: SK
+          KeyType: RANGE
+      GlobalSecondaryIndexes:
+        - IndexName: GSI1
+          KeySchema:
+            - AttributeName: GSI1PK
+              KeyType: HASH
+            - AttributeName: GSI1SK
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+        - IndexName: GSI2
+          KeySchema:
+            - AttributeName: GSI2PK
+              KeyType: HASH
+            - AttributeName: GSI2SK
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+
+  ApiFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: src/handler.handler
+      MemorySize: 512
+      Timeout: 30
+      Events:
+        Api:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /{proxy+}
+            Method: ANY
+
+  HttpApi:
+    Type: AWS::Serverless::HttpApi
+    Properties:
+      StageName: prod
+      DefaultRouteSettings:
+        ThrottlingBurstLimit: 50
+        ThrottlingRateLimit: 100
+
+  AlbumRetentionFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: src/jobs/albumRetentionJob.handler
+      MemorySize: 256
+      Timeout: 300
+      Events:
+        Schedule:
+          Type: Schedule
+          Properties:
+            Schedule: cron(0 3 * * ? *)
+
+  BackupFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: src/jobs/backupJob.handler
+      MemorySize: 256
+      Timeout: 300
+      Events:
+        Schedule:
+          Type: Schedule
+          Properties:
+            Schedule: cron(0 2 * * ? *)
+
+  CalendarSyncFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: src/jobs/calendarSyncJob.handler
+      MemorySize: 256
+      Timeout: 300
+      Events:
+        Schedule:
+          Type: Schedule
+          Properties:
+            Schedule: rate(15 minutes)
+
+  InstagramPublisherFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: src/jobs/instagramPublisherJob.handler
+      MemorySize: 256
+      Timeout: 300
+      Events:
+        Schedule:
+          Type: Schedule
+          Properties:
+            Schedule: rate(1 hour)
+
+  WhatsappReminderFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: src/jobs/whatsappReminderJob.handler
+      MemorySize: 256
+      Timeout: 300
+      Events:
+        Schedule:
+          Type: Schedule
+          Properties:
+            Schedule: cron(0 11 * * ? *)

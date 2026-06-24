@@ -1,15 +1,18 @@
 import { Router } from 'express';
-import { getPocketbaseClient } from '../config/pocketbase.js';
+import { dynamo, TABLE } from '../config/dynamodb.js';
+import { QueryCommand, UpdateCommand } from '@aws-sdk/lib-dynamodb';
 
 const router = Router();
 
 router.get('/', async (req, res) => {
   try {
-    const pb = await getPocketbaseClient();
-    const orcamentos = await pb.collection('orcamentos').getFullList({
-      filter: `cliente_id = "${req.clienteId}"`, sort: '-created',
-    });
-    res.json({ success: true, data: orcamentos });
+    const result = await dynamo.send(new QueryCommand({
+      TableName: TABLE,
+      KeyConditionExpression: 'PK = :pk AND begins_with(SK, :sk)',
+      ExpressionAttributeValues: { ':pk': `CLIENTE#${req.clienteId}`, ':sk': 'ORCAMENTO#' },
+    }));
+    const items = (result.Items || []).sort((a, b) => (b.created || '').localeCompare(a.created || ''));
+    res.json({ success: true, data: items });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
@@ -17,12 +20,15 @@ router.get('/', async (req, res) => {
 
 router.get('/:token', async (req, res) => {
   try {
-    const pb = await getPocketbaseClient();
-    const orcamentos = await pb.collection('orcamentos').getFullList({
-      filter: `token_acesso = "${req.params.token}"`, expand: 'cliente_id',
-    });
-    if (orcamentos.length === 0) return res.status(404).json({ success: false, message: 'Orçamento não encontrado' });
-    res.json({ success: true, data: orcamentos[0] });
+    const result = await dynamo.send(new QueryCommand({
+      TableName: TABLE,
+      IndexName: 'GSI1',
+      KeyConditionExpression: 'GSI1PK = :pk',
+      FilterExpression: 'token_acesso = :token',
+      ExpressionAttributeValues: { ':pk': 'ORCAMENTO', ':token': req.params.token },
+    }));
+    if (!result.Items || result.Items.length === 0) return res.status(404).json({ success: false, message: 'Orçamento não encontrado' });
+    res.json({ success: true, data: result.Items[0] });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
@@ -30,11 +36,23 @@ router.get('/:token', async (req, res) => {
 
 router.post('/:id/aprovar', async (req, res) => {
   try {
-    const pb = await getPocketbaseClient();
-    const orcamento = await pb.collection('orcamentos').getOne(req.params.id);
-    if (orcamento.cliente_id !== req.clienteId) return res.status(403).json({ success: false, message: 'Acesso negado' });
+    // Verificar ownership
+    const check = await dynamo.send(new QueryCommand({
+      TableName: TABLE,
+      KeyConditionExpression: 'PK = :pk AND SK = :sk',
+      ExpressionAttributeValues: { ':pk': `CLIENTE#${req.clienteId}`, ':sk': `ORCAMENTO#${req.params.id}` },
+    }));
+    if (!check.Items || check.Items.length === 0) return res.status(403).json({ success: false, message: 'Acesso negado' });
+    const orcamento = check.Items[0];
     if (orcamento.status !== 'enviado') return res.status(400).json({ success: false, message: 'Orçamento não pode ser aprovado neste status' });
-    await pb.collection('orcamentos').update(req.params.id, { status: 'aprovado', aprovado_em: new Date().toISOString() });
+
+    await dynamo.send(new UpdateCommand({
+      TableName: TABLE,
+      Key: { PK: orcamento.PK, SK: orcamento.SK },
+      UpdateExpression: 'SET #s = :s, aprovado_em = :a',
+      ExpressionAttributeNames: { '#s': 'status' },
+      ExpressionAttributeValues: { ':s': 'aprovado', ':a': new Date().toISOString() },
+    }));
     res.json({ success: true, message: 'Orçamento aprovado' });
   } catch (error) {
     res.status(400).json({ success: false, message: error.message });
