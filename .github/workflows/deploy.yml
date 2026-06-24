@@ -1,0 +1,56 @@
+name: Deploy Horizons
+
+on:
+  push:
+    branches: [main]
+
+env:
+  AWS_REGION: sa-east-1
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: apps/api/package-lock.json
+      - run: cd apps/api && npm ci
+      - run: cd apps/api && npm test --if-present
+
+  deploy-frontend:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - run: cd apps/web && npm ci && npm run build
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+      - run: aws s3 sync apps/web/dist s3://${{ secrets.FRONTEND_BUCKET }} --delete
+      - run: aws cloudfront create-invalidation --distribution-id ${{ secrets.CLOUDFRONT_ID }} --paths "/*"
+
+  deploy-backend:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+      - uses: aws-actions/amazon-ecr-login@v2
+      - run: |
+          cd apps/api
+          docker build -t horizons-api .
+          docker tag horizons-api:latest ${{ secrets.ECR_REGISTRY }}/horizons-api:latest
+          docker push ${{ secrets.ECR_REGISTRY }}/horizons-api:latest
+      - run: aws apprunner start-deployment --service-arn ${{ secrets.APPRUNNER_SERVICE_ARN }}
