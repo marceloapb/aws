@@ -46,13 +46,13 @@ export async function getAuthenticatedClient() {
   });
 
   // Renovar token se expirado
-  const tokenInfo = await oauth2Client.getAccessToken();
-  if (tokenInfo.token !== config.access_token) {
+  oauth2Client.on('tokens', async (tokens) => {
     await pb.collection('google_calendar_config').update(config.id, {
-      access_token: tokenInfo.token,
-      token_expiry: new Date(oauth2Client.credentials.expiry_date).toISOString(),
+      access_token: tokens.access_token,
+      ...(tokens.refresh_token && { refresh_token: tokens.refresh_token }),
+      token_expiry: new Date(tokens.expiry_date).toISOString(),
     });
-  }
+  });
 
   return { oauth2Client, config };
 }
@@ -61,9 +61,9 @@ export async function criarEvento(evento) {
   const { oauth2Client, config } = await getAuthenticatedClient();
   const calendar = google.calendar({ version: 'v3', auth: oauth2Client });
 
-  const eventData = {
-    summary: `${evento.tipo_evento} — ${evento.cliente_nome || 'Sem cliente'}`,
-    description: evento.observacoes || '',
+  const eventBody = {
+    summary: `${evento.tipo_evento} — ${evento.cliente_nome || 'Cliente'}`,
+    description: buildDescription(evento),
     location: evento.local_evento || '',
     start: {
       dateTime: `${evento.data_evento}T${evento.horario_inicio || '09:00'}:00`,
@@ -73,24 +73,25 @@ export async function criarEvento(evento) {
       dateTime: `${evento.data_evento}T${evento.horario_fim || '18:00'}:00`,
       timeZone: 'America/Sao_Paulo',
     },
-    colorId: evento.cor_calendario || undefined,
+    colorId: evento.cor_calendario || '7',
+    reminders: { useDefault: true },
   };
 
-  const result = await calendar.events.insert({
+  const response = await calendar.events.insert({
     calendarId: config.calendar_id || 'primary',
-    resource: eventData,
+    resource: eventBody,
   });
 
-  return result.data;
+  return response.data;
 }
 
 export async function atualizarEvento(googleEventId, evento) {
   const { oauth2Client, config } = await getAuthenticatedClient();
   const calendar = google.calendar({ version: 'v3', auth: oauth2Client });
 
-  const eventData = {
-    summary: `${evento.tipo_evento} — ${evento.cliente_nome || 'Sem cliente'}`,
-    description: evento.observacoes || '',
+  const eventBody = {
+    summary: `${evento.tipo_evento} — ${evento.cliente_nome || 'Cliente'}`,
+    description: buildDescription(evento),
     location: evento.local_evento || '',
     start: {
       dateTime: `${evento.data_evento}T${evento.horario_inicio || '09:00'}:00`,
@@ -100,19 +101,19 @@ export async function atualizarEvento(googleEventId, evento) {
       dateTime: `${evento.data_evento}T${evento.horario_fim || '18:00'}:00`,
       timeZone: 'America/Sao_Paulo',
     },
-    colorId: evento.cor_calendario || undefined,
+    colorId: evento.cor_calendario || '7',
   };
 
-  const result = await calendar.events.update({
+  const response = await calendar.events.update({
     calendarId: config.calendar_id || 'primary',
     eventId: googleEventId,
-    resource: eventData,
+    resource: eventBody,
   });
 
-  return result.data;
+  return response.data;
 }
 
-export async function deletarEvento(googleEventId) {
+export async function excluirEvento(googleEventId) {
   const { oauth2Client, config } = await getAuthenticatedClient();
   const calendar = google.calendar({ version: 'v3', auth: oauth2Client });
 
@@ -126,7 +127,7 @@ export async function listarEventos(timeMin, timeMax) {
   const { oauth2Client, config } = await getAuthenticatedClient();
   const calendar = google.calendar({ version: 'v3', auth: oauth2Client });
 
-  const result = await calendar.events.list({
+  const response = await calendar.events.list({
     calendarId: config.calendar_id || 'primary',
     timeMin: timeMin.toISOString(),
     timeMax: timeMax.toISOString(),
@@ -134,14 +135,15 @@ export async function listarEventos(timeMin, timeMax) {
     orderBy: 'startTime',
   });
 
-  return result.data.items || [];
+  return response.data.items || [];
 }
 
-export default {
-  getAuthUrl,
-  getAuthenticatedClient,
-  criarEvento,
-  atualizarEvento,
-  deletarEvento,
-  listarEventos,
-};
+function buildDescription(evento) {
+  const lines = [];
+  if (evento.cliente_nome) lines.push(`👤 Cliente: ${evento.cliente_nome}`);
+  if (evento.cliente_telefone) lines.push(`📱 Tel: ${evento.cliente_telefone}`);
+  if (evento.observacoes) lines.push(`📝 Obs: ${evento.observacoes}`);
+  if (evento.orcamento_id) lines.push(`💰 Orçamento: ${evento.orcamento_id}`);
+  lines.push(`\n🔗 Sistema: ${env.FRONTEND_URL}/admin/agenda`);
+  return lines.join('\n');
+}

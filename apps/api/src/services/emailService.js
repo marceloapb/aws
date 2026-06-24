@@ -15,8 +15,8 @@ const sesClient = new SESClient({
 
 export async function enviarEmail({ para, assunto, html, texto }) {
   if (!features.email) {
-    console.warn('[EMAIL] Feature desabilitada — email não enviado');
-    return { success: false, reason: 'feature_disabled' };
+    console.warn('[EMAIL] Serviço de email não configurado. Pulando envio.');
+    return { success: false, reason: 'not_configured' };
   }
 
   try {
@@ -86,7 +86,7 @@ export async function enviarLinkContrato(email, nomeCliente, linkContrato) {
         <p>Olá, ${nomeCliente}!</p>
         <p>Seu contrato está pronto para assinatura digital.</p>
         <a href="${linkContrato}" style="display: inline-block; background: #1e40af; color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; margin: 20px 0;">Assinar Contrato</a>
-        <p style="color: #6b7280; font-size: 14px;">A assinatura digital tem validade jurídica.</p>
+        <p style="color: #6b7280; font-size: 14px;">A assinatura é digital e tem validade jurídica.</p>
       </div>
     `,
   });

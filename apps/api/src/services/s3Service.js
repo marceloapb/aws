@@ -2,7 +2,7 @@
 // SERVICES/S3-SERVICE.JS — Upload, download e gerenciamento S3
 // ══════════════════════════════════════════════════════════════
 
-import { PutObjectCommand, DeleteObjectCommand, GetObjectCommand, ListObjectsV2Command } from '@aws-sdk/client-s3';
+import { PutObjectCommand, GetObjectCommand, DeleteObjectCommand, ListObjectsV2Command } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import sharp from 'sharp';
 import { s3Client } from '../config/s3.js';
@@ -70,12 +70,13 @@ export async function deleteAlbumFolder(albumId) {
   }));
 
   if (listResult.Contents && listResult.Contents.length > 0) {
-    for (const obj of listResult.Contents) {
-      await s3Client.send(new DeleteObjectCommand({
+    const deletePromises = listResult.Contents.map((obj) =>
+      s3Client.send(new DeleteObjectCommand({
         Bucket: env.S3_BUCKET,
         Key: obj.Key,
-      }));
-    }
+      }))
+    );
+    await Promise.all(deletePromises);
   }
 }
 
