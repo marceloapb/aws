@@ -6,28 +6,29 @@ export const useClientsStore = create((set, get) => ({
   loading: false,
   nextToken: null,
 
-  fetchClients: async (limit = 50) => {
+  fetchClients: async (reset = false) => {
     set({ loading: true });
     try {
-      const res = await clientsService.list(limit);
-      set({ clients: res.data.clients, nextToken: res.data.nextToken });
-    } finally {
+      const token = reset ? null : get().nextToken;
+      const result = await clientsService.list(20, token);
+      set((state) => ({
+        clients: reset ? result.clients : [...state.clients, ...result.clients],
+        nextToken: result.nextToken || null,
+        loading: false
+      }));
+    } catch (error) {
       set({ loading: false });
+      throw error;
     }
   },
 
   createClient: async (data) => {
-    const res = await clientsService.create(data);
-    set({ clients: [res.data.client, ...get().clients] });
-    return res.data.client;
+    const result = await clientsService.create(data);
+    set((state) => ({
+      clients: [result.client, ...state.clients]
+    }));
+    return result;
   },
 
-  updateClient: async (clientId, data) => {
-    await clientsService.update(clientId, data);
-    set({
-      clients: get().clients.map((c) =>
-        c.id === clientId ? { ...c, ...data } : c
-      )
-    });
-  }
+  clearClients: () => set({ clients: [], nextToken: null })
 }));

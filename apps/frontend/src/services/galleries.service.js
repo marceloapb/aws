@@ -1,21 +1,36 @@
 import api from './api';
 
 export const galleriesService = {
-  create: (data) =>
-    api.post('/galleries', data),
+  async create(galleryData) {
+    const { data } = await api.post('/galleries', galleryData);
+    return data;
+  },
 
-  list: (limit, nextToken) =>
-    api.get('/galleries', { params: { limit, nextToken } }),
+  async list(limit = 20, nextToken = null) {
+    const params = {};
+    if (limit) params.limit = limit;
+    if (nextToken) params.nextToken = nextToken;
+    const { data } = await api.get('/galleries', { params });
+    return data;
+  },
 
-  get: (galleryId) =>
-    api.get(`/galleries/${galleryId}`),
+  async get(galleryId) {
+    const { data } = await api.get(`/galleries/${galleryId}`);
+    return data;
+  },
 
-  update: (galleryId, data) =>
-    api.put(`/galleries/${galleryId}`, data),
+  async update(galleryId, updateData) {
+    const { data } = await api.put(`/galleries/${galleryId}`, updateData);
+    return data;
+  },
 
-  delete: (galleryId) =>
-    api.delete(`/galleries/${galleryId}`),
+  async delete(galleryId) {
+    const { data } = await api.delete(`/galleries/${galleryId}`);
+    return data;
+  },
 
-  share: (galleryId, expiresInDays) =>
-    api.post(`/galleries/${galleryId}/share`, { expiresInDays })
+  async share(galleryId, expiresInDays = 7) {
+    const { data } = await api.post(`/galleries/${galleryId}/share`, { expiresInDays });
+    return data;
+  }
 };

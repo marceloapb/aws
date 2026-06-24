@@ -1,12 +1,15 @@
 import axios from 'axios';
+import { API_URL } from '../utils/constants';
 import { useAuthStore } from '../stores/authStore';
 
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL,
-  headers: { 'Content-Type': 'application/json' }
+  baseURL: API_URL,
+  headers: {
+    'Content-Type': 'application/json'
+  }
 });
 
-// Request interceptor — adiciona token
+// Interceptor: adiciona token em toda request
 api.interceptors.request.use((config) => {
   const { tokens } = useAuthStore.getState();
   if (tokens?.accessToken) {
@@ -15,7 +18,7 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
-// Response interceptor — refresh automático
+// Interceptor: refresh automático ao receber 401
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
@@ -28,20 +31,22 @@ api.interceptors.response.use(
         const { tokens, setTokens } = useAuthStore.getState();
         if (!tokens?.refreshToken) throw new Error('No refresh token');
 
-        const res = await axios.post(`${import.meta.env.VITE_API_URL}/auth/refresh`, {
+        const response = await axios.post(`${API_URL}/auth/refresh`, {
           refreshToken: tokens.refreshToken
         });
 
-        setTokens({
+        const newTokens = {
           ...tokens,
-          accessToken: res.data.accessToken,
-          idToken: res.data.idToken
-        });
+          accessToken: response.data.accessToken,
+          idToken: response.data.idToken
+        };
 
-        originalRequest.headers.Authorization = `Bearer ${res.data.accessToken}`;
+        setTokens(newTokens);
+        originalRequest.headers.Authorization = `Bearer ${newTokens.accessToken}`;
         return api(originalRequest);
       } catch (refreshError) {
         useAuthStore.getState().logout();
+        window.location.href = '/login';
         return Promise.reject(refreshError);
       }
     }

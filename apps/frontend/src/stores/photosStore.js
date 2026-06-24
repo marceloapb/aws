@@ -5,43 +5,41 @@ export const usePhotosStore = create((set, get) => ({
   photos: [],
   loading: false,
   nextToken: null,
+  totalCount: 0,
 
-  fetchPhotos: async (galleryId, limit = 20) => {
+  fetchPhotos: async (galleryId = null, reset = false) => {
     set({ loading: true });
     try {
-      const res = await photosService.listPhotos(galleryId, limit);
-      set({ photos: res.data.photos, nextToken: res.data.nextToken });
-    } finally {
+      const token = reset ? null : get().nextToken;
+      const result = await photosService.listPhotos(galleryId, 20, token);
+      set((state) => ({
+        photos: reset ? result.photos : [...state.photos, ...result.photos],
+        nextToken: result.nextToken || null,
+        totalCount: result.count,
+        loading: false
+      }));
+    } catch (error) {
       set({ loading: false });
+      throw error;
     }
   },
 
-  loadMore: async (galleryId, limit = 20) => {
-    const { nextToken, photos } = get();
-    if (!nextToken) return;
-
-    set({ loading: true });
-    try {
-      const res = await photosService.listPhotos(galleryId, limit, nextToken);
-      set({
-        photos: [...photos, ...res.data.photos],
-        nextToken: res.data.nextToken
-      });
-    } finally {
-      set({ loading: false });
-    }
-  },
-
-  uploadPhoto: async (file, galleryId, onProgress) => {
-    const res = await photosService.getUploadUrl(file.name, file.type, galleryId);
-    await photosService.uploadToS3(res.data.uploadUrl, file, onProgress);
-    return res.data;
+  uploadPhoto: async (file, galleryId = null, onProgress) => {
+    const { uploadUrl, photoId, s3Key } = await photosService.getUploadUrl(
+      file.name,
+      file.type,
+      galleryId
+    );
+    await photosService.uploadToS3(uploadUrl, file, onProgress);
+    return { photoId, s3Key };
   },
 
   deletePhoto: async (photoId) => {
     await photosService.deletePhoto(photoId);
-    set({ photos: get().photos.filter((p) => p.id !== photoId) });
+    set((state) => ({
+      photos: state.photos.filter((p) => p.id !== photoId)
+    }));
   },
 
-  clearPhotos: () => set({ photos: [], nextToken: null })
+  clearPhotos: () => set({ photos: [], nextToken: null, totalCount: 0 })
 }));

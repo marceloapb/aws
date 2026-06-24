@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { authService } from '../services/auth.service';
 
 export const useAuthStore = create(
   persist(
@@ -7,55 +8,57 @@ export const useAuthStore = create(
       user: null,
       tokens: null,
       isAuthenticated: false,
-
-      setUser: (user) => set({ user, isAuthenticated: true }),
-
-      setTokens: (tokens) => set({ tokens }),
+      loading: false,
 
       login: async (email, password) => {
-        const { authService } = await import('../services/auth.service');
-        const res = await authService.login(email, password);
-        const { accessToken, idToken, refreshToken, expiresIn } = res.data;
-
-        // Decodificar idToken para pegar dados do usuário
-        const payload = JSON.parse(atob(idToken.split('.')[1]));
-
-        set({
-          tokens: { accessToken, idToken, refreshToken, expiresIn },
-          user: { id: payload.sub, email: payload.email, name: payload.name },
-          isAuthenticated: true
-        });
-
-        return res.data;
+        set({ loading: true });
+        try {
+          const tokens = await authService.login(email, password);
+          set({
+            tokens,
+            isAuthenticated: true,
+            loading: false
+          });
+          return tokens;
+        } catch (error) {
+          set({ loading: false });
+          throw error;
+        }
       },
 
       logout: () => {
-        set({ user: null, tokens: null, isAuthenticated: false });
-        window.location.href = '/login';
+        set({
+          user: null,
+          tokens: null,
+          isAuthenticated: false
+        });
+      },
+
+      setTokens: (tokens) => {
+        set({ tokens, isAuthenticated: true });
       },
 
       refreshToken: async () => {
         const { tokens } = get();
         if (!tokens?.refreshToken) return;
 
-        const { authService } = await import('../services/auth.service');
-        const res = await authService.refresh(tokens.refreshToken);
-
-        set({
-          tokens: {
-            ...tokens,
-            accessToken: res.data.accessToken,
-            idToken: res.data.idToken
-          }
-        });
+        try {
+          const newTokens = await authService.refresh(tokens.refreshToken);
+          set({
+            tokens: { ...tokens, ...newTokens },
+            isAuthenticated: true
+          });
+        } catch (error) {
+          get().logout();
+        }
       }
     }),
     {
       name: 'mbf-auth',
       partialize: (state) => ({
-        user: state.user,
         tokens: state.tokens,
-        isAuthenticated: state.isAuthenticated
+        isAuthenticated: state.isAuthenticated,
+        user: state.user
       })
     }
   )

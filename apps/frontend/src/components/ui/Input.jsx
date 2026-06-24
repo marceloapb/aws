@@ -1,10 +1,6 @@
-export default function Input({
-  label,
-  error,
-  icon: Icon,
-  className = '',
-  ...props
-}) {
+import { forwardRef } from 'react';
+
+const Input = forwardRef(({ label, error, icon: Icon, className = '', ...props }, ref) => {
   return (
     <div className="w-full">
       {label && (
@@ -19,11 +15,17 @@ export default function Input({
           </div>
         )}
         <input
-          className={`w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent disabled:opacity-50 ${Icon ? 'pl-10' : ''} ${error ? 'border-red-500' : ''} ${className}`}
+          ref={ref}
+          className={`w-full px-3 py-2 border rounded-lg bg-white dark:bg-gray-800 focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none transition-all duration-200 ${Icon ? 'pl-10' : ''} ${error ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'} ${className}`}
           {...props}
         />
       </div>
-      {error && <p className="mt-1 text-sm text-red-500">{error}</p>}
+      {error && (
+        <p className="mt-1 text-sm text-red-500">{error}</p>
+      )}
     </div>
   );
-}
+});
+
+Input.displayName = 'Input';
+export default Input;

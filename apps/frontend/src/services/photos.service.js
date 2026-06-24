@@ -2,20 +2,34 @@ import api from './api';
 import axios from 'axios';
 
 export const photosService = {
-  getUploadUrl: (fileName, contentType, galleryId) =>
-    api.post('/photos/upload-url', { fileName, contentType, galleryId }),
+  async getUploadUrl(fileName, contentType, galleryId = null) {
+    const { data } = await api.post('/photos/upload-url', { fileName, contentType, galleryId });
+    return data;
+  },
 
-  uploadToS3: (uploadUrl, file, onProgress) =>
-    axios.put(uploadUrl, file, {
+  async uploadToS3(uploadUrl, file, onProgress) {
+    await axios.put(uploadUrl, file, {
       headers: { 'Content-Type': file.type },
-      onUploadProgress: (e) => {
-        if (onProgress) onProgress(Math.round((e.loaded * 100) / e.total));
+      onUploadProgress: (progressEvent) => {
+        if (onProgress) {
+          const percent = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+          onProgress(percent);
+        }
       }
-    }),
+    });
+  },
 
-  listPhotos: (galleryId, limit, nextToken) =>
-    api.get('/photos', { params: { galleryId, limit, nextToken } }),
+  async listPhotos(galleryId = null, limit = 20, nextToken = null) {
+    const params = {};
+    if (galleryId) params.galleryId = galleryId;
+    if (limit) params.limit = limit;
+    if (nextToken) params.nextToken = nextToken;
+    const { data } = await api.get('/photos', { params });
+    return data;
+  },
 
-  deletePhoto: (photoId) =>
-    api.delete(`/photos/${photoId}`)
+  async deletePhoto(photoId) {
+    const { data } = await api.delete(`/photos/${photoId}`);
+    return data;
+  }
 };

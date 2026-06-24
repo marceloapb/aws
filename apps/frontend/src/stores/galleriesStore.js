@@ -6,40 +6,36 @@ export const useGalleriesStore = create((set, get) => ({
   loading: false,
   nextToken: null,
 
-  fetchGalleries: async (limit = 20) => {
+  fetchGalleries: async (reset = false) => {
     set({ loading: true });
     try {
-      const res = await galleriesService.list(limit);
-      set({ galleries: res.data.galleries, nextToken: res.data.nextToken });
-    } finally {
+      const token = reset ? null : get().nextToken;
+      const result = await galleriesService.list(20, token);
+      set((state) => ({
+        galleries: reset ? result.galleries : [...state.galleries, ...result.galleries],
+        nextToken: result.nextToken || null,
+        loading: false
+      }));
+    } catch (error) {
       set({ loading: false });
-    }
-  },
-
-  loadMore: async (limit = 20) => {
-    const { nextToken, galleries } = get();
-    if (!nextToken) return;
-
-    set({ loading: true });
-    try {
-      const res = await galleriesService.list(limit, nextToken);
-      set({
-        galleries: [...galleries, ...res.data.galleries],
-        nextToken: res.data.nextToken
-      });
-    } finally {
-      set({ loading: false });
+      throw error;
     }
   },
 
   createGallery: async (data) => {
-    const res = await galleriesService.create(data);
-    set({ galleries: [res.data.gallery, ...get().galleries] });
-    return res.data.gallery;
+    const result = await galleriesService.create(data);
+    set((state) => ({
+      galleries: [result.gallery, ...state.galleries]
+    }));
+    return result;
   },
 
   deleteGallery: async (galleryId) => {
     await galleriesService.delete(galleryId);
-    set({ galleries: get().galleries.filter((g) => g.id !== galleryId) });
-  }
+    set((state) => ({
+      galleries: state.galleries.filter((g) => g.id !== galleryId)
+    }));
+  },
+
+  clearGalleries: () => set({ galleries: [], nextToken: null })
 }));

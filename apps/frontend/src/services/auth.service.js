@@ -1,18 +1,28 @@
 import api from './api';
 
 export const authService = {
-  register: (email, password, name) =>
-    api.post('/auth/register', { email, password, name }),
+  async register(email, password, name) {
+    const { data } = await api.post('/auth/register', { email, password, name });
+    return data;
+  },
 
-  login: (email, password) =>
-    api.post('/auth/login', { email, password }),
+  async login(email, password) {
+    const { data } = await api.post('/auth/login', { email, password });
+    return data;
+  },
 
-  refresh: (refreshToken) =>
-    api.post('/auth/refresh', { refreshToken }),
+  async refresh(refreshToken) {
+    const { data } = await api.post('/auth/refresh', { refreshToken });
+    return data;
+  },
 
-  forgotPassword: (email) =>
-    api.post('/auth/forgot-password', { action: 'request', email }),
+  async forgotPassword(email) {
+    const { data } = await api.post('/auth/forgot-password', { action: 'request', email });
+    return data;
+  },
 
-  confirmPassword: (email, code, newPassword) =>
-    api.post('/auth/forgot-password', { action: 'confirm', email, code, newPassword })
+  async confirmPassword(email, code, newPassword) {
+    const { data } = await api.post('/auth/forgot-password', { action: 'confirm', email, code, newPassword });
+    return data;
+  }
 };

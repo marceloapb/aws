@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import { useAuthStore } from '../stores/authStore';
 
 export function useAuth() {
-  const { user, isAuthenticated, tokens, login, logout, refreshToken } = useAuthStore();
+  const { isAuthenticated, tokens, user, login, logout, refreshToken } = useAuthStore();
 
   useEffect(() => {
     // Auto-refresh token a cada 45 minutos
@@ -15,5 +15,5 @@ export function useAuth() {
     return () => clearInterval(interval);
   }, [isAuthenticated, tokens?.refreshToken, refreshToken]);
 
-  return { user, isAuthenticated, login, logout };
+  return { isAuthenticated, tokens, user, login, logout };
 }
