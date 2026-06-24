@@ -157,6 +157,37 @@ Resources:
             Schedule: cron(0 11 * * ? *)
 
   # ═══ WEBHOOK SQS ═══
+  WhatsAppWebhookFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: mbf-whatsapp-webhook
+      Handler: src/functions/whatsapp-webhook/handler.main
+      Timeout: 10
+      MemorySize: 256
+      Environment:
+        Variables:
+          SSM_PREFIX: /mbf/prod
+          TABLE_NAME: !Ref HorizonsTable
+      Policies:
+        - SSMParameterReadPolicy:
+            ParameterName: mbf/prod/WHATSAPP_*
+        - DynamoDBCrudPolicy:
+            TableName: !Ref HorizonsTable
+      Events:
+        WebhookVerify:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /whatsapp/webhook
+            Method: GET
+        WebhookReceive:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /whatsapp/webhook
+            Method: POST
+
+  # ═══ PAYMENT WEBHOOK SQS ═══
   WebhookQueue:
     Type: AWS::SQS::Queue
     Properties:
