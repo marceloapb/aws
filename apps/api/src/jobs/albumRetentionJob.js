@@ -1,84 +1,55 @@
-// ══════════════════════════════════════════════════════════════
-// JOBS/ALBUM-RETENTION-JOB.JS — Lifecycle de retenção de álbuns
-// ══════════════════════════════════════════════════════════════
-
-import { getPocketbaseClient } from '../config/pocketbase.js';
+import { dynamo, TABLE } from '../config/dynamodb.js';
+import { QueryCommand, UpdateCommand, DeleteCommand } from '@aws-sdk/lib-dynamodb';
 import { deleteAlbumFolder } from '../services/s3Service.js';
 import { ALBUM_STATUS } from '../config/constants.js';
 
-const INTERVAL_MS = 60 * 60 * 1000; // 1 hora
-const DIAS_EXPIRACAO = 30;
 const DIAS_GRACA = 7;
-
-export function startAlbumRetentionJob() {
-  console.log('[ALBUM RETENTION] Iniciado — verificando a cada 1 hora');
-  setInterval(processarRetencao, INTERVAL_MS);
-  processarRetencao(); // Executar imediatamente
-}
+const TENANT = process.env.TENANT_ID || 'default';
 
 async function processarRetencao() {
-  try {
-    const pb = await getPocketbaseClient();
-    const hoje = new Date();
+  const hoje = new Date();
 
-    // 1. Álbuns ativos que expiraram (30 dias após entrega)
-    const albunsAtivos = await pb.collection('albuns').getFullList({
-      filter: `status = "${ALBUM_STATUS.ATIVO}" && protegido = false && data_expiracao != "" && data_expiracao <= "${hoje.toISOString().split('T')[0]}"`,
-    });
+  // Buscar todos os álbuns via GSI1
+  const result = await dynamo.send(new QueryCommand({
+    TableName: TABLE,
+    IndexName: 'GSI1',
+    KeyConditionExpression: 'GSI1PK = :pk',
+    ExpressionAttributeValues: { ':pk': 'ALBUM' },
+  }));
+  const albuns = result.Items || [];
 
-    for (const album of albunsAtivos) {
-      await pb.collection('albuns').update(album.id, { status: ALBUM_STATUS.EXPIRADO });
-      console.log(`[ALBUM RETENTION] Álbum ${album.titulo} → expirado`);
-    }
+  // 1. Ativos → Expirado
+  for (const album of albuns.filter(a => a.status === ALBUM_STATUS.ATIVO && !a.protegido && a.data_expiracao && a.data_expiracao <= hoje.toISOString().split('T')[0])) {
+    await dynamo.send(new UpdateCommand({ TableName: TABLE, Key: { PK: album.PK, SK: album.SK }, UpdateExpression: 'SET #s = :s', ExpressionAttributeNames: { '#s': 'status' }, ExpressionAttributeValues: { ':s': ALBUM_STATUS.EXPIRADO } }));
+  }
 
-    // 2. Álbuns expirados que entraram no período de graça (7 dias)
-    const dataGraca = new Date(hoje.getTime() - DIAS_GRACA * 24 * 60 * 60 * 1000);
-    const albunsExpirados = await pb.collection('albuns').getFullList({
-      filter: `status = "${ALBUM_STATUS.EXPIRADO}" && protegido = false && data_expiracao <= "${dataGraca.toISOString().split('T')[0]}"`,
-    });
+  // 2. Expirado → Em Graça
+  const dataGraca = new Date(hoje.getTime() - DIAS_GRACA * 86400000).toISOString().split('T')[0];
+  for (const album of albuns.filter(a => a.status === ALBUM_STATUS.EXPIRADO && !a.protegido && a.data_expiracao && a.data_expiracao <= dataGraca)) {
+    await dynamo.send(new UpdateCommand({ TableName: TABLE, Key: { PK: album.PK, SK: album.SK }, UpdateExpression: 'SET #s = :s', ExpressionAttributeNames: { '#s': 'status' }, ExpressionAttributeValues: { ':s': ALBUM_STATUS.EM_GRACA } }));
+  }
 
-    for (const album of albunsExpirados) {
-      await pb.collection('albuns').update(album.id, { status: ALBUM_STATUS.EM_GRACA });
-      console.log(`[ALBUM RETENTION] Álbum ${album.titulo} → em_graca`);
-    }
+  // 3. Em Graça → Pronto Exclusão
+  const dataExclusao = new Date(hoje.getTime() - DIAS_GRACA * 2 * 86400000).toISOString().split('T')[0];
+  for (const album of albuns.filter(a => a.status === ALBUM_STATUS.EM_GRACA && !a.protegido && a.data_expiracao && a.data_expiracao <= dataExclusao)) {
+    await dynamo.send(new UpdateCommand({ TableName: TABLE, Key: { PK: album.PK, SK: album.SK }, UpdateExpression: 'SET #s = :s', ExpressionAttributeNames: { '#s': 'status' }, ExpressionAttributeValues: { ':s': ALBUM_STATUS.PRONTO_EXCLUSAO } }));
+  }
 
-    // 3. Álbuns em graça prontos para exclusão
-    const dataExclusao = new Date(hoje.getTime() - (DIAS_GRACA * 2) * 24 * 60 * 60 * 1000);
-    const albunsGraca = await pb.collection('albuns').getFullList({
-      filter: `status = "${ALBUM_STATUS.EM_GRACA}" && protegido = false && data_expiracao <= "${dataExclusao.toISOString().split('T')[0]}"`,
-    });
-
-    for (const album of albunsGraca) {
-      await pb.collection('albuns').update(album.id, { status: ALBUM_STATUS.PRONTO_EXCLUSAO });
-      console.log(`[ALBUM RETENTION] Álbum ${album.titulo} → pronto_exclusao`);
-    }
-
-    // 4. Deletar álbuns prontos para exclusão (S3 + registros)
-    const albunsParaDeletar = await pb.collection('albuns').getFullList({
-      filter: `status = "${ALBUM_STATUS.PRONTO_EXCLUSAO}"`,
-    });
-
-    for (const album of albunsParaDeletar) {
-      try {
-        await deleteAlbumFolder(album.id);
-
-        // Deletar fotos do banco
-        const fotos = await pb.collection('fotos').getFullList({ filter: `album_id = "${album.id}"` });
-        for (const foto of fotos) {
-          await pb.collection('fotos').delete(foto.id);
-        }
-
-        await pb.collection('albuns').delete(album.id);
-        console.log(`[ALBUM RETENTION] Álbum ${album.titulo} DELETADO do S3 e banco`);
-      } catch (error) {
-        console.error(`[ALBUM RETENTION] Erro ao deletar ${album.titulo}:`, error.message);
+  // 4. Deletar prontos
+  for (const album of albuns.filter(a => a.status === ALBUM_STATUS.PRONTO_EXCLUSAO)) {
+    try {
+      await deleteAlbumFolder(album.id);
+      const fotos = await dynamo.send(new QueryCommand({ TableName: TABLE, KeyConditionExpression: 'PK = :pk AND begins_with(SK, :sk)', ExpressionAttributeValues: { ':pk': `ALBUM#${album.id}`, ':sk': 'FOTO#' } }));
+      for (const foto of (fotos.Items || [])) {
+        await dynamo.send(new DeleteCommand({ TableName: TABLE, Key: { PK: foto.PK, SK: foto.SK } }));
       }
+      await dynamo.send(new DeleteCommand({ TableName: TABLE, Key: { PK: album.PK, SK: album.SK } }));
+      console.log(`[ALBUM RETENTION] Álbum ${album.titulo} DELETADO`);
+    } catch (error) {
+      console.error(`[ALBUM RETENTION] Erro ao deletar ${album.titulo}:`, error.message);
     }
-  } catch (error) {
-    console.error('[ALBUM RETENTION] Erro geral:', error.message);
   }
 }
 
 export const handler = async () => { await processarRetencao(); };
-
 export default { handler };

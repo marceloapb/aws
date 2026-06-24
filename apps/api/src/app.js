@@ -2,7 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import { adminAuth } from './middlewares/adminAuth.js';
-import { clientAuth } from './middlewares/clientAuth.js';
+import { clientAuth as clientAuthMiddleware } from './middlewares/clientAuth.js';
 import { errorHandler, notFoundHandler } from './middlewares/errorHandler.js';
 import { env } from './config/env.js';
 
@@ -23,7 +23,7 @@ import adminEquipamentos from './routes/admin-equipamentos.js';
 import adminPendencias from './routes/admin-pendencias.js';
 
 // Rotas Cliente
-import clientAuth from './routes/client-auth.js';
+import clientAuthRoutes from './routes/client-auth.js';
 import clientAlbuns from './routes/client-albuns.js';
 import clientContratos from './routes/client-contratos.js';
 import clientPagamentos from './routes/client-pagamentos.js';
@@ -59,11 +59,11 @@ app.use('/api/admin/equipamentos', adminAuth, adminEquipamentos);
 app.use('/api/admin/pendencias', adminAuth, adminPendencias);
 
 // Cliente
-app.use('/api/client', clientAuth);
-app.use('/api/client/albuns', clientAuth, clientAlbuns);
-app.use('/api/client/contratos', clientAuth, clientContratos);
-app.use('/api/client/pagamentos', clientAuth, clientPagamentos);
-app.use('/api/client/orcamentos', clientAuth, clientOrcamentos);
+app.use('/api/client', clientAuthRoutes);
+app.use('/api/client/albuns', clientAuthMiddleware, clientAlbuns);
+app.use('/api/client/contratos', clientAuthMiddleware, clientContratos);
+app.use('/api/client/pagamentos', clientAuthMiddleware, clientPagamentos);
+app.use('/api/client/orcamentos', clientAuthMiddleware, clientOrcamentos);
 
 // Webhooks (sem auth)
 app.use('/api/webhooks', webhooks);

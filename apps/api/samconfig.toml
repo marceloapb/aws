@@ -1,0 +1,6 @@
+version = 0.1
+[default.deploy.parameters]
+stack_name = "horizons-prod"
+region = "sa-east-1"
+confirm_changeset = false
+capabilities = "CAPABILITY_IAM"
