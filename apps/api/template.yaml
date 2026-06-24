@@ -188,6 +188,36 @@ Resources:
             Method: POST
 
   # ═══ PAYMENT WEBHOOK SQS ═══
+  InstagramWebhookFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: mbf-instagram-webhook
+      Handler: src/functions/instagram-webhook/handler.main
+      Timeout: 10
+      MemorySize: 256
+      Environment:
+        Variables:
+          SSM_PREFIX: /mbf/prod
+          TABLE_NAME: !Ref HorizonsTable
+      Policies:
+        - SSMParameterReadPolicy:
+            ParameterName: mbf/prod/INSTAGRAM_*
+        - DynamoDBCrudPolicy:
+            TableName: !Ref HorizonsTable
+      Events:
+        WebhookVerify:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /instagram/webhook
+            Method: GET
+        WebhookReceive:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /instagram/webhook
+            Method: POST
+
   WebhookQueue:
     Type: AWS::SQS::Queue
     Properties:
