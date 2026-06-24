@@ -1,45 +1,26 @@
-// ══════════════════════════════════════════════════════════════
-// ADAPTERS/INDEX.JS — Factory de gateways de pagamento
-// ══════════════════════════════════════════════════════════════
+import * as asaas from './asaas.js';
+import * as stripe from './stripe.js';
+import * as mercadopago from './mercadopago.js';
+import * as pagarme from './pagarme.js';
+import * as pagbank from './pagbank.js';
+import * as picpay from './picpay.js';
+import * as sumup from './sumup.js';
+import * as bancoInter from './banco-inter.js';
+import * as stone from './stone.js';
+import * as infinitepay from './infinitepay.js';
 
-import { env } from '../config/env.js';
+const adapters = {
+  asaas, stripe, mercadopago, pagarme, pagbank, picpay, sumup,
+  'banco-inter': bancoInter, stone, infinitepay,
+};
 
-const adapters = {};
-
-export async function getAdapter(gateway) {
-  if (!adapters[gateway]) {
-    try {
-      const module = await import(`./${gateway}.js`);
-      adapters[gateway] = module.default || module;
-    } catch (error) {
-      throw new Error(`Gateway '${gateway}' não encontrado ou não implementado`);
-    }
-  }
-  return adapters[gateway];
+function getAdapter(gateway) {
+  const adapter = adapters[gateway];
+  if (!adapter) throw new Error(`Gateway "${gateway}" não suportado`);
+  return adapter;
 }
 
-export async function criarCobranca(gateway, dados) {
-  const adapter = await getAdapter(gateway);
-  return adapter.criarCobranca(dados);
-}
-
-export async function consultarCobranca(gateway, gatewayId) {
-  const adapter = await getAdapter(gateway);
-  return adapter.consultarCobranca(gatewayId);
-}
-
-export async function cancelarCobranca(gateway, gatewayId) {
-  const adapter = await getAdapter(gateway);
-  return adapter.cancelarCobranca(gatewayId);
-}
-
-export async function processarWebhook(gateway, payload, headers) {
-  const adapter = await getAdapter(gateway);
-  return adapter.processarWebhook(payload, headers);
-}
-
-export function getGatewayPadrao() {
-  return env.ASAAS_API_KEY ? 'asaas' : 'stripe';
-}
-
-export default { getAdapter, criarCobranca, consultarCobranca, cancelarCobranca, processarWebhook, getGatewayPadrao };
+export const criarCobranca = (gateway, dados) => getAdapter(gateway).criarCobranca(dados);
+export const consultarCobranca = (gateway, id) => getAdapter(gateway).consultarCobranca(id);
+export const cancelarCobranca = (gateway, id) => getAdapter(gateway).cancelarCobranca(id);
+export const processarWebhook = (gateway, payload, headers) => getAdapter(gateway).processarWebhook(payload, headers);

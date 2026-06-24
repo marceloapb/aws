@@ -1,27 +1,18 @@
-// ══════════════════════════════════════════════════════════════
-// CONFIG/POCKETBASE.JS — Cliente PocketBase singleton
-// ══════════════════════════════════════════════════════════════
-
 import PocketBase from 'pocketbase';
 import { env } from './env.js';
 
 let pbInstance = null;
-let lastAuth = 0;
-const AUTH_REFRESH_INTERVAL = 10 * 60 * 1000; // 10 minutos
 
 export async function getPocketbaseClient() {
-  if (!pbInstance) {
-    pbInstance = new PocketBase(env.PB_URL);
-    pbInstance.autoCancellation(false);
+  if (pbInstance) return pbInstance;
+  pbInstance = new PocketBase(env.POCKETBASE_URL);
+  if (env.POCKETBASE_ADMIN_EMAIL && env.POCKETBASE_ADMIN_PASSWORD) {
+    await pbInstance.admins.authWithPassword(env.POCKETBASE_ADMIN_EMAIL, env.POCKETBASE_ADMIN_PASSWORD);
   }
-
-  const now = Date.now();
-  if (now - lastAuth > AUTH_REFRESH_INTERVAL) {
-    await pbInstance.admins.authWithPassword(env.PB_ADMIN_EMAIL, env.PB_ADMIN_PASSWORD);
-    lastAuth = now;
-  }
-
+  pbInstance.autoCancellation(false);
   return pbInstance;
 }
 
-export default getPocketbaseClient;
+export function resetPocketbaseClient() {
+  pbInstance = null;
+}
