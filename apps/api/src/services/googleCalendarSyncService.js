@@ -4,108 +4,133 @@
 
 import { google } from 'googleapis';
 import { getPocketbaseClient } from '../config/pocketbase.js';
-import { getAuthenticatedClient, criarEvento, atualizarEvento } from './googleCalendarService.js';
-import { SYNC_STATUS } from '../config/constants.js';
+import { getAuthenticatedClient } from './googleCalendarService.js';
 
 export async function sincronizarBidirecional() {
   const pb = await getPocketbaseClient();
-  let totalSynced = 0;
-  let errors = 0;
+  const logs = [];
 
   try {
-    // FASE 1: Local → Google (eventos pendentes)
-    const pendentes = await pb.collection('agenda').getFullList({
-      filter: `sync_status = "${SYNC_STATUS.PENDENTE}"`,
-    });
-
-    for (const evento of pendentes) {
-      try {
-        let googleEvent;
-        if (evento.google_event_id) {
-          // Atualizar existente
-          const cliente = evento.cliente_id
-            ? await pb.collection('clientes').getOne(evento.cliente_id)
-            : null;
-          googleEvent = await atualizarEvento(evento.google_event_id, {
-            ...evento,
-            cliente_nome: cliente?.nome,
-            cliente_telefone: cliente?.whatsapp_numero,
-          });
-        } else {
-          // Criar novo
-          const cliente = evento.cliente_id
-            ? await pb.collection('clientes').getOne(evento.cliente_id)
-            : null;
-          googleEvent = await criarEvento({
-            ...evento,
-            cliente_nome: cliente?.nome,
-            cliente_telefone: cliente?.whatsapp_numero,
-          });
-        }
-
-        await pb.collection('agenda').update(evento.id, {
-          google_event_id: googleEvent.id,
-          sync_status: SYNC_STATUS.SINCRONIZADO,
-          erro: '',
-        });
-
-        totalSynced++;
-      } catch (error) {
-        await pb.collection('agenda').update(evento.id, {
-          sync_status: SYNC_STATUS.ERRO,
-          erro: error.message,
-        });
-        errors++;
-      }
-    }
-
-    // FASE 2: Google → Local (incremental sync)
-    const { oauth2Client, config } = await getAuthenticatedClient();
+    const { oauth2Client, calendarId } = await getAuthenticatedClient();
     const calendar = google.calendar({ version: 'v3', auth: oauth2Client });
 
-    const syncParams = {
-      calendarId: config.calendar_id || 'primary',
+    // Buscar config para sync token
+    const configs = await pb.collection('google_calendar_config').getFullList();
+    const config = configs[0];
+
+    // 1. PULL — Buscar eventos do Google Calendar
+    const listParams = {
+      calendarId,
       singleEvents: true,
+      orderBy: 'startTime',
     };
 
     if (config.sync_token) {
-      syncParams.syncToken = config.sync_token;
+      listParams.syncToken = config.sync_token;
     } else {
-      // Primeira sync: pegar últimos 30 dias
-      syncParams.timeMin = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+      // Primeira sync — últimos 30 dias + próximos 90 dias
+      const agora = new Date();
+      listParams.timeMin = new Date(agora.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString();
+      listParams.timeMax = new Date(agora.getTime() + 90 * 24 * 60 * 60 * 1000).toISOString();
     }
 
-    let pageToken = null;
+    let googleEvents = [];
     let nextSyncToken = null;
 
-    do {
-      try {
+    try {
+      const response = await calendar.events.list(listParams);
+      googleEvents = response.data.items || [];
+      nextSyncToken = response.data.nextSyncToken;
+    } catch (error) {
+      if (error.code === 410) {
+        // Sync token expirado — full sync
+        const agora = new Date();
         const response = await calendar.events.list({
-          ...syncParams,
-          ...(pageToken && { pageToken }),
+          calendarId,
+          singleEvents: true,
+          orderBy: 'startTime',
+          timeMin: new Date(agora.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString(),
+          timeMax: new Date(agora.getTime() + 90 * 24 * 60 * 60 * 1000).toISOString(),
         });
-
-        const events = response.data.items || [];
+        googleEvents = response.data.items || [];
         nextSyncToken = response.data.nextSyncToken;
-        pageToken = response.data.nextPageToken;
-
-        for (const gEvent of events) {
-          await processarEventoGoogle(pb, gEvent);
-          totalSynced++;
-        }
-      } catch (error) {
-        if (error.code === 410) {
-          // Sync token expirado, resetar
-          await pb.collection('google_calendar_config').update(config.id, {
-            sync_token: '',
-          });
-          break;
-        }
+      } else {
         throw error;
       }
-    } while (pageToken);
+    }
 
-    // Salvar novo sync token
+    // Processar eventos do Google → PocketBase
+    for (const gEvent of googleEvents) {
+      if (gEvent.status === 'cancelled') {
+        // Evento cancelado no Google — marcar como cancelado localmente
+        const existentes = await pb.collection('agenda').getFullList({
+          filter: `google_event_id = "${gEvent.id}"`,
+        });
+        for (const local of existentes) {
+          await pb.collection('agenda').update(local.id, { status: 'cancelada' });
+          logs.push({ operacao: 'cancelar_local', google_event_id: gEvent.id });
+        }
+        continue;
+      }
+
+      // Verificar se já existe localmente
+      const existentes = await pb.collection('agenda').getFullList({
+        filter: `google_event_id = "${gEvent.id}"`,
+      });
+
+      if (existentes.length === 0) {
+        // Evento novo do Google — criar localmente
+        const startDate = gEvent.start?.dateTime || gEvent.start?.date;
+        await pb.collection('agenda').create({
+          titulo: gEvent.summary || 'Evento sem título',
+          data_evento: startDate ? startDate.split('T')[0] : '',
+          horario_inicio: startDate?.includes('T') ? startDate.split('T')[1].substring(0, 5) : '09:00',
+          horario_fim: gEvent.end?.dateTime?.split('T')[1]?.substring(0, 5) || '18:00',
+          local: gEvent.location || '',
+          observacoes: gEvent.description || '',
+          google_event_id: gEvent.id,
+          sync_status: 'sincronizado',
+          status: 'ocupada',
+          origem: 'google',
+        });
+        logs.push({ operacao: 'criar_local', google_event_id: gEvent.id });
+      }
+    }
+
+    // 2. PUSH — Enviar eventos locais sem google_event_id
+    const eventosLocais = await pb.collection('agenda').getFullList({
+      filter: 'google_event_id = "" && sync_status != "erro"',
+    });
+
+    for (const local of eventosLocais) {
+      try {
+        const event = {
+          summary: `${local.tipo_evento || 'Evento'} - ${local.titulo || 'Cliente'}`,
+          start: {
+            dateTime: `${local.data_evento}T${local.horario_inicio || '09:00'}:00`,
+            timeZone: 'America/Sao_Paulo',
+          },
+          end: {
+            dateTime: `${local.data_evento}T${local.horario_fim || '18:00'}:00`,
+            timeZone: 'America/Sao_Paulo',
+          },
+          location: local.local || '',
+          description: local.observacoes || '',
+        };
+
+        const response = await calendar.events.insert({ calendarId, resource: event });
+        await pb.collection('agenda').update(local.id, {
+          google_event_id: response.data.id,
+          sync_status: 'sincronizado',
+        });
+        logs.push({ operacao: 'criar_google', local_id: local.id });
+      } catch (error) {
+        await pb.collection('agenda').update(local.id, { sync_status: 'erro', erro: error.message });
+        logs.push({ operacao: 'erro_push', local_id: local.id, erro: error.message });
+      }
+    }
+
+    // Salvar sync token e timestamp
     if (nextSyncToken) {
       await pb.collection('google_calendar_config').update(config.id, {
         sync_token: nextSyncToken,
@@ -115,85 +140,20 @@ export async function sincronizarBidirecional() {
 
     // Registrar log
     await pb.collection('google_calendar_logs').create({
-      tipo: config.sync_token ? 'sync_incremental' : 'sync_full',
-      direcao: 'local_to_google',
+      tipo: 'sync_bidirecional',
       status: 'sucesso',
-      detalhes: `Sincronizados: ${totalSynced}, Erros: ${errors}`,
+      detalhes: JSON.stringify({ total_operacoes: logs.length, logs }),
     });
 
-    return { success: true, synced: totalSynced, errors };
+    return { success: true, logs };
   } catch (error) {
     await pb.collection('google_calendar_logs').create({
-      tipo: 'sync_full',
-      direcao: 'local_to_google',
+      tipo: 'sync_bidirecional',
       status: 'erro',
-      detalhes: error.message,
+      detalhes: JSON.stringify({ erro: error.message }),
     });
-
-    return { success: false, error: error.message, synced: totalSynced, errors };
+    return { success: false, error: error.message, logs };
   }
 }
 
-async function processarEventoGoogle(pb, gEvent) {
-  // Buscar evento local pelo google_event_id
-  const existentes = await pb.collection('agenda').getFullList({
-    filter: `google_event_id = "${gEvent.id}"`,
-  });
-
-  if (gEvent.status === 'cancelled') {
-    // Evento cancelado no Google → marcar local
-    if (existentes.length > 0) {
-      await pb.collection('agenda').update(existentes[0].id, {
-        status: 'fora',
-        sync_status: SYNC_STATUS.SINCRONIZADO,
-      });
-    }
-    return;
-  }
-
-  const eventoData = {
-    tipo_evento: extrairTipoEvento(gEvent.summary),
-    data_evento: extrairData(gEvent.start),
-    horario_inicio: extrairHorario(gEvent.start),
-    horario_fim: extrairHorario(gEvent.end),
-    local_evento: gEvent.location || '',
-    observacoes: gEvent.description || '',
-    google_event_id: gEvent.id,
-    origem: 'google',
-    sync_status: SYNC_STATUS.SINCRONIZADO,
-    status: 'ocupada',
-  };
-
-  if (existentes.length > 0) {
-    // Atualizar existente
-    const local = existentes[0];
-    const googleUpdated = new Date(gEvent.updated);
-    const localUpdated = new Date(local.updated);
-
-    if (googleUpdated > localUpdated) {
-      await pb.collection('agenda').update(local.id, eventoData);
-    }
-  } else {
-    // Criar novo evento local
-    await pb.collection('agenda').create(eventoData);
-  }
-}
-
-function extrairTipoEvento(summary) {
-  if (!summary) return 'Evento';
-  const parts = summary.split('—');
-  return parts[0].trim();
-}
-
-function extrairData(dateObj) {
-  if (dateObj.date) return dateObj.date;
-  if (dateObj.dateTime) return dateObj.dateTime.split('T')[0];
-  return new Date().toISOString().split('T')[0];
-}
-
-function extrairHorario(dateObj) {
-  if (dateObj.dateTime) {
-    return dateObj.dateTime.split('T')[1].substring(0, 5);
-  }
-  return '';
-}
+export default { sincronizarBidirecional };

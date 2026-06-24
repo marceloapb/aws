@@ -3,91 +3,83 @@
 // ══════════════════════════════════════════════════════════════
 
 import { SESClient, SendEmailCommand } from '@aws-sdk/client-ses';
-import { env, features } from '../config/env.js';
+import { env } from '../config/env.js';
 
-const sesClient = new SESClient({
-  region: env.SES_REGION,
+const ses = new SESClient({
+  region: env.AWS_REGION,
   credentials: {
     accessKeyId: env.AWS_ACCESS_KEY_ID,
     secretAccessKey: env.AWS_SECRET_ACCESS_KEY,
   },
 });
 
+const FROM_EMAIL = env.SES_FROM_EMAIL || 'noreply@horizons.com.br';
+
 export async function enviarEmail({ para, assunto, html, texto }) {
-  if (!features.email) {
-    console.warn('[EMAIL] Serviço de email não configurado. Pulando envio.');
-    return { success: false, reason: 'not_configured' };
-  }
-
-  try {
-    const command = new SendEmailCommand({
-      Source: `${env.SES_FROM_NAME} <${env.SES_FROM_EMAIL}>`,
-      Destination: {
-        ToAddresses: Array.isArray(para) ? para : [para],
+  const command = new SendEmailCommand({
+    Source: FROM_EMAIL,
+    Destination: { ToAddresses: Array.isArray(para) ? para : [para] },
+    Message: {
+      Subject: { Data: assunto, Charset: 'UTF-8' },
+      Body: {
+        ...(html && { Html: { Data: html, Charset: 'UTF-8' } }),
+        ...(texto && { Text: { Data: texto, Charset: 'UTF-8' } }),
       },
-      Message: {
-        Subject: { Data: assunto, Charset: 'UTF-8' },
-        Body: {
-          ...(html && { Html: { Data: html, Charset: 'UTF-8' } }),
-          ...(texto && { Text: { Data: texto, Charset: 'UTF-8' } }),
-        },
-      },
-    });
+    },
+  });
 
-    const result = await sesClient.send(command);
-    console.log(`[EMAIL] Enviado para ${para}: ${assunto}`);
-    return { success: true, messageId: result.MessageId };
-  } catch (error) {
-    console.error(`[EMAIL] Erro ao enviar para ${para}:`, error.message);
-    return { success: false, error: error.message };
-  }
+  const response = await ses.send(command);
+  return { success: true, message_id: response.MessageId };
 }
 
-export async function enviarCodigoVerificacao(email, codigo) {
+export async function enviarEmailOrcamento(cliente, orcamento, link) {
   return enviarEmail({
-    para: email,
-    assunto: 'Seu código de acesso — Horizons Fotografia',
+    para: cliente.email,
+    assunto: `Seu orçamento está pronto - ${orcamento.tipo_evento}`,
     html: `
-      <div style="font-family: sans-serif; max-width: 400px; margin: 0 auto; padding: 20px;">
-        <h2 style="color: #1e40af;">Horizons Fotografia</h2>
-        <p>Seu código de acesso é:</p>
-        <div style="background: #f3f4f6; padding: 20px; text-align: center; border-radius: 8px; margin: 20px 0;">
-          <span style="font-size: 32px; font-weight: bold; letter-spacing: 8px; color: #1e40af;">${codigo}</span>
-        </div>
-        <p style="color: #6b7280; font-size: 14px;">Este código expira em 10 minutos.</p>
-      </div>
+      <h2>Olá ${cliente.nome}!</h2>
+      <p>Seu orçamento para <strong>${orcamento.tipo_evento}</strong> está pronto.</p>
+      <p>Valor: <strong>R$ ${orcamento.valor_total?.toFixed(2)}</strong></p>
+      <p><a href="${link}" style="background:#2563eb;color:white;padding:12px 24px;border-radius:6px;text-decoration:none;">Ver Orçamento</a></p>
     `,
   });
 }
 
-export async function enviarNotificacaoAlbum(email, nomeCliente, tituloAlbum, linkAlbum) {
+export async function enviarEmailAlbum(cliente, album, link) {
   return enviarEmail({
-    para: email,
-    assunto: `Suas fotos estão prontas! — ${tituloAlbum}`,
+    para: cliente.email,
+    assunto: `Suas fotos estão prontas! - ${album.titulo}`,
     html: `
-      <div style="font-family: sans-serif; max-width: 500px; margin: 0 auto; padding: 20px;">
-        <h2 style="color: #1e40af;">Horizons Fotografia</h2>
-        <p>Olá, ${nomeCliente}!</p>
-        <p>Suas fotos do álbum <strong>${tituloAlbum}</strong> estão prontas para visualização.</p>
-        <a href="${linkAlbum}" style="display: inline-block; background: #1e40af; color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; margin: 20px 0;">Ver Minhas Fotos</a>
-        <p style="color: #6b7280; font-size: 14px;">Este link tem validade limitada. Acesse o portal do cliente para acesso permanente.</p>
-      </div>
+      <h2>Olá ${cliente.nome}!</h2>
+      <p>Seu álbum <strong>${album.titulo}</strong> está pronto para visualização.</p>
+      <p><a href="${link}" style="background:#2563eb;color:white;padding:12px 24px;border-radius:6px;text-decoration:none;">Ver Álbum</a></p>
+      <p><small>Este link expira em 30 dias.</small></p>
     `,
   });
 }
 
-export async function enviarLinkContrato(email, nomeCliente, linkContrato) {
+export async function enviarEmailContrato(cliente, link) {
   return enviarEmail({
-    para: email,
-    assunto: 'Contrato para assinatura — Horizons Fotografia',
+    para: cliente.email,
+    assunto: 'Contrato para assinatura digital',
     html: `
-      <div style="font-family: sans-serif; max-width: 500px; margin: 0 auto; padding: 20px;">
-        <h2 style="color: #1e40af;">Horizons Fotografia</h2>
-        <p>Olá, ${nomeCliente}!</p>
-        <p>Seu contrato está pronto para assinatura digital.</p>
-        <a href="${linkContrato}" style="display: inline-block; background: #1e40af; color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; margin: 20px 0;">Assinar Contrato</a>
-        <p style="color: #6b7280; font-size: 14px;">A assinatura é digital e tem validade jurídica.</p>
-      </div>
+      <h2>Olá ${cliente.nome}!</h2>
+      <p>Seu contrato está pronto para assinatura digital.</p>
+      <p><a href="${link}" style="background:#2563eb;color:white;padding:12px 24px;border-radius:6px;text-decoration:none;">Assinar Contrato</a></p>
     `,
   });
 }
+
+export async function enviarEmailAvaliacao(cliente, link) {
+  return enviarEmail({
+    para: cliente.email,
+    assunto: 'Como foi sua experiência? Avalie nosso trabalho!',
+    html: `
+      <h2>Olá ${cliente.nome}!</h2>
+      <p>Gostaríamos de saber como foi sua experiência conosco.</p>
+      <p><a href="${link}" style="background:#2563eb;color:white;padding:12px 24px;border-radius:6px;text-decoration:none;">Avaliar</a></p>
+    `,
+  });
+}
+
+export default { enviarEmail, enviarEmailOrcamento, enviarEmailAlbum, enviarEmailContrato, enviarEmailAvaliacao };

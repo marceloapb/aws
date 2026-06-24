@@ -1,10 +1,11 @@
 // ══════════════════════════════════════════════════════════════
-// SERVICES/GOOGLE-CALENDAR-SERVICE.JS — Operações Google Calendar
+// SERVICES/GOOGLE-CALENDAR-SERVICE.JS — Google Calendar API
 // ══════════════════════════════════════════════════════════════
 
 import { google } from 'googleapis';
-import { env, features } from '../config/env.js';
 import { getPocketbaseClient } from '../config/pocketbase.js';
+import { env } from '../config/env.js';
+import { EVENT_COLORS } from '../config/constants.js';
 
 const SCOPES = ['https://www.googleapis.com/auth/calendar'];
 
@@ -26,111 +27,90 @@ export function getAuthUrl() {
 }
 
 export async function getAuthenticatedClient() {
-  if (!features.googleCalendar) {
-    throw new Error('Google Calendar não configurado');
-  }
-
   const pb = await getPocketbaseClient();
   const configs = await pb.collection('google_calendar_config').getFullList();
   const config = configs[0];
 
-  if (!config || !config.connected) {
-    throw new Error('Google Calendar não conectado');
-  }
+  if (!config || !config.connected) throw new Error('Google Calendar não conectado');
 
   const oauth2Client = getOAuth2Client();
   oauth2Client.setCredentials({
     access_token: config.access_token,
     refresh_token: config.refresh_token,
-    expiry_date: new Date(config.token_expiry).getTime(),
   });
 
   // Renovar token se expirado
   oauth2Client.on('tokens', async (tokens) => {
-    await pb.collection('google_calendar_config').update(config.id, {
-      access_token: tokens.access_token,
-      ...(tokens.refresh_token && { refresh_token: tokens.refresh_token }),
-      token_expiry: new Date(tokens.expiry_date).toISOString(),
-    });
+    const updateData = { access_token: tokens.access_token };
+    if (tokens.refresh_token) updateData.refresh_token = tokens.refresh_token;
+    if (tokens.expiry_date) updateData.token_expiry = new Date(tokens.expiry_date).toISOString();
+    await pb.collection('google_calendar_config').update(config.id, updateData);
   });
 
-  return { oauth2Client, config };
+  return { oauth2Client, calendarId: config.calendar_id || 'primary' };
 }
 
-export async function criarEvento(evento) {
-  const { oauth2Client, config } = await getAuthenticatedClient();
+export async function criarEvento(dados) {
+  const { oauth2Client, calendarId } = await getAuthenticatedClient();
   const calendar = google.calendar({ version: 'v3', auth: oauth2Client });
 
-  const eventBody = {
-    summary: `${evento.tipo_evento} — ${evento.cliente_nome || 'Cliente'}`,
-    description: buildDescription(evento),
-    location: evento.local_evento || '',
+  const event = {
+    summary: `${dados.tipo_evento} - ${dados.cliente_nome || 'Cliente'}`,
+    description: buildDescription(dados),
     start: {
-      dateTime: `${evento.data_evento}T${evento.horario_inicio || '09:00'}:00`,
+      dateTime: `${dados.data_evento}T${dados.horario_inicio || '09:00'}:00`,
       timeZone: 'America/Sao_Paulo',
     },
     end: {
-      dateTime: `${evento.data_evento}T${evento.horario_fim || '18:00'}:00`,
+      dateTime: `${dados.data_evento}T${dados.horario_fim || '18:00'}:00`,
       timeZone: 'America/Sao_Paulo',
     },
-    colorId: evento.cor_calendario || '7',
-    reminders: { useDefault: true },
+    colorId: getColorId(dados.tipo_evento),
+    location: dados.local || '',
+    reminders: { useDefault: false, overrides: [{ method: 'popup', minutes: 60 }] },
   };
 
-  const response = await calendar.events.insert({
-    calendarId: config.calendar_id || 'primary',
-    resource: eventBody,
-  });
-
+  const response = await calendar.events.insert({ calendarId, resource: event });
   return response.data;
 }
 
-export async function atualizarEvento(googleEventId, evento) {
-  const { oauth2Client, config } = await getAuthenticatedClient();
+export async function atualizarEvento(googleEventId, dados) {
+  const { oauth2Client, calendarId } = await getAuthenticatedClient();
   const calendar = google.calendar({ version: 'v3', auth: oauth2Client });
 
-  const eventBody = {
-    summary: `${evento.tipo_evento} — ${evento.cliente_nome || 'Cliente'}`,
-    description: buildDescription(evento),
-    location: evento.local_evento || '',
+  const event = {
+    summary: `${dados.tipo_evento} - ${dados.cliente_nome || 'Cliente'}`,
+    description: buildDescription(dados),
     start: {
-      dateTime: `${evento.data_evento}T${evento.horario_inicio || '09:00'}:00`,
+      dateTime: `${dados.data_evento}T${dados.horario_inicio || '09:00'}:00`,
       timeZone: 'America/Sao_Paulo',
     },
     end: {
-      dateTime: `${evento.data_evento}T${evento.horario_fim || '18:00'}:00`,
+      dateTime: `${dados.data_evento}T${dados.horario_fim || '18:00'}:00`,
       timeZone: 'America/Sao_Paulo',
     },
-    colorId: evento.cor_calendario || '7',
+    colorId: getColorId(dados.tipo_evento),
+    location: dados.local || '',
   };
 
-  const response = await calendar.events.update({
-    calendarId: config.calendar_id || 'primary',
-    eventId: googleEventId,
-    resource: eventBody,
-  });
-
+  const response = await calendar.events.update({ calendarId, eventId: googleEventId, resource: event });
   return response.data;
 }
 
 export async function excluirEvento(googleEventId) {
-  const { oauth2Client, config } = await getAuthenticatedClient();
+  const { oauth2Client, calendarId } = await getAuthenticatedClient();
   const calendar = google.calendar({ version: 'v3', auth: oauth2Client });
-
-  await calendar.events.delete({
-    calendarId: config.calendar_id || 'primary',
-    eventId: googleEventId,
-  });
+  await calendar.events.delete({ calendarId, eventId: googleEventId });
 }
 
-export async function listarEventos(timeMin, timeMax) {
-  const { oauth2Client, config } = await getAuthenticatedClient();
+export async function listarEventos(dataInicio, dataFim) {
+  const { oauth2Client, calendarId } = await getAuthenticatedClient();
   const calendar = google.calendar({ version: 'v3', auth: oauth2Client });
 
   const response = await calendar.events.list({
-    calendarId: config.calendar_id || 'primary',
-    timeMin: timeMin.toISOString(),
-    timeMax: timeMax.toISOString(),
+    calendarId,
+    timeMin: new Date(dataInicio).toISOString(),
+    timeMax: new Date(dataFim).toISOString(),
     singleEvents: true,
     orderBy: 'startTime',
   });
@@ -138,12 +118,17 @@ export async function listarEventos(timeMin, timeMax) {
   return response.data.items || [];
 }
 
-function buildDescription(evento) {
+function buildDescription(dados) {
   const lines = [];
-  if (evento.cliente_nome) lines.push(`👤 Cliente: ${evento.cliente_nome}`);
-  if (evento.cliente_telefone) lines.push(`📱 Tel: ${evento.cliente_telefone}`);
-  if (evento.observacoes) lines.push(`📝 Obs: ${evento.observacoes}`);
-  if (evento.orcamento_id) lines.push(`💰 Orçamento: ${evento.orcamento_id}`);
-  lines.push(`\n🔗 Sistema: ${env.FRONTEND_URL}/admin/agenda`);
+  if (dados.cliente_nome) lines.push(`Cliente: ${dados.cliente_nome}`);
+  if (dados.cliente_telefone) lines.push(`Telefone: ${dados.cliente_telefone}`);
+  if (dados.observacoes) lines.push(`Obs: ${dados.observacoes}`);
   return lines.join('\n');
 }
+
+function getColorId(tipoEvento) {
+  const colors = EVENT_COLORS || {};
+  return colors[tipoEvento] || '1';
+}
+
+export default { getOAuth2Client, getAuthUrl, getAuthenticatedClient, criarEvento, atualizarEvento, excluirEvento, listarEventos };

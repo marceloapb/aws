@@ -2,19 +2,30 @@
 // SERVICES/S3-SERVICE.JS — Upload, download e gerenciamento S3
 // ══════════════════════════════════════════════════════════════
 
-import { PutObjectCommand, GetObjectCommand, DeleteObjectCommand, ListObjectsV2Command } from '@aws-sdk/client-s3';
+import { S3Client, PutObjectCommand, DeleteObjectCommand, ListObjectsV2Command, DeleteObjectsCommand, GetObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import sharp from 'sharp';
-import { s3Client } from '../config/s3.js';
 import { env } from '../config/env.js';
 
+const s3 = new S3Client({
+  region: env.AWS_REGION,
+  credentials: {
+    accessKeyId: env.AWS_ACCESS_KEY_ID,
+    secretAccessKey: env.AWS_SECRET_ACCESS_KEY,
+  },
+});
+
+const BUCKET = env.S3_BUCKET;
 const THUMB_WIDTH = 400;
 const THUMB_QUALITY = 80;
 
 export async function uploadFoto(buffer, key, mimeType) {
+  // Processar imagem com sharp
+  const metadata = await sharp(buffer).metadata();
+
   // Upload original
-  await s3Client.send(new PutObjectCommand({
-    Bucket: env.S3_BUCKET,
+  await s3.send(new PutObjectCommand({
+    Bucket: BUCKET,
     Key: key,
     Body: buffer,
     ContentType: mimeType,
@@ -22,26 +33,23 @@ export async function uploadFoto(buffer, key, mimeType) {
 
   // Gerar e upload thumbnail
   const thumbBuffer = await sharp(buffer)
-    .resize(THUMB_WIDTH)
+    .resize(THUMB_WIDTH, null, { withoutEnlargement: true })
     .jpeg({ quality: THUMB_QUALITY })
     .toBuffer();
 
-  const thumbKey = key.replace(/\/([^/]+)$/, '/thumbs/$1');
-  await s3Client.send(new PutObjectCommand({
-    Bucket: env.S3_BUCKET,
+  const thumbKey = key.replace(/\.[^.]+$/, '_thumb.jpg');
+  await s3.send(new PutObjectCommand({
+    Bucket: BUCKET,
     Key: thumbKey,
     Body: thumbBuffer,
     ContentType: 'image/jpeg',
   }));
 
-  // Obter metadados da imagem
-  const metadata = await sharp(buffer).metadata();
-
   return {
     s3_key: key,
     s3_key_thumb: thumbKey,
-    url: getPublicUrl(key),
-    url_thumb: getPublicUrl(thumbKey),
+    url: `https://${env.CLOUDFRONT_DOMAIN}/${key}`,
+    url_thumb: `https://${env.CLOUDFRONT_DOMAIN}/${thumbKey}`,
     largura: metadata.width,
     altura: metadata.height,
     tamanho_bytes: buffer.length,
@@ -49,59 +57,49 @@ export async function uploadFoto(buffer, key, mimeType) {
 }
 
 export async function deleteFoto(key) {
-  await s3Client.send(new DeleteObjectCommand({
-    Bucket: env.S3_BUCKET,
-    Key: key,
-  }));
+  const thumbKey = key.replace(/\.[^.]+$/, '_thumb.jpg');
 
-  // Deletar thumbnail também
-  const thumbKey = key.replace(/\/([^/]+)$/, '/thumbs/$1');
-  await s3Client.send(new DeleteObjectCommand({
-    Bucket: env.S3_BUCKET,
-    Key: thumbKey,
+  await s3.send(new DeleteObjectsCommand({
+    Bucket: BUCKET,
+    Delete: {
+      Objects: [{ Key: key }, { Key: thumbKey }],
+    },
   }));
 }
 
 export async function deleteAlbumFolder(albumId) {
   const prefix = `albuns/${albumId}/`;
-  const listResult = await s3Client.send(new ListObjectsV2Command({
-    Bucket: env.S3_BUCKET,
+
+  const listResult = await s3.send(new ListObjectsV2Command({
+    Bucket: BUCKET,
     Prefix: prefix,
   }));
 
-  if (listResult.Contents && listResult.Contents.length > 0) {
-    const deletePromises = listResult.Contents.map((obj) =>
-      s3Client.send(new DeleteObjectCommand({
-        Bucket: env.S3_BUCKET,
-        Key: obj.Key,
-      }))
-    );
-    await Promise.all(deletePromises);
-  }
+  if (!listResult.Contents || listResult.Contents.length === 0) return;
+
+  await s3.send(new DeleteObjectsCommand({
+    Bucket: BUCKET,
+    Delete: {
+      Objects: listResult.Contents.map((obj) => ({ Key: obj.Key })),
+    },
+  }));
 }
 
 export async function getSignedDownloadUrl(key, expiresIn = 3600) {
-  const command = new GetObjectCommand({
-    Bucket: env.S3_BUCKET,
-    Key: key,
-  });
-  return getSignedUrl(s3Client, command, { expiresIn });
-}
-
-export function getPublicUrl(key) {
-  if (env.CLOUDFRONT_DOMAIN) {
-    return `https://${env.CLOUDFRONT_DOMAIN}/${key}`;
-  }
-  return `https://${env.S3_BUCKET}.s3.${env.AWS_REGION}.amazonaws.com/${key}`;
+  const command = new GetObjectCommand({ Bucket: BUCKET, Key: key });
+  return getSignedUrl(s3, command, { expiresIn });
 }
 
 export async function uploadBackup(buffer, filename) {
-  await s3Client.send(new PutObjectCommand({
-    Bucket: env.S3_BACKUP_BUCKET,
-    Key: `backups/${filename}`,
+  const key = `backups/${filename}`;
+  await s3.send(new PutObjectCommand({
+    Bucket: BUCKET,
+    Key: key,
     Body: buffer,
     ContentType: 'application/gzip',
+    StorageClass: 'GLACIER_IR',
   }));
-
-  return { s3_key: `backups/${filename}` };
+  return { s3_key: key };
 }
+
+export default { uploadFoto, deleteFoto, deleteAlbumFolder, getSignedDownloadUrl, uploadBackup };
