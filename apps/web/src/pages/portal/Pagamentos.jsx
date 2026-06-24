@@ -15,53 +15,70 @@ export default function PortalPagamentos() {
       .finally(() => setLoading(false));
   }, []);
 
+  function abrirPagamento(cobranca) {
+    if (cobranca.link_pagamento) {
+      window.open(cobranca.link_pagamento, '_blank');
+    } else if (cobranca.pix_copia_cola) {
+      navigator.clipboard.writeText(cobranca.pix_copia_cola);
+      alert('Código PIX copiado!');
+    }
+  }
+
   if (loading) return <LoadingSpinner size="lg" />;
 
-  const total = cobrancas.filter((c) => c.status === 'pago').reduce((s, c) => s + (c.valor || 0), 0);
-  const pendente = cobrancas.filter((c) => c.status === 'pendente').reduce((s, c) => s + (c.valor || 0), 0);
+  const pendentes = cobrancas.filter((c) => c.status === 'pendente');
+  const pagas = cobrancas.filter((c) => c.status === 'pago');
 
   return (
     <div>
-      <h1 className="text-2xl font-bold text-gray-900 mb-6">Pagamentos 💳</h1>
+      <h1 className="text-2xl font-bold text-gray-900 mb-6">Meus Pagamentos 💳</h1>
 
-      <div className="grid grid-cols-2 gap-4 mb-6">
-        <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-          <p className="text-sm text-green-600">Total pago</p>
-          <p className="text-xl font-bold text-green-700">{formatarMoeda(total)}</p>
+      {pendentes.length > 0 && (
+        <div className="mb-8">
+          <h2 className="text-lg font-semibold mb-3">Pendentes</h2>
+          <div className="space-y-3">
+            {pendentes.map((c) => (
+              <div key={c.id} className="bg-white rounded-lg border border-yellow-200 p-4 flex items-center justify-between">
+                <div>
+                  <p className="font-medium">{c.descricao || 'Cobrança'}</p>
+                  <p className="text-xs text-gray-500">Vence: {formatarData(c.data_vencimento)} • {c.meio_pagamento?.toUpperCase()}</p>
+                </div>
+                <div className="flex items-center gap-3">
+                  <span className="text-lg font-bold">{formatarMoeda(c.valor)}</span>
+                  <button onClick={() => abrirPagamento(c)} className="px-3 py-2 bg-green-600 text-white rounded-md text-sm hover:bg-green-700">
+                    Pagar
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
-        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-          <p className="text-sm text-yellow-600">Pendente</p>
-          <p className="text-xl font-bold text-yellow-700">{formatarMoeda(pendente)}</p>
-        </div>
-      </div>
+      )}
 
-      {cobrancas.length === 0 ? (
+      {pagas.length > 0 && (
+        <div>
+          <h2 className="text-lg font-semibold mb-3">Pagas</h2>
+          <div className="space-y-2">
+            {pagas.map((c) => (
+              <div key={c.id} className="bg-white rounded-lg border border-gray-200 p-4 flex items-center justify-between opacity-75">
+                <div>
+                  <p className="font-medium">{c.descricao || 'Cobrança'}</p>
+                  <p className="text-xs text-gray-500">Pago em: {formatarData(c.data_pagamento)}</p>
+                </div>
+                <div className="flex items-center gap-3">
+                  <span className="font-bold text-green-600">{formatarMoeda(c.valor)}</span>
+                  <StatusBadge status="pago" />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {cobrancas.length === 0 && (
         <div className="text-center py-12 bg-white rounded-lg border border-gray-200">
           <p className="text-4xl mb-2">💳</p>
-          <p className="text-gray-500">Nenhuma cobrança encontrada</p>
-        </div>
-      ) : (
-        <div className="bg-white rounded-lg border border-gray-200 divide-y divide-gray-200">
-          {cobrancas.map((c) => (
-            <div key={c.id} className="p-4 flex items-center justify-between">
-              <div>
-                <p className="font-medium text-sm">{c.descricao || 'Cobrança'}</p>
-                <p className="text-xs text-gray-500">
-                  {c.meio_pagamento && `${c.meio_pagamento} • `}
-                  {c.status === 'pago' ? `Pago em: ${formatarData(c.data_pagamento)}` : `Vence: ${formatarData(c.data_vencimento)}`}
-                </p>
-                {c.status === 'pendente' && c.link_pagamento && (
-                  <a href={c.link_pagamento} target="_blank" rel="noopener noreferrer" className="text-xs text-primary-600 hover:underline mt-1 block">
-                    Pagar agora →
-                  </a>
-                )}
-              </div>
-              <div className="flex items-center gap-3">
-                <span className="font-bold">{formatarMoeda(c.valor)}</span>
-                <StatusBadge status={c.status} />
-              </div>
-            </div>
-          ))}
+          <p className="text-gray-500">Nenhum pagamento registrado</p>
         </div>
       )}
     </div>

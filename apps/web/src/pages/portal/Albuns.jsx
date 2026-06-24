@@ -22,7 +22,6 @@ export default function PortalAlbuns() {
   return (
     <div>
       <h1 className="text-2xl font-bold text-gray-900 mb-6">Meus Álbuns 📸</h1>
-
       {albuns.length === 0 ? (
         <div className="text-center py-12 bg-white rounded-lg border border-gray-200">
           <p className="text-4xl mb-2">📷</p>
@@ -41,10 +40,7 @@ export default function PortalAlbuns() {
                   <h3 className="font-medium">{album.titulo}</h3>
                   <StatusBadge status={album.status} />
                 </div>
-                <p className="text-xs text-gray-500">{album.total_fotos || 0} fotos • {formatarData(album.data_evento)}</p>
-                {album.data_expiracao && (
-                  <p className="text-xs text-orange-500 mt-1">Expira em: {formatarData(album.data_expiracao)}</p>
-                )}
+                <p className="text-xs text-gray-500">{album.total_fotos || 0} fotos • Expira: {formatarData(album.data_expiracao)}</p>
               </div>
             </div>
           ))}
