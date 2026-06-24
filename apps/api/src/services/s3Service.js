@@ -48,8 +48,8 @@ export async function uploadFoto(buffer, key, mimeType) {
   return {
     s3_key: key,
     s3_key_thumb: thumbKey,
-    url: `https://${env.CLOUDFRONT_DOMAIN}/${key}`,
-    url_thumb: `https://${env.CLOUDFRONT_DOMAIN}/${thumbKey}`,
+    url: `https://${BUCKET}.s3.${env.AWS_REGION}.amazonaws.com/${key}`,
+    url_thumb: `https://${BUCKET}.s3.${env.AWS_REGION}.amazonaws.com/${thumbKey}`,
     largura: metadata.width,
     altura: metadata.height,
     tamanho_bytes: buffer.length,
@@ -97,7 +97,6 @@ export async function uploadBackup(buffer, filename) {
     Key: key,
     Body: buffer,
     ContentType: 'application/gzip',
-    StorageClass: 'GLACIER_IR',
   }));
   return { s3_key: key };
 }

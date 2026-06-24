@@ -3,10 +3,16 @@
 // ══════════════════════════════════════════════════════════════
 
 import { getPocketbaseClient } from '../config/pocketbase.js';
+import { enviarTemplate } from './whatsappService.js';
 import { env } from '../config/env.js';
-import { enviarNotificacaoContrato } from './whatsappService.js';
-import { features } from '../config/env.js';
-import crypto from 'crypto';
+
+const TEMPLATES = {
+  casamento: 'contrato_casamento',
+  ensaio: 'contrato_ensaio',
+  aniversario: 'contrato_aniversario',
+  corporativo: 'contrato_corporativo',
+  default: 'contrato_padrao',
+};
 
 export async function gerarContrato(orcamentoId) {
   const pb = await getPocketbaseClient();
@@ -16,30 +22,30 @@ export async function gerarContrato(orcamentoId) {
 
   if (!cliente) throw new Error('Cliente não encontrado no orçamento');
 
-  // Buscar template de contrato
-  const configs = await pb.collection('configuracoes').getFullList({ filter: 'chave = "contrato_template"' });
-  let template = configs[0]?.valor || getTemplateDefault();
+  // Buscar template
+  const templateKey = TEMPLATES[orcamento.tipo_evento] || TEMPLATES.default;
+  const templates = await pb.collection('configuracoes').getFullList({ filter: `chave = "${templateKey}"` });
+  let conteudo = templates[0]?.valor || getTemplateDefault(orcamento.tipo_evento);
 
   // Substituir variáveis
-  template = template
+  conteudo = conteudo
     .replace(/{{cliente_nome}}/g, cliente.nome)
     .replace(/{{cliente_cpf}}/g, cliente.cpf || '')
     .replace(/{{cliente_email}}/g, cliente.email || '')
-    .replace(/{{tipo_evento}}/g, orcamento.tipo_evento || '')
+    .replace(/{{cliente_endereco}}/g, cliente.endereco || '')
+    .replace(/{{tipo_evento}}/g, orcamento.tipo_evento)
     .replace(/{{data_evento}}/g, orcamento.data_evento || '')
-    .replace(/{{valor_total}}/g, `R$ ${orcamento.valor_total?.toFixed(2) || '0.00'}`)
-    .replace(/{{data_geracao}}/g, new Date().toLocaleDateString('pt-BR'));
+    .replace(/{{local_evento}}/g, orcamento.local || '')
+    .replace(/{{valor_total}}/g, `R$ ${orcamento.valor_total?.toFixed(2)}`)
+    .replace(/{{data_hoje}}/g, new Date().toLocaleDateString('pt-BR'));
 
-  // Gerar token de acesso único
-  const tokenAcesso = crypto.randomBytes(32).toString('hex');
-
+  // Criar contrato
   const contrato = await pb.collection('contratos').create({
     cliente_id: cliente.id,
     orcamento_id: orcamentoId,
-    conteudo_html: template,
-    status: 'gerado',
-    token_acesso: tokenAcesso,
-    valor: orcamento.valor_total,
+    conteudo_html: conteudo,
+    status: 'rascunho',
+    token_assinatura: crypto.randomUUID(),
   });
 
   return contrato;
@@ -52,58 +58,54 @@ export async function enviarParaAssinatura(contratoId) {
 
   if (!cliente) throw new Error('Cliente não encontrado');
 
+  const link = `${env.FRONTEND_URL}/contrato/${contrato.token_assinatura}`;
+
   // Atualizar status
   await pb.collection('contratos').update(contratoId, {
     status: 'enviado',
     enviado_em: new Date().toISOString(),
   });
 
-  // Enviar WhatsApp
-  const link = `${env.FRONTEND_URL}/contrato/${contrato.token_acesso}`;
-
-  if (features.whatsapp && cliente.whatsapp_numero) {
-    await enviarNotificacaoContrato(cliente.whatsapp_numero, cliente.nome, link);
+  // Enviar WhatsApp se disponível
+  if (cliente.whatsapp_numero) {
+    try {
+      await enviarTemplate(cliente.whatsapp_numero, 'contrato_assinatura', [cliente.nome, link]);
+    } catch (error) {
+      console.error('[CONTRATO] Erro ao enviar WhatsApp:', error.message);
+    }
   }
 
   return { link, enviado_whatsapp: !!cliente.whatsapp_numero };
 }
 
-export async function assinarContrato(tokenAcesso, dadosAssinatura) {
+export async function assinarContrato(token, dadosAssinatura) {
   const pb = await getPocketbaseClient();
 
-  const contratos = await pb.collection('contratos').getFullList({
-    filter: `token_acesso = "${tokenAcesso}" && status != "assinado"`,
-  });
+  const contratos = await pb.collection('contratos').getFullList({ filter: `token_assinatura = "${token}"` });
+  if (contratos.length === 0) throw new Error('Contrato não encontrado');
 
-  if (contratos.length === 0) throw new Error('Contrato não encontrado ou já assinado');
   const contrato = contratos[0];
-
-  // Dados de não-repúdio
-  const naoRepudio = {
-    ip: dadosAssinatura.ip,
-    user_agent: dadosAssinatura.user_agent,
-    timestamp: new Date().toISOString(),
-    hash_conteudo: crypto.createHash('sha256').update(contrato.conteudo_html).digest('hex'),
-    aceite_termos: dadosAssinatura.aceite_termos,
-    nome_digitado: dadosAssinatura.nome_digitado,
-  };
+  if (contrato.status === 'assinado') throw new Error('Contrato já foi assinado');
 
   await pb.collection('contratos').update(contrato.id, {
     status: 'assinado',
     assinado_em: new Date().toISOString(),
-    dados_assinatura: JSON.stringify(naoRepudio),
+    ip_assinatura: dadosAssinatura.ip,
+    user_agent_assinatura: dadosAssinatura.userAgent,
+    assinatura_hash: dadosAssinatura.hash,
   });
 
-  return { success: true, contrato_id: contrato.id };
+  return { success: true };
 }
 
-function getTemplateDefault() {
+function getTemplateDefault(tipoEvento) {
   return `<h1>CONTRATO DE PRESTAÇÃO DE SERVIÇOS FOTOGRÁFICOS</h1>
-<p>Contratante: {{cliente_nome}} (CPF: {{cliente_cpf}})</p>
+<p>Contratante: {{cliente_nome}}, CPF: {{cliente_cpf}}</p>
 <p>Tipo de evento: {{tipo_evento}}</p>
-<p>Data do evento: {{data_evento}}</p>
-<p>Valor total: {{valor_total}}</p>
-<p>Data de geração: {{data_geracao}}</p>`;
+<p>Data: {{data_evento}}</p>
+<p>Local: {{local_evento}}</p>
+<p>Valor: {{valor_total}}</p>
+<p>Data: {{data_hoje}}</p>`;
 }
 
 export default { gerarContrato, enviarParaAssinatura, assinarContrato };

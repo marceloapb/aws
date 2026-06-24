@@ -5,7 +5,6 @@
 import { google } from 'googleapis';
 import { getPocketbaseClient } from '../config/pocketbase.js';
 import { env } from '../config/env.js';
-import { EVENT_COLORS } from '../config/constants.js';
 
 const SCOPES = ['https://www.googleapis.com/auth/calendar'];
 
@@ -13,7 +12,7 @@ export function getOAuth2Client() {
   return new google.auth.OAuth2(
     env.GOOGLE_CLIENT_ID,
     env.GOOGLE_CLIENT_SECRET,
-    env.GOOGLE_REDIRECT_URI
+    `${env.APP_URL}/api/admin/google-calendar/callback`
   );
 }
 
@@ -31,7 +30,9 @@ export async function getAuthenticatedClient() {
   const configs = await pb.collection('google_calendar_config').getFullList();
   const config = configs[0];
 
-  if (!config || !config.connected) throw new Error('Google Calendar não conectado');
+  if (!config || !config.connected) {
+    throw new Error('Google Calendar não conectado');
+  }
 
   const oauth2Client = getOAuth2Client();
   oauth2Client.setCredentials({
@@ -39,13 +40,16 @@ export async function getAuthenticatedClient() {
     refresh_token: config.refresh_token,
   });
 
-  // Renovar token se expirado
-  oauth2Client.on('tokens', async (tokens) => {
-    const updateData = { access_token: tokens.access_token };
-    if (tokens.refresh_token) updateData.refresh_token = tokens.refresh_token;
-    if (tokens.expiry_date) updateData.token_expiry = new Date(tokens.expiry_date).toISOString();
-    await pb.collection('google_calendar_config').update(config.id, updateData);
-  });
+  // Verificar se token expirou
+  const tokenExpiry = new Date(config.token_expiry);
+  if (Date.now() >= tokenExpiry.getTime()) {
+    const { credentials } = await oauth2Client.refreshAccessToken();
+    await pb.collection('google_calendar_config').update(config.id, {
+      access_token: credentials.access_token,
+      token_expiry: new Date(credentials.expiry_date).toISOString(),
+    });
+    oauth2Client.setCredentials(credentials);
+  }
 
   return { oauth2Client, calendarId: config.calendar_id || 'primary' };
 }
@@ -56,7 +60,7 @@ export async function criarEvento(dados) {
 
   const event = {
     summary: `${dados.tipo_evento} - ${dados.cliente_nome || 'Cliente'}`,
-    description: buildDescription(dados),
+    description: dados.observacoes || '',
     start: {
       dateTime: `${dados.data_evento}T${dados.horario_inicio || '09:00'}:00`,
       timeZone: 'America/Sao_Paulo',
@@ -65,10 +69,11 @@ export async function criarEvento(dados) {
       dateTime: `${dados.data_evento}T${dados.horario_fim || '18:00'}:00`,
       timeZone: 'America/Sao_Paulo',
     },
-    colorId: getColorId(dados.tipo_evento),
-    location: dados.local || '',
+    colorId: dados.cor_id || '7',
     reminders: { useDefault: false, overrides: [{ method: 'popup', minutes: 60 }] },
   };
+
+  if (dados.local) event.location = dados.local;
 
   const response = await calendar.events.insert({ calendarId, resource: event });
   return response.data;
@@ -80,7 +85,7 @@ export async function atualizarEvento(googleEventId, dados) {
 
   const event = {
     summary: `${dados.tipo_evento} - ${dados.cliente_nome || 'Cliente'}`,
-    description: buildDescription(dados),
+    description: dados.observacoes || '',
     start: {
       dateTime: `${dados.data_evento}T${dados.horario_inicio || '09:00'}:00`,
       timeZone: 'America/Sao_Paulo',
@@ -89,9 +94,9 @@ export async function atualizarEvento(googleEventId, dados) {
       dateTime: `${dados.data_evento}T${dados.horario_fim || '18:00'}:00`,
       timeZone: 'America/Sao_Paulo',
     },
-    colorId: getColorId(dados.tipo_evento),
-    location: dados.local || '',
   };
+
+  if (dados.local) event.location = dados.local;
 
   const response = await calendar.events.update({ calendarId, eventId: googleEventId, resource: event });
   return response.data;
@@ -116,19 +121,6 @@ export async function listarEventos(dataInicio, dataFim) {
   });
 
   return response.data.items || [];
-}
-
-function buildDescription(dados) {
-  const lines = [];
-  if (dados.cliente_nome) lines.push(`Cliente: ${dados.cliente_nome}`);
-  if (dados.cliente_telefone) lines.push(`Telefone: ${dados.cliente_telefone}`);
-  if (dados.observacoes) lines.push(`Obs: ${dados.observacoes}`);
-  return lines.join('\n');
-}
-
-function getColorId(tipoEvento) {
-  const colors = EVENT_COLORS || {};
-  return colors[tipoEvento] || '1';
 }
 
 export default { getOAuth2Client, getAuthUrl, getAuthenticatedClient, criarEvento, atualizarEvento, excluirEvento, listarEventos };

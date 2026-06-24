@@ -54,12 +54,8 @@ export async function enviarNotificacaoAlbum(numero, nomeCliente, tituloAlbum, l
   return enviarTemplate(numero, 'album_pronto', [nomeCliente, tituloAlbum, link]);
 }
 
-export async function enviarNotificacaoContrato(numero, nomeCliente, link) {
-  return enviarTemplate(numero, 'contrato_assinatura', [nomeCliente, link]);
-}
-
-export async function enviarConfirmacaoPagamento(numero, nomeCliente, valor) {
-  return enviarTemplate(numero, 'pagamento_confirmado', [nomeCliente, `R$ ${valor.toFixed(2)}`]);
+export async function enviarNotificacaoPagamento(numero, nomeCliente, valor, status) {
+  return enviarTemplate(numero, 'pagamento_confirmado', [nomeCliente, `R$ ${valor.toFixed(2)}`, status]);
 }
 
 function formatarNumero(numero) {
@@ -68,11 +64,4 @@ function formatarNumero(numero) {
   return limpo;
 }
 
-export default {
-  enviarTemplate,
-  enviarLembreteEvento,
-  enviarNotificacaoOrcamento,
-  enviarNotificacaoAlbum,
-  enviarNotificacaoContrato,
-  enviarConfirmacaoPagamento,
-};
+export default { enviarTemplate, enviarLembreteEvento, enviarNotificacaoOrcamento, enviarNotificacaoAlbum, enviarNotificacaoPagamento };
