@@ -1,75 +1,92 @@
-import express from 'express';
-import cors from 'cors';
-import helmet from 'helmet';
-import { adminAuth } from './middlewares/adminAuth.js';
-import { clientAuth as clientAuthMiddleware } from './middlewares/clientAuth.js';
-import { errorHandler, notFoundHandler } from './middlewares/errorHandler.js';
-import { env } from './config/env.js';
+const express = require('express');
+const cors = require('cors');
+const helmet = require('helmet');
+const logger = require('./config/logger');
+const errorHandler = require('./middlewares/errorHandler');
+const adminAuth = require('./middlewares/adminAuth');
+const clientAuth = require('./middlewares/clientAuth');
 
 // Rotas Admin
-import adminAgenda from './routes/admin-agenda.js';
-import adminClientes from './routes/admin-clientes.js';
-import adminOrcamentos from './routes/admin-orcamentos.js';
-import adminCobrancas from './routes/admin-cobrancas.js';
-import adminAlbuns from './routes/admin-albuns.js';
-import adminFotos from './routes/admin-fotos.js';
-import adminContratos from './routes/admin-contratos.js';
-import adminInstagram from './routes/admin-instagram.js';
-import adminWhatsapp from './routes/admin-whatsapp.js';
-import adminGoogleCalendar from './routes/admin-google-calendar.js';
-import adminConfiguracoes from './routes/admin-configuracoes.js';
-import adminFotografos from './routes/admin-fotografos.js';
-import adminEquipamentos from './routes/admin-equipamentos.js';
-import adminPendencias from './routes/admin-pendencias.js';
+const adminAgendaRoutes = require('./routes/admin-agenda');
+const adminAlbunsRoutes = require('./routes/admin-albuns');
+const adminClientesRoutes = require('./routes/admin-clientes');
+const adminCobrancasRoutes = require('./routes/admin-cobrancas');
+const adminConfiguracoesRoutes = require('./routes/admin-configuracoes');
+const adminContratosRoutes = require('./routes/admin-contratos');
+const adminEquipamentosRoutes = require('./routes/admin-equipamentos');
+const adminFotografosRoutes = require('./routes/admin-fotografos');
+const adminFotosRoutes = require('./routes/admin-fotos');
+const adminGoogleCalendarRoutes = require('./routes/admin-google-calendar');
+const adminInstagramRoutes = require('./routes/admin-instagram');
+const adminOrcamentosRoutes = require('./routes/admin-orcamentos');
+const adminPendenciasRoutes = require('./routes/admin-pendencias');
+const adminWhatsappRoutes = require('./routes/admin-whatsapp');
+const adminCatalogoRoutes = require('./routes/admin-catalogo');
+const adminImportRoutes = require('./routes/admin-import');
+const adminFeedbackRoutes = require('./routes/admin-feedback');
+const adminAditivosRoutes = require('./routes/admin-aditivos');
+const adminNotasFiscaisRoutes = require('./routes/admin-notas-fiscais');
 
-// Rotas Cliente
-import clientAuthRoutes from './routes/client-auth.js';
-import clientAlbuns from './routes/client-albuns.js';
-import clientContratos from './routes/client-contratos.js';
-import clientPagamentos from './routes/client-pagamentos.js';
-import clientOrcamentos from './routes/client-orcamentos.js';
+// Rotas Client
+const clientAuthRoutes = require('./routes/client-auth');
+const clientAlbunsRoutes = require('./routes/client-albuns');
+const clientContratosRoutes = require('./routes/client-contratos');
+const clientOrcamentosRoutes = require('./routes/client-orcamentos');
+const clientPagamentosRoutes = require('./routes/client-pagamentos');
+const clientFeedbackRoutes = require('./routes/client-feedback');
+const clientAditivosRoutes = require('./routes/client-aditivos');
 
-// Webhooks
-import webhooks from './routes/webhooks.js';
+// Rotas Webhook
+const webhooksRoutes = require('./routes/webhooks');
 
 const app = express();
 
+// Middlewares globais
 app.use(helmet());
-app.use(cors({ origin: env.FRONTEND_URL, credentials: true }));
+app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 
-app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString(), version: '1.0.0' });
+// Health check
+app.get('/health', (req, res) => {
+  res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
-// Admin (protegidas)
-app.use('/api/admin/agenda', adminAuth, adminAgenda);
-app.use('/api/admin/clientes', adminAuth, adminClientes);
-app.use('/api/admin/orcamentos', adminAuth, adminOrcamentos);
-app.use('/api/admin/cobrancas', adminAuth, adminCobrancas);
-app.use('/api/admin/albuns', adminAuth, adminAlbuns);
-app.use('/api/admin/fotos', adminAuth, adminFotos);
-app.use('/api/admin/contratos', adminAuth, adminContratos);
-app.use('/api/admin/instagram', adminAuth, adminInstagram);
-app.use('/api/admin/whatsapp', adminAuth, adminWhatsapp);
-app.use('/api/admin/google-calendar', adminAuth, adminGoogleCalendar);
-app.use('/api/admin/configuracoes', adminAuth, adminConfiguracoes);
-app.use('/api/admin/fotografos', adminAuth, adminFotografos);
-app.use('/api/admin/equipamentos', adminAuth, adminEquipamentos);
-app.use('/api/admin/pendencias', adminAuth, adminPendencias);
+// Registrar rotas Admin (protegidas por adminAuth)
+app.use('/admin/agenda', adminAuth, adminAgendaRoutes);
+app.use('/admin/albuns', adminAuth, adminAlbunsRoutes);
+app.use('/admin/clientes', adminAuth, adminClientesRoutes);
+app.use('/admin/cobrancas', adminAuth, adminCobrancasRoutes);
+app.use('/admin/configuracoes', adminAuth, adminConfiguracoesRoutes);
+app.use('/admin/contratos', adminAuth, adminContratosRoutes);
+app.use('/admin/equipamentos', adminAuth, adminEquipamentosRoutes);
+app.use('/admin/fotografos', adminAuth, adminFotografosRoutes);
+app.use('/admin/fotos', adminAuth, adminFotosRoutes);
+app.use('/admin/google-calendar', adminAuth, adminGoogleCalendarRoutes);
+app.use('/admin/instagram', adminAuth, adminInstagramRoutes);
+app.use('/admin/orcamentos', adminAuth, adminOrcamentosRoutes);
+app.use('/admin/pendencias', adminAuth, adminPendenciasRoutes);
+app.use('/admin/whatsapp', adminAuth, adminWhatsappRoutes);
+app.use('/admin/catalogo', adminAuth, adminCatalogoRoutes);
+app.use('/admin/import', adminAuth, adminImportRoutes);
+app.use('/admin/feedback', adminAuth, adminFeedbackRoutes);
+app.use('/admin/aditivos', adminAuth, adminAditivosRoutes);
+app.use('/admin/notas-fiscais', adminAuth, adminNotasFiscaisRoutes);
 
-// Cliente
-app.use('/api/client', clientAuthRoutes);
-app.use('/api/client/albuns', clientAuthMiddleware, clientAlbuns);
-app.use('/api/client/contratos', clientAuthMiddleware, clientContratos);
-app.use('/api/client/pagamentos', clientAuthMiddleware, clientPagamentos);
-app.use('/api/client/orcamentos', clientAuthMiddleware, clientOrcamentos);
+// Registrar rotas Client (protegidas por clientAuth)
+app.use('/client/auth', clientAuthRoutes);
+app.use('/client/albuns', clientAuth, clientAlbunsRoutes);
+app.use('/client/contratos', clientAuth, clientContratosRoutes);
+app.use('/client/orcamentos', clientAuth, clientOrcamentosRoutes);
+app.use('/client/pagamentos', clientAuth, clientPagamentosRoutes);
 
-// Webhooks (sem auth)
-app.use('/api/webhooks', webhooks);
+// Rotas Client públicas (acesso via token, sem auth)
+app.use('/client/feedback', clientFeedbackRoutes);
+app.use('/client/aditivos', clientAditivosRoutes);
 
-app.use(notFoundHandler);
+// Webhooks (sem auth - validação interna)
+app.use('/webhooks', webhooksRoutes);
+
+// Error handler
 app.use(errorHandler);
 
-export { app };
-export default app;
+module.exports = app;
