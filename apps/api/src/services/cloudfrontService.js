@@ -1,6 +1,6 @@
 const { getSignedUrl, getSignedCookies } = require('@aws-sdk/cloudfront-signer');
-const { getParameter } = require('../utils/ssm');
 const logger = require('../config/logger');
+const { getParameter } = require('../utils/ssm');
 
 let cachedPrivateKey = null;
 
@@ -14,73 +14,63 @@ async function getPrivateKey() {
 }
 
 /**
- * Gera URL assinada do CloudFront para um arquivo específico.
- * @param {string} objectKey - Path do objeto no S3/CF (ex: 'albuns/abc/foto1.jpg')
+ * Gera URL assinada para acesso a um arquivo específico no CloudFront
+ * @param {string} objectKey - Path do objeto (ex: 'albuns/abc123/foto1.jpg')
  * @param {number} expiresInSeconds - Tempo de expiração (default 1h)
  * @returns {string} URL assinada
  */
 async function generateSignedUrl(objectKey, expiresInSeconds = 3600) {
-  const cfDomain = process.env.CLOUDFRONT_DOMAIN;
+  const cloudFrontDomain = process.env.CLOUDFRONT_DOMAIN;
   const keyPairId = process.env.CLOUDFRONT_KEY_PAIR_ID;
 
-  if (!cfDomain || !keyPairId) {
-    logger.warn({ action: 'cloudfront_not_configured', message: 'CLOUDFRONT_DOMAIN ou KEY_PAIR_ID não configurados' });
+  if (!cloudFrontDomain || !keyPairId) {
+    logger.warn({ action: 'cloudfront_not_configured', message: 'CLOUDFRONT_DOMAIN ou KEY_PAIR_ID não configurados. Retornando null.' });
     return null;
   }
 
-  try {
-    const privateKey = await getPrivateKey();
-    const url = `https://${cfDomain}/${objectKey}`;
-    const dateLessThan = new Date(Date.now() + expiresInSeconds * 1000).toISOString();
+  const privateKey = await getPrivateKey();
+  const url = `https://${cloudFrontDomain}/${objectKey}`;
+  const dateLessThan = new Date(Date.now() + expiresInSeconds * 1000).toISOString();
 
-    const signedUrl = getSignedUrl({
-      url,
-      keyPairId,
-      privateKey,
-      dateLessThan
-    });
+  const signedUrl = getSignedUrl({
+    url,
+    keyPairId,
+    privateKey,
+    dateLessThan
+  });
 
-    logger.info({ action: 'cloudfront_signed_url', objectKey, expiresInSeconds });
-    return signedUrl;
-  } catch (error) {
-    logger.error({ action: 'cloudfront_signed_url_error', error: error.message, objectKey });
-    return null;
-  }
+  logger.info({ action: 'cloudfront_signed_url', objectKey, expiresInSeconds });
+  return signedUrl;
 }
 
 /**
- * Gera cookies assinados para acesso a um diretório (ex: álbum inteiro).
+ * Gera cookies assinados para acesso a múltiplos arquivos (ex: álbum inteiro)
  * @param {string} pathPattern - Pattern do path (ex: 'albuns/abc123/*')
  * @param {number} expiresInSeconds - Tempo de expiração (default 2h)
- * @returns {object} Objeto com cookies CloudFront ou null
+ * @returns {object} Cookies para Set-Cookie headers
  */
 async function generateSignedCookies(pathPattern, expiresInSeconds = 7200) {
-  const cfDomain = process.env.CLOUDFRONT_DOMAIN;
+  const cloudFrontDomain = process.env.CLOUDFRONT_DOMAIN;
   const keyPairId = process.env.CLOUDFRONT_KEY_PAIR_ID;
 
-  if (!cfDomain || !keyPairId) {
+  if (!cloudFrontDomain || !keyPairId) {
     logger.warn({ action: 'cloudfront_cookies_not_configured' });
     return null;
   }
 
-  try {
-    const privateKey = await getPrivateKey();
-    const url = `https://${cfDomain}/${pathPattern}`;
-    const dateLessThan = new Date(Date.now() + expiresInSeconds * 1000).toISOString();
+  const privateKey = await getPrivateKey();
+  const resourceUrl = `https://${cloudFrontDomain}/${pathPattern}`;
+  const dateLessThan = new Date(Date.now() + expiresInSeconds * 1000).toISOString();
 
-    const cookies = getSignedCookies({
-      url,
-      keyPairId,
-      privateKey,
-      dateLessThan
-    });
+  const cookies = getSignedCookies({
+    url: resourceUrl,
+    keyPairId,
+    privateKey,
+    dateLessThan
+  });
 
-    logger.info({ action: 'cloudfront_signed_cookies', pathPattern, expiresInSeconds });
-    return cookies;
-  } catch (error) {
-    logger.error({ action: 'cloudfront_signed_cookies_error', error: error.message, pathPattern });
-    return null;
-  }
+  logger.info({ action: 'cloudfront_signed_cookies', pathPattern, expiresInSeconds });
+  return cookies;
 }
 
 module.exports = { generateSignedUrl, generateSignedCookies };
