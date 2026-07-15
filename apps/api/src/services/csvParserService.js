@@ -3,7 +3,19 @@ const logger = require('../config/logger');
 
 const MAX_LINHAS = 500;
 
-function parseCSV(buffer, columns, validationFn) {
+function parseClientes(buffer) {
+  return parseCSV(buffer, 'clientes', ['nome', 'email', 'telefone']);
+}
+
+function parseCatalogo(buffer) {
+  return parseCSV(buffer, 'catalogo', ['nome', 'tipo', 'preco']);
+}
+
+function parseEquipamentos(buffer) {
+  return parseCSV(buffer, 'equipamentos', ['nome', 'tipo']);
+}
+
+function parseCSV(buffer, entityType, camposObrigatorios) {
   try {
     const records = parse(buffer, {
       columns: true,
@@ -13,55 +25,53 @@ function parseCSV(buffer, columns, validationFn) {
     });
 
     if (records.length > MAX_LINHAS) {
-      return { validated: [], errors: [{ linha: 0, motivo: `Arquivo excede o limite de ${MAX_LINHAS} linhas (${records.length} encontradas)` }] };
+      return {
+        validated: [],
+        errors: [{ linha: 0, motivo: `Arquivo excede o limite de ${MAX_LINHAS} linhas. Total: ${records.length}` }]
+      };
     }
 
     const validated = [];
     const errors = [];
 
     records.forEach((record, index) => {
-      const linha = index + 2;
-      const error = validationFn(record);
-      if (error) {
-        errors.push({ linha, motivo: error, dados: record });
+      const linha = index + 2; // +2 porque index 0 = linha 2 do CSV (header é linha 1)
+      const camposFaltando = camposObrigatorios.filter(campo => !record[campo] || record[campo].trim() === '');
+
+      if (camposFaltando.length > 0) {
+        errors.push({ linha, motivo: `Campos obrigatórios faltando: ${camposFaltando.join(', ')}` });
       } else {
+        // Validações específicas por tipo
+        if (entityType === 'catalogo' && record.preco) {
+          const preco = parseFloat(record.preco);
+          if (isNaN(preco) || preco < 0) {
+            errors.push({ linha, motivo: 'Preço inválido (deve ser número >= 0)' });
+            return;
+          }
+          record.preco = preco;
+        }
+
+        if (entityType === 'clientes' && record.email) {
+          const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+          if (!emailRegex.test(record.email)) {
+            errors.push({ linha, motivo: `Email inválido: ${record.email}` });
+            return;
+          }
+        }
+
         validated.push(record);
       }
     });
 
+    logger.info({ action: 'csv_parse', entityType, total: records.length, validated: validated.length, errors: errors.length });
     return { validated, errors };
   } catch (error) {
-    logger.error({ action: 'csv_parse_error', error: error.message });
-    return { validated: [], errors: [{ linha: 0, motivo: `Erro ao parsear CSV: ${error.message}` }] };
+    logger.error({ action: 'csv_parse_error', entityType, error: error.message });
+    return {
+      validated: [],
+      errors: [{ linha: 0, motivo: `Erro ao processar CSV: ${error.message}` }]
+    };
   }
-}
-
-function parseClientes(buffer) {
-  return parseCSV(buffer, ['nome', 'email', 'telefone', 'documento', 'endereco'], (record) => {
-    if (!record.nome || record.nome.trim().length === 0) return 'Campo nome eh obrigatorio';
-    if (!record.email || record.email.trim().length === 0) return 'Campo email eh obrigatorio';
-    if (record.email && !record.email.includes('@')) return 'Email invalido';
-    return null;
-  });
-}
-
-function parseCatalogo(buffer) {
-  return parseCSV(buffer, ['nome', 'tipo', 'preco', 'descricao', 'quantidadeFotos', 'duracaoHoras'], (record) => {
-    if (!record.nome || record.nome.trim().length === 0) return 'Campo nome eh obrigatorio';
-    if (record.preco === undefined || record.preco === '' || isNaN(Number(record.preco))) return 'Campo preco deve ser um numero valido';
-    if (Number(record.preco) < 0) return 'Campo preco deve ser >= 0';
-    const tiposValidos = ['ensaio', 'casamento', 'evento', 'corporativo', 'custom'];
-    if (record.tipo && !tiposValidos.includes(record.tipo.toLowerCase())) return 'Tipo invalido. Aceitos: ' + tiposValidos.join(', ');
-    return null;
-  });
-}
-
-function parseEquipamentos(buffer) {
-  return parseCSV(buffer, ['nome', 'tipo', 'marca', 'modelo', 'numero_serie'], (record) => {
-    if (!record.nome || record.nome.trim().length === 0) return 'Campo nome eh obrigatorio';
-    if (!record.tipo || record.tipo.trim().length === 0) return 'Campo tipo eh obrigatorio';
-    return null;
-  });
 }
 
 const TEMPLATES = {
@@ -70,9 +80,4 @@ const TEMPLATES = {
   equipamentos: 'nome,tipo,marca,modelo,numero_serie'
 };
 
-module.exports = {
-  parseClientes,
-  parseCatalogo,
-  parseEquipamentos,
-  TEMPLATES
-};
+module.exports = { parseClientes, parseCatalogo, parseEquipamentos, TEMPLATES };

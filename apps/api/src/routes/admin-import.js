@@ -10,6 +10,7 @@ const client = new DynamoDBClient({});
 const docClient = DynamoDBDocumentClient.from(client);
 const TABLE_NAME = process.env.TABLE_NAME;
 
+// Utilitário para batch write em chunks de 25
 async function batchWrite(items) {
   const chunks = [];
   for (let i = 0; i < items.length; i += 25) {
@@ -26,12 +27,14 @@ async function batchWrite(items) {
     };
 
     let retries = 0;
-    let response = await docClient.send(new BatchWriteCommand(params));
+    let unprocessed = params;
 
-    while (response.UnprocessedItems && Object.keys(response.UnprocessedItems).length > 0 && retries < 3) {
+    while (retries < 3) {
+      const result = await docClient.send(new BatchWriteCommand(unprocessed));
+      if (!result.UnprocessedItems || Object.keys(result.UnprocessedItems).length === 0) break;
+      unprocessed = { RequestItems: result.UnprocessedItems };
       retries++;
-      await new Promise(resolve => setTimeout(resolve, 100 * retries));
-      response = await docClient.send(new BatchWriteCommand({ RequestItems: response.UnprocessedItems }));
+      await new Promise(r => setTimeout(r, 100 * Math.pow(2, retries)));
     }
   }
 }
@@ -42,30 +45,31 @@ router.post('/clientes', async (req, res) => {
     const photographerId = req.user.sub;
     const { csv } = req.body;
 
-    if (!csv) {
-      return res.status(400).json({ success: false, error: 'Campo csv eh obrigatorio no body' });
-    }
+    if (!csv) return res.status(400).json({ success: false, error: 'Campo csv é obrigatório' });
 
     const { validated, errors } = parseClientes(csv);
-    const now = new Date().toISOString();
 
+    if (validated.length === 0 && errors.length > 0) {
+      return res.status(400).json({ success: false, data: { total: 0, importados: 0, erros: errors } });
+    }
+
+    const now = new Date().toISOString();
     const items = validated.map(record => ({
       PK: `PHOTOGRAPHER#${photographerId}`,
       SK: `CLIENT#${uuidv4()}`,
       id: uuidv4(),
       photographerId,
-      nome: record.nome.trim(),
-      email: record.email.trim().toLowerCase(),
+      nome: record.nome,
+      email: record.email || '',
       telefone: record.telefone || '',
       documento: record.documento || '',
       endereco: record.endereco || '',
       criadoEm: now,
-      atualizadoEm: now
+      atualizadoEm: now,
+      origem: 'import_csv'
     }));
 
-    if (items.length > 0) {
-      await batchWrite(items);
-    }
+    await batchWrite(items);
 
     logger.info({ action: 'import_clientes', photographerId, total: validated.length + errors.length, importados: items.length, erros: errors.length });
     res.json({ success: true, data: { total: validated.length + errors.length, importados: items.length, erros: errors } });
@@ -81,13 +85,15 @@ router.post('/catalogo', async (req, res) => {
     const photographerId = req.user.sub;
     const { csv } = req.body;
 
-    if (!csv) {
-      return res.status(400).json({ success: false, error: 'Campo csv eh obrigatorio no body' });
-    }
+    if (!csv) return res.status(400).json({ success: false, error: 'Campo csv é obrigatório' });
 
     const { validated, errors } = parseCatalogo(csv);
-    const now = new Date().toISOString();
 
+    if (validated.length === 0 && errors.length > 0) {
+      return res.status(400).json({ success: false, data: { total: 0, importados: 0, erros: errors } });
+    }
+
+    const now = new Date().toISOString();
     const items = validated.map(record => ({
       PK: `PHOTOGRAPHER#${photographerId}`,
       SK: `CATALOGO#${uuidv4()}`,
@@ -95,26 +101,26 @@ router.post('/catalogo', async (req, res) => {
       GSI1SK: 'CATALOGO#ACTIVE',
       id: uuidv4(),
       photographerId,
-      nome: record.nome.trim(),
-      tipo: (record.tipo || 'custom').toLowerCase(),
-      preco: Number(record.preco),
+      nome: record.nome,
+      tipo: record.tipo || 'custom',
+      preco: parseFloat(record.preco) || 0,
       descricao: record.descricao || '',
-      quantidadeFotos: Number(record.quantidadeFotos) || 0,
-      duracaoHoras: Number(record.duracaoHoras) || 0,
+      quantidadeFotos: parseInt(record.quantidadeFotos) || 0,
+      duracaoHoras: parseFloat(record.duracaoHoras) || 0,
+      itensInclusos: [],
       ativo: true,
       criadoEm: now,
-      atualizadoEm: now
+      atualizadoEm: now,
+      origem: 'import_csv'
     }));
 
-    if (items.length > 0) {
-      await batchWrite(items);
-    }
+    await batchWrite(items);
 
-    logger.info({ action: 'import_catalogo', photographerId, total: validated.length + errors.length, importados: items.length, erros: errors.length });
+    logger.info({ action: 'import_catalogo', photographerId, importados: items.length, erros: errors.length });
     res.json({ success: true, data: { total: validated.length + errors.length, importados: items.length, erros: errors } });
   } catch (error) {
     logger.error({ action: 'import_catalogo_error', error: error.message });
-    res.status(500).json({ success: false, error: 'Erro ao importar catalogo' });
+    res.status(500).json({ success: false, error: 'Erro ao importar catálogo' });
   }
 });
 
@@ -124,33 +130,34 @@ router.post('/equipamentos', async (req, res) => {
     const photographerId = req.user.sub;
     const { csv } = req.body;
 
-    if (!csv) {
-      return res.status(400).json({ success: false, error: 'Campo csv eh obrigatorio no body' });
-    }
+    if (!csv) return res.status(400).json({ success: false, error: 'Campo csv é obrigatório' });
 
     const { validated, errors } = parseEquipamentos(csv);
-    const now = new Date().toISOString();
 
+    if (validated.length === 0 && errors.length > 0) {
+      return res.status(400).json({ success: false, data: { total: 0, importados: 0, erros: errors } });
+    }
+
+    const now = new Date().toISOString();
     const items = validated.map(record => ({
       PK: `PHOTOGRAPHER#${photographerId}`,
       SK: `EQUIPMENT#${uuidv4()}`,
       id: uuidv4(),
       photographerId,
-      nome: record.nome.trim(),
-      tipo: record.tipo.trim(),
+      nome: record.nome,
+      tipo: record.tipo || '',
       marca: record.marca || '',
       modelo: record.modelo || '',
       numeroSerie: record.numero_serie || '',
-      ativo: true,
+      status: 'disponivel',
       criadoEm: now,
-      atualizadoEm: now
+      atualizadoEm: now,
+      origem: 'import_csv'
     }));
 
-    if (items.length > 0) {
-      await batchWrite(items);
-    }
+    await batchWrite(items);
 
-    logger.info({ action: 'import_equipamentos', photographerId, total: validated.length + errors.length, importados: items.length, erros: errors.length });
+    logger.info({ action: 'import_equipamentos', photographerId, importados: items.length, erros: errors.length });
     res.json({ success: true, data: { total: validated.length + errors.length, importados: items.length, erros: errors } });
   } catch (error) {
     logger.error({ action: 'import_equipamentos_error', error: error.message });
@@ -164,12 +171,11 @@ router.get('/templates/:entity', (req, res) => {
   const template = TEMPLATES[entity];
 
   if (!template) {
-    return res.status(404).json({ success: false, error: 'Template nao encontrado para: ' + entity + '. Disponiveis: ' + Object.keys(TEMPLATES).join(', ') });
+    return res.status(400).json({ success: false, error: `Entidade inválida. Valores aceitos: ${Object.keys(TEMPLATES).join(', ')}` });
   }
 
-  logger.info({ action: 'import_template_download', entity });
   res.setHeader('Content-Type', 'text/csv');
-  res.setHeader('Content-Disposition', 'attachment; filename=template-' + entity + '.csv');
+  res.setHeader('Content-Disposition', `attachment; filename=template-${entity}.csv`);
   res.send(template);
 });
 
