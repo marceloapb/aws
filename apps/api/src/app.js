@@ -26,6 +26,7 @@ const adminImportRoutes = require('./routes/admin-import');
 const adminFeedbackRoutes = require('./routes/admin-feedback');
 const adminAditivosRoutes = require('./routes/admin-aditivos');
 const adminNotasFiscaisRoutes = require('./routes/admin-notas-fiscais');
+const adminFinanceiroRoutes = require('./routes/admin-financeiro');
 
 // Rotas Client
 const clientAuthRoutes = require('./routes/client-auth');
@@ -35,6 +36,9 @@ const clientOrcamentosRoutes = require('./routes/client-orcamentos');
 const clientPagamentosRoutes = require('./routes/client-pagamentos');
 const clientFeedbackRoutes = require('./routes/client-feedback');
 const clientAditivosRoutes = require('./routes/client-aditivos');
+
+// Rotas Públicas (sem auth)
+const publicRoutes = require('./routes/public');
 
 // Rotas Webhook
 const webhooksRoutes = require('./routes/webhooks');
@@ -71,6 +75,7 @@ app.use('/admin/import', adminAuth, adminImportRoutes);
 app.use('/admin/feedback', adminAuth, adminFeedbackRoutes);
 app.use('/admin/aditivos', adminAuth, adminAditivosRoutes);
 app.use('/admin/notas-fiscais', adminAuth, adminNotasFiscaisRoutes);
+app.use('/admin/financeiro', adminAuth, adminFinanceiroRoutes);
 
 // Registrar rotas Client (protegidas por clientAuth)
 app.use('/client/auth', clientAuthRoutes);
@@ -82,6 +87,9 @@ app.use('/client/pagamentos', clientAuth, clientPagamentosRoutes);
 // Rotas Client públicas (acesso via token, sem auth)
 app.use('/client/feedback', clientFeedbackRoutes);
 app.use('/client/aditivos', clientAditivosRoutes);
+
+// Rotas Públicas (site institucional, sem auth)
+app.use('/public', publicRoutes);
 
 // Webhooks (sem auth - validação interna)
 app.use('/webhooks', webhooksRoutes);
