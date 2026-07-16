@@ -1,23 +1,25 @@
-import { SSMClient, GetParameterCommand } from '@aws-sdk/client-ssm';
+const { SSMClient, GetParameterCommand } = require('@aws-sdk/client-ssm');
+const logger = require('../config/logger');
 
-const client = new SSMClient({});
-const cache = {};
+const ssmClient = new SSMClient({});
 
-export async function getParam(name, decrypt = true) {
-  if (cache[name]) return cache[name];
-  const { Parameter } = await client.send(
-    new GetParameterCommand({ Name: name, WithDecryption: decrypt })
-  );
-  cache[name] = Parameter.Value;
-  return Parameter.Value;
+/**
+ * Busca parâmetro do SSM Parameter Store
+ * @param {string} name - Path do parâmetro
+ * @param {boolean} withDecryption - Se deve descriptografar (SecureString)
+ * @returns {string} Valor do parâmetro
+ */
+async function getParameter(name, withDecryption = false) {
+  try {
+    const result = await ssmClient.send(new GetParameterCommand({
+      Name: name,
+      WithDecryption: withDecryption
+    }));
+    return result.Parameter.Value;
+  } catch (error) {
+    logger.error({ action: 'ssm_get_parameter_error', name, error: error.message });
+    throw error;
+  }
 }
 
-export async function getWhatsAppConfig() {
-  const prefix = process.env.SSM_PREFIX || '/mbf/prod';
-  const [accessToken, phoneNumberId, verifyToken] = await Promise.all([
-    getParam(`${prefix}/WHATSAPP_ACCESS_TOKEN`),
-    getParam(`${prefix}/WHATSAPP_PHONE_NUMBER_ID`, false),
-    getParam(`${prefix}/WHATSAPP_VERIFY_TOKEN`),
-  ]);
-  return { accessToken, phoneNumberId, verifyToken };
-}
+module.exports = { getParameter };
