@@ -1,1 +1,108 @@
-AWSTemplateFormatVersion: '2010-09-09'\nTransform: AWS::Serverless-2016-10-31\nDescription: MBF Systems - Photography Platform API\n\nGlobals:\n  Function:\n    Timeout: 30\n    Runtime: nodejs20.x\n    MemorySize: 256\n    Environment:\n      Variables:\n        TABLE_NAME: !Ref MainTable\n        BUCKET_NAME: !Ref MediaBucket\n        STAGE: !Ref Stage\n        CLOUDFRONT_DOMAIN: !Ref CloudFrontDomain\n        CLOUDFRONT_KEY_PAIR_ID: !Ref CloudFrontKeyPairId\n        FRONTEND_URL: !Ref FrontendUrl\n\nParameters:\n  Stage:\n    Type: String\n    Default: prod\n    AllowedValues:\n      - dev\n      - staging\n      - prod\n  CloudFrontDomain:\n    Type: String\n    Default: ''\n    Description: CloudFront distribution domain\n  CloudFrontKeyPairId:\n    Type: String\n    Default: ''\n    Description: CloudFront key pair ID for signed URLs\n  FrontendUrl:\n    Type: String\n    Default: 'http://localhost:5173'\n    Description: Frontend URL for CORS and links\n\nResources:\n  # ============ DynamoDB ============\n  MainTable:\n    Type: AWS::DynamoDB::Table\n    Properties:\n      TableName: !Sub mbf-${Stage}-main\n      BillingMode: PAY_PER_REQUEST\n      AttributeDefinitions:\n        - AttributeName: PK\n          AttributeType: S\n        - AttributeName: SK\n          AttributeType: S\n        - AttributeName: GSI1PK\n          AttributeType: S\n        - AttributeName: GSI1SK\n          AttributeType: S\n      KeySchema:\n        - AttributeName: PK\n          KeyType: HASH\n        - AttributeName: SK\n          KeyType: RANGE\n      GlobalSecondaryIndexes:\n        - IndexName: GSI1\n          KeySchema:\n            - AttributeName: GSI1PK\n              KeyType: HASH\n            - AttributeName: GSI1SK\n              KeyType: RANGE\n          Projection:\n            ProjectionType: ALL\n\n  # ============ S3 ============\n  MediaBucket:\n    Type: AWS::S3::Bucket\n    Properties:\n      BucketName: !Sub mbf-${Stage}-media\n      CorsConfiguration:\n        CorsRules:\n          - AllowedHeaders: ['*']\n            AllowedMethods: [GET, PUT, POST]\n            AllowedOrigins: ['*']\n            MaxAge: 3600\n\n  # ============ Cognito ============\n  UserPool:\n    Type: AWS::Cognito::UserPool\n    Properties:\n      UserPoolName: !Sub mbf-${Stage}-users\n      AutoVerifiedAttributes:\n        - email\n      UsernameAttributes:\n        - email\n      Policies:\n        PasswordPolicy:\n          MinimumLength: 8\n          RequireUppercase: true\n          RequireLowercase: true\n          RequireNumbers: true\n\n  UserPoolClient:\n    Type: AWS::Cognito::UserPoolClient\n    Properties:\n      UserPoolId: !Ref UserPool\n      ClientName: !Sub mbf-${Stage}-web\n      ExplicitAuthFlows:\n        - ALLOW_USER_SRP_AUTH\n        - ALLOW_REFRESH_TOKEN_AUTH\n\n  # ============ API Function (Express monolítico) ============\n  ApiFunction:\n    Type: AWS::Serverless::Function\n    Properties:\n      Handler: src/handler.handler\n      CodeUri: .\n      MemorySize: 512\n      Timeout: 30\n      Policies:\n        - DynamoDBCrudPolicy:\n            TableName: !Ref MainTable\n        - S3CrudPolicy:\n            BucketName: !Ref MediaBucket\n        - Statement:\n            - Effect: Allow\n              Action:\n                - ses:SendEmail\n                - ses:SendRawEmail\n              Resource: '*'\n        - Statement:\n            - Effect: Allow\n              Action:\n                - sqs:SendMessage\n              Resource: '*'\n        - Statement:\n            - Effect: Allow\n              Action:\n                - ssm:GetParameter\n              Resource: !Sub arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/mbf/${Stage}/*\n      Events:\n        ApiProxy:\n          Type: HttpApi\n          Properties:\n            Path: /{proxy+}\n            Method: ANY\n        ApiRoot:\n          Type: HttpApi\n          Properties:\n            Path: /\n            Method: ANY\n\n  # ============ Follow-Up Job (Motor Automático) ============\n  FollowUpFunction:\n    Type: AWS::Serverless::Function\n    Properties:\n      Handler: src/jobs/followUpJob.handler\n      CodeUri: .\n      MemorySize: 256\n      Timeout: 60\n      Description: Motor de follow-up automático - cria pendências baseado em regras\n      Policies:\n        - DynamoDBCrudPolicy:\n            TableName: !Ref MainTable\n      Events:\n        DailySchedule:\n          Type: ScheduleV2\n          Properties:\n            ScheduleExpression: cron(0 11 * * ? *)\n            Description: Executa diariamente às 08:00 BRT (11:00 UTC)\n\nOutputs:\n  ApiUrl:\n    Description: API Gateway URL\n    Value: !Sub https://${ServerlessHttpApi}.execute-api.${AWS::Region}.amazonaws.com\n  TableName:\n    Description: DynamoDB table name\n    Value: !Ref MainTable\n  BucketName:\n    Description: S3 bucket name\n    Value: !Ref MediaBucket\n  UserPoolId:\n    Description: Cognito User Pool ID\n    Value: !Ref UserPool\n  UserPoolClientId:\n    Description: Cognito User Pool Client ID\n    Value: !Ref UserPoolClient\n"
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: MBF Systems API
+
+Parameters:
+  Stage:
+    Type: String
+    Default: prod
+  CloudFrontDomain:
+    Type: String
+    Default: ''
+  CloudFrontKeyPairId:
+    Type: String
+    Default: ''
+  FrontendUrl:
+    Type: String
+    Default: 'https://app.bloise.com.br'
+
+Globals:
+  Function:
+    Runtime: nodejs20.x
+    Timeout: 30
+    MemorySize: 256
+    Environment:
+      Variables:
+        STAGE: !Ref Stage
+        CLOUDFRONT_DOMAIN: !Ref CloudFrontDomain
+        CLOUDFRONT_KEY_PAIR_ID: !Ref CloudFrontKeyPairId
+        FRONTEND_URL: !Ref FrontendUrl
+        TABLE_NAME: !Ref MbfTable
+        CLOUDFRONT_PRIVATE_KEY_PARAM: !Sub '/mbf/${Stage}/cloudfront/private-key'
+
+Resources:
+  MbfApi:
+    Type: AWS::Serverless::HttpApi
+    Properties:
+      StageName: !Ref Stage
+      CorsConfiguration:
+        AllowOrigins:
+          - !Ref FrontendUrl
+          - 'http://localhost:3000'
+        AllowMethods:
+          - GET
+          - POST
+          - PUT
+          - DELETE
+          - OPTIONS
+        AllowHeaders:
+          - Content-Type
+          - Authorization
+          - X-Requested-With
+        AllowCredentials: true
+
+  MbfFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub 'mbf-${Stage}-api'
+      Handler: app.handler
+      CodeUri: .
+      Events:
+        ApiCatchAll:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref MbfApi
+            Path: /{proxy+}
+            Method: ANY
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref MbfTable
+        - SSMParameterReadPolicy:
+            ParameterName: !Sub 'mbf/${Stage}/*'
+
+  MbfTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub 'mbf-${Stage}-table'
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: PK
+          AttributeType: S
+        - AttributeName: SK
+          AttributeType: S
+        - AttributeName: GSI1PK
+          AttributeType: S
+        - AttributeName: GSI1SK
+          AttributeType: S
+      KeySchema:
+        - AttributeName: PK
+          KeyType: HASH
+        - AttributeName: SK
+          KeyType: RANGE
+      GlobalSecondaryIndexes:
+        - IndexName: GSI1
+          KeySchema:
+            - AttributeName: GSI1PK
+              KeyType: HASH
+            - AttributeName: GSI1SK
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+
+Outputs:
+  ApiUrl:
+    Description: API Gateway endpoint URL
+    Value: !Sub 'https://${MbfApi}.execute-api.${AWS::Region}.amazonaws.com/${Stage}'
+  TableName:
+    Description: DynamoDB table name
+    Value: !Ref MbfTable
