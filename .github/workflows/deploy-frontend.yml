@@ -1,22 +1,121 @@
-name: Deploy Frontend
+name: Deploy Frontend (S3 + CloudFront)
+
 on:
   push:
-    branches: [main]
-    paths: ['apps/web/**']
+    branches:
+      - main
+      - develop
+    paths:
+      - 'apps/web/**'
+      - '.github/workflows/deploy-frontend.yml'
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to deploy'
+        required: true
+        default: 'prod'
+        type: choice
+        options:
+          - dev
+          - prod
+
+env:
+  AWS_REGION: us-east-1
 
 jobs:
-  deploy:
+  # ============ BUILD ============
+  build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
-          node-version: 20
-      - run: cd apps/web && npm ci && npm run build
-      - uses: aws-actions/configure-aws-credentials@v4
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: apps/web/package-lock.json
+
+      - name: Install dependencies
+        working-directory: apps/web
+        run: npm ci
+
+      - name: Determine stage
+        id: stage
+        run: |
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            echo "STAGE=${{ inputs.environment }}" >> $GITHUB_OUTPUT
+          elif [ "${{ github.ref }}" == "refs/heads/main" ]; then
+            echo "STAGE=prod" >> $GITHUB_OUTPUT
+          else
+            echo "STAGE=dev" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Build
+        working-directory: apps/web
+        env:
+          VITE_API_URL: ${{ secrets.API_URL }}
+          VITE_STAGE: ${{ steps.stage.outputs.STAGE }}
+        run: npm run build
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
         with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: sa-east-1
-      - run: aws s3 sync apps/web/dist s3://${{ vars.WEB_BUCKET_NAME }} --delete
-      - run: aws cloudfront create-invalidation --distribution-id ${{ vars.CF_DISTRIBUTION_ID }} --paths "/*"
+          name: frontend-build-${{ steps.stage.outputs.STAGE }}
+          path: apps/web/dist/
+          retention-days: 5
+
+  # ============ DEPLOY ============
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment: ${{ (github.ref == 'refs/heads/main' && 'prod') || 'dev' }}
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - name: Determine stage
+        id: stage
+        run: |
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            echo "STAGE=${{ inputs.environment }}" >> $GITHUB_OUTPUT
+          elif [ "${{ github.ref }}" == "refs/heads/main" ]; then
+            echo "STAGE=prod" >> $GITHUB_OUTPUT
+          else
+            echo "STAGE=dev" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Download build artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: frontend-build-${{ steps.stage.outputs.STAGE }}
+          path: dist/
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Deploy to S3
+        run: |
+          aws s3 sync dist/ s3://${{ secrets.FRONTEND_BUCKET }}/ \
+            --delete \
+            --cache-control "public, max-age=31536000, immutable" \
+            --exclude "index.html" \
+            --exclude "*.json"
+
+          # index.html e manifests sem cache (sempre fresh)
+          aws s3 sync dist/ s3://${{ secrets.FRONTEND_BUCKET }}/ \
+            --exclude "*" \
+            --include "index.html" \
+            --include "*.json" \
+            --cache-control "no-cache, no-store, must-revalidate"
+
+      - name: Invalidate CloudFront cache
+        run: |
+          aws cloudfront create-invalidation \
+            --distribution-id ${{ secrets.CLOUDFRONT_DISTRIBUTION_ID }} \
+            --paths "/*"
+          echo "🚀 Frontend deployed and cache invalidated!"
