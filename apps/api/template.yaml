@@ -55,7 +55,7 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       FunctionName: !Sub 'mbf-${Stage}-api'
-      Handler: app.handler
+      Handler: src/app.handler
       CodeUri: .
       Events:
         ApiCatchAll:
