@@ -14,7 +14,7 @@ Parameters:
     Default: ''
   FrontendUrl:
     Type: String
-    Default: 'https://app.bloise.com.br'
+    Default: 'https://www.mbfoto.com.br'
 
 Globals:
   Function:
