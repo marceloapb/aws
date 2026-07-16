@@ -167,7 +167,10 @@ if [ ! -d "/tmp/mbf-aws" ]; then
 fi
 
 cd /tmp/mbf-aws/apps/api
-npm ci --omit=dev
+
+# Usar npm install (não npm ci) pois package-lock.json pode estar desatualizado
+rm -f package-lock.json
+npm install --omit=dev
 
 if ! command -v sam &>/dev/null; then
   pip3 install aws-sam-cli -q
