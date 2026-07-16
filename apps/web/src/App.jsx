@@ -1,81 +1,78 @@
-import { Routes, Route, Navigate } from 'react-router-dom';
-import { AuthProvider, useAuth } from './hooks/useAuth.js';
-import AdminLayout from './layouts/AdminLayout.jsx';
-import ClienteLayout from './layouts/ClienteLayout.jsx';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { AuthProvider } from './contexts/AuthContext';
+import PrivateRoute from './components/PrivateRoute';
+import Login from './pages/Login';
 
-import Login from './pages/Login.jsx';
-import Dashboard from './pages/admin/Dashboard.jsx';
-import Agenda from './pages/admin/Agenda.jsx';
-import Clientes from './pages/admin/Clientes.jsx';
-import ClienteDetalhe from './pages/admin/ClienteDetalhe.jsx';
-import Orcamentos from './pages/admin/Orcamentos.jsx';
-import OrcamentoDetalhe from './pages/admin/OrcamentoDetalhe.jsx';
-import Cobrancas from './pages/admin/Cobrancas.jsx';
-import Albuns from './pages/admin/Albuns.jsx';
-import AlbumDetalhe from './pages/admin/AlbumDetalhe.jsx';
-import Contratos from './pages/admin/Contratos.jsx';
-import Instagram from './pages/admin/Instagram.jsx';
-import GoogleCalendar from './pages/admin/GoogleCalendar.jsx';
-import WhatsApp from './pages/admin/WhatsApp.jsx';
-import Fotografos from './pages/admin/Fotografos.jsx';
-import Equipamentos from './pages/admin/Equipamentos.jsx';
-import Pendencias from './pages/admin/Pendencias.jsx';
-import Configuracoes from './pages/admin/Configuracoes.jsx';
+// Admin pages (lazy loaded)
+import { lazy, Suspense } from 'react';
+const AdminDashboard = lazy(() => import('./pages/admin/Dashboard'));
+const AdminAgenda = lazy(() => import('./pages/admin/Agenda'));
+const AdminClientes = lazy(() => import('./pages/admin/Clientes'));
+const AdminContratos = lazy(() => import('./pages/admin/Contratos'));
+const AdminOrcamentos = lazy(() => import('./pages/admin/Orcamentos'));
+const AdminAlbuns = lazy(() => import('./pages/admin/Albuns'));
+const AdminEquipamentos = lazy(() => import('./pages/admin/Equipamentos'));
+const AdminCobrancas = lazy(() => import('./pages/admin/Cobrancas'));
+const AdminConfiguracoes = lazy(() => import('./pages/admin/Configuracoes'));
 
-import PortalHome from './pages/portal/Home.jsx';
-import PortalAlbuns from './pages/portal/Albuns.jsx';
-import PortalAlbumDetalhe from './pages/portal/AlbumDetalhe.jsx';
-import PortalContratos from './pages/portal/Contratos.jsx';
-import PortalPagamentos from './pages/portal/Pagamentos.jsx';
-import PortalOrcamentos from './pages/portal/Orcamentos.jsx';
+// Portal pages (lazy loaded)
+const PortalAlbuns = lazy(() => import('./pages/portal/Albuns'));
+const PortalContratos = lazy(() => import('./pages/portal/Contratos'));
+const PortalOrcamentos = lazy(() => import('./pages/portal/Orcamentos'));
+const PortalPagamentos = lazy(() => import('./pages/portal/Pagamentos'));
 
-function ProtectedRoute({ children }) {
-  const { isAuthenticated, loading } = useAuth();
-  if (loading) return <div className="flex items-center justify-center h-screen">Carregando...</div>;
-  return isAuthenticated ? children : <Navigate to="/login" />;
-}
+// Páginas Públicas (site institucional - sem auth)
+const PublicHome = lazy(() => import('./pages/public/Home'));
+const PublicPortfolio = lazy(() => import('./pages/public/Portfolio'));
+const PublicPacotes = lazy(() => import('./pages/public/Pacotes'));
+const PublicContato = lazy(() => import('./pages/public/Contato'));
 
-function AppRoutes() {
+const Loading = () => <div className="flex justify-center items-center min-h-screen"><p>Carregando...</p></div>;
+
+function App() {
   return (
-    <Routes>
-      <Route path="/login" element={<Login />} />
-      <Route path="/admin" element={<ProtectedRoute><AdminLayout /></ProtectedRoute>}>
-        <Route index element={<Dashboard />} />
-        <Route path="agenda" element={<Agenda />} />
-        <Route path="clientes" element={<Clientes />} />
-        <Route path="clientes/:id" element={<ClienteDetalhe />} />
-        <Route path="orcamentos" element={<Orcamentos />} />
-        <Route path="orcamentos/:id" element={<OrcamentoDetalhe />} />
-        <Route path="cobrancas" element={<Cobrancas />} />
-        <Route path="albuns" element={<Albuns />} />
-        <Route path="albuns/:id" element={<AlbumDetalhe />} />
-        <Route path="contratos" element={<Contratos />} />
-        <Route path="instagram" element={<Instagram />} />
-        <Route path="google-calendar" element={<GoogleCalendar />} />
-        <Route path="whatsapp" element={<WhatsApp />} />
-        <Route path="fotografos" element={<Fotografos />} />
-        <Route path="equipamentos" element={<Equipamentos />} />
-        <Route path="pendencias" element={<Pendencias />} />
-        <Route path="configuracoes" element={<Configuracoes />} />
-      </Route>
-      <Route path="/portal" element={<ClienteLayout />}>
-        <Route index element={<PortalHome />} />
-        <Route path="albuns" element={<PortalAlbuns />} />
-        <Route path="albuns/:id" element={<PortalAlbumDetalhe />} />
-        <Route path="contratos" element={<PortalContratos />} />
-        <Route path="pagamentos" element={<PortalPagamentos />} />
-        <Route path="orcamentos" element={<PortalOrcamentos />} />
-      </Route>
-      <Route path="/" element={<Navigate to="/admin" />} />
-      <Route path="*" element={<Navigate to="/admin" />} />
-    </Routes>
+    <BrowserRouter>
+      <AuthProvider>
+        <Suspense fallback={<Loading />}>
+          <Routes>
+            {/* Rotas Públicas - Site Institucional */}
+            <Route path="/site/:photographerId" element={<PublicHome />} />
+            <Route path="/site/:photographerId/portfolio" element={<PublicPortfolio />} />
+            <Route path="/site/:photographerId/pacotes" element={<PublicPacotes />} />
+            <Route path="/site/:photographerId/contato" element={<PublicContato />} />
+
+            {/* Auth */}
+            <Route path="/login" element={<Login />} />
+
+            {/* Admin */}
+            <Route path="/admin" element={<PrivateRoute role="admin" />}>
+              <Route index element={<AdminDashboard />} />
+              <Route path="agenda" element={<AdminAgenda />} />
+              <Route path="clientes" element={<AdminClientes />} />
+              <Route path="contratos" element={<AdminContratos />} />
+              <Route path="orcamentos" element={<AdminOrcamentos />} />
+              <Route path="albuns" element={<AdminAlbuns />} />
+              <Route path="equipamentos" element={<AdminEquipamentos />} />
+              <Route path="cobrancas" element={<AdminCobrancas />} />
+              <Route path="configuracoes" element={<AdminConfiguracoes />} />
+            </Route>
+
+            {/* Portal do Cliente */}
+            <Route path="/portal" element={<PrivateRoute role="client" />}>
+              <Route path="albuns" element={<PortalAlbuns />} />
+              <Route path="contratos" element={<PortalContratos />} />
+              <Route path="orcamentos" element={<PortalOrcamentos />} />
+              <Route path="pagamentos" element={<PortalPagamentos />} />
+            </Route>
+
+            {/* Redirect */}
+            <Route path="/" element={<Navigate to="/login" replace />} />
+            <Route path="*" element={<Navigate to="/login" replace />} />
+          </Routes>
+        </Suspense>
+      </AuthProvider>
+    </BrowserRouter>
   );
 }
 
-export default function App() {
-  return (
-    <AuthProvider>
-      <AppRoutes />
-    </AuthProvider>
-  );
-}
+export default App;
