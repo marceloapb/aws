@@ -1,24 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
-import { MessageSquare, Send, Star, CheckCircle, X } from 'lucide-react';
+import { Star, Quote, Check, X, BarChart3, Send, MessageSquare } from 'lucide-react';
 
 const ACCENT = '#EA580C';
 
-const STATUS_MAP = {
-  responded: { label: 'Respondido', color: 'text-blue-600 bg-blue-50' },
-  pending: { label: 'Pendente', color: 'text-yellow-600 bg-yellow-50' },
-  approved: { label: 'Aprovado', color: 'text-green-600 bg-green-50' },
-};
-
-function StarRating({ rating }) {
+function Estrelas({ valor, tamanho = 16, leitura }) {
   return (
-    <div className="flex items-center gap-0.5">
-      {[1, 2, 3, 4, 5].map(i => (
-        <Star
-          key={i}
-          size={14}
-          className={i <= rating ? 'text-yellow-400 fill-yellow-400' : 'text-gray-300'}
-        />
+    <div className="flex gap-0.5">
+      {[1, 2, 3, 4, 5].map(n => (
+        <Star key={n} size={tamanho}
+          style={{ color: n <= valor ? ACCENT : '#d6d3d1', fill: n <= valor ? ACCENT : 'transparent' }} />
       ))}
     </div>
   );
@@ -29,159 +20,150 @@ export default function Feedback() {
   const [feedbacks, setFeedbacks] = useState([]);
   const [clientes, setClientes] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [showModal, setShowModal] = useState(false);
-  const [selectedCliente, setSelectedCliente] = useState('');
-  const [saving, setSaving] = useState(false);
+  const [showSolicitar, setShowSolicitar] = useState(false);
+  const [solicitarCliente, setSolicitarCliente] = useState('');
 
   useEffect(() => { loadData(); }, []);
 
   const loadData = async () => {
     try {
-      const [fbRes, clRes] = await Promise.all([
-        authFetch('/admin/feedback'),
-        authFetch('/admin/clientes'),
+      const [fbRes, cliRes] = await Promise.all([
+        authFetch('/admin/feedback').then(r => r.json()),
+        authFetch('/admin/clientes').then(r => r.json()),
       ]);
-      const fbJson = await fbRes.json();
-      const clJson = await clRes.json();
-      if (fbJson.success) setFeedbacks(fbJson.data || []);
-      if (clJson.success) setClientes(clJson.data || []);
-    } catch (e) { console.error(e); }
-    finally { setLoading(false); }
+      if (fbRes.success) setFeedbacks(fbRes.data || []);
+      if (cliRes.success) setClientes(cliRes.data || []);
+    } catch {}
+    setLoading(false);
   };
 
-  const handleSolicitar = async (e) => {
-    e.preventDefault();
-    if (!selectedCliente) return;
-    setSaving(true);
-    try {
-      const res = await authFetch('/admin/feedback/solicitar', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ clienteId: selectedCliente }),
-      });
-      const json = await res.json();
-      if (json.success) {
-        setShowModal(false);
-        setSelectedCliente('');
-        loadData();
-      }
-    } catch (e) { console.error(e); }
-    finally { setSaving(false); }
+  const handleSolicitar = async () => {
+    if (!solicitarCliente) return;
+    await authFetch('/admin/feedback/solicitar', { method: 'POST', body: JSON.stringify({ cliente_id: solicitarCliente }) });
+    setShowSolicitar(false);
+    setSolicitarCliente('');
+    loadData();
   };
 
   const handleAprovar = async (id) => {
-    try {
-      const res = await authFetch(`/admin/feedback/${id}/aprovar`, { method: 'PUT' });
-      const json = await res.json();
-      if (json.success) loadData();
-    } catch (e) { console.error(e); }
+    await authFetch(`/admin/feedback/${id}/aprovar`, { method: 'PUT' });
+    loadData();
   };
 
-  if (loading) {
-    return <div className="flex items-center justify-center h-64 text-gray-400">Carregando...</div>;
-  }
+  const respondidos = feedbacks.filter(f => f.nota != null);
+  const media = respondidos.length ? (respondidos.reduce((s, f) => s + f.nota, 0) / respondidos.length).toFixed(1) : '0.0';
+  const totalDepoimentos = feedbacks.filter(f => f.aprovado).length;
+  const pendentes = feedbacks.filter(f => !f.nota).length;
+
+  if (loading) return <div className="flex items-center justify-center py-20 text-gray-400">Carregando...</div>;
 
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
           <MessageSquare size={24} style={{ color: ACCENT }} />
-          <h1 className="text-2xl font-bold text-gray-900">Feedbacks</h1>
+          <h1 className="text-2xl font-bold text-gray-900">Feedback & Avaliações</h1>
         </div>
-        <button
-          onClick={() => setShowModal(true)}
-          style={{ background: ACCENT }}
-          className="inline-flex items-center gap-2 px-4 py-2 text-white rounded-lg text-sm font-medium hover:opacity-90"
-        >
+        <button onClick={() => setShowSolicitar(true)} style={{ background: ACCENT }}
+          className="inline-flex items-center gap-2 px-4 py-2 text-white rounded-lg text-sm font-medium hover:opacity-90">
           <Send size={16} /> Solicitar Feedback
         </button>
+      </div>
+
+      {/* KPIs */}
+      <div className="grid grid-cols-4 gap-4 mb-6">
+        <div className="bg-white rounded-xl border p-4 text-center">
+          <div className="text-3xl font-bold" style={{ color: ACCENT }}>{media}</div>
+          <div className="mt-1 flex justify-center"><Estrelas valor={Math.round(media)} tamanho={14} leitura /></div>
+          <p className="mt-1 text-xs text-gray-400">média geral</p>
+        </div>
+        <div className="bg-white rounded-xl border p-4 text-center">
+          <div className="text-3xl font-bold">{respondidos.length}</div>
+          <p className="mt-1 text-xs text-gray-400">avaliações</p>
+        </div>
+        <div className="bg-white rounded-xl border p-4 text-center">
+          <div className="text-3xl font-bold">{totalDepoimentos}</div>
+          <p className="mt-1 text-xs text-gray-400">depoimentos publicados</p>
+        </div>
+        <div className="bg-white rounded-xl border p-4 text-center">
+          <div className="text-3xl font-bold text-yellow-600">{pendentes}</div>
+          <p className="mt-1 text-xs text-gray-400">aguardando resposta</p>
+        </div>
       </div>
 
       {/* Lista */}
       <div className="space-y-3">
         {feedbacks.length === 0 ? (
-          <div className="bg-white rounded-xl border border-gray-200 p-8 text-center text-gray-400">
-            Nenhum feedback recebido ainda.
+          <div className="bg-white rounded-xl border p-12 text-center text-gray-400">
+            <MessageSquare size={40} className="mx-auto mb-3 text-gray-300" />
+            <p>Nenhum feedback ainda. Solicite avaliações dos seus clientes!</p>
           </div>
         ) : (
-          feedbacks.map(fb => {
-            const st = STATUS_MAP[fb.status] || STATUS_MAP.pending;
-            return (
-              <div key={fb.id} className="bg-white rounded-xl border border-gray-200 p-4 hover:shadow-sm transition-shadow">
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-3 mb-1">
-                      <p className="font-medium text-gray-900">{fb.clienteNome || 'Cliente'}</p>
-                      <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${st.color}`}>
-                        {st.label}
-                      </span>
-                    </div>
-                    {fb.nota && <StarRating rating={fb.nota} />}
-                    {fb.texto && (
-                      <p className="text-sm text-gray-600 mt-2">&ldquo;{fb.texto}&rdquo;</p>
-                    )}
-                    <p className="text-xs text-gray-400 mt-2">
-                      {fb.createdAt ? new Date(fb.createdAt).toLocaleDateString('pt-BR') : '-'}
-                    </p>
+          feedbacks.map(f => (
+            <div key={f.id} className="bg-white rounded-xl border p-4">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <div className="font-medium text-gray-900">
+                    {f.cliente_nome || 'Cliente'}
+                    <span className="text-sm font-normal text-gray-400 ml-2">· {f.evento || ''}</span>
                   </div>
-                  {fb.status === 'responded' && (
-                    <button
-                      onClick={() => handleAprovar(fb.id)}
-                      className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-green-700 bg-green-50 rounded-lg hover:bg-green-100"
-                    >
-                      <CheckCircle size={14} /> Aprovar
+                  {f.nota ? (
+                    <div className="mt-1"><Estrelas valor={f.nota} tamanho={14} leitura /></div>
+                  ) : (
+                    <span className="text-xs text-yellow-600 bg-yellow-50 px-2 py-0.5 rounded-full mt-1 inline-block">Aguardando resposta</span>
+                  )}
+                </div>
+                <span className="text-xs text-gray-400">{f.created ? new Date(f.created).toLocaleDateString('pt-BR') : ''}</span>
+              </div>
+
+              {f.texto && (
+                <div className="mt-3 flex gap-2 rounded-lg bg-gray-50 p-3 text-sm text-gray-600">
+                  <Quote size={14} className="shrink-0 text-gray-300 mt-0.5" />
+                  <span>{f.texto}</span>
+                </div>
+              )}
+
+              <div className="mt-3 flex items-center justify-between">
+                <div>
+                  {f.autoriza_publico ? (
+                    <span className="flex items-center gap-1 text-xs text-green-600"><Check size={12} /> Autorizado uso público</span>
+                  ) : f.nota ? (
+                    <span className="flex items-center gap-1 text-xs text-gray-400"><X size={12} /> Sem autorização pública</span>
+                  ) : null}
+                </div>
+                <div className="flex gap-2">
+                  {f.nota && f.autoriza_publico && !f.aprovado && (
+                    <button onClick={() => handleAprovar(f.id)}
+                      className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium rounded-lg ring-1 ring-gray-300 hover:bg-gray-50">
+                      <Star size={12} /> Publicar como depoimento
                     </button>
+                  )}
+                  {f.aprovado && (
+                    <span className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium rounded-lg text-white" style={{ background: ACCENT }}>
+                      <Star size={12} className="fill-white" /> Depoimento publicado
+                    </span>
                   )}
                 </div>
               </div>
-            );
-          })
+            </div>
+          ))
         )}
       </div>
 
-      {/* Modal Solicitar Feedback */}
-      {showModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl p-6 w-full max-w-md shadow-xl">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-bold text-gray-900">Solicitar Feedback</h2>
-              <button onClick={() => setShowModal(false)} className="text-gray-400 hover:text-gray-600">
-                <X size={20} />
-              </button>
+      {/* Modal Solicitar */}
+      {showSolicitar && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl w-full max-w-md p-6">
+            <h2 className="text-lg font-bold mb-4">Solicitar Feedback</h2>
+            <select value={solicitarCliente} onChange={(e) => setSolicitarCliente(e.target.value)}
+              className="w-full px-3 py-2.5 border rounded-lg mb-4">
+              <option value="">Selecione o cliente...</option>
+              {clientes.map(c => <option key={c.id} value={c.id}>{c.nome || c.name} — {c.email}</option>)}
+            </select>
+            <div className="flex gap-2 justify-end">
+              <button onClick={() => setShowSolicitar(false)} className="px-4 py-2 border rounded-lg text-sm">Cancelar</button>
+              <button onClick={handleSolicitar} style={{ background: ACCENT }} className="px-4 py-2 text-white rounded-lg text-sm hover:opacity-90">Enviar Solicitação</button>
             </div>
-            <form onSubmit={handleSolicitar} className="space-y-3">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Selecione o Cliente</label>
-                <select
-                  required
-                  value={selectedCliente}
-                  onChange={(e) => setSelectedCliente(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-200"
-                >
-                  <option value="">Selecionar...</option>
-                  {clientes.map(c => (
-                    <option key={c.id} value={c.id}>{c.nome}</option>
-                  ))}
-                </select>
-              </div>
-              <div className="flex gap-2 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setShowModal(false)}
-                  className="flex-1 px-4 py-2 border border-gray-200 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50"
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="submit"
-                  disabled={saving}
-                  style={{ background: ACCENT }}
-                  className="flex-1 px-4 py-2 text-white rounded-lg text-sm font-medium hover:opacity-90 disabled:opacity-50"
-                >
-                  {saving ? 'Enviando...' : 'Enviar Solicitacao'}
-                </button>
-              </div>
-            </form>
           </div>
         </div>
       )}

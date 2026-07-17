@@ -1,195 +1,121 @@
 import React, { useState, useEffect } from 'react';
+import { Plus, RefreshCw, DollarSign, TrendingUp, TrendingDown, Clock } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
-import { FilePlus2, Plus, X } from 'lucide-react';
 
 const ACCENT = '#EA580C';
-
-const STATUS_MAP = {
-  pendente: { label: 'Pendente', color: 'text-yellow-600 bg-yellow-50' },
-  aceito: { label: 'Aceito', color: 'text-green-600 bg-green-50' },
-};
+const STATUS_LABELS = { pendente: 'Pendente', aceito_admin: 'Aceito Admin', aceito_cliente: 'Aceito Cliente', rejeitado: 'Rejeitado' };
+const STATUS_COLORS = { pendente: 'bg-yellow-100 text-yellow-800', aceito_admin: 'bg-blue-100 text-blue-800', aceito_cliente: 'bg-green-100 text-green-800', rejeitado: 'bg-red-100 text-red-800' };
 
 export default function Aditivos() {
   const { authFetch } = useAuth();
   const [aditivos, setAditivos] = useState([]);
   const [contratos, setContratos] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
-  const [form, setForm] = useState({ contratoId: '', motivo: '', novoValor: '', alteracoes: '' });
-  const [saving, setSaving] = useState(false);
+  const [form, setForm] = useState({ contrato_id: '', motivo: '', tipo: 'acrescimo', novo_valor: '', recalcular: false });
 
-  useEffect(() => { loadData(); }, []);
+  const load = async () => {
+    const [a, c] = await Promise.all([authFetch('/admin/aditivos'), authFetch('/admin/contratos')]);
+    if (a) setAditivos(a);
+    if (c) setContratos(c);
+  };
+  useEffect(() => { load(); }, []);
 
-  const loadData = async () => {
-    try {
-      const [adRes, ctRes] = await Promise.all([
-        authFetch('/admin/aditivos'),
-        authFetch('/admin/contratos'),
-      ]);
-      const adJson = await adRes.json();
-      const ctJson = await ctRes.json();
-      if (adJson.success) setAditivos(adJson.data || []);
-      if (ctJson.success) setContratos(ctJson.data || []);
-      else if (Array.isArray(ctJson)) setContratos(ctJson);
-    } catch (e) { console.error(e); }
-    finally { setLoading(false); }
+  const kpis = {
+    total: aditivos.length,
+    adicionado: aditivos.filter(a => a.novo_valor > a.valor_original).reduce((s, a) => s + (a.novo_valor - a.valor_original), 0),
+    reduzido: aditivos.filter(a => a.novo_valor < a.valor_original).reduce((s, a) => s + (a.valor_original - a.novo_valor), 0),
+    pendentes: aditivos.filter(a => a.status === 'pendente').length,
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setSaving(true);
-    try {
-      const res = await authFetch('/admin/aditivos', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(form),
-      });
-      const json = await res.json();
-      if (json.success) {
-        setShowModal(false);
-        setForm({ contratoId: '', motivo: '', novoValor: '', alteracoes: '' });
-        loadData();
-      }
-    } catch (e) { console.error(e); }
-    finally { setSaving(false); }
+    await authFetch('/admin/aditivos', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...form, novo_valor: parseFloat(form.novo_valor) }) });
+    setShowModal(false);
+    setForm({ contrato_id: '', motivo: '', tipo: 'acrescimo', novo_valor: '', recalcular: false });
+    load();
   };
 
-  const formatBRL = (v) => Number(v).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+  const registrarReembolso = async (aditivo) => {
+    const valor = prompt('Valor do reembolso (será registrado como negativo):');
+    if (!valor) return;
+    await authFetch('/admin/aditivos', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ contrato_id: aditivo.contrato_id, motivo: `Reembolso ref. aditivo #${aditivo.id}`, tipo: 'reducao', novo_valor: aditivo.valor_original - Math.abs(parseFloat(valor)), recalcular: true }) });
+    load();
+  };
 
-  if (loading) {
-    return <div className="flex items-center justify-center h-64 text-gray-400">Carregando...</div>;
-  }
+  const fmt = (v) => (v || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
   return (
-    <div>
-      <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center gap-3">
-          <FilePlus2 size={24} style={{ color: ACCENT }} />
-          <h1 className="text-2xl font-bold text-gray-900">Aditivos</h1>
-        </div>
-        <button
-          onClick={() => setShowModal(true)}
-          style={{ background: ACCENT }}
-          className="inline-flex items-center gap-2 px-4 py-2 text-white rounded-lg text-sm font-medium hover:opacity-90"
-        >
-          <Plus size={16} /> Criar Aditivo
+    <div className="p-6 space-y-6">
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-bold">Renegociação / Aditivos</h1>
+        <button onClick={() => setShowModal(true)} style={{ background: ACCENT }} className="flex items-center gap-2 text-white px-4 py-2 rounded-lg hover:opacity-90">
+          <Plus size={18} /> Novo Aditivo
         </button>
       </div>
 
-      {/* Lista */}
-      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-        {aditivos.length === 0 ? (
-          <div className="p-8 text-center text-gray-400">Nenhum aditivo cadastrado.</div>
-        ) : (
-          <table className="w-full">
-            <thead className="bg-gray-50 border-b border-gray-200">
-              <tr>
-                <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">Contrato</th>
-                <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">Motivo</th>
-                <th className="text-right px-4 py-3 text-xs font-medium text-gray-500 uppercase">Novo Valor</th>
-                <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">Data</th>
-                <th className="text-center px-4 py-3 text-xs font-medium text-gray-500 uppercase">Status</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-              {aditivos.map(a => {
-                const st = STATUS_MAP[a.status] || STATUS_MAP.pendente;
-                return (
-                  <tr key={a.id} className="hover:bg-gray-50">
-                    <td className="px-4 py-3 text-sm font-medium text-gray-900">{a.contratoNome || a.contratoId || '-'}</td>
-                    <td className="px-4 py-3 text-sm text-gray-500">{a.motivo || '-'}</td>
-                    <td className="px-4 py-3 text-sm text-gray-900 text-right">{a.novoValor ? formatBRL(a.novoValor) : '-'}</td>
-                    <td className="px-4 py-3 text-sm text-gray-500">
-                      {a.createdAt ? new Date(a.createdAt).toLocaleDateString('pt-BR') : '-'}
-                    </td>
-                    <td className="px-4 py-3 text-center">
-                      <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${st.color}`}>
-                        {st.label}
-                      </span>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        )}
+      {/* KPIs */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {[{ label: 'Total Aditivos', value: kpis.total, icon: DollarSign }, { label: 'Valor Adicionado', value: fmt(kpis.adicionado), icon: TrendingUp }, { label: 'Valor Reduzido', value: fmt(kpis.reduzido), icon: TrendingDown }, { label: 'Pendentes', value: kpis.pendentes, icon: Clock }].map((k, i) => (
+          <div key={i} className="bg-white rounded-xl shadow p-4 flex items-center gap-4">
+            <div style={{ background: `${ACCENT}20` }} className="p-3 rounded-lg"><k.icon size={22} style={{ color: ACCENT }} /></div>
+            <div><p className="text-sm text-gray-500">{k.label}</p><p className="text-xl font-bold">{k.value}</p></div>
+          </div>
+        ))}
       </div>
 
-      {/* Modal Criar Aditivo */}
+      {/* Tabela */}
+      <div className="bg-white rounded-xl shadow overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead className="bg-gray-50 text-left">
+            <tr>{['Contrato', 'Cliente', 'Motivo', 'Valor Original', 'Novo Valor', 'Diferença', 'Status', 'Data', 'Ações'].map(h => <th key={h} className="px-4 py-3 font-medium">{h}</th>)}</tr>
+          </thead>
+          <tbody>
+            {aditivos.map(a => (
+              <tr key={a.id} className="border-t hover:bg-gray-50">
+                <td className="px-4 py-3">#{a.contrato_id}</td>
+                <td className="px-4 py-3">{a.cliente_nome || '-'}</td>
+                <td className="px-4 py-3 max-w-[200px] truncate">{a.motivo}</td>
+                <td className="px-4 py-3">{fmt(a.valor_original)}</td>
+                <td className="px-4 py-3">{fmt(a.novo_valor)}</td>
+                <td className="px-4 py-3 font-medium" style={{ color: a.novo_valor >= a.valor_original ? '#16a34a' : '#dc2626' }}>{fmt(a.novo_valor - a.valor_original)}</td>
+                <td className="px-4 py-3"><span className={`px-2 py-1 rounded-full text-xs font-medium ${STATUS_COLORS[a.status]}`}>{STATUS_LABELS[a.status]}</span></td>
+                <td className="px-4 py-3">{new Date(a.created_at).toLocaleDateString('pt-BR')}</td>
+                <td className="px-4 py-3">
+                  <button onClick={() => registrarReembolso(a)} className="text-xs px-2 py-1 border rounded hover:bg-gray-100 flex items-center gap-1"><RefreshCw size={12} /> Reembolso</button>
+                </td>
+              </tr>
+            ))}
+            {!aditivos.length && <tr><td colSpan={9} className="px-4 py-8 text-center text-gray-400">Nenhum aditivo registrado</td></tr>}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Modal */}
       {showModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl p-6 w-full max-w-md shadow-xl">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-bold text-gray-900">Criar Aditivo</h2>
-              <button onClick={() => setShowModal(false)} className="text-gray-400 hover:text-gray-600">
-                <X size={20} />
-              </button>
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+          <form onSubmit={handleSubmit} className="bg-white rounded-xl shadow-xl p-6 w-full max-w-md space-y-4">
+            <h2 className="text-lg font-bold">Novo Aditivo</h2>
+            <select required value={form.contrato_id} onChange={e => setForm({ ...form, contrato_id: e.target.value })} className="w-full border rounded-lg px-3 py-2">
+              <option value="">Selecionar contrato...</option>
+              {contratos.map(c => <option key={c.id} value={c.id}>#{c.id} - {c.cliente_nome}</option>)}
+            </select>
+            <select value={form.tipo} onChange={e => setForm({ ...form, tipo: e.target.value })} className="w-full border rounded-lg px-3 py-2">
+              <option value="acrescimo">Acréscimo de serviço</option>
+              <option value="reducao">Redução</option>
+              <option value="troca_data">Troca de data</option>
+              <option value="outro">Outro</option>
+            </select>
+            <textarea required placeholder="Motivo da renegociação" value={form.motivo} onChange={e => setForm({ ...form, motivo: e.target.value })} className="w-full border rounded-lg px-3 py-2 h-20 resize-none" />
+            <div className="relative">
+              <span className="absolute left-3 top-2.5 text-gray-400 text-sm">R$</span>
+              <input required type="number" step="0.01" placeholder="0,00" value={form.novo_valor} onChange={e => setForm({ ...form, novo_valor: e.target.value })} className="w-full border rounded-lg pl-10 pr-3 py-2" />
             </div>
-            <form onSubmit={handleSubmit} className="space-y-3">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Contrato</label>
-                <select
-                  required
-                  value={form.contratoId}
-                  onChange={(e) => setForm({ ...form, contratoId: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-200"
-                >
-                  <option value="">Selecionar contrato...</option>
-                  {contratos.map(c => (
-                    <option key={c.id} value={c.id}>{c.title || c.clientName || c.id}</option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Motivo</label>
-                <input
-                  type="text"
-                  required
-                  value={form.motivo}
-                  onChange={(e) => setForm({ ...form, motivo: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-200"
-                  placeholder="Ex: Alteracao de escopo"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Novo Valor (R$)</label>
-                <input
-                  type="number"
-                  step="0.01"
-                  value={form.novoValor}
-                  onChange={(e) => setForm({ ...form, novoValor: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-200"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Alteracoes</label>
-                <textarea
-                  value={form.alteracoes}
-                  onChange={(e) => setForm({ ...form, alteracoes: e.target.value })}
-                  rows={3}
-                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-200"
-                  placeholder="Descreva as alteracoes..."
-                />
-              </div>
-              <div className="flex gap-2 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setShowModal(false)}
-                  className="flex-1 px-4 py-2 border border-gray-200 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50"
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="submit"
-                  disabled={saving}
-                  style={{ background: ACCENT }}
-                  className="flex-1 px-4 py-2 text-white rounded-lg text-sm font-medium hover:opacity-90 disabled:opacity-50"
-                >
-                  {saving ? 'Salvando...' : 'Criar Aditivo'}
-                </button>
-              </div>
-            </form>
-          </div>
+            <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={form.recalcular} onChange={e => setForm({ ...form, recalcular: e.target.checked })} className="rounded" /> Recalcular cobranças</label>
+            <div className="flex gap-3 justify-end">
+              <button type="button" onClick={() => setShowModal(false)} className="px-4 py-2 border rounded-lg hover:bg-gray-50">Cancelar</button>
+              <button type="submit" style={{ background: ACCENT }} className="px-4 py-2 text-white rounded-lg hover:opacity-90">Salvar</button>
+            </div>
+          </form>
         </div>
       )}
     </div>
