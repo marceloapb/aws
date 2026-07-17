@@ -29,7 +29,8 @@ export default function Agenda() {
 
   const eventosFiltrados = useMemo(() => {
     return eventos.filter(e => {
-      const statusOk = filtroStatus.includes('Todos') || filtroStatus.includes(e.status);
+      const status = e.status || 'pendente';
+      const statusOk = filtroStatus.includes('Todos') || filtroStatus.includes(status);
       const tipoOk = filtroTipo === 'Todos os tipos' || e.tipo_evento === filtroTipo;
       return statusOk && tipoOk;
     });
@@ -71,14 +72,14 @@ export default function Agenda() {
 
   const getEventosDoDia = (data) => {
     if (!data) return [];
-    const str = data.toISOString().split('T')[0];
+    const str = `${data.getFullYear()}-${String(data.getMonth()+1).padStart(2,'0')}-${String(data.getDate()).padStart(2,'0')}`;
     return eventosFiltrados.filter(e => e.data_evento === str);
   };
 
   const isBloqueado = (data) => {
     if (!data) return null;
-    const str = data.toISOString().split('T')[0];
-    return eventos.find(e => e.data_evento === str && e.status === 'Bloqueadas');
+    const str = `${data.getFullYear()}-${String(data.getMonth()+1).padStart(2,'0')}-${String(data.getDate()).padStart(2,'0')}`;
+    return eventos.find(e => e.data_evento === str && (e.status === 'bloqueado' || e.status === 'bloqueio'));
   };
 
   const handleDiaClick = (data, e) => {
@@ -86,7 +87,8 @@ export default function Agenda() {
     if (!data) return;
     const bloq = isBloqueado(data);
     if (bloq) { alert(`Data bloqueada: ${bloq.observacoes || 'Sem motivo informado'}`); return; }
-    setNovaSessao({ ...novaSessao, data_evento: data.toISOString().split('T')[0] });
+    const str = `${data.getFullYear()}-${String(data.getMonth()+1).padStart(2,'0')}-${String(data.getDate()).padStart(2,'0')}`;
+    setNovaSessao({ ...novaSessao, data_evento: str });
     setModalNovaSessao(true);
   };
 
