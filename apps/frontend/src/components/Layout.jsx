@@ -5,7 +5,7 @@ import BottomNav from './BottomNav';
 import GlobalSearch from './search/GlobalSearch';
 import { useAuth } from '../contexts/AuthContext';
 import { useKeyboardShortcuts } from '../hooks/useKeyboardShortcuts';
-import { Menu, Search } from 'lucide-react';
+import { Menu, Search, Bell } from 'lucide-react';
 
 export default function Layout() {
   const [open, setOpen] = React.useState(false);
@@ -46,7 +46,9 @@ export default function Layout() {
               <Search size={20} className="text-gray-500" />
             </button>
             {/* Notification bell */}
-            <NotificationBell />
+            <button className="relative p-2 rounded-md hover:bg-gray-100" onClick={() => window.location.href='/admin/whatsapp'}>
+              <Bell size={20} className="text-gray-500" />
+            </button>
             <span className="hidden sm:inline text-sm text-gray-600">Olá, <strong>{user?.email?.split('@')[0]}</strong></span>
             <div className="w-8 h-8 rounded-full bg-orange-500 text-white flex items-center justify-center text-sm font-medium">
               {(user?.email || 'U').charAt(0).toUpperCase()}
