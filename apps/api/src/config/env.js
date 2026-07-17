@@ -1,11 +1,11 @@
-import { SSMClient, GetParametersByPathCommand } from '@aws-sdk/client-ssm';
+const { SSMClient, GetParametersByPathCommand } = require('@aws-sdk/client-ssm');
 
 let cachedParams = null;
 
-export async function loadParams() {
+async function loadParams() {
   if (cachedParams) return cachedParams;
   if (process.env.IS_LOCAL === 'true') {
-    const { default: dotenv } = await import('dotenv');
+    const dotenv = require('dotenv');
     dotenv.config();
     cachedParams = process.env;
     return cachedParams;
@@ -24,7 +24,7 @@ export async function loadParams() {
 }
 
 // Compatibilidade: valores não-sensíveis ainda disponíveis de process.env
-export const env = {
+const env = {
   PORT: process.env.PORT || 3000,
   NODE_ENV: process.env.NODE_ENV || 'development',
   FRONTEND_URL: process.env.FRONTEND_URL || 'http://localhost:5173',
@@ -34,17 +34,19 @@ export const env = {
   STAGE: process.env.STAGE || 'prod',
 };
 
-export const features = {
+const features = {
   whatsapp: false,   // será reavaliado após loadParams()
   instagram: false,
   googleCalendar: false,
   email: false,
 };
 
-export async function initFeatures() {
+async function initFeatures() {
   const p = await loadParams();
   features.whatsapp = !!(p.WHATSAPP_ACCESS_TOKEN && p.WHATSAPP_PHONE_NUMBER_ID);
   features.instagram = !!(p.INSTAGRAM_ACCESS_TOKEN && p.INSTAGRAM_BUSINESS_ACCOUNT_ID);
   features.googleCalendar = !!(p.GOOGLE_CLIENT_ID && p.GOOGLE_CLIENT_SECRET);
   features.email = !!p.SES_FROM_EMAIL;
 }
+
+module.exports = { loadParams, env, features, initFeatures };

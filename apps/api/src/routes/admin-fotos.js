@@ -1,7 +1,7 @@
-import { Router } from 'express';
-import { dynamo, TABLE } from '../config/dynamodb.js';
-import { QueryCommand, PutCommand, UpdateCommand, DeleteCommand } from '@aws-sdk/lib-dynamodb';
-import { deleteFoto, generateUploadUrl } from '../services/s3Service.js';
+const { Router } = require('express');
+const { dynamo, TABLE } = require('../config/dynamodb');
+const { QueryCommand, PutCommand, UpdateCommand, DeleteCommand } = require('@aws-sdk/lib-dynamodb');
+const { deleteFoto, generateUploadUrl } = require('../services/s3Service');
 
 const router = Router();
 const TENANT = process.env.TENANT_ID || 'default';
@@ -93,4 +93,4 @@ router.put('/reordenar', async (req, res) => {
   }
 });
 
-export default router;
+module.exports = router;

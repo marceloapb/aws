@@ -1,5 +1,5 @@
-import { Router } from 'express';
-import { SQSClient, SendMessageCommand } from '@aws-sdk/client-sqs';
+const { Router } = require('express');
+const { SQSClient, SendMessageCommand } = require('@aws-sdk/client-sqs');
 
 const router = Router();
 const sqs = new SQSClient({});
@@ -25,4 +25,4 @@ router.post('/:gateway', async (req, res) => {
   }
 });
 
-export default router;
+module.exports = router;

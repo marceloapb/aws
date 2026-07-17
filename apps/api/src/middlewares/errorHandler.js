@@ -1,6 +1,6 @@
-import { logger } from '../config/logger.js';
+const { logger } = require('../config/logger');
 
-export function errorHandler(err, req, res, next) {
+function errorHandler(err, req, res, next) {
   logger.error(err.message, { stack: err.stack, path: req.path, method: req.method });
   res.status(err.status || 500).json({
     success: false,
@@ -8,6 +8,10 @@ export function errorHandler(err, req, res, next) {
   });
 }
 
-export function notFoundHandler(req, res) {
+function notFoundHandler(req, res) {
   res.status(404).json({ success: false, message: `Rota não encontrada: ${req.method} ${req.path}` });
 }
+
+module.exports = errorHandler;
+module.exports.errorHandler = errorHandler;
+module.exports.notFoundHandler = notFoundHandler;

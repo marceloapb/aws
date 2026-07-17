@@ -16,9 +16,9 @@ export default function Agenda() {
 
   const loadEvents = async () => {
     try {
-      const res = await authFetch('/events');
-      const data = await res.json();
-      if (Array.isArray(data)) setEvents(data);
+      const res = await authFetch('/admin/agenda');
+      const json = await res.json();
+      if (json.success) setEvents(json.data || []);
     } catch {}
   };
 

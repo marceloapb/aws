@@ -1,6 +1,6 @@
-import { Router } from 'express';
-import { dynamo, TABLE } from '../config/dynamodb.js';
-import { QueryCommand } from '@aws-sdk/lib-dynamodb';
+const { Router } = require('express');
+const { dynamo, TABLE } = require('../config/dynamodb');
+const { QueryCommand } = require('@aws-sdk/lib-dynamodb');
 
 const router = Router();
 
@@ -37,4 +37,4 @@ router.get('/:id', async (req, res) => {
   }
 });
 
-export default router;
+module.exports = router;

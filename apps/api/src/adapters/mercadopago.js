@@ -2,7 +2,7 @@
 // ADAPTERS/MERCADOPAGO.JS — Gateway MercadoPago
 // ══════════════════════════════════════════════════════════════
 
-import { env } from '../config/env.js';
+const { env } = require('../config/env');
 
 const BASE_URL = 'https://api.mercadopago.com/v1';
 const TIMEOUT_MS = 15000;
@@ -30,7 +30,7 @@ function mapStatus(mpStatus) {
   return map[mpStatus] || 'pendente';
 }
 
-export async function criarCobranca(dados) {
+async function criarCobranca(dados) {
   const body = {
     transaction_amount: dados.valor,
     description: dados.descricao,
@@ -68,7 +68,7 @@ export async function criarCobranca(dados) {
   return result;
 }
 
-export async function consultarCobranca(gatewayId) {
+async function consultarCobranca(gatewayId) {
   const response = await fetch(`${BASE_URL}/payments/${gatewayId}`, {
     headers: getHeaders(),
     signal: AbortSignal.timeout(TIMEOUT_MS),
@@ -85,7 +85,7 @@ export async function consultarCobranca(gatewayId) {
   };
 }
 
-export async function cancelarCobranca(gatewayId) {
+async function cancelarCobranca(gatewayId) {
   const response = await fetch(`${BASE_URL}/payments/${gatewayId}`, {
     method: 'PUT',
     headers: getHeaders(),
@@ -101,7 +101,7 @@ export async function cancelarCobranca(gatewayId) {
   return { gateway_id: gatewayId, status: 'cancelado' };
 }
 
-export async function processarWebhook(payload, headers) {
+async function processarWebhook(payload, headers) {
   if (payload.type === 'payment') {
     const response = await fetch(`${BASE_URL}/payments/${payload.data.id}`, {
       headers: getHeaders(),
@@ -122,4 +122,4 @@ function getPaymentMethodId(meio) {
   return map[meio] || 'pix';
 }
 
-export default { criarCobranca, consultarCobranca, cancelarCobranca, processarWebhook };
+module.exports = { criarCobranca, consultarCobranca, cancelarCobranca, processarWebhook };

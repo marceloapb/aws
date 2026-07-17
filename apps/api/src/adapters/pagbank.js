@@ -2,7 +2,7 @@
 // ADAPTERS/PAGBANK.JS — Gateway PagBank (PagSeguro)
 // ══════════════════════════════════════════════════════════════
 
-import { env } from '../config/env.js';
+const { env } = require('../config/env');
 
 const BASE_URL = 'https://api.pagseguro.com';
 const TIMEOUT_MS = 15000;
@@ -27,7 +27,7 @@ function mapStatus(pbStatus) {
   return map[pbStatus] || 'pendente';
 }
 
-export async function criarCobranca(dados) {
+async function criarCobranca(dados) {
   const body = {
     reference_id: dados.referencia || crypto.randomUUID(),
     customer: {
@@ -94,7 +94,7 @@ export async function criarCobranca(dados) {
   return result;
 }
 
-export async function consultarCobranca(gatewayId) {
+async function consultarCobranca(gatewayId) {
   const response = await fetch(`${BASE_URL}/orders/${gatewayId}`, {
     headers: getHeaders(),
     signal: AbortSignal.timeout(TIMEOUT_MS),
@@ -112,7 +112,7 @@ export async function consultarCobranca(gatewayId) {
   };
 }
 
-export async function cancelarCobranca(gatewayId) {
+async function cancelarCobranca(gatewayId) {
   const response = await fetch(`${BASE_URL}/charges/${gatewayId}/cancel`, {
     method: 'POST',
     headers: getHeaders(),
@@ -124,7 +124,7 @@ export async function cancelarCobranca(gatewayId) {
   return { gateway_id: gatewayId, status: 'cancelado' };
 }
 
-export async function processarWebhook(payload, headers) {
+async function processarWebhook(payload, headers) {
   return {
     gateway_id: payload.id,
     status: mapStatus(payload.charges?.[0]?.status),
@@ -132,4 +132,4 @@ export async function processarWebhook(payload, headers) {
   };
 }
 
-export default { criarCobranca, consultarCobranca, cancelarCobranca, processarWebhook };
+module.exports = { criarCobranca, consultarCobranca, cancelarCobranca, processarWebhook };

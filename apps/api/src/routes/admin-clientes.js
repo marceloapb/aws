@@ -1,6 +1,6 @@
-import { Router } from 'express';
-import { dynamo, TABLE } from '../config/dynamodb.js';
-import { QueryCommand, GetCommand, PutCommand, UpdateCommand, DeleteCommand, ScanCommand } from '@aws-sdk/lib-dynamodb';
+const { Router } = require('express');
+const { dynamo, TABLE } = require('../config/dynamodb');
+const { QueryCommand, GetCommand, PutCommand, UpdateCommand, DeleteCommand, ScanCommand } = require('@aws-sdk/lib-dynamodb');
 
 const router = Router();
 const TENANT = process.env.TENANT_ID || 'default';
@@ -100,4 +100,4 @@ router.delete('/:id', async (req, res) => {
   }
 });
 
-export default router;
+module.exports = router;

@@ -1,6 +1,6 @@
-import { dynamo, TABLE } from '../config/dynamodb.js';
-import { PutCommand, UpdateCommand } from '@aws-sdk/lib-dynamodb';
-import { uploadBackup } from '../services/s3Service.js';
+const { dynamo, TABLE } = require('../config/dynamodb');
+const { PutCommand, UpdateCommand } = require('@aws-sdk/lib-dynamodb');
+const { uploadBackup } = require('../services/s3Service');
 
 async function executarBackup() {
   const inicio = Date.now();
@@ -33,5 +33,7 @@ async function executarBackup() {
   }
 }
 
-export const handler = async () => { await executarBackup(); };
-export default { handler };
+const handler = async () => { await executarBackup(); };
+
+module.exports = { handler };
+module.exports.default = { handler };

@@ -20,9 +20,9 @@ export default function Orcamentos() {
 
   const loadQuotes = async () => {
     try {
-      const res = await authFetch('/quotes');
-      const data = await res.json();
-      if (Array.isArray(data)) setQuotes(data);
+      const res = await authFetch('/admin/orcamentos');
+      const json = await res.json();
+      if (json.success) setQuotes(json.data || []);
     } catch {}
   };
 

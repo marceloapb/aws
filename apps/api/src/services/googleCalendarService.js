@@ -1,13 +1,13 @@
-import { google } from 'googleapis';
-import { dynamo, TABLE } from '../config/dynamodb.js';
-import { QueryCommand, UpdateCommand } from '@aws-sdk/lib-dynamodb';
-import { loadParams } from '../config/env.js';
+const { google } = require('googleapis');
+const { dynamo, TABLE } = require('../config/dynamodb');
+const { QueryCommand, UpdateCommand } = require('@aws-sdk/lib-dynamodb');
+const { loadParams } = require('../config/env');
 
 const SCOPES = ['https://www.googleapis.com/auth/calendar'];
 const GC_PK = 'SYSTEM';
 const GC_SK = 'GOOGLE_CALENDAR_CONFIG';
 
-export function getOAuth2Client() {
+function getOAuth2Client() {
   return new google.auth.OAuth2(
     process.env.GOOGLE_CLIENT_ID,
     process.env.GOOGLE_CLIENT_SECRET,
@@ -15,12 +15,12 @@ export function getOAuth2Client() {
   );
 }
 
-export function getAuthUrl() {
+function getAuthUrl() {
   const oauth2Client = getOAuth2Client();
   return oauth2Client.generateAuthUrl({ access_type: 'offline', scope: SCOPES, prompt: 'consent' });
 }
 
-export async function getAuthenticatedClient() {
+async function getAuthenticatedClient() {
   const result = await dynamo.send(new QueryCommand({
     TableName: TABLE,
     KeyConditionExpression: 'PK = :pk AND SK = :sk',
@@ -46,7 +46,7 @@ export async function getAuthenticatedClient() {
   return { oauth2Client, calendarId: config.calendar_id || 'primary' };
 }
 
-export async function criarEvento(dados) {
+async function criarEvento(dados) {
   const { oauth2Client, calendarId } = await getAuthenticatedClient();
   const calendar = google.calendar({ version: 'v3', auth: oauth2Client });
   const event = {
@@ -62,7 +62,7 @@ export async function criarEvento(dados) {
   return response.data;
 }
 
-export async function atualizarEvento(googleEventId, dados) {
+async function atualizarEvento(googleEventId, dados) {
   const { oauth2Client, calendarId } = await getAuthenticatedClient();
   const calendar = google.calendar({ version: 'v3', auth: oauth2Client });
   const event = {
@@ -76,13 +76,13 @@ export async function atualizarEvento(googleEventId, dados) {
   return response.data;
 }
 
-export async function excluirEvento(googleEventId) {
+async function excluirEvento(googleEventId) {
   const { oauth2Client, calendarId } = await getAuthenticatedClient();
   const calendar = google.calendar({ version: 'v3', auth: oauth2Client });
   await calendar.events.delete({ calendarId, eventId: googleEventId });
 }
 
-export async function listarEventos(dataInicio, dataFim) {
+async function listarEventos(dataInicio, dataFim) {
   const { oauth2Client, calendarId } = await getAuthenticatedClient();
   const calendar = google.calendar({ version: 'v3', auth: oauth2Client });
   const response = await calendar.events.list({
@@ -92,4 +92,4 @@ export async function listarEventos(dataInicio, dataFim) {
   return response.data.items || [];
 }
 
-export default { getOAuth2Client, getAuthUrl, getAuthenticatedClient, criarEvento, atualizarEvento, excluirEvento, listarEventos };
+module.exports = { getOAuth2Client, getAuthUrl, getAuthenticatedClient, criarEvento, atualizarEvento, excluirEvento, listarEventos };

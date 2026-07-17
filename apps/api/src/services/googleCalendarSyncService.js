@@ -1,14 +1,14 @@
-import { google } from 'googleapis';
-import { dynamo, TABLE } from '../config/dynamodb.js';
-import { QueryCommand, PutCommand, UpdateCommand } from '@aws-sdk/lib-dynamodb';
-import { getAuthenticatedClient } from './googleCalendarService.js';
-import { SYNC_STATUS } from '../config/constants.js';
+const { google } = require('googleapis');
+const { dynamo, TABLE } = require('../config/dynamodb');
+const { QueryCommand, PutCommand, UpdateCommand } = require('@aws-sdk/lib-dynamodb');
+const { getAuthenticatedClient } = require('./googleCalendarService');
+const { SYNC_STATUS } = require('../config/constants');
 
 const TENANT = process.env.TENANT_ID || 'default';
 const GC_PK = 'SYSTEM';
 const GC_SK = 'GOOGLE_CALENDAR_CONFIG';
 
-export async function sincronizarBidirecional() {
+async function sincronizarBidirecional() {
   const logs = [];
 
   try {
@@ -173,4 +173,4 @@ export async function sincronizarBidirecional() {
   }
 }
 
-export default { sincronizarBidirecional };
+module.exports = { sincronizarBidirecional };

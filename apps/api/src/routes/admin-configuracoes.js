@@ -1,6 +1,6 @@
-import { Router } from 'express';
-import { dynamo, TABLE } from '../config/dynamodb.js';
-import { QueryCommand, GetCommand, PutCommand } from '@aws-sdk/lib-dynamodb';
+const { Router } = require('express');
+const { dynamo, TABLE } = require('../config/dynamodb');
+const { QueryCommand, GetCommand, PutCommand } = require('@aws-sdk/lib-dynamodb');
 
 const router = Router();
 const TENANT = process.env.TENANT_ID || 'default';
@@ -68,4 +68,4 @@ router.get('/gateways', async (req, res) => {
   }
 });
 
-export default router;
+module.exports = router;

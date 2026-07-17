@@ -2,8 +2,8 @@
 // SERVICES/INSTAGRAM-SERVICE.JS — Meta Graph API (Instagram)
 // ══════════════════════════════════════════════════════════════
 
-import { env } from '../config/env.js';
-import { getSignedDownloadUrl } from './s3Service.js';
+const { env } = require('../config/env');
+const { getSignedDownloadUrl } = require('./s3Service');
 
 const BASE_URL = `https://graph.facebook.com/v18.0/${env.INSTAGRAM_BUSINESS_ACCOUNT_ID}`;
 const TIMEOUT_MS = 30000;
@@ -14,7 +14,7 @@ function getHeaders() {
   return { 'Content-Type': 'application/json' };
 }
 
-export async function publicarFotoUnica(s3Key, caption) {
+async function publicarFotoUnica(s3Key, caption) {
   try {
     const imageUrl = await getSignedDownloadUrl(s3Key, 3600);
 
@@ -55,7 +55,7 @@ export async function publicarFotoUnica(s3Key, caption) {
   }
 }
 
-export async function publicarCarrossel(s3Keys, caption) {
+async function publicarCarrossel(s3Keys, caption) {
   try {
     const containerIds = [];
 
@@ -142,4 +142,4 @@ async function buscarPermalink(mediaId) {
   }
 }
 
-export default { publicarFotoUnica, publicarCarrossel };
+module.exports = { publicarFotoUnica, publicarCarrossel };

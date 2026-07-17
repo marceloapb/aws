@@ -1,7 +1,7 @@
-import { dynamo, TABLE } from '../config/dynamodb.js';
-import { QueryCommand, UpdateCommand, DeleteCommand } from '@aws-sdk/lib-dynamodb';
-import { deleteAlbumFolder } from '../services/s3Service.js';
-import { ALBUM_STATUS } from '../config/constants.js';
+const { dynamo, TABLE } = require('../config/dynamodb');
+const { QueryCommand, UpdateCommand, DeleteCommand } = require('@aws-sdk/lib-dynamodb');
+const { deleteAlbumFolder } = require('../services/s3Service');
+const { ALBUM_STATUS } = require('../config/constants');
 
 const DIAS_GRACA = 7;
 const TENANT = process.env.TENANT_ID || 'default';
@@ -51,5 +51,7 @@ async function processarRetencao() {
   }
 }
 
-export const handler = async () => { await processarRetencao(); };
-export default { handler };
+const handler = async () => { await processarRetencao(); };
+
+module.exports = { handler };
+module.exports.default = { handler };

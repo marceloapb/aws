@@ -16,16 +16,16 @@ export default function Catalogo() {
 
   const loadItems = async () => {
     try {
-      const res = await authFetch('/catalog');
-      const data = await res.json();
-      if (Array.isArray(data)) setItems(data);
+      const res = await authFetch('/admin/catalogo');
+      const json = await res.json();
+      if (json.success) setItems(json.data || []);
     } catch {}
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     const method = editing ? 'PUT' : 'POST';
-    const path = editing ? `/catalog/${editing.id}` : '/catalog';
+    const path = editing ? `/admin/catalogo/${editing.id}` : '/admin/catalogo';
     await authFetch(path, { method, body: JSON.stringify({ ...form, price: Number(form.price) }) });
     setShowModal(false);
     setEditing(null);
@@ -35,7 +35,7 @@ export default function Catalogo() {
 
   const handleDelete = async (id) => {
     if (!window.confirm('Excluir este item?')) return;
-    await authFetch(`/catalog/${id}`, { method: 'DELETE' });
+    await authFetch(`/admin/catalogo/${id}`, { method: 'DELETE' });
     loadItems();
   };
 

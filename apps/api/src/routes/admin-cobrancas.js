@@ -1,7 +1,7 @@
-import { Router } from 'express';
-import { dynamo, TABLE } from '../config/dynamodb.js';
-import { QueryCommand, PutCommand, UpdateCommand } from '@aws-sdk/lib-dynamodb';
-import { criarCobranca, consultarCobranca, cancelarCobranca } from '../adapters/index.js';
+const { Router } = require('express');
+const { dynamo, TABLE } = require('../config/dynamodb');
+const { QueryCommand, PutCommand, UpdateCommand } = require('@aws-sdk/lib-dynamodb');
+const { criarCobranca, consultarCobranca, cancelarCobranca } = require('../adapters/index');
 
 const router = Router();
 
@@ -130,4 +130,4 @@ router.post('/:id/cancelar', async (req, res) => {
   }
 });
 
-export default router;
+module.exports = router;

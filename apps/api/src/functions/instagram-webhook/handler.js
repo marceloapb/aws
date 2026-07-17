@@ -1,14 +1,14 @@
-import crypto from 'crypto';
-import { getParam } from '../../utils/ssm.js';
-import { validatePayload } from './validator.js';
-import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
-import { DynamoDBDocumentClient, PutCommand } from '@aws-sdk/lib-dynamodb';
+const crypto = require('crypto');
+const { getParam } = require('../../utils/ssm');
+const { validatePayload } = require('./validator');
+const { DynamoDBClient } = require('@aws-sdk/client-dynamodb');
+const { DynamoDBDocumentClient, PutCommand } = require('@aws-sdk/lib-dynamodb');
 
 const ddb = DynamoDBDocumentClient.from(new DynamoDBClient({}));
 const TABLE = process.env.TABLE_NAME;
 const PREFIX = process.env.SSM_PREFIX || '/mbf/prod';
 
-export const main = async (event) => {
+const main = async (event) => {
   const method = event.requestContext?.http?.method;
 
   if (method === 'GET') return handleVerification(event);
@@ -64,3 +64,5 @@ async function handleNotification(event) {
 
   return { statusCode: 200, body: 'ok' };
 }
+
+module.exports = { main };

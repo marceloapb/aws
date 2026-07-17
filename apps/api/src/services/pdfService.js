@@ -2,8 +2,8 @@
 // SERVICES/PDF-SERVICE.JS — Geração de PDF de contratos
 // ══════════════════════════════════════════════════════════════
 
-import puppeteer from 'puppeteer';
-import { env } from '../config/env.js';
+const puppeteer = require('puppeteer');
+const { env } = require('../config/env');
 
 let browser = null;
 
@@ -17,7 +17,7 @@ async function getBrowser() {
   return browser;
 }
 
-export async function gerarPDFContrato(contrato, cliente) {
+async function gerarPDFContrato(contrato, cliente) {
   const browserInstance = await getBrowser();
   const page = await browserInstance.newPage();
 
@@ -88,9 +88,11 @@ export async function gerarPDFContrato(contrato, cliente) {
   return pdfBuffer;
 }
 
-export async function closeBrowser() {
+async function closeBrowser() {
   if (browser) {
     await browser.close();
     browser = null;
   }
 }
+
+module.exports = { gerarPDFContrato, closeBrowser };

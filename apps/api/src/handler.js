@@ -1,12 +1,20 @@
-import serverlessExpress from '@vendia/serverless-express';
-import app from './app.js';
-import { logger } from './config/logger.js';
+const serverless = require('serverless-http');
+const app = require('./app');
+const logger = require('./config/logger');
 
-const serverlessHandler = serverlessExpress({ app });
+const handler = serverless(app, {
+  basePath: `/${process.env.STAGE || 'prod'}`,
+  request: (req, event, context) => {
+    // Injeta o event e context no request para os middlewares acessarem
+    req.event = event;
+    req.context = context;
+    req.requestContext = event.requestContext;
+  },
+});
 
-export const handler = (event, context) => {
-  logger.setRequestId(context.awsRequestId);
-  return serverlessHandler(event, context);
+module.exports.handler = async (event, context) => {
+  logger.setRequestId(context.awsRequestId || 'local');
+  return handler(event, context);
 };
 
 if (process.env.IS_LOCAL) {

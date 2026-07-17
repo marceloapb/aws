@@ -2,8 +2,8 @@
 // ADAPTERS/STRIPE.JS — Gateway Stripe
 // ══════════════════════════════════════════════════════════════
 
-import Stripe from 'stripe';
-import { env } from '../config/env.js';
+const Stripe = require('stripe');
+const { env } = require('../config/env');
 
 const stripe = new Stripe(env.STRIPE_SECRET_KEY);
 
@@ -19,7 +19,7 @@ function mapStatus(stripeStatus) {
   return map[stripeStatus] || 'pendente';
 }
 
-export async function criarCobranca(dados) {
+async function criarCobranca(dados) {
   // Criar Payment Intent
   const paymentIntent = await stripe.paymentIntents.create({
     amount: Math.round(dados.valor * 100), // Stripe usa centavos
@@ -37,7 +37,7 @@ export async function criarCobranca(dados) {
   };
 }
 
-export async function consultarCobranca(gatewayId) {
+async function consultarCobranca(gatewayId) {
   const paymentIntent = await stripe.paymentIntents.retrieve(gatewayId);
 
   return {
@@ -50,12 +50,12 @@ export async function consultarCobranca(gatewayId) {
   };
 }
 
-export async function cancelarCobranca(gatewayId) {
+async function cancelarCobranca(gatewayId) {
   const paymentIntent = await stripe.paymentIntents.cancel(gatewayId);
   return { gateway_id: paymentIntent.id, status: 'cancelado' };
 }
 
-export async function processarWebhook(payload, headers) {
+async function processarWebhook(payload, headers) {
   const sig = headers['stripe-signature'];
 
   if (!sig || !env.STRIPE_WEBHOOK_SECRET) {
@@ -87,4 +87,4 @@ function getPaymentMethods(meio) {
   return map[meio] || ['pix', 'card', 'boleto'];
 }
 
-export default { criarCobranca, consultarCobranca, cancelarCobranca, processarWebhook };
+module.exports = { criarCobranca, consultarCobranca, cancelarCobranca, processarWebhook };

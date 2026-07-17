@@ -1,9 +1,9 @@
-import { Router } from 'express';
-import { dynamo, TABLE } from '../config/dynamodb.js';
-import { QueryCommand, GetCommand, PutCommand, UpdateCommand, DeleteCommand } from '@aws-sdk/lib-dynamodb';
-import { criarEvento, atualizarEvento, excluirEvento } from '../services/googleCalendarService.js';
-import { features } from '../config/env.js';
-import { SYNC_STATUS } from '../config/constants.js';
+const { Router } = require('express');
+const { dynamo, TABLE } = require('../config/dynamodb');
+const { QueryCommand, GetCommand, PutCommand, UpdateCommand, DeleteCommand } = require('@aws-sdk/lib-dynamodb');
+const { criarEvento, atualizarEvento, excluirEvento } = require('../services/googleCalendarService');
+const { features } = require('../config/env');
+const { SYNC_STATUS } = require('../config/constants');
 
 const router = Router();
 const TENANT = process.env.TENANT_ID || 'default';
@@ -179,4 +179,4 @@ router.delete('/:id', async (req, res) => {
   }
 });
 
-export default router;
+module.exports = router;

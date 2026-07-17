@@ -10,14 +10,19 @@ export default function Financeiro() {
   const [summary, setSummary] = useState({ received: 0, pending: 0, overdue: 0 });
 
   useEffect(() => {
-    authFetch('/payments').then(r => r.json()).then(data => {
-      if (Array.isArray(data)) {
-        setPayments(data);
-        const received = data.filter(p => p.status === 'paid').reduce((s, p) => s + Number(p.amount || 0), 0);
-        const pending = data.filter(p => p.status === 'pending').reduce((s, p) => s + Number(p.amount || 0), 0);
-        const overdue = data.filter(p => p.status === 'overdue').reduce((s, p) => s + Number(p.amount || 0), 0);
-        setSummary({ received, pending, overdue });
+    // Load summary
+    authFetch('/admin/financeiro/resumo').then(r => r.json()).then(json => {
+      if (json.success && json.data) {
+        setSummary({
+          received: json.data.received || 0,
+          pending: json.data.pending || 0,
+          overdue: json.data.overdue || 0,
+        });
       }
+    }).catch(() => {});
+    // Load payments list
+    authFetch('/admin/cobrancas').then(r => r.json()).then(json => {
+      if (json.success) setPayments(json.data || []);
     }).catch(() => {});
   }, []);
 

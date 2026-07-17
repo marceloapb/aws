@@ -91,6 +91,9 @@ app.use('/client/aditivos', clientAditivosRoutes);
 // Rotas Públicas (site institucional, sem auth)
 app.use('/public', publicRoutes);
 
+// Auth pública (login/signup - sem auth)
+app.use('/auth', clientAuthRoutes);
+
 // Webhooks (sem auth - validação interna)
 app.use('/webhooks', webhooksRoutes);
 

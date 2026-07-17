@@ -2,20 +2,28 @@
 // SERVICES/S3-SERVICE.JS — Upload, download e gerenciamento S3
 // ══════════════════════════════════════════════════════════════
 
-import { S3Client, PutObjectCommand, DeleteObjectCommand, ListObjectsV2Command, DeleteObjectsCommand, GetObjectCommand } from '@aws-sdk/client-s3';
-import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
-import sharp from 'sharp';
-import { env } from '../config/env.js';
-import { v4 as uuid } from 'uuid';
+const { S3Client, PutObjectCommand, DeleteObjectCommand, ListObjectsV2Command, DeleteObjectsCommand, GetObjectCommand } = require('@aws-sdk/client-s3');
+const { getSignedUrl } = require('@aws-sdk/s3-request-presigner');
+const { env } = require('../config/env');
+const { v4: uuid } = require('uuid');
+
+// Sharp é lazy-loaded pois precisa de binários linux-x64
+let _sharp = null;
+function getSharp() {
+  if (!_sharp) {
+    try { _sharp = require('sharp'); } catch (e) { console.warn('Sharp not available:', e.message); }
+  }
+  return _sharp;
+}
 
 const s3 = new S3Client({ region: env.AWS_REGION });
 const BUCKET = process.env.S3_BUCKET_NAME || env.S3_BUCKET_NAME;
 const THUMB_WIDTH = 400;
 const THUMB_QUALITY = 80;
 
-export async function uploadFoto(buffer, key, mimeType) {
+async function uploadFoto(buffer, key, mimeType) {
   // Processar imagem com sharp
-  const metadata = await sharp(buffer).metadata();
+  const metadata = await getSharp()(buffer).metadata();
 
   // Upload original
   await s3.send(new PutObjectCommand({
@@ -26,7 +34,7 @@ export async function uploadFoto(buffer, key, mimeType) {
   }));
 
   // Gerar e upload thumbnail
-  const thumbBuffer = await sharp(buffer)
+  const thumbBuffer = await getSharp()(buffer)
     .resize(THUMB_WIDTH, null, { withoutEnlargement: true })
     .jpeg({ quality: THUMB_QUALITY })
     .toBuffer();
@@ -50,7 +58,7 @@ export async function uploadFoto(buffer, key, mimeType) {
   };
 }
 
-export async function deleteFoto(key) {
+async function deleteFoto(key) {
   const thumbKey = key.replace(/\.[^.]+$/, '_thumb.jpg');
 
   await s3.send(new DeleteObjectsCommand({
@@ -61,7 +69,7 @@ export async function deleteFoto(key) {
   }));
 }
 
-export async function deleteAlbumFolder(albumId) {
+async function deleteAlbumFolder(albumId) {
   const prefix = `albuns/${albumId}/`;
 
   const listResult = await s3.send(new ListObjectsV2Command({
@@ -79,12 +87,12 @@ export async function deleteAlbumFolder(albumId) {
   }));
 }
 
-export async function getSignedDownloadUrl(key, expiresIn = 3600) {
+async function getSignedDownloadUrl(key, expiresIn = 3600) {
   const command = new GetObjectCommand({ Bucket: BUCKET, Key: key });
   return getSignedUrl(s3, command, { expiresIn });
 }
 
-export async function generateUploadUrl(tenantId, albumId, contentType) {
+async function generateUploadUrl(tenantId, albumId, contentType) {
   const allowed = ['image/jpeg', 'image/png', 'image/webp'];
   if (!allowed.includes(contentType)) throw new Error('Content-Type não permitido');
   const ext = contentType.split('/')[1];
@@ -94,8 +102,8 @@ export async function generateUploadUrl(tenantId, albumId, contentType) {
   return { uploadUrl, key };
 }
 
-export async function generateViewUrl(key, expiresInHours = 24) {
-  const { getSignedUrl: cfSign } = await import('@aws-sdk/cloudfront-signer');
+async function generateViewUrl(key, expiresInHours = 24) {
+  const { getSignedUrl: cfSign } = require('@aws-sdk/cloudfront-signer');
   const url = `${process.env.CLOUDFRONT_DOMAIN}/${key}`;
   return cfSign({
     url,
@@ -105,7 +113,7 @@ export async function generateViewUrl(key, expiresInHours = 24) {
   });
 }
 
-export async function uploadBackup(buffer, filename) {
+async function uploadBackup(buffer, filename) {
   const key = `backups/${filename}`;
   await s3.send(new PutObjectCommand({
     Bucket: BUCKET,
@@ -116,4 +124,4 @@ export async function uploadBackup(buffer, filename) {
   return { s3_key: key };
 }
 
-export default { uploadFoto, deleteFoto, deleteAlbumFolder, getSignedDownloadUrl, uploadBackup };
+module.exports = { uploadFoto, deleteFoto, deleteAlbumFolder, getSignedDownloadUrl, generateUploadUrl, generateViewUrl, uploadBackup };

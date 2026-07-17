@@ -1,8 +1,8 @@
-import { Router } from 'express';
-import { dynamo, TABLE } from '../config/dynamodb.js';
-import { QueryCommand, PutCommand, UpdateCommand } from '@aws-sdk/lib-dynamodb';
-import { getAuthUrl, getOAuth2Client, listarEventos } from '../services/googleCalendarService.js';
-import { sincronizarBidirecional } from '../services/googleCalendarSyncService.js';
+const { Router } = require('express');
+const { dynamo, TABLE } = require('../config/dynamodb');
+const { QueryCommand, PutCommand, UpdateCommand } = require('@aws-sdk/lib-dynamodb');
+const { getAuthUrl, getOAuth2Client, listarEventos } = require('../services/googleCalendarService');
+const { sincronizarBidirecional } = require('../services/googleCalendarSyncService');
 
 const router = Router();
 const GC_PK = 'SYSTEM';
@@ -106,4 +106,4 @@ router.get('/logs', async (req, res) => {
   }
 });
 
-export default router;
+module.exports = router;

@@ -2,8 +2,8 @@
 // SERVICES/EMAIL-SERVICE.JS — Envio de emails via AWS SES
 // ══════════════════════════════════════════════════════════════
 
-import { SESClient, SendEmailCommand } from '@aws-sdk/client-ses';
-import { env } from '../config/env.js';
+const { SESClient, SendEmailCommand } = require('@aws-sdk/client-ses');
+const { env } = require('../config/env');
 
 const ses = new SESClient({
   region: env.AWS_REGION,
@@ -15,7 +15,7 @@ const ses = new SESClient({
 
 const FROM_EMAIL = env.SES_FROM_EMAIL || 'noreply@horizons.com.br';
 
-export async function enviarEmail({ para, assunto, html, texto }) {
+async function enviarEmail({ para, assunto, html, texto }) {
   const command = new SendEmailCommand({
     Source: FROM_EMAIL,
     Destination: { ToAddresses: Array.isArray(para) ? para : [para] },
@@ -32,7 +32,7 @@ export async function enviarEmail({ para, assunto, html, texto }) {
   return { success: true, messageId: response.MessageId };
 }
 
-export async function enviarEmailOrcamento(cliente, orcamento, link) {
+async function enviarEmailOrcamento(cliente, orcamento, link) {
   return enviarEmail({
     para: cliente.email,
     assunto: `Seu orçamento está pronto - ${orcamento.tipo_evento}`,
@@ -43,7 +43,7 @@ export async function enviarEmailOrcamento(cliente, orcamento, link) {
   });
 }
 
-export async function enviarEmailAlbum(cliente, album, link) {
+async function enviarEmailAlbum(cliente, album, link) {
   return enviarEmail({
     para: cliente.email,
     assunto: `Suas fotos estão prontas! - ${album.titulo}`,
@@ -54,7 +54,7 @@ export async function enviarEmailAlbum(cliente, album, link) {
   });
 }
 
-export async function enviarEmailContrato(cliente, link) {
+async function enviarEmailContrato(cliente, link) {
   return enviarEmail({
     para: cliente.email,
     assunto: 'Contrato para assinatura digital',
@@ -64,4 +64,4 @@ export async function enviarEmailContrato(cliente, link) {
   });
 }
 
-export default { enviarEmail, enviarEmailOrcamento, enviarEmailAlbum, enviarEmailContrato };
+module.exports = { enviarEmail, enviarEmailOrcamento, enviarEmailAlbum, enviarEmailContrato };

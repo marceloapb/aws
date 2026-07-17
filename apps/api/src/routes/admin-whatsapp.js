@@ -1,7 +1,7 @@
-import { Router } from 'express';
-import { enviarTemplate, enviarNotificacaoOrcamento, enviarNotificacaoAlbum } from '../services/whatsappService.js';
-import { dynamo, TABLE } from '../config/dynamodb.js';
-import { QueryCommand } from '@aws-sdk/lib-dynamodb';
+const { Router } = require('express');
+const { enviarTemplate, enviarNotificacaoOrcamento, enviarNotificacaoAlbum } = require('../services/whatsappService');
+const { dynamo, TABLE } = require('../config/dynamodb');
+const { QueryCommand } = require('@aws-sdk/lib-dynamodb');
 
 const router = Router();
 
@@ -83,4 +83,4 @@ router.post('/notificar-album', async (req, res) => {
   }
 });
 
-export default router;
+module.exports = router;

@@ -1,7 +1,9 @@
-import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
-import { DynamoDBDocumentClient } from '@aws-sdk/lib-dynamodb';
+const { DynamoDBClient } = require('@aws-sdk/client-dynamodb');
+const { DynamoDBDocumentClient } = require('@aws-sdk/lib-dynamodb');
 
-const client = new DynamoDBClient({ region: process.env.AWS_REGION || 'sa-east-1' });
+const client = new DynamoDBClient({});
 
-export const dynamo = DynamoDBDocumentClient.from(client);
-export const TABLE = process.env.DYNAMODB_TABLE_NAME || 'horizons';
+const dynamo = DynamoDBDocumentClient.from(client);
+const TABLE = process.env.TABLE_NAME || process.env.DYNAMODB_TABLE_NAME || 'mbf-backend-v3-table';
+
+module.exports = { dynamo, TABLE };

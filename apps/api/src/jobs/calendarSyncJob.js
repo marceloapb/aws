@@ -2,12 +2,12 @@
 // JOBS/CALENDAR-SYNC-JOB.JS — Sincronização periódica Google Calendar
 // ══════════════════════════════════════════════════════════════
 
-import { sincronizarBidirecional } from '../services/googleCalendarSyncService.js';
-import { features } from '../config/env.js';
+const { sincronizarBidirecional } = require('../services/googleCalendarSyncService');
+const { features } = require('../config/env');
 
 const INTERVAL_MS = 30 * 60 * 1000; // 30 minutos
 
-export function startCalendarSyncJob() {
+function startCalendarSyncJob() {
   if (!features.googleCalendar) {
     console.log('[CALENDAR SYNC JOB] Feature desabilitada — job não iniciado');
     return;
@@ -34,6 +34,7 @@ async function executarSync() {
   }
 }
 
-export const handler = async () => { await executarSync(); };
+const handler = async () => { await executarSync(); };
 
-export default { handler };
+module.exports = { startCalendarSyncJob, handler };
+module.exports.default = { handler };

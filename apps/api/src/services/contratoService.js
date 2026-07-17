@@ -1,7 +1,7 @@
-import { dynamo, TABLE } from '../config/dynamodb.js';
-import { QueryCommand, GetCommand, PutCommand, UpdateCommand } from '@aws-sdk/lib-dynamodb';
-import { enviarTemplate } from './whatsappService.js';
-import { env } from '../config/env.js';
+const { dynamo, TABLE } = require('../config/dynamodb');
+const { QueryCommand, GetCommand, PutCommand, UpdateCommand } = require('@aws-sdk/lib-dynamodb');
+const { enviarTemplate } = require('./whatsappService');
+const { env } = require('../config/env');
 
 const TEMPLATES = {
   casamento: 'contrato_casamento',
@@ -11,7 +11,7 @@ const TEMPLATES = {
   default: 'contrato_padrao',
 };
 
-export async function gerarContrato(orcamentoId) {
+async function gerarContrato(orcamentoId) {
   // Buscar orçamento
   const orcResult = await dynamo.send(new QueryCommand({
     TableName: TABLE,
@@ -69,7 +69,7 @@ export async function gerarContrato(orcamentoId) {
   return contrato;
 }
 
-export async function enviarParaAssinatura(contratoId) {
+async function enviarParaAssinatura(contratoId) {
   const result = await dynamo.send(new QueryCommand({
     TableName: TABLE,
     IndexName: 'GSI1',
@@ -109,7 +109,7 @@ export async function enviarParaAssinatura(contratoId) {
   return { link, enviado_whatsapp: !!cliente.whatsapp_numero };
 }
 
-export async function assinarContrato(token, dadosAssinatura) {
+async function assinarContrato(token, dadosAssinatura) {
   const result = await dynamo.send(new QueryCommand({
     TableName: TABLE,
     IndexName: 'GSI1',
@@ -148,4 +148,4 @@ function getTemplateDefault(tipoEvento) {
 <p>Data: {{data_hoje}}</p>`;
 }
 
-export default { gerarContrato, enviarParaAssinatura, assinarContrato };
+module.exports = { gerarContrato, enviarParaAssinatura, assinarContrato };

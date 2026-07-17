@@ -1,8 +1,8 @@
-import { Router } from 'express';
-import { dynamo, TABLE } from '../config/dynamodb.js';
-import { QueryCommand, PutCommand, UpdateCommand, DeleteCommand } from '@aws-sdk/lib-dynamodb';
-import { publicarCarrossel, publicarFotoUnica } from '../services/instagramService.js';
-import { INSTAGRAM_STATUS } from '../config/constants.js';
+const { Router } = require('express');
+const { dynamo, TABLE } = require('../config/dynamodb');
+const { QueryCommand, PutCommand, UpdateCommand, DeleteCommand } = require('@aws-sdk/lib-dynamodb');
+const { publicarCarrossel, publicarFotoUnica } = require('../services/instagramService');
+const { INSTAGRAM_STATUS } = require('../config/constants');
 
 const router = Router();
 
@@ -126,4 +126,4 @@ router.delete('/:id', async (req, res) => {
   }
 });
 
-export default router;
+module.exports = router;

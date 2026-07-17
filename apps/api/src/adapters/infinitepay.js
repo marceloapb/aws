@@ -2,7 +2,7 @@
 // ADAPTERS/INFINITEPAY.JS — Gateway InfinitePay
 // ══════════════════════════════════════════════════════════════
 
-import { env } from '../config/env.js';
+const { env } = require('../config/env');
 
 const BASE_URL = 'https://api.infinitepay.io/v2';
 const TIMEOUT_MS = 15000;
@@ -25,7 +25,7 @@ function mapStatus(ipStatus) {
   return map[ipStatus] || 'pendente';
 }
 
-export async function criarCobranca(dados) {
+async function criarCobranca(dados) {
   const body = {
     amount: Math.round(dados.valor * 100),
     description: dados.descricao,
@@ -61,7 +61,7 @@ export async function criarCobranca(dados) {
   return result;
 }
 
-export async function consultarCobranca(gatewayId) {
+async function consultarCobranca(gatewayId) {
   const response = await fetch(`${BASE_URL}/transactions/${gatewayId}`, {
     headers: getHeaders(),
     signal: AbortSignal.timeout(TIMEOUT_MS),
@@ -78,7 +78,7 @@ export async function consultarCobranca(gatewayId) {
   };
 }
 
-export async function cancelarCobranca(gatewayId) {
+async function cancelarCobranca(gatewayId) {
   const response = await fetch(`${BASE_URL}/transactions/${gatewayId}/cancel`, {
     method: 'POST',
     headers: getHeaders(),
@@ -89,7 +89,7 @@ export async function cancelarCobranca(gatewayId) {
   return { gateway_id: gatewayId, status: 'cancelado' };
 }
 
-export async function processarWebhook(payload, headers) {
+async function processarWebhook(payload, headers) {
   return {
     gateway_id: payload.id,
     status: mapStatus(payload.status),
@@ -97,4 +97,4 @@ export async function processarWebhook(payload, headers) {
   };
 }
 
-export default { criarCobranca, consultarCobranca, cancelarCobranca, processarWebhook };
+module.exports = { criarCobranca, consultarCobranca, cancelarCobranca, processarWebhook };

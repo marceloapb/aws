@@ -2,7 +2,7 @@
 // ADAPTERS/SUMUP.JS — Gateway SumUp
 // ══════════════════════════════════════════════════════════════
 
-import { env } from '../config/env.js';
+const { env } = require('../config/env');
 
 const BASE_URL = 'https://api.sumup.com/v0.1';
 const TIMEOUT_MS = 15000;
@@ -25,7 +25,7 @@ function mapStatus(sumupStatus) {
   return map[sumupStatus] || 'pendente';
 }
 
-export async function criarCobranca(dados) {
+async function criarCobranca(dados) {
   const body = {
     amount: dados.valor,
     currency: 'BRL',
@@ -52,7 +52,7 @@ export async function criarCobranca(dados) {
   };
 }
 
-export async function consultarCobranca(gatewayId) {
+async function consultarCobranca(gatewayId) {
   const response = await fetch(`${BASE_URL}/checkouts/${gatewayId}`, {
     headers: getHeaders(),
     signal: AbortSignal.timeout(TIMEOUT_MS),
@@ -69,7 +69,7 @@ export async function consultarCobranca(gatewayId) {
   };
 }
 
-export async function cancelarCobranca(gatewayId) {
+async function cancelarCobranca(gatewayId) {
   const response = await fetch(`${BASE_URL}/checkouts/${gatewayId}`, {
     method: 'DELETE',
     headers: getHeaders(),
@@ -80,7 +80,7 @@ export async function cancelarCobranca(gatewayId) {
   return { gateway_id: gatewayId, status: 'cancelado' };
 }
 
-export async function processarWebhook(payload, headers) {
+async function processarWebhook(payload, headers) {
   return {
     gateway_id: payload.id,
     status: mapStatus(payload.status),
@@ -88,4 +88,4 @@ export async function processarWebhook(payload, headers) {
   };
 }
 
-export default { criarCobranca, consultarCobranca, cancelarCobranca, processarWebhook };
+module.exports = { criarCobranca, consultarCobranca, cancelarCobranca, processarWebhook };

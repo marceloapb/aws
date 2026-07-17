@@ -1,16 +1,16 @@
-import { Router } from 'express';
-import {
+const { Router } = require('express');
+const {
   CognitoIdentityProviderClient,
   SignUpCommand,
   InitiateAuthCommand,
   ForgotPasswordCommand,
   ConfirmForgotPasswordCommand,
-} from '@aws-sdk/client-cognito-identity-provider';
-import { env } from '../config/env.js';
+} = require('@aws-sdk/client-cognito-identity-provider');
+const { env } = require('../config/env');
 
 const router = Router();
 const cognito = new CognitoIdentityProviderClient({ region: env.AWS_REGION });
-const CLIENT_ID = process.env.COGNITO_USER_POOL_CLIENT_ID;
+const CLIENT_ID = process.env.COGNITO_CLIENT_ID || process.env.COGNITO_USER_POOL_CLIENT_ID;
 
 router.post('/signup', async (req, res) => {
   try {
@@ -30,15 +30,35 @@ router.post('/signup', async (req, res) => {
 
 router.post('/login', async (req, res) => {
   try {
-    const { email, senha } = req.body;
-    if (!email || !senha) return res.status(400).json({ success: false, message: 'Email e senha são obrigatórios' });
+    const { email, senha, password } = req.body;
+    const pwd = senha || password;
+    if (!email || !pwd) return res.status(400).json({ success: false, message: 'Email e senha são obrigatórios' });
     const result = await cognito.send(new InitiateAuthCommand({
       AuthFlow: 'USER_PASSWORD_AUTH',
       ClientId: CLIENT_ID,
-      AuthParameters: { USERNAME: email, PASSWORD: senha },
+      AuthParameters: { USERNAME: email, PASSWORD: pwd },
     }));
     const tokens = result.AuthenticationResult;
-    res.json({ success: true, data: { idToken: tokens.IdToken, accessToken: tokens.AccessToken, refreshToken: tokens.RefreshToken } });
+
+    // Decodificar idToken para extrair dados do usuário
+    const payload = JSON.parse(Buffer.from(tokens.IdToken.split('.')[1], 'base64url').toString('utf8'));
+    const groups = payload['cognito:groups'] || [];
+    const role = groups.includes('admin') ? 'admin' : 'client';
+
+    const user = {
+      id: payload.sub,
+      sub: payload.sub,
+      email: payload.email,
+      role: role,
+      groups: groups,
+    };
+
+    res.json({
+      success: true,
+      user,
+      token: tokens.IdToken,
+      data: { idToken: tokens.IdToken, accessToken: tokens.AccessToken, refreshToken: tokens.RefreshToken },
+    });
   } catch (error) {
     res.status(401).json({ success: false, message: 'Credenciais inválidas' });
   }
@@ -69,4 +89,4 @@ router.post('/confirm-forgot-password', async (req, res) => {
   }
 });
 
-export default router;
+module.exports = router;

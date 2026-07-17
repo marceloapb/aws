@@ -2,10 +2,10 @@
 // CONFIG/S3.JS — Cliente AWS S3
 // ══════════════════════════════════════════════════════════════
 
-import { S3Client } from '@aws-sdk/client-s3';
-import { env } from './env.js';
+const { S3Client } = require('@aws-sdk/client-s3');
+const { env } = require('./env');
 
-export const s3Client = new S3Client({
+const s3Client = new S3Client({
   region: env.AWS_REGION,
   credentials: {
     accessKeyId: env.AWS_ACCESS_KEY_ID,
@@ -13,4 +13,5 @@ export const s3Client = new S3Client({
   },
 });
 
-export default s3Client;
+module.exports = s3Client;
+module.exports.s3Client = s3Client;

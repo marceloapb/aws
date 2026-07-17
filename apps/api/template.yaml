@@ -1,17 +1,23 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
-Description: MBF Systems API
+Description: MBF Photography Platform - Serverless Backend
 
 Parameters:
   Stage:
     Type: String
     Default: prod
-  CloudFrontDomain:
+  TableName:
     Type: String
-    Default: ''
-  CloudFrontKeyPairId:
+    Default: mbf-backend-v3-table
+  FotosBucketName:
     Type: String
-    Default: ''
+    Default: mbf-backend-v3-fotos
+  CognitoUserPoolId:
+    Type: String
+    Default: us-east-1_ENV0dsEJx
+  CognitoClientId:
+    Type: String
+    Default: ab1oeans0c58esml7918he0q1
   FrontendUrl:
     Type: String
     Default: 'https://www.mbfoto.com.br'
@@ -21,42 +27,72 @@ Globals:
     Runtime: nodejs20.x
     Timeout: 30
     MemorySize: 256
+    Tracing: Active
     Environment:
       Variables:
+        TABLE_NAME: !Ref TableName
+        S3_BUCKET_NAME: !Ref FotosBucketName
+        COGNITO_USER_POOL_ID: !Ref CognitoUserPoolId
+        COGNITO_CLIENT_ID: !Ref CognitoClientId
         STAGE: !Ref Stage
-        CLOUDFRONT_DOMAIN: !Ref CloudFrontDomain
-        CLOUDFRONT_KEY_PAIR_ID: !Ref CloudFrontKeyPairId
         FRONTEND_URL: !Ref FrontendUrl
-        TABLE_NAME: !Ref MbfTable
-        CLOUDFRONT_PRIVATE_KEY_PARAM: !Sub '/mbf/${Stage}/cloudfront/private-key'
+        SSM_PREFIX: !Sub '/mbf/${Stage}'
+        AWS_NODEJS_CONNECTION_REUSE_ENABLED: '1'
 
 Resources:
+  # ═══ API ═══
   MbfApi:
     Type: AWS::Serverless::HttpApi
     Properties:
       StageName: !Ref Stage
+      DefaultRouteSettings:
+        ThrottlingBurstLimit: 50
+        ThrottlingRateLimit: 100
       CorsConfiguration:
         AllowOrigins:
           - !Ref FrontendUrl
           - 'http://localhost:3000'
+          - 'http://localhost:5173'
         AllowMethods:
           - GET
           - POST
           - PUT
           - DELETE
+          - PATCH
           - OPTIONS
         AllowHeaders:
           - Content-Type
           - Authorization
           - X-Requested-With
         AllowCredentials: true
+      Auth:
+        DefaultAuthorizer: CognitoAuthorizer
+        Authorizers:
+          CognitoAuthorizer:
+            IdentitySource: $request.header.Authorization
+            JwtConfiguration:
+              issuer: !Sub "https://cognito-idp.us-east-1.amazonaws.com/${CognitoUserPoolId}"
+              audience:
+                - !Ref CognitoClientId
 
+  # ═══ LAMBDA PRINCIPAL ═══
   MbfFunction:
     Type: AWS::Serverless::Function
     Properties:
       FunctionName: !Sub 'mbf-${Stage}-api'
-      Handler: src/app.handler
+      Handler: src/handler.handler
       CodeUri: .
+      MemorySize: 512
+      Timeout: 30
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref TableName
+        - S3CrudPolicy:
+            BucketName: !Ref FotosBucketName
+        - SSMParameterReadPolicy:
+            ParameterName: !Sub 'mbf/${Stage}/*'
+        - SQSSendMessagePolicy:
+            QueueName: !GetAtt WebhookQueue.QueueName
       Events:
         ApiCatchAll:
           Type: HttpApi
@@ -64,45 +100,259 @@ Resources:
             ApiId: !Ref MbfApi
             Path: /{proxy+}
             Method: ANY
+        # Rotas públicas sem Cognito Authorizer
+        AuthRoutes:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref MbfApi
+            Path: /auth/{proxy+}
+            Method: ANY
+            Auth:
+              Authorizer: NONE
+        PublicRoutes:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref MbfApi
+            Path: /public/{proxy+}
+            Method: ANY
+            Auth:
+              Authorizer: NONE
+        WebhookRoutes:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref MbfApi
+            Path: /webhooks/{proxy+}
+            Method: ANY
+            Auth:
+              Authorizer: NONE
+        HealthRoute:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref MbfApi
+            Path: /health
+            Method: GET
+            Auth:
+              Authorizer: NONE
+        ClientAuthRoutes:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref MbfApi
+            Path: /client/auth/{proxy+}
+            Method: ANY
+            Auth:
+              Authorizer: NONE
+
+  # ═══ JOBS (EventBridge Schedule) ═══
+  AlbumRetentionFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub 'mbf-${Stage}-album-retention'
+      Handler: src/jobs/albumRetentionJob.handler
+      CodeUri: .
+      Timeout: 300
       Policies:
         - DynamoDBCrudPolicy:
-            TableName: !Ref MbfTable
+            TableName: !Ref TableName
+        - S3CrudPolicy:
+            BucketName: !Ref FotosBucketName
+      Events:
+        Schedule:
+          Type: Schedule
+          Properties:
+            Schedule: cron(0 3 * * ? *)
+
+  BackupFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub 'mbf-${Stage}-backup'
+      Handler: src/jobs/backupJob.handler
+      CodeUri: .
+      Timeout: 300
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref TableName
+        - S3CrudPolicy:
+            BucketName: !Ref FotosBucketName
+      Events:
+        Schedule:
+          Type: Schedule
+          Properties:
+            Schedule: cron(0 2 * * ? *)
+
+  CalendarSyncFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub 'mbf-${Stage}-calendar-sync'
+      Handler: src/jobs/calendarSyncJob.handler
+      CodeUri: .
+      Timeout: 300
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref TableName
         - SSMParameterReadPolicy:
             ParameterName: !Sub 'mbf/${Stage}/*'
+      Events:
+        Schedule:
+          Type: Schedule
+          Properties:
+            Schedule: rate(15 minutes)
 
-  MbfTable:
-    Type: AWS::DynamoDB::Table
+  InstagramPublisherFunction:
+    Type: AWS::Serverless::Function
     Properties:
-      TableName: !Sub 'mbf-${Stage}-table'
-      BillingMode: PAY_PER_REQUEST
-      AttributeDefinitions:
-        - AttributeName: PK
-          AttributeType: S
-        - AttributeName: SK
-          AttributeType: S
-        - AttributeName: GSI1PK
-          AttributeType: S
-        - AttributeName: GSI1SK
-          AttributeType: S
-      KeySchema:
-        - AttributeName: PK
-          KeyType: HASH
-        - AttributeName: SK
-          KeyType: RANGE
-      GlobalSecondaryIndexes:
-        - IndexName: GSI1
-          KeySchema:
-            - AttributeName: GSI1PK
-              KeyType: HASH
-            - AttributeName: GSI1SK
-              KeyType: RANGE
-          Projection:
-            ProjectionType: ALL
+      FunctionName: !Sub 'mbf-${Stage}-instagram-publisher'
+      Handler: src/jobs/instagramPublisherJob.handler
+      CodeUri: .
+      Timeout: 300
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref TableName
+        - S3CrudPolicy:
+            BucketName: !Ref FotosBucketName
+        - SSMParameterReadPolicy:
+            ParameterName: !Sub 'mbf/${Stage}/*'
+      Events:
+        Schedule:
+          Type: Schedule
+          Properties:
+            Schedule: rate(1 hour)
+
+  WhatsappReminderFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub 'mbf-${Stage}-whatsapp-reminder'
+      Handler: src/jobs/whatsappReminderJob.handler
+      CodeUri: .
+      Timeout: 300
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref TableName
+        - SSMParameterReadPolicy:
+            ParameterName: !Sub 'mbf/${Stage}/*'
+      Events:
+        Schedule:
+          Type: Schedule
+          Properties:
+            Schedule: cron(0 11 * * ? *)
+
+  FollowUpFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub 'mbf-${Stage}-followup'
+      Handler: src/jobs/followUpJob.handler
+      CodeUri: .
+      Timeout: 300
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref TableName
+        - SSMParameterReadPolicy:
+            ParameterName: !Sub 'mbf/${Stage}/*'
+      Events:
+        Schedule:
+          Type: Schedule
+          Properties:
+            Schedule: cron(0 12 * * ? *)
+
+  # ═══ WEBHOOK FUNCTIONS ═══
+  WhatsAppWebhookFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub 'mbf-${Stage}-whatsapp-webhook'
+      Handler: src/functions/whatsapp-webhook/handler.main
+      CodeUri: .
+      Timeout: 10
+      Policies:
+        - SSMParameterReadPolicy:
+            ParameterName: !Sub 'mbf/${Stage}/*'
+        - DynamoDBCrudPolicy:
+            TableName: !Ref TableName
+      Events:
+        WebhookVerify:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref MbfApi
+            Path: /whatsapp/webhook
+            Method: GET
+            Auth:
+              Authorizer: NONE
+        WebhookReceive:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref MbfApi
+            Path: /whatsapp/webhook
+            Method: POST
+            Auth:
+              Authorizer: NONE
+
+  InstagramWebhookFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub 'mbf-${Stage}-instagram-webhook'
+      Handler: src/functions/instagram-webhook/handler.main
+      CodeUri: .
+      Timeout: 10
+      Policies:
+        - SSMParameterReadPolicy:
+            ParameterName: !Sub 'mbf/${Stage}/*'
+        - DynamoDBCrudPolicy:
+            TableName: !Ref TableName
+      Events:
+        WebhookVerify:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref MbfApi
+            Path: /instagram/webhook
+            Method: GET
+            Auth:
+              Authorizer: NONE
+        WebhookReceive:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref MbfApi
+            Path: /instagram/webhook
+            Method: POST
+            Auth:
+              Authorizer: NONE
+
+  # ═══ SQS + DLQ ═══
+  WebhookQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: !Sub 'mbf-${Stage}-webhooks'
+      VisibilityTimeout: 60
+      RedrivePolicy:
+        deadLetterTargetArn: !GetAtt WebhookDLQ.Arn
+        maxReceiveCount: 3
+
+  WebhookDLQ:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: !Sub 'mbf-${Stage}-webhooks-dlq'
+      MessageRetentionPeriod: 1209600
+
+  WebhookConsumerFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub 'mbf-${Stage}-webhook-consumer'
+      Handler: src/handlers/webhookConsumer.handler
+      CodeUri: .
+      Timeout: 60
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref TableName
+        - SSMParameterReadPolicy:
+            ParameterName: !Sub 'mbf/${Stage}/*'
+      Events:
+        SQSEvent:
+          Type: SQS
+          Properties:
+            Queue: !GetAtt WebhookQueue.Arn
+            BatchSize: 1
 
 Outputs:
   ApiUrl:
     Description: API Gateway endpoint URL
     Value: !Sub 'https://${MbfApi}.execute-api.${AWS::Region}.amazonaws.com/${Stage}'
-  TableName:
-    Description: DynamoDB table name
-    Value: !Ref MbfTable
+  WebhookQueueUrl:
+    Description: SQS Queue URL for webhooks
+    Value: !Ref WebhookQueue

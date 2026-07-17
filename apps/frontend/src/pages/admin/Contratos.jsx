@@ -15,8 +15,8 @@ export default function Contratos() {
   const [contracts, setContracts] = useState([]);
 
   useEffect(() => {
-    authFetch('/contracts').then(r => r.json()).then(data => {
-      if (Array.isArray(data)) setContracts(data);
+    authFetch('/admin/contratos').then(r => r.json()).then(json => {
+      if (json.success) setContracts(json.data || []);
     }).catch(() => {});
   }, []);
 

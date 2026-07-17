@@ -2,7 +2,7 @@
 // ADAPTERS/BANCO-INTER.JS — Gateway Banco Inter
 // ══════════════════════════════════════════════════════════════
 
-import { env } from '../config/env.js';
+const { env } = require('../config/env');
 
 const BASE_URL = 'https://cdpj.partners.bancointer.com.br';
 const TIMEOUT_MS = 15000;
@@ -51,7 +51,7 @@ function mapStatus(interStatus) {
   return map[interStatus] || 'pendente';
 }
 
-export async function criarCobranca(dados) {
+async function criarCobranca(dados) {
   const token = await getAccessToken();
   const txid = dados.referencia || crypto.randomUUID().replace(/-/g, '').substring(0, 26);
 
@@ -80,7 +80,7 @@ export async function criarCobranca(dados) {
   };
 }
 
-export async function consultarCobranca(gatewayId) {
+async function consultarCobranca(gatewayId) {
   const token = await getAccessToken();
 
   const response = await fetch(`${BASE_URL}/pix/v2/cob/${gatewayId}`, {
@@ -99,7 +99,7 @@ export async function consultarCobranca(gatewayId) {
   };
 }
 
-export async function cancelarCobranca(gatewayId) {
+async function cancelarCobranca(gatewayId) {
   const token = await getAccessToken();
 
   const response = await fetch(`${BASE_URL}/pix/v2/cob/${gatewayId}`, {
@@ -113,7 +113,7 @@ export async function cancelarCobranca(gatewayId) {
   return { gateway_id: gatewayId, status: 'cancelado' };
 }
 
-export async function processarWebhook(payload, headers) {
+async function processarWebhook(payload, headers) {
   return {
     gateway_id: payload.pix?.[0]?.txid,
     status: 'pago',
@@ -121,4 +121,4 @@ export async function processarWebhook(payload, headers) {
   };
 }
 
-export default { criarCobranca, consultarCobranca, cancelarCobranca, processarWebhook };
+module.exports = { criarCobranca, consultarCobranca, cancelarCobranca, processarWebhook };

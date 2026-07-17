@@ -1,8 +1,8 @@
-import { Router } from 'express';
-import { dynamo, TABLE } from '../config/dynamodb.js';
-import { QueryCommand } from '@aws-sdk/lib-dynamodb';
-import { generateViewUrl } from '../services/s3Service.js';
-import { ALBUM_STATUS } from '../config/constants.js';
+const { Router } = require('express');
+const { dynamo, TABLE } = require('../config/dynamodb');
+const { QueryCommand } = require('@aws-sdk/lib-dynamodb');
+const { generateViewUrl } = require('../services/s3Service');
+const { ALBUM_STATUS } = require('../config/constants');
 
 const router = Router();
 
@@ -89,4 +89,4 @@ router.get('/:id', async (req, res) => {
   }
 });
 
-export default router;
+module.exports = router;

@@ -2,7 +2,7 @@
 // ADAPTERS/PICPAY.JS — Gateway PicPay
 // ══════════════════════════════════════════════════════════════
 
-import { env } from '../config/env.js';
+const { env } = require('../config/env');
 
 const BASE_URL = 'https://appws.picpay.com/ecommerce/public';
 const TIMEOUT_MS = 15000;
@@ -27,7 +27,7 @@ function mapStatus(picpayStatus) {
   return map[picpayStatus] || 'pendente';
 }
 
-export async function criarCobranca(dados) {
+async function criarCobranca(dados) {
   const referenceId = dados.referencia || crypto.randomUUID();
 
   const body = {
@@ -63,7 +63,7 @@ export async function criarCobranca(dados) {
   };
 }
 
-export async function consultarCobranca(gatewayId) {
+async function consultarCobranca(gatewayId) {
   const response = await fetch(`${BASE_URL}/payments/${gatewayId}/status`, {
     headers: getHeaders(),
     signal: AbortSignal.timeout(TIMEOUT_MS),
@@ -80,7 +80,7 @@ export async function consultarCobranca(gatewayId) {
   };
 }
 
-export async function cancelarCobranca(gatewayId) {
+async function cancelarCobranca(gatewayId) {
   const response = await fetch(`${BASE_URL}/payments/${gatewayId}/cancellations`, {
     method: 'POST',
     headers: getHeaders(),
@@ -92,7 +92,7 @@ export async function cancelarCobranca(gatewayId) {
   return { gateway_id: gatewayId, status: 'cancelado' };
 }
 
-export async function processarWebhook(payload, headers) {
+async function processarWebhook(payload, headers) {
   return {
     gateway_id: payload.referenceId,
     status: mapStatus(payload.status),
@@ -100,4 +100,4 @@ export async function processarWebhook(payload, headers) {
   };
 }
 
-export default { criarCobranca, consultarCobranca, cancelarCobranca, processarWebhook };
+module.exports = { criarCobranca, consultarCobranca, cancelarCobranca, processarWebhook };

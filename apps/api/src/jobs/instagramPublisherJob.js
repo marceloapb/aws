@@ -1,7 +1,7 @@
-import { dynamo, TABLE } from '../config/dynamodb.js';
-import { QueryCommand, UpdateCommand } from '@aws-sdk/lib-dynamodb';
-import { publicarCarrossel, publicarFotoUnica } from '../services/instagramService.js';
-import { INSTAGRAM_STATUS } from '../config/constants.js';
+const { dynamo, TABLE } = require('../config/dynamodb');
+const { QueryCommand, UpdateCommand } = require('@aws-sdk/lib-dynamodb');
+const { publicarCarrossel, publicarFotoUnica } = require('../services/instagramService');
+const { INSTAGRAM_STATUS } = require('../config/constants');
 
 async function processarPublicacoes() {
   const agora = new Date().toISOString();
@@ -53,5 +53,7 @@ async function processarPublicacoes() {
   }
 }
 
-export const handler = async () => { await processarPublicacoes(); };
-export default { handler };
+const handler = async () => { await processarPublicacoes(); };
+
+module.exports = { handler };
+module.exports.default = { handler };

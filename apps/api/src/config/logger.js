@@ -1,6 +1,6 @@
 let requestId = 'local';
 
-export function setRequestId(id) { requestId = id; }
+function setRequestId(id) { requestId = id; }
 
 function log(level, message, context = {}) {
   const entry = JSON.stringify({ level, message, timestamp: new Date().toISOString(), requestId, ...context });
@@ -9,11 +9,13 @@ function log(level, message, context = {}) {
   else console.log(entry);
 }
 
-export const logger = {
+const logger = {
   setRequestId,
   info: (msg, ctx) => log('info', msg, ctx),
   warn: (msg, ctx) => log('warn', msg, ctx),
   error: (msg, ctx) => log('error', msg, ctx),
 };
 
-export default logger;
+module.exports = logger;
+module.exports.setRequestId = setRequestId;
+module.exports.logger = logger;

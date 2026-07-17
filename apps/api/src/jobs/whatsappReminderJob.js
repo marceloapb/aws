@@ -1,6 +1,6 @@
-import { dynamo, TABLE } from '../config/dynamodb.js';
-import { QueryCommand, UpdateCommand } from '@aws-sdk/lib-dynamodb';
-import { enviarLembreteEvento } from '../services/whatsappService.js';
+const { dynamo, TABLE } = require('../config/dynamodb');
+const { QueryCommand, UpdateCommand } = require('@aws-sdk/lib-dynamodb');
+const { enviarLembreteEvento } = require('../services/whatsappService');
 
 const TENANT = process.env.TENANT_ID || 'default';
 
@@ -53,5 +53,7 @@ async function verificarLembretes() {
   }
 }
 
-export const handler = async () => { await verificarLembretes(); };
-export default { handler };
+const handler = async () => { await verificarLembretes(); };
+
+module.exports = { handler };
+module.exports.default = { handler };

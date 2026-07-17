@@ -2,7 +2,7 @@
 // SERVICES/WHATSAPP-SERVICE.JS — Meta WhatsApp Business API
 // ══════════════════════════════════════════════════════════════
 
-import { env } from '../config/env.js';
+const { env } = require('../config/env');
 
 const BASE_URL = `https://graph.facebook.com/v18.0/${env.WHATSAPP_PHONE_NUMBER_ID}`;
 const TIMEOUT_MS = 15000;
@@ -14,7 +14,7 @@ function getHeaders() {
   };
 }
 
-export async function enviarTemplate(numero, templateName, parametros = []) {
+async function enviarTemplate(numero, templateName, parametros = []) {
   const body = {
     messaging_product: 'whatsapp',
     to: formatarNumero(numero),
@@ -42,19 +42,19 @@ export async function enviarTemplate(numero, templateName, parametros = []) {
   return { success: true, message_id: data.messages?.[0]?.id };
 }
 
-export async function enviarLembreteEvento(numero, nomeCliente, tipoEvento, data, horario) {
+async function enviarLembreteEvento(numero, nomeCliente, tipoEvento, data, horario) {
   return enviarTemplate(numero, 'lembrete_evento', [nomeCliente, tipoEvento, data, horario]);
 }
 
-export async function enviarNotificacaoOrcamento(numero, nomeCliente, valor, link) {
+async function enviarNotificacaoOrcamento(numero, nomeCliente, valor, link) {
   return enviarTemplate(numero, 'orcamento_pronto', [nomeCliente, `R$ ${valor.toFixed(2)}`, link]);
 }
 
-export async function enviarNotificacaoAlbum(numero, nomeCliente, tituloAlbum, link) {
+async function enviarNotificacaoAlbum(numero, nomeCliente, tituloAlbum, link) {
   return enviarTemplate(numero, 'album_pronto', [nomeCliente, tituloAlbum, link]);
 }
 
-export async function enviarNotificacaoPagamento(numero, nomeCliente, valor, status) {
+async function enviarNotificacaoPagamento(numero, nomeCliente, valor, status) {
   return enviarTemplate(numero, 'pagamento_confirmado', [nomeCliente, `R$ ${valor.toFixed(2)}`, status]);
 }
 
@@ -64,4 +64,4 @@ function formatarNumero(numero) {
   return limpo;
 }
 
-export default { enviarTemplate, enviarLembreteEvento, enviarNotificacaoOrcamento, enviarNotificacaoAlbum, enviarNotificacaoPagamento };
+module.exports = { enviarTemplate, enviarLembreteEvento, enviarNotificacaoOrcamento, enviarNotificacaoAlbum, enviarNotificacaoPagamento };

@@ -1,8 +1,8 @@
-import { Router } from 'express';
-import { dynamo, TABLE } from '../config/dynamodb.js';
-import { QueryCommand, GetCommand, PutCommand, UpdateCommand, DeleteCommand } from '@aws-sdk/lib-dynamodb';
-import { deleteAlbumFolder } from '../services/s3Service.js';
-import { ALBUM_STATUS } from '../config/constants.js';
+const { Router } = require('express');
+const { dynamo, TABLE } = require('../config/dynamodb');
+const { QueryCommand, GetCommand, PutCommand, UpdateCommand, DeleteCommand } = require('@aws-sdk/lib-dynamodb');
+const { deleteAlbumFolder } = require('../services/s3Service');
+const { ALBUM_STATUS } = require('../config/constants');
 
 const router = Router();
 
@@ -51,7 +51,6 @@ router.get('/', async (req, res) => {
 // GET /api/admin/albuns/:id
 router.get('/:id', async (req, res) => {
   try {
-    // Album PK=CLIENTE#<clienteId> SK=ALBUM#<id> — busca via GSI ou scan
     const result = await dynamo.send(new QueryCommand({
       TableName: TABLE,
       IndexName: 'GSI1',
@@ -103,7 +102,6 @@ router.post('/', async (req, res) => {
 // PUT /api/admin/albuns/:id
 router.put('/:id', async (req, res) => {
   try {
-    // Buscar PK atual via GSI
     const found = await dynamo.send(new QueryCommand({
       TableName: TABLE,
       IndexName: 'GSI1',
@@ -162,4 +160,4 @@ router.delete('/:id', async (req, res) => {
   }
 });
 
-export default router;
+module.exports = router;

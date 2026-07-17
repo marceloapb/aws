@@ -1,6 +1,6 @@
-import { Router } from 'express';
-import { dynamo, TABLE } from '../config/dynamodb.js';
-import { QueryCommand, UpdateCommand } from '@aws-sdk/lib-dynamodb';
+const { Router } = require('express');
+const { dynamo, TABLE } = require('../config/dynamodb');
+const { QueryCommand, UpdateCommand } = require('@aws-sdk/lib-dynamodb');
 
 const router = Router();
 
@@ -59,4 +59,4 @@ router.post('/:id/aprovar', async (req, res) => {
   }
 });
 
-export default router;
+module.exports = router;

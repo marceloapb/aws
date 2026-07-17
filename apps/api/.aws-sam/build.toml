@@ -7,6 +7,6 @@ architecture = "x86_64"
 handler = "src/handler.handler"
 manifest_hash = ""
 packagetype = "Zip"
-functions = ["ApiFunction", "AlbumRetentionFunction", "BackupFunction", "CalendarSyncFunction", "InstagramPublisherFunction", "WhatsappReminderFunction", "WhatsAppWebhookFunction", "InstagramWebhookFunction", "WebhookConsumerFunction"]
+functions = ["MbfFunction", "AlbumRetentionFunction", "BackupFunction", "CalendarSyncFunction", "InstagramPublisherFunction", "WhatsappReminderFunction", "FollowUpFunction", "WhatsAppWebhookFunction", "InstagramWebhookFunction", "WebhookConsumerFunction"]
 
 [layer_build_definitions]

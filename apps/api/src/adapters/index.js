@@ -1,13 +1,13 @@
-import * as asaas from './asaas.js';
-import * as stripe from './stripe.js';
-import * as mercadopago from './mercadopago.js';
-import * as pagarme from './pagarme.js';
-import * as pagbank from './pagbank.js';
-import * as picpay from './picpay.js';
-import * as sumup from './sumup.js';
-import * as bancoInter from './banco-inter.js';
-import * as stone from './stone.js';
-import * as infinitepay from './infinitepay.js';
+const asaas = require('./asaas');
+const stripe = require('./stripe');
+const mercadopago = require('./mercadopago');
+const pagarme = require('./pagarme');
+const pagbank = require('./pagbank');
+const picpay = require('./picpay');
+const sumup = require('./sumup');
+const bancoInter = require('./banco-inter');
+const stone = require('./stone');
+const infinitepay = require('./infinitepay');
 
 const adapters = {
   asaas, stripe, mercadopago, pagarme, pagbank, picpay, sumup,
@@ -20,7 +20,9 @@ function getAdapter(gateway) {
   return adapter;
 }
 
-export const criarCobranca = (gateway, dados) => getAdapter(gateway).criarCobranca(dados);
-export const consultarCobranca = (gateway, id) => getAdapter(gateway).consultarCobranca(id);
-export const cancelarCobranca = (gateway, id) => getAdapter(gateway).cancelarCobranca(id);
-export const processarWebhook = (gateway, payload, headers) => getAdapter(gateway).processarWebhook(payload, headers);
+const criarCobranca = (gateway, dados) => getAdapter(gateway).criarCobranca(dados);
+const consultarCobranca = (gateway, id) => getAdapter(gateway).consultarCobranca(id);
+const cancelarCobranca = (gateway, id) => getAdapter(gateway).cancelarCobranca(id);
+const processarWebhook = (gateway, payload, headers) => getAdapter(gateway).processarWebhook(payload, headers);
+
+module.exports = { criarCobranca, consultarCobranca, cancelarCobranca, processarWebhook };

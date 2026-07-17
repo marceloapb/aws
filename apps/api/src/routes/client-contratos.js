@@ -1,7 +1,7 @@
-import { Router } from 'express';
-import { dynamo, TABLE } from '../config/dynamodb.js';
-import { QueryCommand } from '@aws-sdk/lib-dynamodb';
-import { assinarContrato } from '../services/contratoService.js';
+const { Router } = require('express');
+const { dynamo, TABLE } = require('../config/dynamodb');
+const { QueryCommand } = require('@aws-sdk/lib-dynamodb');
+const { assinarContrato } = require('../services/contratoService');
 
 const router = Router();
 
@@ -50,4 +50,4 @@ router.post('/:token/assinar', async (req, res) => {
   }
 });
 
-export default router;
+module.exports = router;

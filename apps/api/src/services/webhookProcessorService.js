@@ -1,16 +1,16 @@
-import { dynamo, TABLE } from '../config/dynamodb.js';
-import { GetCommand, PutCommand, UpdateCommand, QueryCommand } from '@aws-sdk/lib-dynamodb';
-import { processarWebhook as processarAsaas } from '../adapters/asaas.js';
-import { processarWebhook as processarStripe } from '../adapters/stripe.js';
-import { processarWebhook as processarMercadoPago } from '../adapters/mercadopago.js';
-import { processarWebhook as processarPagarme } from '../adapters/pagarme.js';
-import { processarWebhook as processarPagBank } from '../adapters/pagbank.js';
-import { processarWebhook as processarPicPay } from '../adapters/picpay.js';
-import { processarWebhook as processarSumUp } from '../adapters/sumup.js';
-import { processarWebhook as processarBancoInter } from '../adapters/banco-inter.js';
-import { processarWebhook as processarStone } from '../adapters/stone.js';
-import { processarWebhook as processarInfinitePay } from '../adapters/infinitepay.js';
-import { enviarNotificacaoPagamento } from './whatsappService.js';
+const { dynamo, TABLE } = require('../config/dynamodb');
+const { GetCommand, PutCommand, UpdateCommand, QueryCommand } = require('@aws-sdk/lib-dynamodb');
+const { processarWebhook: processarAsaas } = require('../adapters/asaas');
+const { processarWebhook: processarStripe } = require('../adapters/stripe');
+const { processarWebhook: processarMercadoPago } = require('../adapters/mercadopago');
+const { processarWebhook: processarPagarme } = require('../adapters/pagarme');
+const { processarWebhook: processarPagBank } = require('../adapters/pagbank');
+const { processarWebhook: processarPicPay } = require('../adapters/picpay');
+const { processarWebhook: processarSumUp } = require('../adapters/sumup');
+const { processarWebhook: processarBancoInter } = require('../adapters/banco-inter');
+const { processarWebhook: processarStone } = require('../adapters/stone');
+const { processarWebhook: processarInfinitePay } = require('../adapters/infinitepay');
+const { enviarNotificacaoPagamento } = require('./whatsappService');
 
 const PROCESSADORES = {
   asaas: processarAsaas, stripe: processarStripe, mercadopago: processarMercadoPago,
@@ -19,7 +19,7 @@ const PROCESSADORES = {
   infinitepay: processarInfinitePay,
 };
 
-export async function processWebhookEvent({ gateway, payload, headers }) {
+async function processWebhookEvent({ gateway, payload, headers }) {
   const processador = PROCESSADORES[gateway];
   if (!processador) return;
 
@@ -84,3 +84,5 @@ export async function processWebhookEvent({ gateway, payload, headers }) {
     }
   }
 }
+
+module.exports = { processWebhookEvent };

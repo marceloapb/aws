@@ -1,7 +1,7 @@
-import { Router } from 'express';
-import { dynamo, TABLE } from '../config/dynamodb.js';
-import { QueryCommand, PutCommand, UpdateCommand } from '@aws-sdk/lib-dynamodb';
-import { gerarContrato, enviarParaAssinatura } from '../services/contratoService.js';
+const { Router } = require('express');
+const { dynamo, TABLE } = require('../config/dynamodb');
+const { QueryCommand, PutCommand, UpdateCommand } = require('@aws-sdk/lib-dynamodb');
+const { gerarContrato, enviarParaAssinatura } = require('../services/contratoService');
 
 const router = Router();
 
@@ -114,4 +114,4 @@ router.put('/:id', async (req, res) => {
   }
 });
 
-export default router;
+module.exports = router;

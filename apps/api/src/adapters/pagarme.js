@@ -2,7 +2,7 @@
 // ADAPTERS/PAGARME.JS — Gateway Pagar.me
 // ══════════════════════════════════════════════════════════════
 
-import { env } from '../config/env.js';
+const { env } = require('../config/env');
 
 const BASE_URL = 'https://api.pagar.me/core/v5';
 const TIMEOUT_MS = 15000;
@@ -28,7 +28,7 @@ function mapStatus(pagarmeStatus) {
   return map[pagarmeStatus] || 'pendente';
 }
 
-export async function criarCobranca(dados) {
+async function criarCobranca(dados) {
   const body = {
     items: [{
       amount: Math.round(dados.valor * 100),
@@ -84,7 +84,7 @@ export async function criarCobranca(dados) {
   return result;
 }
 
-export async function consultarCobranca(gatewayId) {
+async function consultarCobranca(gatewayId) {
   const response = await fetch(`${BASE_URL}/orders/${gatewayId}`, {
     headers: getHeaders(),
     signal: AbortSignal.timeout(TIMEOUT_MS),
@@ -101,7 +101,7 @@ export async function consultarCobranca(gatewayId) {
   };
 }
 
-export async function cancelarCobranca(gatewayId) {
+async function cancelarCobranca(gatewayId) {
   const response = await fetch(`${BASE_URL}/charges/${gatewayId}`, {
     method: 'DELETE',
     headers: getHeaders(),
@@ -116,7 +116,7 @@ export async function cancelarCobranca(gatewayId) {
   return { gateway_id: gatewayId, status: 'cancelado' };
 }
 
-export async function processarWebhook(payload, headers) {
+async function processarWebhook(payload, headers) {
   return {
     gateway_id: payload.data?.id,
     status: mapStatus(payload.data?.status),
@@ -129,4 +129,4 @@ function getPaymentMethod(meio) {
   return map[meio] || 'pix';
 }
 
-export default { criarCobranca, consultarCobranca, cancelarCobranca, processarWebhook };
+module.exports = { criarCobranca, consultarCobranca, cancelarCobranca, processarWebhook };

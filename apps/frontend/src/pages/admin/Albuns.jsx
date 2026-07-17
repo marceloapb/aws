@@ -9,8 +9,8 @@ export default function Albuns() {
   const [albums, setAlbums] = useState([]);
 
   useEffect(() => {
-    authFetch('/albums').then(r => r.json()).then(data => {
-      if (Array.isArray(data)) setAlbums(data);
+    authFetch('/admin/albuns').then(r => r.json()).then(json => {
+      if (json.success) setAlbums(json.data || []);
     }).catch(() => {});
   }, []);
 
