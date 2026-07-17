@@ -6,65 +6,70 @@
 - **Prioridade:** P3
 - **Impacto:** Baixo
 - **Esforço:** Baixo
-- **Dependência:** ORC-10
+- **Dependência:** ORC-03, ORC-04, ORC-10
 
 ## Contexto
-Alguns clientes querem compartilhar a proposta offline (WhatsApp, imprimir, mostrar para cônjuge). PDF resolve isso com layout profissional.
+O admin quer enviar um PDF profissional da proposta ao cliente (por email, WhatsApp ou download). Inclui: logo, dados da empresa, opções com valores, condições de pagamento, validade.
 
 ## Escopo
-- Backend: Lambda `gerarPDFProposta` — NOVO
-- API: GET /admin/orcamentos/:id/pdf
+- Backend: Lambda `gerarPDFProposta`
 - S3: armazenar PDF gerado
-- Lib: @react-pdf/renderer ou puppeteer-core (Lambda layer)
+- Frontend admin: botão "Gerar PDF" no detalhe
 
 ## Fora de Escopo (NÃO TOCAR)
-- Layout do portal (ORC-10)
-- Contrato PDF (módulo Contratos)
-- Email (ORC-12)
+- Envio automático por email (futuro)
+- Template customizável pelo admin (futuro)
+- Portal do cliente
 
 ## Spec Técnica
 
-### Fluxo
-1. Admin clica "Gerar PDF" no detalhe do orçamento
-2. POST /admin/orcamentos/:id/pdf
-3. Lambda gera PDF com dados do orçamento
-4. Upload para S3: `pdfs/{tenant_id}/proposta_{orc_id}.pdf`
-5. Retorna presigned URL (expira 7 dias)
-
 ### Conteúdo do PDF
-- Cabeçalho: logo + dados do fotógrafo
-- Título: "Proposta Comercial"
-- Dados do cliente
-- Opções (uma por página/seção)
-- Condições de pagamento
-- Validade
-- Rodapé: contatos
+1. Header: logo + dados da empresa (nome, CNPJ, telefone, email)
+2. Dados do cliente: nome, telefone, email
+3. Título: "Proposta Comercial — {tipo_evento}"
+4. Opções: card por opção com itens e valor
+5. Condições de pagamento: tabela comparativa
+6. Eventos: data, local, horários
+7. Validade: "Esta proposta é válida até {data}"
+8. Footer: assinatura digital / marca d'água
 
-### Lambda
-- Runtime: Node.js 20
-- Layer: puppeteer-core + chromium (ou @react-pdf/renderer se mais leve)
-- Memory: 1024MB (para renderização)
-- Timeout: 30s
+### Lambda — gerarPDFProposta
+- Usar: @react-pdf/renderer (ou pdfkit)
+- Input: orcamento_id
+- Output: URL do PDF no S3 (presigned, 7 dias)
+- Salvar URL no ORCAMENTO: `pdf_url`, `pdf_gerado_em`
+
+### Frontend — OrcamentoDetalhe.jsx
+- Botão "📄 Gerar PDF" (apenas se status >= pronto_enviar)
+- Loading durante geração
+- Após: link "Baixar PDF" + botão "Compartilhar"
 
 ## Critérios de Aceite
-- [ ] PDF gerado com layout profissional
-- [ ] Contém todas opções e valores
-- [ ] Logo do fotógrafo inclusa
-- [ ] Presigned URL retornada
-- [ ] URL expira em 7 dias
-- [ ] PDF armazenado no S3
-- [ ] Botão no detalhe do admin
+- [ ] PDF gerado com logo e dados da empresa
+- [ ] Opções listadas com valores
+- [ ] Condições de pagamento tabeladas
+- [ ] Eventos com data/local
+- [ ] Validade exibida
+- [ ] URL presigned funcional (7 dias)
+- [ ] Botão só aparece se status >= pronto_enviar
 
 ## Prompt Pronto para o Kiro CLI
 
 ```
 Implemente a spec ORC-13: PDF da Proposta.
 
-1. Lambda gerarPDFProposta: renderizar HTML → PDF com chromium/puppeteer-core.
-2. Upload para S3 com key pdfs/{tenant}/proposta_{id}.pdf.
-3. Retornar presigned URL (7 dias).
-4. Em OrcamentoDetalhe.jsx: botão "Gerar PDF" com loading + download.
-5. SAM: Lambda com memory 1024, timeout 30, layer chromium.
+1. Lambda gerarPDFProposta:
+   - Buscar orçamento completo
+   - Gerar PDF com pdfkit: header, cliente, opções, pagamento, eventos, validade
+   - Upload para S3 prefix pdfs/propostas/
+   - Retornar presigned URL (7 dias)
+
+2. Em OrcamentoDetalhe.jsx:
+   - Botão "Gerar PDF" se status >= pronto_enviar
+   - Loading state
+   - Link download após geração
+
+3. IAM: s3:PutObject no prefix, s3:GetObject para presigned.
 
 Altere SOMENTE os arquivos listados. Não refatore, renomeie ou mexa em mais nada.
 ```

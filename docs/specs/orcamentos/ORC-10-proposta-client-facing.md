@@ -1,4 +1,4 @@
-# ORC-10: Proposta Client-Facing (Visibilidade Controlada)
+# ORC-10: Proposta Client-Facing (proteção de preço)
 
 ## Metadados
 - **ID:** ORC-10
@@ -6,78 +6,63 @@
 - **Prioridade:** P2
 - **Impacto:** Médio
 - **Esforço:** Médio
-- **Dependência:** ORC-02, ORC-03
+- **Dependência:** ORC-03, ORC-04
 
 ## Contexto
-O cliente só deve ver valores APÓS o admin enviar explicitamente. Antes disso, mesmo que o orçamento exista, é invisível no portal. Após envio, o cliente vê uma proposta formatada com opções, valores e condições.
+O cliente só deve ver valores APÓS o admin enviar a proposta. Antes disso, nenhuma informação de preço pode ser acessível. No portal do cliente, apenas orçamentos com status 'enviado' ou posterior aparecem.
 
 ## Escopo
-- Backend: Lambda `getPropostaCliente` — NOVO
-- API: GET /cliente/propostas/:id
-- Frontend cliente: `PropostaView.jsx` — NOVO (portal)
-- DynamoDB: controle de visibilidade por status
+- Portal do cliente (área pública/autenticada)
+- Backend: Lambda `getOrcamentoCliente` — filtra dados sensíveis
+- API: GET /cliente/orcamentos/:id
 
 ## Fora de Escopo (NÃO TOCAR)
-- Admin (Orcamentos.jsx, OrcamentoForm.jsx)
-- Fluxo de aceite (ORC-11)
-- PDF (ORC-13)
+- Admin views (Orcamentos.jsx, OrcamentoDetalhe.jsx)
+- Criação de orçamento
+- Envio de orçamento
 
 ## Spec Técnica
 
-### API — GET /cliente/propostas/:id
-- Autenticação: Cognito (cliente)
-- Validação: status_interno IN ['enviado','aceito','recusado','expirado','contrato_gerado']
-- Se status = rascunho/em_revisao/pronto_enviar → 404
-- Response: dados formatados para exibição
+### Regras de Visibilidade
+| Campo | Visível ao cliente? |
+|---|---|
+| Opções com valores | ✅ Sim (após envio) |
+| Status interno | ❌ Não (mostra status_cliente) |
+| Notas internas do admin | ❌ Não |
+| Condições de pagamento | ✅ Sim |
+| Eventos (data/local) | ✅ Sim |
+| Histórico de revisões | ❌ Não |
+| Desconto (% aplicado) | ❌ Não (mostra só valor final) |
 
-### Response Shape
-```json
-{
-  "id": "orc_456",
-  "fotografo": { "nome": "Marcelo Bloise", "logo_url": "..." },
-  "status": "Proposta enviada",
-  "opcoes": [
-    {
-      "id": "opc_001",
-      "nome": "Pacote Premium",
-      "descricao": "...",
-      "itens": [...],
-      "eventos": [...],
-      "valor_total": 6700,
-      "destaque": true
-    }
-  ],
-  "condicoes_pagamento": [...],
-  "expira_em": "2026-08-15T00:00:00Z",
-  "mensagem_fotografo": "Fico feliz com o interesse..."
-}
-```
+### Lambda — getOrcamentoCliente
+- Verificar: status_interno IN ('enviado', 'aceito', 'recusado', 'expirado', 'contrato_gerado')
+- Se não: retornar 404
+- Filtrar campos sensíveis
+- Retornar apenas: opcoes (com valores), condicoes_pagamento, eventos, status_cliente, expira_em
 
-### Frontend Cliente — PropostaView.jsx
-- Header com logo + nome do fotógrafo
-- Cards de opções (destaque visual na recomendada)
-- Condições de pagamento comparativas
-- Countdown de expiração
-- Botões: "Aceitar esta opção" (por opção) + "Recusar"
-- Mensagem personalizada do fotógrafo
+### Portal do Cliente
+- Card por opção com valor total e itens
+- Badge "Recomendado" na opção destacada
+- Botões: "Aceitar esta opção" + seletor de forma de pagamento
+- Recusar: campo motivo (opcional)
 
 ## Critérios de Aceite
 - [ ] Cliente não vê orçamentos em rascunho/revisão
-- [ ] Proposta enviada é visível com dados completos
-- [ ] Opções exibidas como cards comparativos
-- [ ] Destaque visual na opção recomendada
-- [ ] Countdown de expiração visível
-- [ ] Botão aceitar por opção
-- [ ] Mensagem do fotógrafo exibida
+- [ ] Campos sensíveis filtrados
+- [ ] Opções com valores visíveis após envio
+- [ ] Botão aceitar funciona com seleção de opção + pagamento
+- [ ] Recusar com motivo opcional
+- [ ] 404 para orçamentos não-enviados
 
 ## Prompt Pronto para o Kiro CLI
 
 ```
 Implemente a spec ORC-10: Proposta Client-Facing.
 
-1. Backend GET /cliente/propostas/:id: validar visibilidade por status, retornar dados formatados.
-2. Crie PropostaView.jsx no portal do cliente com cards de opções e countdown.
-3. IAM com privilégio mínimo para o Lambda.
+1. Lambda getOrcamentoCliente: filtrar campos sensíveis, verificar status.
+2. API GET /cliente/orcamentos/:id com autenticação Cognito.
+3. Frontend portal: cards de opções, botão aceitar com seleção.
+4. Validação: 404 se status não permitido.
 
 Altere SOMENTE os arquivos listados. Não refatore, renomeie ou mexa em mais nada.
 ```
