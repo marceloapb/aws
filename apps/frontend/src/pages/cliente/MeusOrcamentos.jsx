@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
-import { Camera, FileText, FolderOpen, Image, CreditCard, Star, Calendar, ChevronRight } from 'lucide-react';
+import { Camera, FileText, FolderOpen, Image, CreditCard, Star, Calendar, ChevronRight, ChevronDown } from 'lucide-react';
+import StatusTracker from '../../components/cliente/StatusTracker';
 
 const ACCENT = '#EA580C';
 
@@ -11,6 +12,7 @@ export default function MeusOrcamentos() {
   const [contratos, setContratos] = useState([]);
   const [albuns, setAlbuns] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [expandedTracker, setExpandedTracker] = useState(null);
 
   useEffect(() => { loadData(); }, []);
 
@@ -123,17 +125,45 @@ export default function MeusOrcamentos() {
         <div className="space-y-3">
           {orcamentos.length === 0 ? (
             <div className="bg-white rounded-xl border p-12 text-center text-gray-400">Nenhum orçamento</div>
-          ) : orcamentos.map(o => (
-            <div key={o.id} className="bg-white rounded-xl border p-4 flex items-center justify-between">
-              <div>
-                <p className="font-medium text-gray-900">{o.tipo_evento || 'Orçamento'}</p>
-                <p className="text-sm text-gray-500">R$ {(o.valor_total || 0).toLocaleString('pt-BR')} • {o.created ? new Date(o.created).toLocaleDateString('pt-BR') : ''}</p>
+          ) : orcamentos.map(o => {
+            const showTracker = o.status && !['aceito', 'confirmado'].includes(o.status);
+            const isExpanded = expandedTracker === o.id;
+            // Map backend status to tracker status
+            const trackerStatus = o.status === 'rascunho' ? 'orcando' :
+              o.status === 'enviado' ? 'enviado' :
+              o.status === 'recusado' ? 'orcando' : (o.status || 'orcando');
+
+            return (
+              <div key={o.id} className="bg-white rounded-xl border overflow-hidden">
+                <div className="p-4 flex items-center justify-between">
+                  <div>
+                    <p className="font-medium text-gray-900">{o.tipo_evento || 'Orçamento'}</p>
+                    <p className="text-sm text-gray-500">R$ {(o.valor_total || 0).toLocaleString('pt-BR')} • {o.created ? new Date(o.created).toLocaleDateString('pt-BR') : ''}</p>
+                  </div>
+                  <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${['confirmado', 'aceito'].includes(o.status) ? 'bg-green-50 text-green-700' : o.status === 'enviado' ? 'bg-blue-50 text-blue-700' : 'bg-gray-100 text-gray-600'}`}>
+                    {statusLabel[o.status] || o.status}
+                  </span>
+                </div>
+                {showTracker && (
+                  <>
+                    <button
+                      onClick={() => setExpandedTracker(isExpanded ? null : o.id)}
+                      className="w-full flex items-center justify-between px-4 py-2 border-t text-sm font-medium hover:bg-gray-50 transition-colors"
+                      style={{ color: ACCENT }}
+                    >
+                      Ver progresso
+                      <ChevronDown size={16} className={`transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+                    </button>
+                    {isExpanded && (
+                      <div className="px-4 pb-4 border-t bg-gray-50">
+                        <StatusTracker status={trackerStatus} createdAt={o.created} />
+                      </div>
+                    )}
+                  </>
+                )}
               </div>
-              <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${['confirmado', 'aceito'].includes(o.status) ? 'bg-green-50 text-green-700' : o.status === 'enviado' ? 'bg-blue-50 text-blue-700' : 'bg-gray-100 text-gray-600'}`}>
-                {statusLabel[o.status] || o.status}
-              </span>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 

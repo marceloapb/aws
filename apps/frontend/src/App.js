@@ -30,6 +30,7 @@ import Instagram from './pages/admin/Instagram';
 import WhatsApp from './pages/admin/WhatsApp';
 import ImportCSV from './pages/admin/ImportCSV';
 import Storage from './pages/admin/Storage';
+import Onboarding from './pages/admin/Onboarding';
 import MeusOrcamentos from './pages/cliente/MeusOrcamentos';
 import MeusContratos from './pages/cliente/MeusContratos';
 import MeusAlbuns from './pages/cliente/MeusAlbuns';
@@ -45,6 +46,7 @@ function App() {
       <Route path="/cadastro" element={<Cadastro />} />
 
       {/* Admin */}
+      <Route path="/admin/onboarding" element={<PrivateRoute role="admin"><Onboarding /></PrivateRoute>} />
       <Route path="/admin" element={<PrivateRoute role="admin"><Layout /></PrivateRoute>}>
         <Route index element={<Dashboard />} />
         <Route path="config" element={<ConfigEmpresa />} />
