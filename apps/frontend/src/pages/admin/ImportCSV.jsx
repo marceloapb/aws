@@ -6,13 +6,13 @@ import { validateCPF } from '../../utils/formatters';
 const ACCENT = '#EA580C';
 
 const TEMPLATES = {
-  clientes: { label: 'Clientes', icon: 'Users', desc: 'Base de clientes', cols: ['nome*','email*','telefone*','cpf','endereco','data_nascimento','instagram','notas'] },
-  sessoes: { label: 'Sessões', icon: 'Calendar', desc: 'Sessões e eventos', cols: ['titulo*','tipo*','data*','hora_inicio*','hora_fim','local','cliente_email','valor','status'] },
-  equipamentos: { label: 'Equipamentos', icon: 'Wrench', desc: 'Inventário de equipamentos', cols: ['nome*','categoria*','numero_serie*','marca','modelo','valor_compra','status'] },
-  catalogo: { label: 'Produtos e Serviços', icon: 'Package', desc: 'Produtos e serviços', cols: ['nome*','tipo*','valor*','descricao','itens_inclusos','horas_cobertura'] },
-  pagamentos: { label: 'Pagamentos', icon: 'CreditCard', desc: 'Registros financeiros', cols: ['cliente_email*','valor*','data_vencimento*','parcela','forma_pagamento','status'] },
+  clientes: { label: 'Clientes', icon: 'Users', desc: 'Base de clientes', cols: ['nome*','email*','telefone*','whatsapp','cpf','instagram','como_conheceu','endereco_cep','endereco_cidade','endereco_estado','data_nascimento','notas','tags'] },
+  sessoes: { label: 'Sessões', icon: 'Calendar', desc: 'Sessões e eventos', cols: ['titulo*','tipo_evento*','data_evento*','horario_inicio*','horario_fim','local','cliente_email','valor','status','observacoes'] },
+  equipamentos: { label: 'Equipamentos', icon: 'Wrench', desc: 'Inventário de equipamentos', cols: ['nome*','categoria*','numero_serie*','marca','modelo','valor_estimado','status','localizacao','data_compra','padrao'] },
+  catalogo: { label: 'Produtos e Serviços', icon: 'Package', desc: 'Itens e serviços do catálogo', cols: ['nome*','tipo*','valor_base*','descricao','duracao_base','valor_hora_adicional','categoria','exibir_ao_cliente','ativo'] },
+  pagamentos: { label: 'Pagamentos', icon: 'CreditCard', desc: 'Cobranças e recebimentos', cols: ['cliente_email*','valor*','data_vencimento*','parcela','meio_pagamento','status','descricao','orcamento_id'] },
   tipos_evento: { label: 'Tipos de Evento', icon: 'Tag', desc: 'Categorias de sessão fotográfica', cols: ['nome*','cor','duracao_padrao_horas','valor_base','descricao'] },
-  pacotes: { label: 'Pacotes Comerciais', icon: 'Gift', desc: 'Pacotes com itens e desconto', cols: ['nome*','descricao*','itens_ids','desconto_tipo','desconto_valor','ativo'] },
+  pacotes: { label: 'Pacotes Comerciais', icon: 'Gift', desc: 'Pacotes com itens e desconto', cols: ['nome*','descricao*','itens_ids','desconto_tipo','desconto_valor','exibir_ao_cliente','ativo'] },
   modelos_contrato: { label: 'Modelos de Contrato', icon: 'FileSignature', desc: 'Templates de contrato por tipo de evento', cols: ['nome*','tipo_evento*','corpo_html*','campos_manuais','ativo'] },
   modelos_checklist: { label: 'Modelos de Checklist', icon: 'ClipboardCheck', desc: 'Checklists por tipo de evento', cols: ['nome*','tipo_evento*','itens*','descricao'] },
   templates_mensagem: { label: 'Templates de Mensagens', icon: 'MessageSquare', desc: 'Templates para WhatsApp e email', cols: ['nome*','canal*','gatilho','assunto','corpo*','variaveis'] },
@@ -23,17 +23,18 @@ const ICON_MAP = { Users, Calendar, Wrench, Package, CreditCard, Tag, Gift, File
 const EXPORT_CARDS = [
   { tipo: 'clientes', nome: 'Clientes', icon: 'Users' },
   { tipo: 'catalogo', nome: 'Produtos e Serviços', icon: 'Package' },
-  { tipo: 'sessoes', nome: 'Sessões', icon: 'Calendar' },
-  { tipo: 'pagamentos', nome: 'Pagamentos', icon: 'CreditCard' },
+  { tipo: 'sessoes', nome: 'Sessões/Agenda', icon: 'Calendar' },
+  { tipo: 'pagamentos', nome: 'Cobranças', icon: 'CreditCard' },
+  { tipo: 'despesas', nome: 'Despesas', icon: 'CreditCard' },
   { tipo: 'equipamentos', nome: 'Equipamentos', icon: 'Wrench' },
+  { tipo: 'contratos', nome: 'Contratos', icon: 'FileSignature' },
   { tipo: 'tipos_evento', nome: 'Tipos de Evento', icon: 'Tag' },
   { tipo: 'pacotes', nome: 'Pacotes Comerciais', icon: 'Gift' },
-  { tipo: 'modelos_contrato', nome: 'Modelos de Contrato', icon: 'FileSignature' },
   { tipo: 'modelos_checklist', nome: 'Modelos de Checklist', icon: 'ClipboardCheck' },
   { tipo: 'templates_mensagem', nome: 'Templates de Mensagens', icon: 'MessageSquare' },
 ];
 
-const ENTITY_ROUTES = { clientes: '/admin/clientes', sessoes: '/admin/agenda', equipamentos: '/admin/equipamentos', catalogo: '/admin/catalogo', pagamentos: '/admin/financeiro', tipos_evento: '/admin/config', pacotes: '/admin/catalogo', modelos_contrato: '/admin/contratos', modelos_checklist: '/admin/equipamentos', templates_mensagem: '/admin/whatsapp' };
+const ENTITY_ROUTES = { clientes: '/admin/clientes', sessoes: '/admin/agenda', equipamentos: '/admin/equipamentos', catalogo: '/admin/catalogo', pagamentos: '/admin/financeiro', tipos_evento: '/admin/catalogo', pacotes: '/admin/catalogo', modelos_contrato: '/admin/contratos', modelos_checklist: '/admin/equipamentos', templates_mensagem: '/admin/whatsapp' };
 
 // ═══ Helpers ═══
 function parseCSV(text) {
