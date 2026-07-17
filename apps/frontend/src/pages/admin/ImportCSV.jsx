@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useRef } from 'react';
-import { Upload, Download, Users, Calendar, Wrench, Package, CreditCard, CheckCircle, AlertTriangle, ChevronDown, ChevronUp, ArrowLeft, ArrowRight, RefreshCw, ExternalLink } from 'lucide-react';
+import { Upload, Download, Users, Calendar, Wrench, Package, CreditCard, CheckCircle, AlertTriangle, ChevronDown, ChevronUp, ArrowLeft, ArrowRight, RefreshCw, ExternalLink, Tag, Gift, FileSignature, ClipboardCheck, MessageSquare } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { validateCPF } from '../../utils/formatters';
 
@@ -11,9 +11,14 @@ const TEMPLATES = {
   equipamentos: { label: 'Equipamentos', icon: 'Wrench', desc: 'Inventário de equipamentos', cols: ['nome*','categoria*','numero_serie*','marca','modelo','valor_compra','status'] },
   catalogo: { label: 'Produtos e Serviços', icon: 'Package', desc: 'Produtos e serviços', cols: ['nome*','tipo*','valor*','descricao','itens_inclusos','horas_cobertura'] },
   pagamentos: { label: 'Pagamentos', icon: 'CreditCard', desc: 'Registros financeiros', cols: ['cliente_email*','valor*','data_vencimento*','parcela','forma_pagamento','status'] },
+  tipos_evento: { label: 'Tipos de Evento', icon: 'Tag', desc: 'Categorias de sessão fotográfica', cols: ['nome*','cor','duracao_padrao_horas','valor_base','descricao'] },
+  pacotes: { label: 'Pacotes Comerciais', icon: 'Gift', desc: 'Pacotes com itens e desconto', cols: ['nome*','descricao*','itens_ids','desconto_tipo','desconto_valor','ativo'] },
+  modelos_contrato: { label: 'Modelos de Contrato', icon: 'FileSignature', desc: 'Templates de contrato por tipo de evento', cols: ['nome*','tipo_evento*','corpo_html*','campos_manuais','ativo'] },
+  modelos_checklist: { label: 'Modelos de Checklist', icon: 'ClipboardCheck', desc: 'Checklists por tipo de evento', cols: ['nome*','tipo_evento*','itens*','descricao'] },
+  templates_mensagem: { label: 'Templates de Mensagens', icon: 'MessageSquare', desc: 'Templates para WhatsApp e email', cols: ['nome*','canal*','gatilho','assunto','corpo*','variaveis'] },
 };
 
-const ICON_MAP = { Users, Calendar, Wrench, Package, CreditCard };
+const ICON_MAP = { Users, Calendar, Wrench, Package, CreditCard, Tag, Gift, FileSignature, ClipboardCheck, MessageSquare };
 
 const EXPORT_CARDS = [
   { tipo: 'clientes', nome: 'Clientes', icon: 'Users' },
@@ -21,9 +26,14 @@ const EXPORT_CARDS = [
   { tipo: 'sessoes', nome: 'Sessões', icon: 'Calendar' },
   { tipo: 'pagamentos', nome: 'Pagamentos', icon: 'CreditCard' },
   { tipo: 'equipamentos', nome: 'Equipamentos', icon: 'Wrench' },
+  { tipo: 'tipos_evento', nome: 'Tipos de Evento', icon: 'Tag' },
+  { tipo: 'pacotes', nome: 'Pacotes Comerciais', icon: 'Gift' },
+  { tipo: 'modelos_contrato', nome: 'Modelos de Contrato', icon: 'FileSignature' },
+  { tipo: 'modelos_checklist', nome: 'Modelos de Checklist', icon: 'ClipboardCheck' },
+  { tipo: 'templates_mensagem', nome: 'Templates de Mensagens', icon: 'MessageSquare' },
 ];
 
-const ENTITY_ROUTES = { clientes: '/admin/clientes', sessoes: '/admin/sessoes', equipamentos: '/admin/equipamentos', catalogo: '/admin/catalogo', pagamentos: '/admin/pagamentos' };
+const ENTITY_ROUTES = { clientes: '/admin/clientes', sessoes: '/admin/agenda', equipamentos: '/admin/equipamentos', catalogo: '/admin/catalogo', pagamentos: '/admin/financeiro', tipos_evento: '/admin/config', pacotes: '/admin/catalogo', modelos_contrato: '/admin/contratos', modelos_checklist: '/admin/equipamentos', templates_mensagem: '/admin/whatsapp' };
 
 // ═══ Helpers ═══
 function parseCSV(text) {
