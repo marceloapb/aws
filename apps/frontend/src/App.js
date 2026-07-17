@@ -31,6 +31,8 @@ import WhatsApp from './pages/admin/WhatsApp';
 import ImportCSV from './pages/admin/ImportCSV';
 import Storage from './pages/admin/Storage';
 import Notificacoes from './pages/admin/Notificacoes';
+import MeuPerfil from './pages/admin/MeuPerfil';
+import TrocarSenha from './pages/admin/TrocarSenha';
 import GatewayConfig from './pages/admin/GatewayConfig';
 import Onboarding from './pages/admin/Onboarding';
 import MeusOrcamentos from './pages/cliente/MeusOrcamentos';
@@ -96,6 +98,8 @@ function App() {
         <Route path="import" element={<ImportCSV />} />
         <Route path="storage" element={<Storage />} />
         <Route path="notificacoes" element={<Notificacoes />} />
+        <Route path="meu-perfil" element={<MeuPerfil />} />
+        <Route path="trocar-senha" element={<TrocarSenha />} />
       </Route>
 
       {/* Cliente */}

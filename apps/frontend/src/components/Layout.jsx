@@ -5,11 +5,12 @@ import BottomNav from './BottomNav';
 import GlobalSearch from './search/GlobalSearch';
 import { useAuth } from '../contexts/AuthContext';
 import { useKeyboardShortcuts } from '../hooks/useKeyboardShortcuts';
-import { Menu, Search, Bell } from 'lucide-react';
+import { Menu, Search, Bell, User as UserIcon, Lock, LogOut } from 'lucide-react';
 
 export default function Layout() {
   const [open, setOpen] = React.useState(false);
-  const { user } = useAuth();
+  const [profileOpen, setProfileOpen] = React.useState(false);
+  const { user, logout } = useAuth();
   const { isOpen: searchOpen, setIsOpen: setSearchOpen } = useKeyboardShortcuts();
 
   return (
@@ -50,8 +51,33 @@ export default function Layout() {
               <Bell size={20} className="text-gray-500" />
             </button>
             <span className="hidden sm:inline text-sm text-gray-600">Olá, <strong>{user?.email?.split('@')[0]}</strong></span>
-            <div className="w-8 h-8 rounded-full bg-orange-500 text-white flex items-center justify-center text-sm font-medium">
-              {(user?.email || 'U').charAt(0).toUpperCase()}
+            <div className="relative">
+              <button onClick={() => setProfileOpen(!profileOpen)} className="w-8 h-8 rounded-full bg-orange-500 text-white flex items-center justify-center text-sm font-medium hover:ring-2 hover:ring-orange-300 transition-all">
+                {(user?.email || 'U').charAt(0).toUpperCase()}
+              </button>
+              {profileOpen && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setProfileOpen(false)} />
+                  <div className="absolute right-0 top-10 z-50 w-64 bg-white rounded-xl border shadow-lg py-2">
+                    <div className="px-4 py-3 border-b">
+                      <p className="text-sm font-medium text-gray-900">{user?.email?.split('@')[0]}</p>
+                      <p className="text-xs text-gray-500">{user?.email}</p>
+                      <p className="text-xs text-gray-400 mt-0.5">Perfil: {user?.role === 'admin' ? 'Administrador' : 'Cliente'}</p>
+                    </div>
+                    <button onClick={() => { setProfileOpen(false); window.location.href='/admin/meu-perfil'; }} className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2">
+                      <UserIcon size={14} /> Meus Dados
+                    </button>
+                    <button onClick={() => { setProfileOpen(false); window.location.href='/admin/trocar-senha'; }} className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2">
+                      <Lock size={14} /> Trocar Senha
+                    </button>
+                    <div className="border-t mt-1 pt-1">
+                      <button onClick={() => { setProfileOpen(false); logout(); }} className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2">
+                        <LogOut size={14} /> Sair
+                      </button>
+                    </div>
+                  </div>
+                </>
+              )}
             </div>
           </div>
         </header>
