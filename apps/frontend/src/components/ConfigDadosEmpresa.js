@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { Building2, Phone, Share2, MapPin, Clock } from 'lucide-react';
 import SectionHeader from './config/SectionHeader';
 import FieldLabel from './config/FieldLabel';
+import MaskedInput from './form/MaskedInput';
+import AddressForm from './form/AddressForm';
 
 const ACCENT = '#EA580C';
 const DAYS = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'];
@@ -32,7 +34,7 @@ export default function ConfigDadosEmpresa({ form, setForm, onUploadLogo }) {
         <SectionHeader icon={Building2} title="Identidade" description="Dados de identificação da empresa" required />
 
         <div>
-          <FieldLabel required>Logo da Empresa</FieldLabel>
+          <FieldLabel>Logo da Empresa</FieldLabel>
           <div className="flex items-center gap-4 mt-1">
             {form.logoUrl ? (
               <img src={form.logoUrl} alt="Logo" className="w-20 h-20 object-contain rounded-lg border" />
@@ -57,9 +59,10 @@ export default function ConfigDadosEmpresa({ form, setForm, onUploadLogo }) {
               className={inputClass('businessName')} />
           </div>
           <div>
-            <FieldLabel required hint="CNPJ da empresa">CNPJ</FieldLabel>
-            <input name="cnpj" value={form.cnpj || ''} onChange={handleChange} onBlur={handleBlur} placeholder="00.000.000/0000-00"
-              className={inputClass('cnpj')} />
+            <MaskedInput type="cnpj" label="CNPJ" required
+              value={form.cnpj || ''}
+              name="cnpj"
+              onChange={(e) => setForm({ ...form, cnpj: e.target.value })} />
           </div>
         </div>
       </section>
@@ -70,9 +73,10 @@ export default function ConfigDadosEmpresa({ form, setForm, onUploadLogo }) {
 
         <div className="grid md:grid-cols-2 gap-4">
           <div>
-            <FieldLabel required hint="Telefone principal de contato">Telefone</FieldLabel>
-            <input name="phone" value={form.phone || ''} onChange={handleChange} onBlur={handleBlur} placeholder="(11) 99999-9999"
-              className={inputClass('phone')} />
+            <MaskedInput type="phone" label="Telefone" required
+              value={form.phone || ''}
+              name="phone"
+              onChange={(e) => setForm({ ...form, phone: e.target.value })} />
           </div>
           <div>
             <FieldLabel required hint="E-mail principal da empresa">E-mail</FieldLabel>
@@ -80,9 +84,10 @@ export default function ConfigDadosEmpresa({ form, setForm, onUploadLogo }) {
               className={inputClass('email')} />
           </div>
           <div>
-            <FieldLabel hint="Número do WhatsApp Business">WhatsApp Comercial</FieldLabel>
-            <input name="whatsappBusiness" value={form.whatsappBusiness || ''} onChange={handleChange}
-              className={inputClass('whatsappBusiness')} placeholder="(11) 99999-9999" />
+            <MaskedInput type="phone" label="WhatsApp Comercial"
+              value={form.whatsappBusiness || ''}
+              name="whatsappBusiness"
+              onChange={(e) => setForm({ ...form, whatsappBusiness: e.target.value })} />
           </div>
           <div>
             <FieldLabel>Website</FieldLabel>
@@ -110,32 +115,10 @@ export default function ConfigDadosEmpresa({ form, setForm, onUploadLogo }) {
         </div>
       </section>
 
-      {/* Seção Endereço */}
+      {/* Seção Endereço — com busca CEP automática */}
       <section>
-        <SectionHeader icon={MapPin} title="Endereço" description="Localização física da empresa" />
-
-        <div className="grid md:grid-cols-3 gap-4">
-          <div>
-            <FieldLabel>CEP</FieldLabel>
-            <input name="zip" value={form.zip || ''} onChange={handleChange}
-              className={inputClass('zip')} />
-          </div>
-          <div className="md:col-span-2">
-            <FieldLabel>Rua</FieldLabel>
-            <input name="address" value={form.address || ''} onChange={handleChange}
-              className={inputClass('address')} />
-          </div>
-          <div>
-            <FieldLabel>Cidade</FieldLabel>
-            <input name="city" value={form.city || ''} onChange={handleChange}
-              className={inputClass('city')} />
-          </div>
-          <div>
-            <FieldLabel>Estado</FieldLabel>
-            <input name="state" value={form.state || ''} onChange={handleChange} maxLength={2}
-              className={inputClass('state')} />
-          </div>
-        </div>
+        <SectionHeader icon={MapPin} title="Endereço" description="Localização física — digite o CEP para preencher automaticamente" />
+        <AddressForm form={form} setForm={setForm} />
       </section>
 
       {/* Descrição */}
