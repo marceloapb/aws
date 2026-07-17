@@ -46,7 +46,7 @@ export default function Layout() {
               <Search size={20} className="text-gray-500" />
             </button>
             {/* Notification bell */}
-            <button className="relative p-2 rounded-md hover:bg-gray-100" onClick={() => window.location.href='/admin/whatsapp'}>
+            <button className="relative p-2 rounded-md hover:bg-gray-100" onClick={() => window.location.href='/admin/notificacoes'}>
               <Bell size={20} className="text-gray-500" />
             </button>
             <span className="hidden sm:inline text-sm text-gray-600">Olá, <strong>{user?.email?.split('@')[0]}</strong></span>
