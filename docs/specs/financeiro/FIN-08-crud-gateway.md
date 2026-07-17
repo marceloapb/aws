@@ -9,84 +9,84 @@
 - **Dependência:** FIN-07
 
 ## Contexto
-O admin configura seus gateways de pagamento: escolhe provedor, insere credenciais (access token, webhook secret), define métodos habilitados e taxas. Corresponde à aba "Gateway" das Configurações (CFG-07/08).
+O admin configura seus gateways de pagamento: escolhe provedor, insere credenciais (access token, webhook secret), define qual é o padrão. Tela em Configurações → Pagamentos (CFG-07).
 
 ## Escopo
 - `apps/backend/src/handlers/financeiro/gateways.js` — NOVO
-- `apps/frontend/src/pages/admin/configuracoes/GatewayConfig.jsx` — NOVO
-- API: /admin/configuracoes/gateways
-- SSM: salvar credenciais
+- `apps/frontend/src/components/config/GatewayConfig.jsx` — NOVO (ou integrar em CFG-07)
+- API: /admin/financeiro/gateways (CRUD)
+- SSM: gravar credenciais
 
 ## Fora de Escopo (NÃO TOCAR)
 - Adapter de cobrança (FIN-09)
 - Webhook (FIN-10)
-- Outros módulos
+- Página de pagamento do cliente (FIN-11)
 
 ## Spec Técnica
 
 ### API
 | Método | Rota | Ação |
 |---|---|---|
-| GET | /admin/configuracoes/gateways | Listar gateways do tenant |
-| POST | /admin/configuracoes/gateways | Criar gateway |
-| GET | /admin/configuracoes/gateways/:id | Detalhe (sem credenciais em texto) |
-| PUT | /admin/configuracoes/gateways/:id | Atualizar |
-| DELETE | /admin/configuracoes/gateways/:id | Desativar |
-| POST | /admin/configuracoes/gateways/:id/testar | Testar conexão |
+| GET | /admin/financeiro/gateways | Listar gateways do tenant |
+| POST | /admin/financeiro/gateways | Criar/configurar gateway |
+| PUT | /admin/financeiro/gateways/:id | Atualizar (nome, config, padrao) |
+| DELETE | /admin/financeiro/gateways/:id | Desativar |
+| POST | /admin/financeiro/gateways/:id/testar | Testar conexão |
 
-### Fluxo de Configuração
-```
-1. Admin seleciona provedor (Mercado Pago, Stripe, etc.)
-2. Sistema exibe campos específicos do provedor:
-   - Mercado Pago: access_token, public_key
-   - Stripe: secret_key, publishable_key
-   - Asaas: api_key
-3. Admin preenche credenciais
-4. Sistema salva credenciais no SSM (SecureString)
-5. Sistema salva config no DynamoDB (sem credenciais)
-6. Admin clica "Testar Conexão" → Lambda chama API do provedor
-7. Se ok: badge verde "Conectado"
-8. Admin define métodos habilitados e taxas
+### Criar Gateway — Payload
+```json
+{
+  "provedor": "mercadopago",
+  "nome_exibicao": "Mercado Pago Principal",
+  "credenciais": {
+    "access_token": "APP_USR-...",
+    "public_key": "APP_USR-...",
+    "webhook_secret": "whsec_..."
+  },
+  "config": {
+    "sandbox": true,
+    "pix_expiracao_minutos": 30
+  },
+  "padrao": true
+}
 ```
 
-### Credenciais no SSM
-```
-/mbf/{tenant_id}/gateways/{gateway_id}/access_token
-/mbf/{tenant_id}/gateways/{gateway_id}/webhook_secret
-/mbf/{tenant_id}/gateways/{gateway_id}/public_key
-```
-- Tipo: SecureString (KMS default)
-- IAM: Lambda tem ssm:GetParameter + ssm:PutParameter apenas no path do tenant
-
-### Frontend — GatewayConfig.jsx
-- Lista de gateways configurados (cards)
-- Botão "+ Novo Gateway"
-- Formulário:
-  - Select de provedor
-  - Campos dinâmicos por provedor
-  - Toggle métodos habilitados (PIX, Cartão, Boleto)
-  - Campos de taxas
-  - Toggle padrao
-  - Botão "Testar Conexão"
-- Badge: 🟢 Ativo / 🔴 Inativo / 🟡 Não testado
-- Credenciais mascaradas na exibição (●●●●●●abc123)
+### Fluxo ao Criar
+1. Validar provedor (enum válido)
+2. Gravar credenciais no SSM (SecureString)
+3. Gravar GATEWAY no DynamoDB (sem credenciais! só o ssm_path)
+4. Se `padrao=true`: desmarcar padrão anterior
+5. Gerar webhook_url única: `https://api.app.com/webhooks/{gateway_id}`
 
 ### Testar Conexão
-- Lambda chama endpoint de health/me do provedor
-- Mercado Pago: GET /v1/payment_methods
-- Stripe: GET /v1/balance
-- Se 200: "Conexão OK"
-- Se erro: exibir mensagem do provedor
+- Chamar API do provedor com as credenciais (ex: GET /v1/payment_methods no MP)
+- Retornar: `{ sucesso: true, provedor: 'mercadopago', modo: 'sandbox' }` ou erro
+
+### Frontend — GatewayConfig.jsx
+- Cards por provedor configurado (logo + nome + status)
+- Modal de configuração:
+  - Select provedor (com logo)
+  - Campos de credenciais (password inputs)
+  - Toggle sandbox/produção
+  - Config específica por provedor
+  - Botão "Testar Conexão"
+  - Botão "Definir como padrão"
+- Badge: "Ativo" / "Sandbox" / "Erro"
+
+### Segurança
+- Credenciais NUNCA retornadas na API GET (mostrar apenas ***)
+- Credenciais gravadas APENAS no SSM
+- Lambda: IAM permite ssm:PutParameter e ssm:GetParameter no path específico
 
 ## Critérios de Aceite
 - [ ] CRUD de gateways funciona
-- [ ] Credenciais salvas no SSM (nunca no DynamoDB)
-- [ ] Credenciais mascaradas no frontend
+- [ ] Credenciais gravadas no SSM (nunca no DynamoDB)
+- [ ] API GET não retorna credenciais (mascaradas)
 - [ ] Testar conexão funciona
-- [ ] Campos dinâmicos por provedor
-- [ ] Toggle de métodos habilitados
-- [ ] Flag padrão funciona
-- [ ] Desativar gateway funciona
+- [ ] Flag padrão (apenas 1 por tenant)
+- [ ] Webhook URL gerada automaticamente
+- [ ] Toggle sandbox/produção
+- [ ] Cards com logo do provedor
 
 ## Prompt Pronto para o Kiro CLI
 
@@ -94,11 +94,11 @@ O admin configura seus gateways de pagamento: escolhe provedor, insere credencia
 Implemente a spec FIN-08: CRUD de Gateways.
 
 1. Crie handlers/financeiro/gateways.js: CRUD + testar conexão.
-2. Crie pages/admin/configuracoes/GatewayConfig.jsx: formulário dinâmico por provedor.
-3. Credenciais em SSM Parameter Store (SecureString).
-4. Testar conexão: chamar API do provedor.
-5. Mascarar credenciais no frontend.
-6. SAM: rotas /admin/configuracoes/gateways.
+2. Crie components/config/GatewayConfig.jsx: cards, modal config, testar.
+3. Credenciais em SSM (ssm:PutParameter SecureString).
+4. API GET mascara credenciais (****).
+5. Flag padrao: apenas 1 por tenant.
+6. SAM: rotas /admin/financeiro/gateways, IAM para SSM.
 
 Altere SOMENTE os arquivos listados. Não refatore, renomeie ou mexa em mais nada.
 ```

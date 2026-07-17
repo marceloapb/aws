@@ -1,4 +1,4 @@
-# FIN-06: API — Visão de Gestão (4 Cards + Listas + Filtro)
+# FIN-06: API — Visão de Gestão (Cards + Listas + Filtro)
 
 ## Metadados
 - **ID:** FIN-06
@@ -9,86 +9,97 @@
 - **Dependência:** FIN-03
 
 ## Contexto
-O admin precisa de uma visão consolidada do financeiro: quanto tem a receber, quanto está atrasado, quanto já recebeu no mês, e próximos vencimentos. Tela principal do módulo Financeiro.
+O admin precisa de uma visão consolidada do financeiro: 4 cards resumo no topo (total a receber, recebido no mês, atrasado, próximo vencimento) + listagem de cobranças com filtros.
 
 ## Escopo
 - `apps/backend/src/handlers/financeiro/visaoGestao.js` — NOVO
 - `apps/frontend/src/pages/admin/Financeiro.jsx` — NOVO
-- API: GET /admin/financeiro/resumo?mes=2026-07
+- API: GET /admin/financeiro/resumo, GET /admin/financeiro/cobrancas
 
 ## Fora de Escopo (NÃO TOCAR)
 - Gateway (FIN-07+)
 - Despesas (FIN-13+)
-- Outros módulos
+- Módulo Orçamentos
 
 ## Spec Técnica
 
-### API Response
+### API — GET /admin/financeiro/resumo
 ```json
 {
-  "mes": "2026-07",
-  "cards": {
-    "a_receber": 12500.00,
-    "recebido_mes": 4500.00,
-    "atrasado": 3000.00,
-    "proximo_vencimento": { "valor": 1500.00, "data": "2026-07-20", "cliente": "Ana Silva" }
-  },
-  "cobrancas_atrasadas": [
-    { "id": "cob_001", "cliente": "João", "valor": 1500, "vencimento": "2026-07-01", "dias_atraso": 16 }
+  "total_a_receber": 12500.00,
+  "recebido_mes_atual": 4500.00,
+  "total_atrasado": 3000.00,
+  "proximo_vencimento": { "valor": 1500.00, "data": "2026-08-01", "cliente": "Ana Silva" },
+  "cobrancas_por_status": {
+    "em_aberto": 5,
+    "atrasada": 2,
+    "paga": 12,
+    "paga_parcial": 1
+  }
+}
+```
+
+### API — GET /admin/financeiro/cobrancas
+Query params: `status`, `cliente_id`, `mes`, `metodo_pagamento`, `page`, `limit`
+
+```json
+{
+  "items": [
+    {
+      "id": "cob_001",
+      "cliente_nome": "Ana Silva",
+      "orcamento_titulo": "Casamento Ana & João",
+      "parcela": "1/3",
+      "valor": 1500.00,
+      "vencimento": "2026-08-01",
+      "status": "em_aberto",
+      "metodo_pagamento": null
+    }
   ],
-  "proximos_vencimentos": [
-    { "id": "cob_005", "cliente": "Maria", "valor": 2000, "vencimento": "2026-07-25" }
-  ],
-  "recebidos_mes": [
-    { "id": "cob_003", "cliente": "Ana", "valor": 1500, "data_pagamento": "2026-07-10", "metodo": "pix" }
-  ]
+  "total": 20,
+  "page": 1,
+  "pages": 2
 }
 ```
 
 ### Frontend — Financeiro.jsx
-- **4 Cards no topo:**
-  - A Receber (total em_aberto, azul)
-  - Recebido no Mês (total pago, verde)
-  - Atrasado (total atrasadas, vermelho)
-  - Próximo Vencimento (valor + data + cliente, amarelo)
-- **3 Listas abaixo:**
-  - Tab 1: Atrasadas (ordenadas por dias de atraso desc)
-  - Tab 2: Próximos Vencimentos (ordenados por data asc)
-  - Tab 3: Recebidos no Mês (ordenados por data desc)
-- **Filtros:**
-  - Mês (seletor de mês/ano)
-  - Cliente (select com busca)
-  - Status (multi-select)
-- **Ações rápidas:**
-  - Botão "Marcar como Pago" em cada linha
-  - Botão "Enviar Lembrete" nas atrasadas
+- **Cards Resumo (4):**
+  - Total a receber (azul)
+  - Recebido este mês (verde)
+  - Total atrasado (vermelho)
+  - Próximo vencimento (amarelo)
+- **Filtros:** Status, cliente, mês, método
+- **Tabela:** Cliente, Orçamento, Parcela, Valor, Vencimento, Status, Ações
+- **Ações por cobrança:** Marcar pago (FIN-03), Ver detalhes, Enviar lembrete
+- **Indicadores visuais:** badge de status colorido, ícone de atraso
 
-### Filtro por Mês
-- Default: mês atual
-- Seletor: navegação < mês/ano >
-- Recalcula todos os cards e listas
+### Layout
+```
+[4 Cards Resumo]
+[Barra de Filtros]
+[Tabela de Cobranças com ações]
+[Paginação]
+```
 
 ## Critérios de Aceite
+- [ ] API resumo retorna totais corretos
+- [ ] API cobranças com paginação e filtros
 - [ ] 4 cards com valores corretos
-- [ ] Lista de atrasadas com dias de atraso
-- [ ] Lista de próximos vencimentos
-- [ ] Lista de recebidos no mês
-- [ ] Filtro por mês funciona
+- [ ] Filtro por status funciona
 - [ ] Filtro por cliente funciona
-- [ ] Ação "Marcar como Pago" funciona
-- [ ] Ação "Enviar Lembrete" funciona
-- [ ] Responsive (cards empilham em mobile)
+- [ ] Filtro por mês funciona
+- [ ] Ação marcar pago na listagem
+- [ ] Badge de status colorido
 
 ## Prompt Pronto para o Kiro CLI
 
 ```
-Implemente a spec FIN-06: Visão de Gestão Financeira.
+Implemente a spec FIN-06: Visão de Gestão do Financeiro.
 
-1. Crie handlers/financeiro/visaoGestao.js: agregar cobranças por status, mês, calcular cards.
-2. Crie pages/admin/Financeiro.jsx: 4 cards + 3 tabs de listas + filtros.
-3. Ações: marcar pago (chama FIN-03), enviar lembrete.
-4. Filtro por mês (default: atual) e cliente.
-5. SAM: rota GET /admin/financeiro/resumo.
+1. Crie handlers/financeiro/visaoGestao.js: resumo agregado + listagem com filtros.
+2. Crie pages/admin/Financeiro.jsx: 4 cards + filtros + tabela + ações.
+3. Rotas: GET /admin/financeiro/resumo, GET /admin/financeiro/cobrancas.
+4. Paginação server-side.
 
 Altere SOMENTE os arquivos listados. Não refatore, renomeie ou mexa em mais nada.
 ```

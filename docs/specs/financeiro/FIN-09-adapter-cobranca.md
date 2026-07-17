@@ -9,127 +9,130 @@
 - **Dependência:** FIN-08
 
 ## Contexto
-Quando uma cobrança é gerada (FIN-02) ou o admin solicita, o sistema cria a cobrança no gateway externo (gera PIX, boleto, link de cartão). O padrão adapter garante que adicionar um novo provedor é apenas criar um novo arquivo de adapter.
+Quando o admin (ou o sistema) decide cobrar via gateway, a Lambda usa um adapter pattern: interface única → implementação por provedor. O adapter cria a cobrança no provedor externo e retorna URL/QR code para o cliente pagar.
 
 ## Escopo
 - `apps/backend/src/handlers/financeiro/criarCobrancaGateway.js` — NOVO
-- `apps/backend/src/adapters/` — NOVO (pasta de adapters)
-- `apps/backend/src/adapters/mercadoPago.js` — NOVO
-- `apps/backend/src/adapters/stripe.js` — NOVO
-- `apps/backend/src/adapters/asaas.js` — NOVO
-- `apps/backend/src/adapters/index.js` — NOVO (factory)
-- API: POST /admin/financeiro/cobrancas/:id/gerar-gateway
+- `apps/backend/src/adapters/gateway/index.js` — NOVO (factory)
+- `apps/backend/src/adapters/gateway/mercadopago.js` — NOVO
+- `apps/backend/src/adapters/gateway/stripe.js` — NOVO (stub)
+- API: POST /admin/financeiro/cobrancas/:id/cobrar
 
 ## Fora de Escopo (NÃO TOCAR)
 - Webhook (FIN-10)
-- CRUD de gateways (FIN-08)
-- Frontend (botão de gerar está em FIN-06)
+- Página de pagamento (FIN-11)
+- CRUD de gateways (FIN-08 — já feito)
 
 ## Spec Técnica
 
-### Padrão Adapter
+### Interface do Adapter
 ```js
-// adapters/index.js (factory)
-const adapters = {
-  mercado_pago: require('./mercadoPago'),
-  stripe: require('./stripe'),
-  asaas: require('./asaas')
+// adapters/gateway/index.js
+class GatewayAdapter {
+  async criarCobranca(cobranca, config) {
+    // Retorna: { gateway_cobranca_id, url_pagamento, qr_code, expiracao }
+    throw new Error('Not implemented')
+  }
+  
+  async consultarStatus(gateway_cobranca_id) {
+    // Retorna: { status, data_pagamento, valor_pago }
+    throw new Error('Not implemented')
+  }
+  
+  async cancelarCobranca(gateway_cobranca_id) {
+    throw new Error('Not implemented')
+  }
 }
 
 function getAdapter(provedor) {
-  const adapter = adapters[provedor]
-  if (!adapter) throw new Error(`Adapter não encontrado: ${provedor}`)
-  return adapter
+  switch(provedor) {
+    case 'mercadopago': return new MercadoPagoAdapter()
+    case 'stripe': return new StripeAdapter()
+    default: throw new Error(`Provedor ${provedor} não suportado`)
+  }
 }
 ```
 
-### Interface do Adapter
+### Mercado Pago Adapter
 ```js
-// Cada adapter exporta:
-module.exports = {
-  criarCobranca: async (credenciais, cobranca, metodo) => {
-    // Retorna: { gateway_cobranca_id, gateway_url, qr_code_base64, codigo_pix, vencimento_boleto }
-  },
-  consultarStatus: async (credenciais, gatewayCobrancaId) => {
-    // Retorna: { status, valor_pago, data_pagamento }
-  },
-  cancelar: async (credenciais, gatewayCobrancaId) => {
-    // Retorna: { sucesso: boolean }
+// adapters/gateway/mercadopago.js
+class MercadoPagoAdapter extends GatewayAdapter {
+  async criarCobranca(cobranca, config) {
+    const credentials = await getSSMCredentials(config.credenciais_ssm_path)
+    
+    // POST https://api.mercadopago.com/v1/payments
+    const payment = await mpApi.post('/v1/payments', {
+      transaction_amount: cobranca.valor,
+      description: `Parcela ${cobranca.numero_parcela}/${cobranca.total_parcelas}`,
+      payment_method_id: 'pix',
+      payer: { email: cobranca.cliente_email },
+      date_of_expiration: addMinutes(now(), config.pix_expiracao_minutos)
+    })
+    
+    return {
+      gateway_cobranca_id: payment.id.toString(),
+      url_pagamento: payment.point_of_interaction?.transaction_data?.ticket_url,
+      qr_code: payment.point_of_interaction?.transaction_data?.qr_code_base64,
+      qr_code_text: payment.point_of_interaction?.transaction_data?.qr_code,
+      expiracao: payment.date_of_expiration
+    }
   }
+}
+```
+
+### API — POST /admin/financeiro/cobrancas/:id/cobrar
+```json
+// Input (opcional — usa gateway padrão se omitido)
+{ "gateway_id": "gw_001", "metodo": "pix" }
+
+// Output
+{
+  "sucesso": true,
+  "url_pagamento": "https://...",
+  "qr_code_base64": "data:image/png;base64,...",
+  "qr_code_text": "00020126...",
+  "expiracao": "2026-07-17T10:30:00Z"
 }
 ```
 
 ### Fluxo
 ```
-1. Admin clica "Gerar Cobrança" em uma parcela
-2. Lambda busca gateway padrão do tenant (ou o escolhido)
-3. Lambda busca credenciais do SSM
-4. Lambda chama adapter.criarCobranca(credenciais, cobranca, metodo)
-5. Adapter faz POST na API do provedor
-6. Retorna: gateway_cobranca_id + URL/QR Code
-7. Lambda atualiza COBRANCA no DynamoDB com dados do gateway
-8. Frontend exibe link/QR Code
-```
-
-### Mercado Pago — criarCobranca
-```js
-// PIX
-const response = await fetch('https://api.mercadopago.com/v1/payments', {
-  method: 'POST',
-  headers: { Authorization: `Bearer ${credenciais.access_token}` },
-  body: JSON.stringify({
-    transaction_amount: cobranca.valor,
-    payment_method_id: 'pix',
-    payer: { email: cobranca.cliente_email },
-    description: `Parcela ${cobranca.numero_parcela}/${cobranca.total_parcelas}`
-  })
-})
-
-return {
-  gateway_cobranca_id: response.id.toString(),
-  gateway_url: response.point_of_interaction.transaction_data.ticket_url,
-  qr_code_base64: response.point_of_interaction.transaction_data.qr_code_base64,
-  codigo_pix: response.point_of_interaction.transaction_data.qr_code
-}
-```
-
-### Atualização da COBRANCA
-```json
-{
-  "gateway_id": "gw_001",
-  "gateway_cobranca_id": "12345678",
-  "gateway_url": "https://www.mercadopago.com.br/...",
-  "gateway_metodo": "pix",
-  "gateway_criado_em": "2026-07-17T10:00:00Z"
-}
+1. Receber request com cobranca_id
+2. Buscar cobrança no DynamoDB
+3. Buscar gateway (padrão ou especificado)
+4. Buscar credenciais no SSM
+5. Instanciar adapter do provedor
+6. Chamar adapter.criarCobranca()
+7. Atualizar COBRANCA: gateway_id, gateway_cobranca_id, gateway_url
+8. Retornar URL/QR code
 ```
 
 ### Idempotência
 - Se cobrança já tem gateway_cobranca_id: não criar nova, retornar existente
-- Evita duplicação de cobrança no provedor
+- Se expirada: criar nova (e invalidar anterior)
 
 ## Critérios de Aceite
-- [ ] Factory retorna adapter correto pelo slug
-- [ ] Adapter Mercado Pago gera PIX
-- [ ] Adapter Mercado Pago gera boleto
-- [ ] Credenciais buscadas do SSM
-- [ ] COBRANCA atualizada com dados do gateway
-- [ ] QR Code retornado para PIX
-- [ ] URL retornada para boleto/cartão
+- [ ] Adapter pattern implementado
+- [ ] Mercado Pago funcional (PIX)
+- [ ] Stripe stub criado
+- [ ] Credenciais do SSM (nunca hardcoded)
+- [ ] Cobrança criada no provedor
+- [ ] URL/QR code retornados
+- [ ] COBRANCA atualizada com gateway_cobranca_id
 - [ ] Idempotência: não duplica cobrança
-- [ ] Erro tratado (provedor fora, credenciais inválidas)
+- [ ] Timeout e error handling
 
 ## Prompt Pronto para o Kiro CLI
 
 ```
-Implemente a spec FIN-09: Adapter Plugável de Cobrança.
+Implemente a spec FIN-09: Adapter de Cobrança Plugável.
 
-1. Crie pasta adapters/ com index.js (factory) + mercadoPago.js + stripe.js + asaas.js.
-2. Interface: criarCobranca, consultarStatus, cancelar.
-3. Crie handlers/financeiro/criarCobrancaGateway.js: buscar gateway, SSM, chamar adapter.
-4. Atualizar COBRANCA com gateway_cobranca_id + URL.
-5. Idempotência: não duplicar cobrança.
-6. SAM: rota POST /admin/financeiro/cobrancas/{id}/gerar-gateway.
+1. Crie adapters/gateway/index.js: interface + factory (getAdapter).
+2. Crie adapters/gateway/mercadopago.js: implementação PIX via API v1.
+3. Crie adapters/gateway/stripe.js: stub (throw 'not implemented yet').
+4. Crie handlers/financeiro/criarCobrancaGateway.js: orquestra o fluxo.
+5. Credenciais via SSM. Idempotência por gateway_cobranca_id.
+6. SAM: rota POST /admin/financeiro/cobrancas/{id}/cobrar.
 
 Altere SOMENTE os arquivos listados. Não refatore, renomeie ou mexa em mais nada.
 ```
