@@ -59,6 +59,25 @@ export default function ConfigPagamento({ form, setForm }) {
             className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-200 outline-none" />
           <p className="text-xs text-gray-400 mt-1">Aplicado em parcelas acima do limite sem juros</p>
         </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Sinal Mínimo (%)</label>
+          <input name="minDownPaymentPercent" type="number" min={0} max={100} step={5} value={form.minDownPaymentPercent || 30} onChange={handleChange}
+            className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-200 outline-none" />
+          <p className="text-xs text-gray-400 mt-1">Percentual mínimo de entrada/sinal exigido</p>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Condição Padrão</label>
+          <select name="defaultPaymentCondition" value={form.defaultPaymentCondition || 'sinal_parcelas'} onChange={handleChange}
+            className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-200 outline-none">
+            <option value="avista">À vista</option>
+            <option value="sinal_parcelas">Sinal + Parcelas</option>
+            <option value="parcelas">Parcelas sem sinal</option>
+            <option value="personalizado">Personalizado</option>
+          </select>
+          <p className="text-xs text-gray-400 mt-1">Usado como padrão ao criar novo orçamento</p>
+        </div>
       </div>
 
       {/* Meios de pagamento */}

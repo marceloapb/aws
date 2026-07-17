@@ -45,6 +45,13 @@ export default function ConfigPrazos({ form, setForm }) {
             className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-200 outline-none" />
           <p className="text-xs text-gray-400 mt-1">Dias para o cliente assinar o contrato após geração</p>
         </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Prazo para Feedback Pós-Entrega (dias)</label>
+          <input name="feedbackDeadlineDays" type="number" min={1} max={90} value={form.feedbackDeadlineDays || 14} onChange={handleChange}
+            className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-200 outline-none" />
+          <p className="text-xs text-gray-400 mt-1">Dias após entrega para solicitar avaliação do cliente</p>
+        </div>
       </div>
 
       {/* Texto de aviso */}

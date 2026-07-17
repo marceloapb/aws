@@ -29,6 +29,18 @@ export default function ConfigBackup({ form, setForm }) {
     <div className="space-y-6">
       <p className="text-sm text-gray-500">O sistema faz backup automático diário via DynamoDB Point-in-Time Recovery e export para S3.</p>
 
+      {/* Toggle backup automático */}
+      <div className="flex items-center justify-between p-4 rounded-lg bg-gray-50 border">
+        <div>
+          <p className="text-sm font-medium text-gray-900">Backup Automático</p>
+          <p className="text-xs text-gray-500">Executa diariamente no horário configurado</p>
+        </div>
+        <button type="button" onClick={() => setForm({ ...form, backupEnabled: !form.backupEnabled })}
+          className={`w-12 h-6 rounded-full transition-colors relative ${form.backupEnabled !== false ? 'bg-green-500' : 'bg-gray-300'}`}>
+          <div className={`w-5 h-5 bg-white rounded-full shadow absolute top-0.5 transition-transform ${form.backupEnabled !== false ? 'translate-x-6' : 'translate-x-0.5'}`} />
+        </button>
+      </div>
+
       {/* Status */}
       <div className="p-4 rounded-lg bg-gray-50 border">
         <h4 className="text-sm font-medium text-gray-900 mb-3">Status do Último Backup</h4>
@@ -83,6 +95,13 @@ export default function ConfigBackup({ form, setForm }) {
           <input value="us-east-1" readOnly
             className="w-full px-3 py-2.5 border border-gray-200 rounded-lg bg-gray-50 text-gray-500" />
         </div>
+      </div>
+
+      <div className="flex items-center gap-3">
+        <button type="button" onClick={async () => { try { await authFetch('/admin/backup/trigger', { method: 'POST' }); loadBackupStatus(); } catch {} }}
+          className="inline-flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50">
+          Executar Backup Agora
+        </button>
       </div>
 
       <div className="p-4 rounded-lg bg-blue-50 border border-blue-200">
