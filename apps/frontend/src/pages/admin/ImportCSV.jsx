@@ -9,7 +9,7 @@ const TEMPLATES = {
   clientes: { label: 'Clientes', icon: 'Users', desc: 'Base de clientes', cols: ['nome*','email*','telefone*','cpf','endereco','data_nascimento','instagram','notas'] },
   sessoes: { label: 'Sessões', icon: 'Calendar', desc: 'Sessões e eventos', cols: ['titulo*','tipo*','data*','hora_inicio*','hora_fim','local','cliente_email','valor','status'] },
   equipamentos: { label: 'Equipamentos', icon: 'Wrench', desc: 'Inventário de equipamentos', cols: ['nome*','categoria*','numero_serie*','marca','modelo','valor_compra','status'] },
-  catalogo: { label: 'Catálogo', icon: 'Package', desc: 'Produtos e serviços', cols: ['nome*','tipo*','valor*','descricao','itens_inclusos','horas_cobertura'] },
+  catalogo: { label: 'Produtos e Serviços', icon: 'Package', desc: 'Produtos e serviços', cols: ['nome*','tipo*','valor*','descricao','itens_inclusos','horas_cobertura'] },
   pagamentos: { label: 'Pagamentos', icon: 'CreditCard', desc: 'Registros financeiros', cols: ['cliente_email*','valor*','data_vencimento*','parcela','forma_pagamento','status'] },
 };
 
@@ -17,7 +17,7 @@ const ICON_MAP = { Users, Calendar, Wrench, Package, CreditCard };
 
 const EXPORT_CARDS = [
   { tipo: 'clientes', nome: 'Clientes', icon: 'Users' },
-  { tipo: 'catalogo', nome: 'Catálogo', icon: 'Package' },
+  { tipo: 'catalogo', nome: 'Produtos e Serviços', icon: 'Package' },
   { tipo: 'sessoes', nome: 'Sessões', icon: 'Calendar' },
   { tipo: 'pagamentos', nome: 'Pagamentos', icon: 'CreditCard' },
   { tipo: 'equipamentos', nome: 'Equipamentos', icon: 'Wrench' },

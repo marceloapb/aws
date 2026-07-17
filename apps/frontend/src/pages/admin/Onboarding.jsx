@@ -154,7 +154,7 @@ export default function Onboarding() {
         return (
           <div className="space-y-4">
             <h2 className="text-xl font-bold text-gray-800">Primeiro Serviço</h2>
-            <p className="text-sm text-gray-500">Cadastre seu primeiro item no catálogo</p>
+            <p className="text-sm text-gray-500">Cadastre seu primeiro produto ou serviço</p>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Nome do serviço</label>
               <input type="text" className="w-full border rounded-lg p-2.5 focus:ring-2 focus:ring-orange-500 focus:border-orange-500" placeholder="Ex: Cobertura Completa" value={servico.nome} onChange={e => setServico({ ...servico, nome: e.target.value })} />

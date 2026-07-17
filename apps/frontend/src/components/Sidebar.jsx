@@ -16,7 +16,7 @@ const adminSections = [
   {
     label: 'Comercial',
     links: [
-      { to: '/admin/catalogo', icon: Package, label: 'Catálogo' },
+      { to: '/admin/catalogo', icon: Package, label: 'Produtos e Serviços' },
       { to: '/admin/orcamentos', icon: FileText, label: 'Orçamentos' },
       { to: '/admin/contratos', icon: FolderOpen, label: 'Contratos' },
       { to: '/admin/financeiro', icon: CreditCard, label: 'Financeiro' },

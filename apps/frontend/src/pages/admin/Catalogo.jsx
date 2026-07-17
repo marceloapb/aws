@@ -63,7 +63,7 @@ export default function Catalogo() {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <Package size={24} style={{ color: ACCENT }} />
-          <h1 className="text-2xl font-bold text-gray-900">Catálogo</h1>
+          <h1 className="text-2xl font-bold text-gray-900">Produtos e Serviços</h1>
         </div>
         <button onClick={() => window.print()} className="inline-flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50">
           <Printer size={16} /> Gerar lista de preços

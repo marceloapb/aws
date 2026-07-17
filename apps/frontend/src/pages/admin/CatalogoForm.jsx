@@ -69,10 +69,10 @@ export default function CatalogoForm() {
   return (
     <div>
       <button onClick={() => navigate('/admin/catalogo')} className="flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700 mb-4">
-        <ArrowLeft size={16} /> Voltar para Catálogo
+        <ArrowLeft size={16} /> Voltar para Produtos e Serviços
       </button>
 
-      <h1 className="text-2xl font-bold text-gray-900 mb-6">{id ? 'Editar Item' : 'Novo Item do Catálogo'}</h1>
+      <h1 className="text-2xl font-bold text-gray-900 mb-6">{id ? 'Editar Item' : 'Novo Produto/Serviço'}</h1>
 
       <form onSubmit={handleSubmit} className="space-y-6">
         {/* Info básica */}

@@ -242,7 +242,7 @@ export default function OrcamentoForm() {
           </div>}
 
           {form.servicos.length === 0 && form.opcionais.length === 0 && (
-            <p className="text-sm text-gray-400 py-6 text-center">Adicione serviços e opcionais do catálogo</p>
+            <p className="text-sm text-gray-400 py-6 text-center">Adicione serviços e opcionais dos seus produtos</p>
           )}
           <div className="flex justify-end pt-3 border-t"><span className="text-sm text-gray-600">Sub-total: <b>R$ {fmt(subtotal)}</b></span></div>
         </div>

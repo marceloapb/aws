@@ -12,7 +12,7 @@ const mainItems = [
 ];
 
 const moreItems = [
-  { to: '/admin/catalogo', icon: Package, label: 'Catálogo' },
+  { to: '/admin/catalogo', icon: Package, label: 'Produtos' },
   { to: '/admin/contratos', icon: FolderOpen, label: 'Contratos' },
   { to: '/admin/financeiro', icon: CreditCard, label: 'Financeiro' },
   { to: '/admin/notas-fiscais', icon: Receipt, label: 'Notas Fiscais' },
