@@ -30,6 +30,7 @@ import Instagram from './pages/admin/Instagram';
 import WhatsApp from './pages/admin/WhatsApp';
 import ImportCSV from './pages/admin/ImportCSV';
 import Storage from './pages/admin/Storage';
+import GatewayConfig from './pages/admin/GatewayConfig';
 import Onboarding from './pages/admin/Onboarding';
 import MeusOrcamentos from './pages/cliente/MeusOrcamentos';
 import MeusContratos from './pages/cliente/MeusContratos';
@@ -71,6 +72,7 @@ function App() {
 
         {/* Financeiro */}
         <Route path="financeiro" element={<Financeiro />} />
+        <Route path="gateway" element={<GatewayConfig />} />
 
         {/* Álbuns */}
         <Route path="albuns" element={<Albuns />} />
