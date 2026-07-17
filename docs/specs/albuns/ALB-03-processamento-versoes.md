@@ -9,112 +9,120 @@
 - **Dependência:** ALB-02
 
 ## Contexto
-Após o upload do original ao S3, um job assíncrono (SQS → Lambda) deve gerar 2 versões adicionais: média (web, 2048px) e thumbnail (400px). Isso garante carregamento rápido no lightbox e na grade de miniaturas, sem expor o original antes do pagamento completo.
+Após upload do original, um job assíncrono (SQS → Lambda) deve gerar 3 versões: original preservado, média (web 2048px), thumb (400px). Isso permite entrega rápida de thumbnails e economia de banda.
 
 ## Escopo
-- `apps/backend/src/handlers/album/processPhoto.js` — NOVO (Lambda triggered by SQS)
-- SQS queue: `photo-processing-queue` + DLQ
-- S3: gravar versões em paths separados
-- DynamoDB: atualizar status da FOTO
-- SAM template: Lambda + SQS + IAM
+- `apps/backend/src/handlers/album/processarFoto.js` — NOVO (Lambda triggered by SQS)
+- SQS: fila `foto-processamento` + DLQ
+- S3: paths `media/` e `thumb/` ao lado do `original/`
+- DynamoDB: atualizar status_processamento e URLs na FOTO
 
 ## Fora de Escopo (NÃO TOCAR)
 - Upload (ALB-02 — já feito)
-- Frontend
+- Frontend (thumbnails carregam via URL do DynamoDB)
 - Watermark (ALB-13 — separado)
-- CloudFront signed URLs (SPEC-11)
 
 ## Spec Técnica
 
-### Trigger
-- SQS message publicada após confirmação de upload (ALB-02)
-- Payload: `{ tenant_id, album_id, galeria_id, foto_id, s3_key_original }`
+### Versões Geradas
+| Versão | Max Width | Qualidade | Path S3 | Uso |
+|---|---|---|---|---|
+| original | — (preservado) | 100% | `/original/{id}.jpg` | Download final |
+| media | 2048px | 85% | `/media/{id}.jpg` | Visualização web/lightbox |
+| thumb | 400px | 75% | `/thumb/{id}.jpg` | Grade/listagem |
 
-### Processamento (sharp)
+### Fluxo
+```
+1. SQS recebe mensagem: { tenant_id, album_id, galeria_id, foto_id, s3_key_original }
+2. Lambda:
+   a. Baixa original do S3
+   b. Lê metadados (width, height, EXIF)
+   c. Gera versão média (resize 2048px, JPEG 85%)
+   d. Gera versão thumb (resize 400px, JPEG 75%)
+   e. Upload média e thumb ao S3
+   f. Atualiza FOTO no DynamoDB: url_media, url_thumb, width, height, status_processamento: 'completo'
+3. Se falha → retry (3x) → DLQ
+```
+
+### Lambda — processarFoto
+- Runtime: Node.js 20
+- Memory: 1024MB (processamento de imagem)
+- Timeout: 60s
+- Layer: sharp (via Lambda Layer)
+- Concurrency: 10 (evitar throttle de S3)
+
+### Resize com Sharp
 ```js
 const sharp = require('sharp')
 
-async function processPhoto(originalKey) {
-  const original = await s3.getObject({ Bucket, Key: originalKey })
-  
-  // Versão média (2048px no lado maior)
-  const media = await sharp(original.Body)
-    .resize(2048, 2048, { fit: 'inside', withoutEnlargement: true })
+async function gerarVersoes(buffer) {
+  const media = await sharp(buffer)
+    .resize({ width: 2048, withoutEnlargement: true })
     .jpeg({ quality: 85 })
     .toBuffer()
-  
-  // Versão thumbnail (400px no lado maior)
-  const thumb = await sharp(original.Body)
-    .resize(400, 400, { fit: 'inside', withoutEnlargement: true })
+
+  const thumb = await sharp(buffer)
+    .resize({ width: 400, withoutEnlargement: true })
     .jpeg({ quality: 75 })
     .toBuffer()
-  
-  // Upload das versões
-  await Promise.all([
-    s3.putObject({ Bucket, Key: mediaKey, Body: media, ContentType: 'image/jpeg' }),
-    s3.putObject({ Bucket, Key: thumbKey, Body: thumb, ContentType: 'image/jpeg' })
-  ])
+
+  return { media, thumb }
 }
 ```
 
-### Configuração Lambda
-- Runtime: Node.js 20.x
-- Memory: 1024 MB (sharp precisa de memória)
-- Timeout: 60s
-- Layer: sharp (pré-compilado para Lambda)
-- Concurrency: 10 (evitar throttle no S3)
-
-### SQS Config
+### SQS
+- Fila: `foto-processamento`
 - Visibility timeout: 120s
-- Max receive count: 3 (depois vai para DLQ)
-- Batch size: 1 (uma foto por invocação)
-- DLQ: `photo-processing-dlq` (retenção 14 dias)
+- Max receive count: 3
+- DLQ: `foto-processamento-dlq` (retention 14 days)
+- Batch size: 1 (1 foto por invocação)
 
-### Status da Foto
-| Status | Descrição |
-|---|---|
-| pendente_processamento | Upload confirmado, aguardando |
-| processando | Lambda executando |
-| concluido | 3 versões disponíveis |
-| erro | Falha (na DLQ) |
+### SAM
+```yaml
+FotoProcessamentoQueue:
+  Type: AWS::SQS::Queue
+  Properties:
+    VisibilityTimeout: 120
+    RedrivePolicy:
+      deadLetterTargetArn: !GetAtt FotoProcessamentoDLQ.Arn
+      maxReceiveCount: 3
 
-### Atualização DynamoDB
-Após processamento com sucesso:
-- `status_processamento` → "concluido"
-- `s3_key_media` → path da versão média
-- `s3_key_thumb` → path da thumbnail
-- `largura` / `altura` → extraídos dos metadados
-- `tamanho_bytes` → do original
-- Incrementar `total_fotos` no ALBUM
-
-### Verificação de Conclusão
-Quando todas as fotos de um álbum estão "concluido":
-- Atualizar status do álbum: "processando" → "pronto"
-- (Futuro: notificar admin)
+ProcessarFotoFunction:
+  Type: AWS::Serverless::Function
+  Properties:
+    Handler: src/handlers/album/processarFoto.handler
+    MemorySize: 1024
+    Timeout: 60
+    Events:
+      SQSEvent:
+        Type: SQS
+        Properties:
+          Queue: !GetAtt FotoProcessamentoQueue.Arn
+          BatchSize: 1
+```
 
 ## Critérios de Aceite
-- [ ] Lambda triggered por SQS funciona
-- [ ] Versão média gerada (2048px, 85% quality)
-- [ ] Thumbnail gerada (400px, 75% quality)
+- [ ] Versão média gerada (2048px, 85%)
+- [ ] Versão thumb gerada (400px, 75%)
 - [ ] Ambas salvas no S3 nos paths corretos
-- [ ] Status da foto atualizado no DynamoDB
-- [ ] DLQ configurada (3 retries)
-- [ ] Memory 1024MB / Timeout 60s
-- [ ] Concurrency limitada a 10
-- [ ] Álbum muda para "pronto" quando todas fotos concluídas
-- [ ] Foto em erro não trava o álbum todo
+- [ ] DynamoDB atualizado com URLs e status 'completo'
+- [ ] Width/height extraídos do original
+- [ ] Retry 3x antes de DLQ
+- [ ] DLQ retém mensagens por 14 dias
+- [ ] Lambda com 1024MB e timeout 60s
+- [ ] Sharp via Lambda Layer
+- [ ] Concurrency reservada: 10
 
 ## Prompt Pronto para o Kiro CLI
 
 ```
 Implemente a spec ALB-03: Processamento Assíncrono de 3 Versões.
 
-1. Crie handlers/album/processPhoto.js: Lambda triggered por SQS.
-2. Usar sharp para gerar média (2048px, jpeg 85%) e thumb (400px, jpeg 75%).
-3. SQS queue com DLQ (3 retries, visibility 120s).
-4. Lambda: 1024MB, 60s timeout, concurrency 10.
-5. Atualizar status FOTO no DynamoDB após conclusão.
-6. SAM template: Lambda + SQS + DLQ + IAM role.
+1. Crie handlers/album/processarFoto.js: recebe SQS, baixa original, gera média (2048px) e thumb (400px) com sharp, upload S3, atualiza DynamoDB.
+2. Lambda Layer com sharp.
+3. SQS fila foto-processamento + DLQ.
+4. SAM: Queue, DLQ, Function com SQS event source.
+5. Memory 1024MB, timeout 60s, batch 1, reserved concurrency 10.
 
 Altere SOMENTE os arquivos listados. Não refatore, renomeie ou mexa em mais nada.
 ```

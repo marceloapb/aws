@@ -9,114 +9,94 @@
 - **Dependência:** ALB-01
 
 ## Contexto
-O upload de fotos deve ser feito diretamente do navegador para o S3 (sem passar pelo backend/Lambda). Isso evita limite de 6MB do API Gateway e permite upload de RAW/JPEG de alta resolução (até 50MB). O backend apenas gera a presigned URL e registra a foto no DynamoDB.
+O upload de fotos deve ir direto do navegador para o S3 (sem passar pela Lambda/API Gateway). O backend gera presigned URLs e o frontend faz PUT direto. Isso evita limites de payload e reduz custo.
 
 ## Escopo
-- `apps/backend/src/handlers/album/getUploadUrl.js` — NOVO
-- `apps/frontend/src/pages/admin/AlbumDetalhe.jsx` — botão upload + progress
-- `apps/frontend/src/components/album/UploadDropzone.jsx` — NOVO
-- API: POST /admin/albuns/:id/upload-url
-- S3 bucket: política CORS
+- `apps/backend/src/handlers/album/getPresignedUrl.js` — NOVO
+- `apps/frontend/src/pages/admin/AlbumDetalhe.jsx` — integrar upload
+- `apps/frontend/src/components/album/UploadFotos.jsx` — NOVO
+- API: POST /admin/albuns/:id/upload-urls
+- S3: bucket privado, path: `{tenant_id}/albuns/{album_id}/original/`
 
 ## Fora de Escopo (NÃO TOCAR)
 - Processamento de versões (ALB-03)
 - Albuns.jsx (listagem)
-- CloudFront (SPEC-11)
+- Outros módulos
 
 ## Spec Técnica
 
 ### Fluxo de Upload
 ```
-1. Frontend solicita N presigned URLs (batch)
-2. Backend gera URLs (PUT, 15min expiração, max 50MB)
-3. Frontend faz PUT direto ao S3 para cada foto
-4. Frontend reporta sucesso ao backend (confirma upload)
-5. Backend registra FOTO no DynamoDB com status "pendente_processamento"
-6. Backend publica mensagem na SQS para processamento
+1. Frontend seleciona N arquivos (drag & drop ou file picker)
+2. Frontend chama POST /admin/albuns/:id/upload-urls com lista de filenames
+3. Backend gera presigned PUT URLs (1 por arquivo, expira 15min)
+4. Frontend faz PUT direto ao S3 para cada arquivo (paralelo, max 3 simultâneos)
+5. Frontend reporta progresso individual e total
+6. Ao completar cada upload, frontend chama POST /admin/albuns/:id/fotos/confirm
+7. Backend registra a FOTO no DynamoDB com status_processamento: 'pendente'
+8. Backend envia mensagem SQS para processamento (ALB-03)
 ```
 
-### Backend — getUploadUrl
+### Backend — getPresignedUrl
 ```js
 // Input
-{
-  "album_id": "alb_001",
-  "arquivos": [
-    { "nome": "DSC_4521.jpg", "tipo": "image/jpeg", "tamanho": 12500000 },
-    { "nome": "DSC_4522.jpg", "tipo": "image/jpeg", "tamanho": 11800000 }
-  ]
-}
+{ files: [{ filename: "IMG_001.jpg", content_type: "image/jpeg", size_bytes: 8500000 }] }
+
+// Validações
+- Max 50 arquivos por request
+- Max 30MB por arquivo
+- Content-type: image/jpeg, image/png, image/webp, image/tiff
+- Total storage do tenant não excede plano
 
 // Output
-{
-  "urls": [
-    {
-      "foto_id": "foto_001",
-      "upload_url": "https://bucket.s3.amazonaws.com/...",
-      "s3_key": "t123/alb_001/original/foto_001.jpg",
-      "expires_in": 900
-    }
-  ]
-}
+{ urls: [{ filename, foto_id, presigned_url, expires_in: 900 }] }
 ```
 
-### Validações
-- Tipos aceitos: image/jpeg, image/png, image/tiff, image/webp
-- Tamanho máximo: 50MB por arquivo
-- Máximo 50 URLs por request (batch)
-- Álbum deve existir e pertencer ao tenant
-- Verificar espaço de storage disponível
-
-### S3 CORS
-```json
-{
-  "CORSRules": [{
-    "AllowedHeaders": ["*"],
-    "AllowedMethods": ["PUT"],
-    "AllowedOrigins": ["https://app.dominio.com.br"],
-    "ExposeHeaders": ["ETag"],
-    "MaxAgeSeconds": 3600
-  }]
-}
-```
-
-### Frontend — UploadDropzone.jsx
-- Drag & drop + click para selecionar
-- Preview das fotos antes do upload
-- Progress bar individual + total
-- Retry automático em caso de falha
+### Frontend — UploadFotos.jsx
+- Drag & drop zone com preview de thumbnails
+- File picker como fallback
+- Barra de progresso individual por foto
+- Barra de progresso total
+- Max 3 uploads paralelos (queue)
+- Retry automático 1x em falha
 - Cancelar upload individual
-- Limite visual: "Selecionadas X fotos (XXX MB)"
-- Upload paralelo: máximo 3 simultâneos
+- Resumo: X de Y enviadas, Z falhas
+- Validação client-side: tipo, tamanho
 
-### Estrutura S3
-```
-{tenant_id}/{album_id}/original/{foto_id}.{ext}
-{tenant_id}/{album_id}/media/{foto_id}.jpg
-{tenant_id}/{album_id}/thumb/{foto_id}.jpg
-```
+### Bucket S3
+- Path: `{tenant_id}/albuns/{album_id}/original/{foto_id}.{ext}`
+- Lifecycle: nenhuma (original é preservado)
+- Encryption: SSE-S3
+- Block public access: ON
+- CORS: permitir PUT do domínio do app
+
+### IAM
+- Lambda: s3:PutObject apenas no path do tenant
+- Presigned URL: condição de content-type e max-size
 
 ## Critérios de Aceite
-- [ ] Presigned URL gerada com expiração 15min
-- [ ] Upload direto ao S3 funciona (sem passar pelo backend)
-- [ ] Batch de até 50 URLs por request
-- [ ] Validação de tipo e tamanho
-- [ ] Progress bar funciona em tempo real
-- [ ] Drag & drop + click funcionam
-- [ ] Upload paralelo (3 simultâneos)
-- [ ] Retry em caso de falha de rede
-- [ ] Foto registrada no DynamoDB com status pendente
-- [ ] Mensagem publicada na SQS após confirmação
+- [ ] Presigned URL gerada corretamente
+- [ ] Upload direto ao S3 funciona (sem proxy)
+- [ ] Drag & drop funciona
+- [ ] Progresso individual e total
+- [ ] Max 3 paralelos
+- [ ] Validação de tipo e tamanho (client + server)
+- [ ] Foto registrada no DynamoDB após confirm
+- [ ] Mensagem SQS enviada para processamento
+- [ ] Retry automático em falha
+- [ ] Cancelar upload funciona
 
 ## Prompt Pronto para o Kiro CLI
 
 ```
 Implemente a spec ALB-02: Upload de Fotos via Presigned URL.
 
-1. Crie handlers/album/getUploadUrl.js: gerar presigned URLs PUT (batch até 50).
-2. Crie components/album/UploadDropzone.jsx: drag&drop, preview, progress, retry.
-3. Em AlbumDetalhe.jsx: integrar UploadDropzone.
-4. S3: configurar CORS para PUT direto.
-5. Após confirmação: registrar FOTO no DynamoDB + publicar SQS.
+1. Crie handlers/album/getPresignedUrl.js: gerar presigned PUT URLs (max 50, 15min, validar tipo/tamanho).
+2. Crie handlers/album/confirmUpload.js: registrar FOTO no DynamoDB, enviar SQS.
+3. Crie components/album/UploadFotos.jsx: drag & drop, progress bars, max 3 paralelos, retry.
+4. Em AlbumDetalhe.jsx: integrar UploadFotos.
+5. S3 CORS: permitir PUT do domínio.
+6. SAM: rota POST /admin/albuns/{id}/upload-urls e POST /admin/albuns/{id}/fotos/confirm.
 
 Altere SOMENTE os arquivos listados. Não refatore, renomeie ou mexa em mais nada.
 ```
