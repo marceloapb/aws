@@ -56,7 +56,7 @@ function App() {
         <Route index element={<Dashboard />} />
         <Route path="config" element={<ConfigEmpresa />} />
 
-        {/* Catálogo */}
+        {/* Produtos e Serviços */}
         <Route path="catalogo" element={<Catalogo />} />
         <Route path="catalogo/novo" element={<CatalogoForm />} />
         <Route path="catalogo/:id" element={<CatalogoForm />} />

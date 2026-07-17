@@ -9,7 +9,7 @@ const TEMPLATES = {
   clientes: { label: 'Clientes', icon: 'Users', desc: 'Base de clientes', cols: ['nome*','email*','telefone*','whatsapp','cpf','instagram','como_conheceu','endereco_cep','endereco_cidade','endereco_estado','data_nascimento','notas','tags'] },
   sessoes: { label: 'Sessões', icon: 'Calendar', desc: 'Sessões e eventos', cols: ['titulo*','tipo_evento*','data_evento*','horario_inicio*','horario_fim','local','cliente_email','valor','status','observacoes'] },
   equipamentos: { label: 'Equipamentos', icon: 'Wrench', desc: 'Inventário de equipamentos', cols: ['nome*','categoria*','numero_serie*','marca','modelo','valor_estimado','status','localizacao','data_compra','padrao'] },
-  catalogo: { label: 'Produtos e Serviços', icon: 'Package', desc: 'Itens e serviços do catálogo', cols: ['nome*','tipo*','valor_base*','descricao','duracao_base','valor_hora_adicional','categoria','exibir_ao_cliente','ativo'] },
+  catalogo: { label: 'Produtos e Serviços', icon: 'Package', desc: 'Itens e serviços do seu negócio', cols: ['nome*','tipo*','valor_base*','descricao','duracao_base','valor_hora_adicional','categoria','exibir_ao_cliente','ativo'] },
   pagamentos: { label: 'Pagamentos', icon: 'CreditCard', desc: 'Cobranças e recebimentos', cols: ['cliente_email*','valor*','data_vencimento*','parcela','meio_pagamento','status','descricao','orcamento_id'] },
   tipos_evento: { label: 'Tipos de Evento', icon: 'Tag', desc: 'Categorias de sessão fotográfica', cols: ['nome*','cor','duracao_padrao_horas','valor_base','descricao'] },
   pacotes: { label: 'Pacotes Comerciais', icon: 'Gift', desc: 'Pacotes com itens e desconto', cols: ['nome*','descricao*','itens_ids','desconto_tipo','desconto_valor','exibir_ao_cliente','ativo'] },

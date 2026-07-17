@@ -255,9 +255,9 @@ export default function OrcamentoForm() {
           {/* Itens */}
           <div className="border-t pt-3">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-sm font-semibold">Itens do Catálogo</span>
+              <span className="text-sm font-semibold">Itens de Produtos e Serviços</span>
               <select className="text-xs border rounded px-2 py-1" onChange={e => { addItem(oi, e.target.value); e.target.value = ''; }} defaultValue="">
-                <option value="">+ Item do Catálogo</option>
+                <option value="">+ Adicionar Item</option>
                 {catalogo.map(c => <option key={c.id} value={c.id}>{c.nome} — {fmtBRL(c.valor || c.valor_unitario || 0)}</option>)}
               </select>
             </div>
