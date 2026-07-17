@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
-import { ArrowLeft, Send, CheckCircle, Copy, FileText, Edit2 } from 'lucide-react';
+import { ArrowLeft, Send, CheckCircle, Copy, FileText, Edit2, Download } from 'lucide-react';
 
 const ACCENT = '#EA580C';
 const STATUS_MAP = {
@@ -87,6 +87,10 @@ export default function OrcamentoDetalhe() {
           )}
           <button onClick={() => handleAction('duplicar')} className="inline-flex items-center gap-1 px-3 py-2 border rounded-lg text-sm hover:bg-gray-50">
             <Copy size={14} /> Duplicar
+          </button>
+          <button onClick={async () => { try { const r = await authFetch(`/admin/orcamentos/${id}/pdf`, { method: 'POST' }); const j = await r.json(); if (j.success && j.data?.url) window.open(j.data.url, '_blank'); } catch {} }}
+            className="inline-flex items-center gap-1 px-3 py-2 border rounded-lg text-sm hover:bg-gray-50">
+            <Download size={14} /> PDF
           </button>
         </div>
       </div>
