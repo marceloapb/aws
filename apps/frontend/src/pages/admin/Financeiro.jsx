@@ -1,133 +1,201 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { DollarSign, TrendingUp, TrendingDown, AlertTriangle, Users, Plus, Search, Filter, FileText, Download, CheckCircle, XCircle, Send, Edit, Trash2, X, Calendar } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
-import { CreditCard, TrendingUp, TrendingDown, DollarSign, AlertCircle, Plus, X, Check, Ban, Filter } from 'lucide-react';
 
 const ACCENT = '#EA580C';
-const formatBRL = (v) => Number(v || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-const STATUS_MAP = { em_aberto: 'Em aberto', paga: 'Paga', atrasada: 'Atrasada', cancelada: 'Cancelada' };
-const STATUS_COLORS = { em_aberto: 'bg-yellow-50 text-yellow-700', paga: 'bg-green-50 text-green-700', atrasada: 'bg-red-50 text-red-700', cancelada: 'bg-gray-100 text-gray-500' };
-const CATEGORIAS = ['Aluguel', 'Fornecedor', 'Equipamento', 'Marketing', 'Pessoal', 'Outros'];
+const API = import.meta.env.VITE_API_URL || '';
+const fmt = (v) => v?.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) || 'R$ 0,00';
+const fmtDate = (d) => d ? new Date(d).toLocaleDateString('pt-BR') : '-';
+const STATUS_COLORS = { em_aberto: 'bg-yellow-100 text-yellow-800', paga: 'bg-green-100 text-green-800', atrasada: 'bg-red-100 text-red-800', cancelada: 'bg-gray-100 text-gray-500' };
+const CATEGORIAS = ['equipamento', 'transporte', 'alimentação', 'terceiro', 'marketing', 'outros'];
 
 export default function Financeiro() {
-  const { authFetch } = useAuth();
-  const [resumo, setResumo] = useState({});
+  const { token } = useAuth();
+  const [tab, setTab] = useState('visao');
+  const [periodo, setPeriodo] = useState('mes');
+  const [customRange, setCustomRange] = useState({ inicio: '', fim: '' });
+  const [resumo, setResumo] = useState(null);
   const [cobrancas, setCobrancas] = useState([]);
   const [despesas, setDespesas] = useState([]);
-  const [tab, setTab] = useState('visao');
-  const [filtroStatus, setFiltroStatus] = useState('');
-  const [filtroCliente, setFiltroCliente] = useState('');
-  const [modalDespesa, setModalDespesa] = useState(false);
-  const [novaDespesa, setNovaDespesa] = useState({ descricao: '', valor: '', categoria: 'Outros', data: '', eventoId: '' });
-  const [eventoDetalhe, setEventoDetalhe] = useState(null);
+  const [filtroStatus, setFiltroStatus] = useState('todos');
+  const [buscaCliente, setBuscaCliente] = useState('');
+  const [modalPagar, setModalPagar] = useState(null);
+  const [modalCobranca, setModalCobranca] = useState(false);
+  const [modalDespesa, setModalDespesa] = useState(null);
+  const [formPagar, setFormPagar] = useState({ meio: 'pix', data: '', valor: '' });
+  const [formCobranca, setFormCobranca] = useState({ cliente: '', evento: '', valor: '', vencimento: '', meio: 'pix' });
+  const [formDespesa, setFormDespesa] = useState({ descricao: '', valor: '', categoria: 'equipamento', data: '', evento: '' });
 
-  useEffect(() => {
-    authFetch('/admin/financeiro/resumo').then(r => r.json()).then(j => { if (j.success) setResumo(j.data); }).catch(() => {});
-    authFetch('/admin/cobrancas').then(r => r.json()).then(j => { if (j.success) setCobrancas(j.data || []); }).catch(() => {});
-    authFetch('/admin/financeiro/despesas').then(r => r.json()).then(j => { if (j.success) setDespesas(j.data || []); }).catch(() => {});
-  }, []);
+  const headers = { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' };
 
-  const receitaMeses = useMemo(() => {
-    const meses = [];
-    for (let i = 5; i >= 0; i--) {
-      const d = new Date(); d.setMonth(d.getMonth() - i);
-      const label = d.toLocaleString('pt-BR', { month: 'short' }).replace('.', '');
-      const total = cobrancas.filter(c => c.status === 'paga' && new Date(c.dataPagamento || c.vencimento).getMonth() === d.getMonth() && new Date(c.dataPagamento || c.vencimento).getFullYear() === d.getFullYear())
-        .reduce((s, c) => s + Number(c.valor || 0), 0);
-      meses.push({ label, total });
-    }
-    return meses;
-  }, [cobrancas]);
+  const fetchData = async () => {
+    try {
+      const params = periodo === 'custom' ? `?inicio=${customRange.inicio}&fim=${customRange.fim}` : `?periodo=${periodo}`;
+      const [res, cob, desp] = await Promise.all([
+        fetch(`${API}/admin/financeiro/resumo${params}`, { headers }),
+        fetch(`${API}/admin/cobrancas${params}`, { headers }),
+        fetch(`${API}/admin/financeiro/despesas${params}`, { headers })
+      ]);
+      setResumo(await res.json());
+      setCobrancas(await cob.json());
+      setDespesas(await desp.json());
+    } catch (e) { console.error('Erro ao buscar dados financeiros', e); }
+  };
 
-  const maxReceita = Math.max(...receitaMeses.map(m => m.total), 1);
-  const totalEntradas = cobrancas.filter(c => c.status === 'paga').reduce((s, c) => s + Number(c.valor || 0), 0);
-  const totalSaidas = despesas.reduce((s, d) => s + Number(d.valor || 0), 0);
+  useEffect(() => { fetchData(); }, [periodo, customRange]);
 
   const cobrancasFiltradas = useMemo(() => {
-    return cobrancas.filter(c => (!filtroStatus || c.status === filtroStatus) && (!filtroCliente || (c.clienteNome || '').toLowerCase().includes(filtroCliente.toLowerCase())));
-  }, [cobrancas, filtroStatus, filtroCliente]);
+    let list = cobrancas;
+    if (filtroStatus !== 'todos') list = list.filter(c => c.status === filtroStatus);
+    if (buscaCliente) list = list.filter(c => c.cliente?.toLowerCase().includes(buscaCliente.toLowerCase()));
+    return list;
+  }, [cobrancas, filtroStatus, buscaCliente]);
 
-  const marcarPago = async (id) => {
-    const r = await authFetch(`/admin/cobrancas/${id}/pagar`, { method: 'PATCH' });
-    const j = await r.json();
-    if (j.success) setCobrancas(prev => prev.map(c => c.id === id ? { ...c, status: 'paga' } : c));
+  const subtotalDespesas = useMemo(() => despesas.reduce((s, d) => s + (d.valor || 0), 0), [despesas]);
+
+  const marcarPago = async () => {
+    await fetch(`${API}/admin/cobrancas/${modalPagar._id}/pagar`, { method: 'PUT', headers, body: JSON.stringify(formPagar) });
+    setModalPagar(null); fetchData();
   };
-
   const cancelarCobranca = async (id) => {
-    const r = await authFetch(`/admin/cobrancas/${id}/cancelar`, { method: 'PATCH' });
-    const j = await r.json();
-    if (j.success) setCobrancas(prev => prev.map(c => c.id === id ? { ...c, status: 'cancelada' } : c));
+    if (!confirm('Cancelar esta cobrança?')) return;
+    await fetch(`${API}/admin/cobrancas/${id}/cancelar`, { method: 'PUT', headers });
+    fetchData();
   };
-
+  const enviarLembrete = (c) => {
+    const msg = encodeURIComponent(`Olá ${c.cliente}, lembramos que sua cobrança de ${fmt(c.valor)} vence em ${fmtDate(c.vencimento)}. Obrigado!`);
+    window.open(`https://wa.me/?text=${msg}`, '_blank');
+  };
+  const salvarCobranca = async () => {
+    await fetch(`${API}/admin/cobrancas`, { method: 'POST', headers, body: JSON.stringify(formCobranca) });
+    setModalCobranca(false); setFormCobranca({ cliente: '', evento: '', valor: '', vencimento: '', meio: 'pix' }); fetchData();
+  };
   const salvarDespesa = async () => {
-    const r = await authFetch('/admin/financeiro/despesas', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(novaDespesa) });
-    const j = await r.json();
-    if (j.success) { setDespesas(prev => [...prev, j.data]); setModalDespesa(false); setNovaDespesa({ descricao: '', valor: '', categoria: 'Outros', data: '', eventoId: '' }); }
+    const method = formDespesa._id ? 'PUT' : 'POST';
+    const url = formDespesa._id ? `${API}/admin/financeiro/despesas/${formDespesa._id}` : `${API}/admin/financeiro/despesas`;
+    await fetch(url, { method, headers, body: JSON.stringify(formDespesa) });
+    setModalDespesa(null); setFormDespesa({ descricao: '', valor: '', categoria: 'equipamento', data: '', evento: '' }); fetchData();
+  };
+  const excluirDespesa = async (id) => {
+    if (!confirm('Excluir despesa?')) return;
+    await fetch(`${API}/admin/financeiro/despesas/${id}`, { method: 'DELETE', headers });
+    fetchData();
+  };
+  const exportar = (tipo) => {
+    const params = periodo === 'custom' ? `?inicio=${customRange.inicio}&fim=${customRange.fim}` : `?periodo=${periodo}`;
+    window.open(`${API}/admin/financeiro/export/${tipo}${params}`, '_blank');
   };
 
-  const verMargemEvento = async (eventoId) => {
-    const r = await authFetch(`/admin/financeiro/evento/${eventoId}/margem`);
-    const j = await r.json();
-    if (j.success) setEventoDetalhe(j.data);
-  };
+  const kpis = [
+    { label: 'Receita do mês', value: fmt(resumo?.receita_mes), icon: DollarSign, color: 'text-green-600' },
+    { label: 'A receber', value: fmt(resumo?.a_receber), icon: TrendingUp, color: 'text-blue-600' },
+    { label: 'Recebido total', value: fmt(resumo?.recebido_total), icon: CheckCircle, color: 'text-emerald-600' },
+    { label: 'Inadimplência', value: `${resumo?.inadimplencia || 0}%`, icon: AlertTriangle, color: 'text-red-600' },
+    { label: 'Ticket médio', value: fmt(resumo?.ticket_medio), icon: Users, color: 'text-purple-600' }
+  ];
 
-  const KPICard = ({ icon: Icon, label, value, color }) => (
-    <div className="bg-white rounded-xl border border-gray-200 p-4 hover:shadow-md transition-shadow">
-      <div className="flex items-center gap-2 text-sm text-gray-500 mb-1"><Icon size={14} style={{ color }} />{label}</div>
-      <p className="text-xl font-bold" style={{ color }}>{value}</p>
+  const meses = resumo?.grafico_meses || [];
+  const maxVal = Math.max(...meses.flatMap(m => [m.entradas || 0, m.saidas || 0]), 1);
+
+  const BarChart = () => (
+    <div className="bg-white rounded-xl p-6 shadow-sm border">
+      <h3 className="font-semibold text-gray-700 mb-4">Últimos 6 meses</h3>
+      <div className="flex items-end justify-between gap-3 h-48">
+        {meses.map((m, i) => (
+          <div key={i} className="flex-1 flex flex-col items-center gap-1">
+            <div className="flex gap-1 items-end w-full justify-center h-40">
+              <div className="flex flex-col items-center">
+                <span className="text-[10px] text-green-700 font-medium">{fmt(m.entradas)}</span>
+                <div className="w-5 bg-green-500 rounded-t" style={{ height: `${(m.entradas / maxVal) * 140}px` }} />
+              </div>
+              <div className="flex flex-col items-center">
+                <span className="text-[10px] text-red-700 font-medium">{fmt(m.saidas)}</span>
+                <div className="w-5 bg-red-500 rounded-t" style={{ height: `${(m.saidas / maxVal) * 140}px` }} />
+              </div>
+            </div>
+            <span className="text-xs text-gray-500">{m.mes}</span>
+          </div>
+        ))}
+      </div>
+      <div className="flex gap-4 mt-3 text-xs"><span className="flex items-center gap-1"><span className="w-3 h-3 bg-green-500 rounded" />Entradas</span><span className="flex items-center gap-1"><span className="w-3 h-3 bg-red-500 rounded" />Saídas</span></div>
+    </div>
+  );
+
+  const Modal = ({ title, onClose, children }) => (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-xl p-6 w-full max-w-md shadow-xl">
+        <div className="flex justify-between items-center mb-4"><h3 className="font-bold text-lg">{title}</h3><button onClick={onClose}><X size={20} /></button></div>
+        {children}
+      </div>
     </div>
   );
 
   return (
-    <div className="space-y-6">
+    <div className="p-6 space-y-6 max-w-7xl mx-auto">
       {/* Header */}
-      <div className="flex items-center gap-3">
-        <CreditCard size={24} style={{ color: ACCENT }} />
-        <h1 className="text-2xl font-bold text-gray-900">Financeiro</h1>
-      </div>
-
-      {/* KPIs */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <KPICard icon={TrendingUp} label="Receita do mês" value={formatBRL(resumo.receitaMesAtual)} color="#16a34a" />
-        <KPICard icon={DollarSign} label="A receber" value={formatBRL(resumo.aReceber)} color={ACCENT} />
-        <KPICard icon={AlertCircle} label="Inadimplência" value={`${resumo.inadimplencia || 0}%`} color="#dc2626" />
-        <KPICard icon={CreditCard} label="Ticket médio" value={formatBRL(resumo.ticketMedio)} color="#7c3aed" />
-      </div>
-
-      {/* Gráfico de receita - barras CSS */}
-      <div className="bg-white rounded-xl border border-gray-200 p-5">
-        <h2 className="text-sm font-semibold text-gray-700 mb-4">Receita — últimos 6 meses</h2>
-        <div className="flex items-end gap-3 h-40">
-          {receitaMeses.map((m, i) => (
-            <div key={i} className="flex-1 flex flex-col items-center gap-1">
-              <span className="text-[10px] font-medium text-gray-600">{m.total > 0 ? formatBRL(m.total) : ''}</span>
-              <div className="w-full rounded-t-md transition-all" style={{ height: `${(m.total / maxReceita) * 100}%`, minHeight: 4, backgroundColor: ACCENT }} />
-              <span className="text-xs text-gray-500 capitalize">{m.label}</span>
-            </div>
-          ))}
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <h1 className="text-2xl font-bold text-gray-800">Financeiro</h1>
+        <div className="flex flex-wrap gap-2 items-center">
+          <select value={periodo} onChange={e => setPeriodo(e.target.value)} className="border rounded-lg px-3 py-2 text-sm">
+            <option value="mes">Este mês</option><option value="trimestre">Trimestre</option><option value="ano">Ano</option><option value="custom">Personalizado</option>
+          </select>
+          {periodo === 'custom' && (
+            <div className="flex gap-2"><input type="date" value={customRange.inicio} onChange={e => setCustomRange(p => ({ ...p, inicio: e.target.value }))} className="border rounded px-2 py-1 text-sm" /><input type="date" value={customRange.fim} onChange={e => setCustomRange(p => ({ ...p, fim: e.target.value }))} className="border rounded px-2 py-1 text-sm" /></div>
+          )}
+          <button onClick={() => exportar('pdf')} className="flex items-center gap-1 px-3 py-2 bg-gray-100 rounded-lg text-sm hover:bg-gray-200"><FileText size={14} />Exportar PDF</button>
+          <button onClick={() => exportar('csv')} className="flex items-center gap-1 px-3 py-2 bg-gray-100 rounded-lg text-sm hover:bg-gray-200"><Download size={14} />Exportar CSV</button>
         </div>
       </div>
 
-      {/* Abas */}
+      {/* KPIs */}
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+        {kpis.map((k, i) => (
+          <div key={i} className="bg-white rounded-xl p-4 shadow-sm border hover:shadow-md transition">
+            <div className="flex items-center gap-2 mb-1"><k.icon size={18} className={k.color} /><span className="text-xs text-gray-500">{k.label}</span></div>
+            <p className="text-xl font-bold text-gray-800">{k.value}</p>
+          </div>
+        ))}
+      </div>
+
+      {/* Tabs */}
       <div className="flex gap-1 bg-gray-100 rounded-lg p-1 w-fit">
         {[['visao', 'Visão Geral'], ['cobrancas', 'Cobranças'], ['despesas', 'Despesas']].map(([key, label]) => (
-          <button key={key} onClick={() => setTab(key)} className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${tab === key ? 'bg-white shadow text-gray-900' : 'text-gray-500 hover:text-gray-700'}`}>{label}</button>
+          <button key={key} onClick={() => setTab(key)} className={`px-4 py-2 rounded-md text-sm font-medium transition ${tab === key ? 'bg-white shadow text-gray-800' : 'text-gray-500 hover:text-gray-700'}`} style={tab === key ? { borderBottom: `2px solid ${ACCENT}` } : {}}>{label}</button>
         ))}
       </div>
 
       {/* Visão Geral */}
       {tab === 'visao' && (
-        <div className="grid md:grid-cols-3 gap-4">
-          <div className="bg-white rounded-xl border border-gray-200 p-5">
-            <p className="text-sm text-gray-500 mb-1">Entradas</p>
-            <p className="text-xl font-bold text-green-600">{formatBRL(totalEntradas)}</p>
+        <div className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="bg-green-50 border border-green-200 rounded-xl p-4"><p className="text-sm text-green-700">Entradas</p><p className="text-2xl font-bold text-green-800">{fmt(resumo?.entradas)}</p></div>
+            <div className="bg-red-50 border border-red-200 rounded-xl p-4"><p className="text-sm text-red-700">Saídas</p><p className="text-2xl font-bold text-red-800">{fmt(resumo?.saidas)}</p></div>
+            <div className="bg-blue-50 border border-blue-200 rounded-xl p-4"><p className="text-sm text-blue-700">Saldo</p><p className="text-2xl font-bold text-blue-800">{fmt((resumo?.entradas || 0) - (resumo?.saidas || 0))}</p></div>
           </div>
-          <div className="bg-white rounded-xl border border-gray-200 p-5">
-            <p className="text-sm text-gray-500 mb-1">Saídas</p>
-            <p className="text-xl font-bold text-red-600">{formatBRL(totalSaidas)}</p>
+          <BarChart />
+          <div className="bg-white rounded-xl p-6 shadow-sm border">
+            <h3 className="font-semibold text-gray-700 mb-3">Top 5 clientes por receita</h3>
+            <div className="space-y-2">
+              {(resumo?.top_clientes || []).slice(0, 5).map((c, i) => (
+                <div key={i} className="flex justify-between items-center py-2 border-b last:border-0">
+                  <span className="text-sm text-gray-700">{i + 1}. {c.nome}</span><span className="font-semibold text-sm">{fmt(c.receita)}</span>
+                </div>
+              ))}
+            </div>
           </div>
-          <div className="bg-white rounded-xl border border-gray-200 p-5">
-            <p className="text-sm text-gray-500 mb-1">Saldo</p>
-            <p className={`text-xl font-bold ${totalEntradas - totalSaidas >= 0 ? 'text-green-600' : 'text-red-600'}`}>{formatBRL(totalEntradas - totalSaidas)}</p>
+          {/* Margem por evento */}
+          <div className="bg-white rounded-xl p-6 shadow-sm border">
+            <h3 className="font-semibold text-gray-700 mb-3">Margem por evento</h3>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead><tr className="text-left text-gray-500 border-b"><th className="pb-2">Evento</th><th className="pb-2">Receita</th><th className="pb-2">Custos</th><th className="pb-2">Margem</th><th className="pb-2">%</th></tr></thead>
+                <tbody>
+                  {(resumo?.margens || []).map((m, i) => (
+                    <tr key={i} className="border-b last:border-0"><td className="py-2">{m.evento}</td><td>{fmt(m.receita)}</td><td>{fmt(m.custos)}</td><td className={m.receita - m.custos >= 0 ? 'text-green-700' : 'text-red-700'}>{fmt(m.receita - m.custos)}</td><td className="font-medium">{m.receita ? ((((m.receita - m.custos) / m.receita) * 100).toFixed(1)) : 0}%</td></tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
       )}
@@ -135,41 +203,34 @@ export default function Financeiro() {
       {/* Cobranças */}
       {tab === 'cobrancas' && (
         <div className="space-y-4">
-          <div className="flex flex-wrap items-center gap-3">
-            <Filter size={14} className="text-gray-400" />
-            <select value={filtroStatus} onChange={e => setFiltroStatus(e.target.value)} className="border border-gray-300 rounded-lg px-3 py-2 text-sm">
-              <option value="">Todos status</option>
-              {Object.entries(STATUS_MAP).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-            </select>
-            <input type="text" placeholder="Buscar cliente..." value={filtroCliente} onChange={e => setFiltroCliente(e.target.value)} className="border border-gray-300 rounded-lg px-3 py-2 text-sm w-48" />
+          <div className="flex flex-col md:flex-row justify-between gap-3">
+            <div className="flex gap-2 flex-wrap">
+              {['todos', 'em_aberto', 'paga', 'atrasada', 'cancelada'].map(s => (
+                <button key={s} onClick={() => setFiltroStatus(s)} className={`px-3 py-1 rounded-full text-xs font-medium transition ${filtroStatus === s ? 'text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`} style={filtroStatus === s ? { backgroundColor: ACCENT } : {}}>{s === 'todos' ? 'Todos' : s.replace('_', ' ')}</button>
+              ))}
+            </div>
+            <div className="flex gap-2">
+              <div className="relative"><Search size={14} className="absolute left-3 top-2.5 text-gray-400" /><input placeholder="Buscar cliente..." value={buscaCliente} onChange={e => setBuscaCliente(e.target.value)} className="border rounded-lg pl-8 pr-3 py-2 text-sm w-48" /></div>
+              <button onClick={() => setModalCobranca(true)} className="flex items-center gap-1 px-4 py-2 rounded-lg text-white text-sm font-medium" style={{ backgroundColor: ACCENT }}><Plus size={14} />Nova Cobrança</button>
+            </div>
           </div>
-          <div className="bg-white rounded-xl border border-gray-200 overflow-x-auto">
+          <div className="bg-white rounded-xl shadow-sm border overflow-x-auto">
             <table className="w-full text-sm">
-              <thead className="bg-gray-50 border-b"><tr>
-                <th className="text-left px-4 py-3 font-medium text-gray-500">Cliente</th>
-                <th className="text-right px-4 py-3 font-medium text-gray-500">Valor</th>
-                <th className="text-left px-4 py-3 font-medium text-gray-500">Vencimento</th>
-                <th className="text-left px-4 py-3 font-medium text-gray-500">Status</th>
-                <th className="text-left px-4 py-3 font-medium text-gray-500">Meio</th>
-                <th className="text-right px-4 py-3 font-medium text-gray-500">Ações</th>
-              </tr></thead>
-              <tbody className="divide-y divide-gray-100">
+              <thead><tr className="text-left text-gray-500 border-b bg-gray-50"><th className="p-3">Cliente</th><th className="p-3">Evento</th><th className="p-3">Valor</th><th className="p-3">Vencimento</th><th className="p-3">Status</th><th className="p-3">Meio</th><th className="p-3">Ações</th></tr></thead>
+              <tbody>
                 {cobrancasFiltradas.map(c => (
-                  <tr key={c.id} className={`hover:bg-gray-50 ${c.status === 'atrasada' ? 'bg-red-50/40' : ''}`}>
-                    <td className="px-4 py-3 font-medium text-gray-900 cursor-pointer hover:underline" onClick={() => c.eventoId && verMargemEvento(c.eventoId)}>{c.clienteNome}</td>
-                    <td className="px-4 py-3 text-right">{formatBRL(c.valor)}</td>
-                    <td className="px-4 py-3 text-gray-500">{c.vencimento ? new Date(c.vencimento).toLocaleDateString('pt-BR') : '-'}</td>
-                    <td className="px-4 py-3"><span className={`px-2 py-1 rounded-full text-xs font-medium ${STATUS_COLORS[c.status] || ''}`}>{STATUS_MAP[c.status] || c.status}</span></td>
-                    <td className="px-4 py-3 text-gray-500">{c.meio || '-'}</td>
-                    <td className="px-4 py-3 text-right flex justify-end gap-1">
-                      {c.status === 'em_aberto' && <button onClick={() => marcarPago(c.id)} className="p-1.5 rounded-lg hover:bg-green-50 text-green-600" title="Marcar pago"><Check size={15} /></button>}
-                      {(c.status === 'em_aberto' || c.status === 'atrasada') && <button onClick={() => cancelarCobranca(c.id)} className="p-1.5 rounded-lg hover:bg-red-50 text-red-600" title="Cancelar"><Ban size={15} /></button>}
-                    </td>
+                  <tr key={c._id} className={`border-b hover:bg-gray-50 ${c.status === 'atrasada' ? 'bg-red-50' : ''}`}>
+                    <td className="p-3 font-medium">{c.cliente}</td><td className="p-3">{c.evento}</td><td className="p-3">{fmt(c.valor)}</td><td className="p-3">{fmtDate(c.vencimento)}</td>
+                    <td className="p-3"><span className={`px-2 py-1 rounded-full text-xs font-medium ${STATUS_COLORS[c.status]}`}>{c.status?.replace('_', ' ')}</span></td>
+                    <td className="p-3 capitalize">{c.meio}</td>
+                    <td className="p-3"><div className="flex gap-1">
+                      {c.status !== 'paga' && c.status !== 'cancelada' && <><button onClick={() => { setModalPagar(c); setFormPagar({ meio: c.meio || 'pix', data: new Date().toISOString().split('T')[0], valor: c.valor }); }} className="p-1 text-green-600 hover:bg-green-50 rounded" title="Marcar pago"><CheckCircle size={16} /></button><button onClick={() => cancelarCobranca(c._id)} className="p-1 text-red-600 hover:bg-red-50 rounded" title="Cancelar"><XCircle size={16} /></button><button onClick={() => enviarLembrete(c)} className="p-1 text-blue-600 hover:bg-blue-50 rounded" title="Lembrete WhatsApp"><Send size={16} /></button></>}
+                    </div></td>
                   </tr>
                 ))}
-                {cobrancasFiltradas.length === 0 && <tr><td colSpan={6} className="px-4 py-8 text-center text-gray-400">Nenhuma cobrança encontrada</td></tr>}
               </tbody>
             </table>
+            {cobrancasFiltradas.length === 0 && <p className="text-center text-gray-400 py-8">Nenhuma cobrança encontrada.</p>}
           </div>
         </div>
       )}
@@ -177,71 +238,68 @@ export default function Financeiro() {
       {/* Despesas */}
       {tab === 'despesas' && (
         <div className="space-y-4">
-          <div className="flex justify-end">
-            <button onClick={() => setModalDespesa(true)} className="flex items-center gap-2 px-4 py-2 rounded-lg text-white text-sm font-medium" style={{ backgroundColor: ACCENT }}>
-              <Plus size={16} /> Nova Despesa
-            </button>
+          <div className="flex justify-between items-center">
+            <p className="text-sm text-gray-600">Subtotal: <span className="font-bold text-gray-800">{fmt(subtotalDespesas)}</span></p>
+            <button onClick={() => { setFormDespesa({ descricao: '', valor: '', categoria: 'equipamento', data: '', evento: '' }); setModalDespesa('nova'); }} className="flex items-center gap-1 px-4 py-2 rounded-lg text-white text-sm font-medium" style={{ backgroundColor: ACCENT }}><Plus size={14} />Nova Despesa</button>
           </div>
-          <div className="bg-white rounded-xl border border-gray-200 overflow-x-auto">
+          <div className="bg-white rounded-xl shadow-sm border overflow-x-auto">
             <table className="w-full text-sm">
-              <thead className="bg-gray-50 border-b"><tr>
-                <th className="text-left px-4 py-3 font-medium text-gray-500">Descrição</th>
-                <th className="text-right px-4 py-3 font-medium text-gray-500">Valor</th>
-                <th className="text-left px-4 py-3 font-medium text-gray-500">Categoria</th>
-                <th className="text-left px-4 py-3 font-medium text-gray-500">Data</th>
-              </tr></thead>
-              <tbody className="divide-y divide-gray-100">
+              <thead><tr className="text-left text-gray-500 border-b bg-gray-50"><th className="p-3">Descrição</th><th className="p-3">Valor</th><th className="p-3">Categoria</th><th className="p-3">Data</th><th className="p-3">Evento</th><th className="p-3">Ações</th></tr></thead>
+              <tbody>
                 {despesas.map(d => (
-                  <tr key={d.id} className="hover:bg-gray-50">
-                    <td className="px-4 py-3 font-medium text-gray-900">{d.descricao}</td>
-                    <td className="px-4 py-3 text-right text-red-600">{formatBRL(d.valor)}</td>
-                    <td className="px-4 py-3 text-gray-500">{d.categoria}</td>
-                    <td className="px-4 py-3 text-gray-500">{d.data ? new Date(d.data).toLocaleDateString('pt-BR') : '-'}</td>
+                  <tr key={d._id} className="border-b hover:bg-gray-50">
+                    <td className="p-3 font-medium">{d.descricao}</td><td className="p-3">{fmt(d.valor)}</td><td className="p-3 capitalize">{d.categoria}</td><td className="p-3">{fmtDate(d.data)}</td><td className="p-3">{d.evento || '-'}</td>
+                    <td className="p-3"><div className="flex gap-1">
+                      <button onClick={() => { setFormDespesa(d); setModalDespesa('editar'); }} className="p-1 text-blue-600 hover:bg-blue-50 rounded"><Edit size={16} /></button>
+                      <button onClick={() => excluirDespesa(d._id)} className="p-1 text-red-600 hover:bg-red-50 rounded"><Trash2 size={16} /></button>
+                    </div></td>
                   </tr>
                 ))}
-                {despesas.length === 0 && <tr><td colSpan={4} className="px-4 py-8 text-center text-gray-400">Nenhuma despesa registrada</td></tr>}
               </tbody>
             </table>
+            {despesas.length === 0 && <p className="text-center text-gray-400 py-8">Nenhuma despesa registrada.</p>}
           </div>
         </div>
       )}
 
-      {/* Modal Nova Despesa */}
+      {/* Modal Marcar Pago */}
+      {modalPagar && (
+        <Modal title="Marcar como pago" onClose={() => setModalPagar(null)}>
+          <div className="space-y-3">
+            <div><label className="text-sm text-gray-600">Meio de pagamento</label><select value={formPagar.meio} onChange={e => setFormPagar(p => ({ ...p, meio: e.target.value }))} className="w-full border rounded-lg px-3 py-2 mt-1"><option value="pix">PIX</option><option value="boleto">Boleto</option><option value="cartao">Cartão</option><option value="dinheiro">Dinheiro</option><option value="transferencia">Transferência</option></select></div>
+            <div><label className="text-sm text-gray-600">Data do pagamento</label><input type="date" value={formPagar.data} onChange={e => setFormPagar(p => ({ ...p, data: e.target.value }))} className="w-full border rounded-lg px-3 py-2 mt-1" /></div>
+            <div><label className="text-sm text-gray-600">Valor recebido</label><input type="number" value={formPagar.valor} onChange={e => setFormPagar(p => ({ ...p, valor: e.target.value }))} className="w-full border rounded-lg px-3 py-2 mt-1" /></div>
+            <button onClick={marcarPago} className="w-full py-2 rounded-lg text-white font-medium" style={{ backgroundColor: ACCENT }}>Confirmar pagamento</button>
+          </div>
+        </Modal>
+      )}
+
+      {/* Modal Nova Cobrança */}
+      {modalCobranca && (
+        <Modal title="Nova Cobrança" onClose={() => setModalCobranca(false)}>
+          <div className="space-y-3">
+            <div><label className="text-sm text-gray-600">Cliente</label><input value={formCobranca.cliente} onChange={e => setFormCobranca(p => ({ ...p, cliente: e.target.value }))} className="w-full border rounded-lg px-3 py-2 mt-1" /></div>
+            <div><label className="text-sm text-gray-600">Evento</label><input value={formCobranca.evento} onChange={e => setFormCobranca(p => ({ ...p, evento: e.target.value }))} className="w-full border rounded-lg px-3 py-2 mt-1" /></div>
+            <div><label className="text-sm text-gray-600">Valor</label><input type="number" value={formCobranca.valor} onChange={e => setFormCobranca(p => ({ ...p, valor: e.target.value }))} className="w-full border rounded-lg px-3 py-2 mt-1" /></div>
+            <div><label className="text-sm text-gray-600">Vencimento</label><input type="date" value={formCobranca.vencimento} onChange={e => setFormCobranca(p => ({ ...p, vencimento: e.target.value }))} className="w-full border rounded-lg px-3 py-2 mt-1" /></div>
+            <div><label className="text-sm text-gray-600">Meio</label><select value={formCobranca.meio} onChange={e => setFormCobranca(p => ({ ...p, meio: e.target.value }))} className="w-full border rounded-lg px-3 py-2 mt-1"><option value="pix">PIX</option><option value="boleto">Boleto</option><option value="cartao">Cartão</option></select></div>
+            <button onClick={salvarCobranca} className="w-full py-2 rounded-lg text-white font-medium" style={{ backgroundColor: ACCENT }}>Salvar cobrança</button>
+          </div>
+        </Modal>
+      )}
+
+      {/* Modal Despesa */}
       {modalDespesa && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setModalDespesa(false)}>
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6 space-y-4" onClick={e => e.stopPropagation()}>
-            <div className="flex items-center justify-between">
-              <h3 className="text-lg font-semibold text-gray-900">Nova Despesa</h3>
-              <button onClick={() => setModalDespesa(false)} className="p-1 hover:bg-gray-100 rounded-lg"><X size={18} /></button>
-            </div>
-            <input type="text" placeholder="Descrição" value={novaDespesa.descricao} onChange={e => setNovaDespesa(p => ({ ...p, descricao: e.target.value }))} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" />
-            <input type="number" placeholder="Valor (R$)" value={novaDespesa.valor} onChange={e => setNovaDespesa(p => ({ ...p, valor: e.target.value }))} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" />
-            <select value={novaDespesa.categoria} onChange={e => setNovaDespesa(p => ({ ...p, categoria: e.target.value }))} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
-              {CATEGORIAS.map(c => <option key={c} value={c}>{c}</option>)}
-            </select>
-            <input type="date" value={novaDespesa.data} onChange={e => setNovaDespesa(p => ({ ...p, data: e.target.value }))} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" />
-            <input type="text" placeholder="ID do evento (opcional)" value={novaDespesa.eventoId} onChange={e => setNovaDespesa(p => ({ ...p, eventoId: e.target.value }))} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" />
-            <button onClick={salvarDespesa} disabled={!novaDespesa.descricao || !novaDespesa.valor} className="w-full py-2.5 rounded-lg text-white font-medium text-sm disabled:opacity-50" style={{ backgroundColor: ACCENT }}>Salvar</button>
+        <Modal title={modalDespesa === 'editar' ? 'Editar Despesa' : 'Nova Despesa'} onClose={() => setModalDespesa(null)}>
+          <div className="space-y-3">
+            <div><label className="text-sm text-gray-600">Descrição</label><input value={formDespesa.descricao} onChange={e => setFormDespesa(p => ({ ...p, descricao: e.target.value }))} className="w-full border rounded-lg px-3 py-2 mt-1" /></div>
+            <div><label className="text-sm text-gray-600">Valor</label><input type="number" value={formDespesa.valor} onChange={e => setFormDespesa(p => ({ ...p, valor: e.target.value }))} className="w-full border rounded-lg px-3 py-2 mt-1" /></div>
+            <div><label className="text-sm text-gray-600">Categoria</label><select value={formDespesa.categoria} onChange={e => setFormDespesa(p => ({ ...p, categoria: e.target.value }))} className="w-full border rounded-lg px-3 py-2 mt-1">{CATEGORIAS.map(c => <option key={c} value={c}>{c}</option>)}</select></div>
+            <div><label className="text-sm text-gray-600">Data</label><input type="date" value={formDespesa.data} onChange={e => setFormDespesa(p => ({ ...p, data: e.target.value }))} className="w-full border rounded-lg px-3 py-2 mt-1" /></div>
+            <div><label className="text-sm text-gray-600">Evento vinculado</label><input value={formDespesa.evento} onChange={e => setFormDespesa(p => ({ ...p, evento: e.target.value }))} className="w-full border rounded-lg px-3 py-2 mt-1" placeholder="(opcional)" /></div>
+            <button onClick={salvarDespesa} className="w-full py-2 rounded-lg text-white font-medium" style={{ backgroundColor: ACCENT }}>Salvar despesa</button>
           </div>
-        </div>
-      )}
-
-      {/* Modal Margem do Evento */}
-      {eventoDetalhe && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setEventoDetalhe(null)}>
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6 space-y-3" onClick={e => e.stopPropagation()}>
-            <div className="flex items-center justify-between">
-              <h3 className="text-lg font-semibold text-gray-900">Margem do Evento</h3>
-              <button onClick={() => setEventoDetalhe(null)} className="p-1 hover:bg-gray-100 rounded-lg"><X size={18} /></button>
-            </div>
-            <div className="space-y-2 text-sm">
-              <div className="flex justify-between"><span className="text-gray-500">Receita</span><span className="font-medium text-green-600">{formatBRL(eventoDetalhe.receita)}</span></div>
-              <div className="flex justify-between"><span className="text-gray-500">Custos</span><span className="font-medium text-red-600">{formatBRL(eventoDetalhe.custos)}</span></div>
-              <hr />
-              <div className="flex justify-between"><span className="font-medium text-gray-700">Margem</span><span className={`font-bold ${(eventoDetalhe.receita - eventoDetalhe.custos) >= 0 ? 'text-green-600' : 'text-red-600'}`}>{formatBRL(eventoDetalhe.receita - eventoDetalhe.custos)}</span></div>
-            </div>
-          </div>
-        </div>
+        </Modal>
       )}
     </div>
   );
