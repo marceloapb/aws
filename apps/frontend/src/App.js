@@ -35,6 +35,7 @@ import Onboarding from './pages/admin/Onboarding';
 import MeusOrcamentos from './pages/cliente/MeusOrcamentos';
 import MeusContratos from './pages/cliente/MeusContratos';
 import MeusAlbuns from './pages/cliente/MeusAlbuns';
+import AlbumView from './pages/cliente/AlbumView';
 
 function App() {
   const { user } = useAuth();
@@ -101,6 +102,7 @@ function App() {
         <Route path="orcamentos" element={<MeusOrcamentos />} />
         <Route path="contratos" element={<MeusContratos />} />
         <Route path="albuns" element={<MeusAlbuns />} />
+        <Route path="albuns/:slug" element={<AlbumView />} />
       </Route>
 
       <Route path="*" element={<Navigate to="/" />} />
