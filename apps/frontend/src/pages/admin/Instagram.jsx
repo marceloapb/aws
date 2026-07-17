@@ -4,7 +4,7 @@ import {
   Instagram as IgIcon, Image, Calendar, BarChart3, Clock, DollarSign,
   Plus, Search, Filter, RefreshCw, Send, Trash2, Eye, Edit, X,
   ChevronRight, AlertTriangle, CheckCircle, XCircle, Hash, Layers,
-  Play, Sparkles, Settings, TrendingUp, Users, Heart, Bookmark, Share2
+  Play, Sparkles, Settings, TrendingUp, Users, Heart, Bookmark, Share2, Loader2
 } from 'lucide-react';
 
 const ACCENT = '#EA580C';
@@ -33,6 +33,9 @@ export default function Instagram() {
   const [selectedPhotos, setSelectedPhotos] = useState([]);
   const [selectedAlbumId, setSelectedAlbumId] = useState(null);
   const [albumFotos, setAlbumFotos] = useState([]);
+  const [gerandoCaption, setGerandoCaption] = useState(false);
+  const [tomIA, setTomIA] = useState('emocional');
+  const [contextIA, setContextIA] = useState('');
   const [caption, setCaption] = useState('');
   const [agendar, setAgendar] = useState(false);
   const [scheduleDate, setScheduleDate] = useState('');
@@ -328,9 +331,32 @@ export default function Instagram() {
 
               {/* Caption */}
               <div>
-                <label className="text-sm font-semibold text-gray-700">Caption</label>
+                <div className="flex items-center justify-between">
+                  <label className="text-sm font-semibold text-gray-700">Caption</label>
+                  <button type="button" onClick={async () => {
+                    setGerandoCaption(true);
+                    try {
+                      const r = await authFetch('/admin/instagram/gerar-caption', { method: 'POST', body: JSON.stringify({ tipo_evento: 'ensaio fotográfico', cliente_nome: '', tom: tomIA, contexto: contextIA, incluir_hashtags: true }) });
+                      const d = await r.json();
+                      if (d.success) setCaption(d.data.caption);
+                    } catch {}
+                    setGerandoCaption(false);
+                  }} disabled={gerandoCaption} className="flex items-center gap-1 px-3 py-1 text-xs font-medium rounded-lg bg-purple-50 text-purple-700 hover:bg-purple-100 disabled:opacity-50">
+                    {gerandoCaption ? <><Loader2 size={12} className="animate-spin" /> Gerando...</> : <><Sparkles size={12} /> Gerar com IA</>}
+                  </button>
+                </div>
+                {/* Config IA (colapsável) */}
+                <div className="flex gap-2 mt-1 mb-1">
+                  <select value={tomIA} onChange={e => setTomIA(e.target.value)} className="text-xs border rounded px-2 py-1">
+                    <option value="emocional">Tom: Emocional</option>
+                    <option value="profissional">Tom: Profissional</option>
+                    <option value="descontraido">Tom: Descontraído</option>
+                    <option value="poetico">Tom: Poético</option>
+                  </select>
+                  <input value={contextIA} onChange={e => setContextIA(e.target.value)} placeholder="Contexto extra (local, momento...)" className="flex-1 text-xs border rounded px-2 py-1" />
+                </div>
                 <textarea value={caption} onChange={e => e.target.value.length <= 2200 && setCaption(e.target.value)}
-                  rows={4} placeholder="Escreva a legenda..." className="w-full border rounded-lg p-3 text-sm mt-1 resize-none" />
+                  rows={4} placeholder="Escreva a legenda ou gere com IA..." className="w-full border rounded-lg p-3 text-sm resize-none" />
                 <span className="text-xs text-gray-400">{caption.length}/2200</span>
               </div>
 

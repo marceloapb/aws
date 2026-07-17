@@ -159,6 +159,18 @@ app.put('/admin/notificacoes/:id/lida', adminAuth, async (req, res) => {
   }
 });
 
+// IA - Gerar Caption Instagram (Bedrock)
+app.post('/admin/instagram/gerar-caption', adminAuth, async (req, res) => {
+  try {
+    const { gerarCaption } = require('./services/aiService');
+    const { tipo_evento, cliente_nome, tom, contexto, incluir_hashtags } = req.body;
+    const caption = await gerarCaption({ tipo_evento, cliente_nome, tom, contexto, incluir_hashtags });
+    res.json({ success: true, data: { caption } });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
 // Presigned GET URL para exibir imagens (admin)
 app.post('/admin/fotos/view-url', adminAuth, async (req, res) => {
   try {

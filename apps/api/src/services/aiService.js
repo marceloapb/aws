@@ -1,0 +1,85 @@
+/**
+ * Serviço de IA — Amazon Bedrock (Claude 3 Haiku)
+ * Gera captions para Instagram, textos para contratos, etc.
+ */
+
+const { BedrockRuntimeClient, InvokeModelCommand } = require('@aws-sdk/client-bedrock-runtime');
+
+const bedrock = new BedrockRuntimeClient({ region: 'us-east-1' });
+const MODEL_ID = 'anthropic.claude-3-haiku-20240307-v1:0';
+
+/**
+ * Gera caption para Instagram
+ * @param {Object} opts
+ * @param {string} opts.tipo_evento - casamento, ensaio, etc
+ * @param {string} opts.cliente_nome - nome do cliente
+ * @param {string} opts.tom - profissional, descontraido, emocional, poetico
+ * @param {string} opts.contexto - informações extras (local, data, etc)
+ * @param {boolean} opts.incluir_hashtags - incluir hashtags
+ */
+async function gerarCaption({ tipo_evento, cliente_nome, tom = 'emocional', contexto = '', incluir_hashtags = true }) {
+  const prompt = `Você é um fotógrafo profissional brasileiro especializado em ${tipo_evento || 'fotografia'}. 
+Gere uma caption criativa e envolvente para Instagram.
+
+Contexto:
+- Tipo de sessão: ${tipo_evento || 'ensaio fotográfico'}
+- Cliente: ${cliente_nome || 'cliente'}
+- Tom desejado: ${tom}
+${contexto ? `- Detalhes: ${contexto}` : ''}
+
+Regras:
+- Máximo 150 palavras na caption
+- Use emojis com moderação (2-3 no máximo)
+- Escreva em português brasileiro
+- Seja autêntico e emocional
+- ${incluir_hashtags ? 'Inclua 10-15 hashtags relevantes ao final separadas por espaço' : 'NÃO inclua hashtags'}
+
+Responda APENAS com a caption pronta, sem explicações.`;
+
+  const body = JSON.stringify({
+    anthropic_version: 'bedrock-2023-05-31',
+    max_tokens: 500,
+    messages: [{ role: 'user', content: prompt }],
+  });
+
+  const command = new InvokeModelCommand({
+    modelId: MODEL_ID,
+    contentType: 'application/json',
+    accept: 'application/json',
+    body,
+  });
+
+  const response = await bedrock.send(command);
+  const result = JSON.parse(new TextDecoder().decode(response.body));
+  return result.content[0].text;
+}
+
+/**
+ * Gera texto para story do Instagram
+ */
+async function gerarTextoStory({ tipo_evento, cliente_nome, estilo = 'minimalista' }) {
+  const prompt = `Gere um texto curto (máximo 2 linhas) para um Story de Instagram de um fotógrafo profissional.
+Sessão: ${tipo_evento || 'ensaio'}
+Cliente: ${cliente_nome || ''}
+Estilo visual: ${estilo}
+
+Responda APENAS com o texto do overlay (1-2 linhas curtas). Sem hashtags, sem emojis excessivos.`;
+
+  const body = JSON.stringify({
+    anthropic_version: 'bedrock-2023-05-31',
+    max_tokens: 100,
+    messages: [{ role: 'user', content: prompt }],
+  });
+
+  const response = await bedrock.send(new InvokeModelCommand({
+    modelId: MODEL_ID,
+    contentType: 'application/json',
+    accept: 'application/json',
+    body,
+  }));
+
+  const result = JSON.parse(new TextDecoder().decode(response.body));
+  return result.content[0].text;
+}
+
+module.exports = { gerarCaption, gerarTextoStory };
