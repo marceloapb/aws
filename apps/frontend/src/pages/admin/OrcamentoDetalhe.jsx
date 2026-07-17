@@ -6,11 +6,15 @@ import { ArrowLeft, Send, CheckCircle, Copy, FileText, Edit2 } from 'lucide-reac
 const ACCENT = '#EA580C';
 const STATUS_MAP = {
   rascunho: { label: 'Rascunho', color: 'bg-gray-100 text-gray-600' },
-  enviado: { label: 'Enviado', color: 'bg-blue-50 text-blue-700' },
+  em_revisao: { label: 'Em revisão', color: 'bg-blue-50 text-blue-700' },
+  pronto_enviar: { label: 'Pronto p/ enviar', color: 'bg-purple-50 text-purple-700' },
+  enviado: { label: 'Enviado', color: 'bg-orange-50 text-orange-700' },
   aceito: { label: 'Aceito', color: 'bg-green-50 text-green-700' },
   confirmado: { label: 'Confirmado', color: 'bg-green-50 text-green-700' },
   recusado: { label: 'Recusado', color: 'bg-red-50 text-red-700' },
   expirado: { label: 'Expirado', color: 'bg-yellow-50 text-yellow-700' },
+  contrato_gerado: { label: 'Contrato gerado', color: 'bg-emerald-50 text-emerald-700' },
+  cancelado: { label: 'Cancelado', color: 'bg-red-100 text-red-800' },
 };
 
 export default function OrcamentoDetalhe() {

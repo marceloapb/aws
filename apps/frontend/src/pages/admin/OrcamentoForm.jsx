@@ -1,358 +1,465 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
+import {
+  ChevronLeft, ChevronRight, Plus, Trash2, Copy, Star, AlertTriangle,
+  User, Package, DollarSign, CreditCard, Send, Check, Calendar, MapPin
+} from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
-import { ArrowLeft, Plus, Trash2, ChevronUp, ChevronDown, AlertTriangle, UserPlus, Send, Save } from 'lucide-react';
 
 const ACCENT = '#EA580C';
-const TIPOS_EVENTO = ['Casamento', 'Ensaio', 'Batizado', 'Aniversário', 'Corporativo', '15 anos', 'Newborn'];
-const fmt = v => Number(v || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 });
+const STEPS = ['Cliente', 'Opções', 'Valores', 'Pagamento', 'Envio'];
+const EVENTO_TIPOS = ['Cerimônia', 'Recepção', 'Festa', 'Ensaio', 'Making Of', 'Outro'];
+
+const emptyEvento = () => ({ tipo: '', data: '', hora_inicio: '', hora_fim: '', local: '' });
+const emptyOpcao = () => ({
+  id: Date.now() + Math.random(),
+  nome: '',
+  descricao: '',
+  destaque: false,
+  eventos: [],
+  itens_snapshot: [],
+  desconto_tipo: 'pct',
+  desconto_valor: 0,
+});
 
 export default function OrcamentoForm() {
-  const { id } = useParams();
-  const [searchParams] = useSearchParams();
   const { authFetch } = useAuth();
   const navigate = useNavigate();
-  const [saving, setSaving] = useState(false);
+  const [step, setStep] = useState(0);
+  const [loading, setLoading] = useState(false);
+
   const [clientes, setClientes] = useState([]);
   const [catalogo, setCatalogo] = useState([]);
-  const [config, setConfig] = useState({});
-  const [showQuickClient, setShowQuickClient] = useState(false);
-  const [quickClient, setQuickClient] = useState({ nome: '', email: '', telefone: '' });
-  const [abaPayment, setAbaPayment] = useState('avista');
-  const [form, setForm] = useState({
-    cliente_id: searchParams.get('cliente_id') || '', tipo_evento: '', data_evento: '',
-    hora_inicio: '', hora_fim: '', local: '',
-    servicos: [], opcionais: [],
-    desconto_tipo: 'percentual', desconto_valor: 0, desconto_obs: '',
-    parcelas_sem_juros: 3, parcelas_com_juros: 6,
-    validade_dias: 7, mensagem: '', condicao_pagamento: 'avista',
+  const [config, setConfig] = useState({ max_desconto: 30, desconto_avista: 5, taxa_juros: 1.99 });
+
+  const [clienteId, setClienteId] = useState('');
+  const [showCadastro, setShowCadastro] = useState(false);
+  const [novoCliente, setNovoCliente] = useState({ nome: '', email: '', telefone: '' });
+  const [opcoes, setOpcoes] = useState([emptyOpcao()]);
+  const [condicoes, setCondicoes] = useState({
+    avista: { ativo: true, desconto_pct: 5 },
+    sem_juros: { ativo: true, max_parcelas: 6 },
+    com_juros: { ativo: true, max_parcelas: 12, taxa_mensal: 1.99 },
   });
+  const [validadeDias, setValidadeDias] = useState(7);
+  const [mensagem, setMensagem] = useState('');
 
-  useEffect(() => { loadDeps(); if (id) loadOrcamento(); }, [id]);
+  useEffect(() => {
+    Promise.all([
+      authFetch('/admin/clientes').then(r => r.json()),
+      authFetch('/admin/catalogo').then(r => r.json()),
+    ]).then(([cli, cat]) => {
+      setClientes(Array.isArray(cli) ? cli : cli.data || []);
+      setCatalogo(Array.isArray(cat) ? cat : cat.data || []);
+    }).catch(console.error);
+  }, []);
 
-  const loadDeps = async () => {
-    const [cliRes, catRes, cfgRes] = await Promise.all([
-      authFetch('/admin/clientes').then(r => r.json()).catch(() => ({ data: [] })),
-      authFetch('/admin/catalogo').then(r => r.json()).catch(() => ({ data: [] })),
-      authFetch('/admin/configuracoes').then(r => r.json()).catch(() => ({ data: {} })),
-    ]);
-    setClientes(cliRes.data || []);
-    setCatalogo(catRes.data || []);
-    const cfg = cfgRes.data || {};
-    setConfig(cfg);
-    if (!id) setForm(f => ({ ...f, validade_dias: cfg.validade_dias || 7, mensagem: cfg.mensagem_padrao || '' }));
+  const clienteSelecionado = useMemo(() => clientes.find(c => c.id === clienteId), [clientes, clienteId]);
+
+  // ─── HELPERS ───
+  const calcSubtotal = (op) => op.itens_snapshot.reduce((s, i) => s + i.valor_unitario * i.quantidade, 0);
+  const calcDesconto = (op) => {
+    const sub = calcSubtotal(op);
+    return op.desconto_tipo === 'pct' ? sub * (op.desconto_valor / 100) : op.desconto_valor;
   };
-
-  const loadOrcamento = async () => {
-    const res = await authFetch(`/admin/orcamentos/${id}`);
-    const json = await res.json();
-    if (json.success) setForm(f => ({ ...f, ...json.data, servicos: json.data.servicos || [], opcionais: json.data.opcionais || [] }));
+  const calcTotal = (op) => Math.max(0, calcSubtotal(op) - calcDesconto(op));
+  const calcPrice = (valor, parcelas, taxa) => {
+    const i = taxa / 100;
+    if (i === 0) return valor / parcelas;
+    return valor * (i * Math.pow(1 + i, parcelas)) / (Math.pow(1 + i, parcelas) - 1);
   };
+  const fmtBRL = (v) => (v || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
-  const set = (field, val) => setForm(f => ({ ...f, [field]: val }));
-  const handleChange = e => set(e.target.name, e.target.value);
-
-  // Duração calculada
-  const duracao = useMemo(() => {
-    if (!form.hora_inicio || !form.hora_fim) return null;
-    const [h1, m1] = form.hora_inicio.split(':').map(Number);
-    const [h2, m2] = form.hora_fim.split(':').map(Number);
-    const diff = (h2 * 60 + m2) - (h1 * 60 + m1);
-    return diff > 0 ? diff / 60 : null;
-  }, [form.hora_inicio, form.hora_fim]);
-
-  // Serviços
-  const addServico = (catId) => {
-    const item = catalogo.find(c => c.id === catId);
-    if (!item) return;
-    set('servicos', [...form.servicos, { catalogo_id: catId, nome: item.nome || item.name, valor_base: item.valor_base || item.price || 0, horas_extras: 0, valor_hora_extra: item.valor_hora_extra || 0 }]);
-  };
-  const updateServico = (i, field, val) => { const arr = [...form.servicos]; arr[i] = { ...arr[i], [field]: val }; set('servicos', arr); };
-  const removeServico = i => set('servicos', form.servicos.filter((_, idx) => idx !== i));
-  const moveServico = (i, dir) => { const arr = [...form.servicos]; const j = i + dir; if (j < 0 || j >= arr.length) return; [arr[i], arr[j]] = [arr[j], arr[i]]; set('servicos', arr); };
-
-  // Opcionais
-  const addOpcional = (catId) => {
-    const item = catalogo.find(c => c.id === catId);
-    if (!item) return;
-    set('opcionais', [...form.opcionais, { catalogo_id: catId, nome: item.nome || item.name, valor: item.valor_base || item.price || 0 }]);
-  };
-  const removeOpcional = i => set('opcionais', form.opcionais.filter((_, idx) => idx !== i));
-  const moveOpcional = (i, dir) => { const arr = [...form.opcionais]; const j = i + dir; if (j < 0 || j >= arr.length) return; [arr[i], arr[j]] = [arr[j], arr[i]]; set('opcionais', arr); };
-
-  // Cálculos
-  const subtotalServicos = form.servicos.reduce((s, it) => s + it.valor_base + (it.horas_extras * it.valor_hora_extra), 0);
-  const subtotalOpcionais = form.opcionais.reduce((s, it) => s + Number(it.valor), 0);
-  const subtotal = subtotalServicos + subtotalOpcionais;
-  const descontoValor = form.desconto_tipo === 'percentual' ? subtotal * (form.desconto_valor / 100) : Number(form.desconto_valor);
-  const valorFinal = Math.max(0, subtotal - descontoValor);
-  const maxDesconto = config.desconto_maximo || 20;
-  const descontoExcedido = form.desconto_tipo === 'percentual' && form.desconto_valor > maxDesconto;
-
-  // Condições de pagamento (Price)
-  const descontoAvista = config.desconto_avista || 5;
-  const valorAvista = valorFinal * (1 - descontoAvista / 100);
-  const maxParcelas = config.max_parcelas || 12;
-  const parcelaMinima = config.parcela_minima || 200;
-  const taxaJuros = config.taxa_juros || 2.5;
-  const valorParcelaSemJuros = valorFinal / (form.parcelas_sem_juros || 1);
-  const calcPrice = (valor, n, taxa) => { const i = taxa / 100; return valor * (i * Math.pow(1 + i, n)) / (Math.pow(1 + i, n) - 1); };
-  const valorParcelaComJuros = calcPrice(valorFinal, form.parcelas_com_juros || 1, taxaJuros);
-
-  // Validade
-  const dataExpiracao = useMemo(() => {
-    const d = new Date(); d.setDate(d.getDate() + Number(form.validade_dias || 7));
-    return d.toLocaleDateString('pt-BR');
-  }, [form.validade_dias]);
-
-  // Cadastro rápido
-  const handleQuickClient = async () => {
-    const res = await authFetch('/admin/clientes', { method: 'POST', body: JSON.stringify(quickClient) });
-    const json = await res.json();
-    if (json.success || json.data) {
-      const novo = json.data;
+  // ─── ACTIONS ───
+  const handleCadastroRapido = async () => {
+    try {
+      const res = await authFetch('/admin/clientes', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(novoCliente),
+      });
+      const novo = await res.json();
       setClientes(prev => [...prev, novo]);
-      set('cliente_id', novo.id);
-      setShowQuickClient(false);
-      setQuickClient({ nome: '', email: '', telefone: '' });
-    }
+      setClienteId(novo.id);
+      setShowCadastro(false);
+      setNovoCliente({ nome: '', email: '', telefone: '' });
+    } catch (e) { console.error(e); }
   };
 
-  // Submit
-  const handleSubmit = async (status = 'rascunho') => {
-    setSaving(true);
-    const payload = { ...form, subtotal, desconto: descontoValor, valor_total: valorFinal, status, duracao, condicao_pagamento: abaPayment };
-    const method = id ? 'PUT' : 'POST';
-    const path = id ? `/admin/orcamentos/${id}` : '/admin/orcamentos';
-    const res = await authFetch(path, { method, body: JSON.stringify(payload) });
-    const json = await res.json();
-    if (status === 'enviado' && json.data?.id) await authFetch(`/admin/orcamentos/${json.data.id}/enviar`, { method: 'POST' });
-    navigate('/admin/orcamentos');
-    setSaving(false);
+  const handleSubmit = async (statusInterno) => {
+    setLoading(true);
+    const payload = {
+      cliente_id: clienteId,
+      status_interno: statusInterno,
+      opcoes: opcoes.map(op => ({
+        nome: op.nome,
+        descricao: op.descricao,
+        destaque: op.destaque,
+        eventos: op.eventos,
+        itens_snapshot: op.itens_snapshot.map(it => ({
+          item_id: it.item_id, nome: it.nome, valor_unitario: it.valor_unitario,
+          quantidade: it.quantidade, valor_total: it.valor_unitario * it.quantidade,
+          snapshot_at: it.snapshot_at,
+        })),
+        desconto_tipo: op.desconto_tipo,
+        desconto_valor: op.desconto_valor,
+        valor_total: calcTotal(op),
+      })),
+      condicoes_pagamento: {
+        avista: condicoes.avista.ativo ? { desconto_pct: condicoes.avista.desconto_pct } : {},
+        sem_juros: condicoes.sem_juros.ativo ? { max_parcelas: condicoes.sem_juros.max_parcelas } : {},
+        com_juros: condicoes.com_juros.ativo ? { max_parcelas: condicoes.com_juros.max_parcelas, taxa_mensal: condicoes.com_juros.taxa_mensal } : {},
+      },
+      validade_dias: validadeDias,
+      mensagem,
+    };
+    try {
+      await authFetch('/admin/orcamentos', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      navigate('/admin/orcamentos');
+    } catch (e) { console.error(e); }
+    setLoading(false);
   };
 
-  const inputCls = 'w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-200 outline-none text-sm';
-  const sectionCls = 'bg-white rounded-xl border p-6 space-y-4';
-  const labelCls = 'block text-sm font-medium text-gray-700 mb-1';
-  const servicosCat = catalogo.filter(c => (c.tipo || c.type) === 'Serviço Principal');
-  const opcionaisCat = catalogo.filter(c => (c.tipo || c.type) === 'Adicional');
+  // ─── OPCAO MUTATIONS ───
+  const updateOpcao = (idx, field, val) => setOpcoes(prev => prev.map((o, i) => i === idx ? { ...o, [field]: val } : o));
+  const addOpcao = () => { if (opcoes.length < 5) setOpcoes([...opcoes, emptyOpcao()]); };
+  const removeOpcao = (idx) => setOpcoes(prev => prev.filter((_, i) => i !== idx));
+  const duplicarOpcao = (idx) => {
+    if (opcoes.length >= 5) return;
+    const dup = { ...JSON.parse(JSON.stringify(opcoes[idx])), id: Date.now() + Math.random(), nome: opcoes[idx].nome + ' (cópia)' };
+    setOpcoes([...opcoes.slice(0, idx + 1), dup, ...opcoes.slice(idx + 1)]);
+  };
+  const addEvento = (oi) => { const u = [...opcoes]; u[oi].eventos.push(emptyEvento()); setOpcoes(u); };
+  const updateEvento = (oi, ei, field, val) => { const u = [...opcoes]; u[oi].eventos[ei][field] = val; setOpcoes(u); };
+  const removeEvento = (oi, ei) => { const u = [...opcoes]; u[oi].eventos.splice(ei, 1); setOpcoes(u); };
+  const addItem = (oi, itemId) => {
+    const item = catalogo.find(c => c.id === itemId);
+    if (!item) return;
+    const u = [...opcoes];
+    u[oi].itens_snapshot.push({
+      item_id: item.id, nome: item.nome, descricao: item.descricao || '',
+      valor_unitario: item.valor || item.valor_unitario || 0,
+      quantidade: 1, snapshot_at: new Date().toISOString(),
+    });
+    setOpcoes(u);
+  };
+  const updateItem = (oi, ii, field, val) => { const u = [...opcoes]; u[oi].itens_snapshot[ii][field] = val; setOpcoes(u); };
+  const removeItem = (oi, ii) => { const u = [...opcoes]; u[oi].itens_snapshot.splice(ii, 1); setOpcoes(u); };
+
+  // ─── PROGRESS BAR ───
+  const ProgressBar = () => (
+    <div className="flex items-center justify-between mb-8">
+      {STEPS.map((label, i) => (
+        <div key={label} className="flex items-center flex-1">
+          <div className="flex flex-col items-center">
+            <div
+              className={`w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold border-2 transition-all ${
+                i <= step ? 'text-white border-transparent' : 'text-gray-400 border-gray-300 bg-white'
+              }`}
+              style={i <= step ? { backgroundColor: ACCENT } : {}}
+            >
+              {i < step ? <Check size={16} /> : i + 1}
+            </div>
+            <span className={`text-xs mt-1 ${i <= step ? 'font-semibold text-gray-800' : 'text-gray-400'}`}>{label}</span>
+          </div>
+          {i < STEPS.length - 1 && (
+            <div className={`flex-1 h-0.5 mx-2 ${i < step ? 'bg-orange-500' : 'bg-gray-200'}`} />
+          )}
+        </div>
+      ))}
+    </div>
+  );
+
+  // ─── STEP 1: CLIENTE ───
+  const StepCliente = () => (
+    <div className="space-y-4">
+      <h2 className="text-lg font-bold flex items-center gap-2"><User size={20} /> Selecione o Cliente</h2>
+      <div className="flex gap-3">
+        <select className="flex-1 border rounded-lg px-3 py-2 focus:ring-2 focus:ring-orange-300 outline-none"
+          value={clienteId} onChange={e => setClienteId(e.target.value)}>
+          <option value="">-- Selecionar cliente --</option>
+          {clientes.map(c => <option key={c.id} value={c.id}>{c.nome} — {c.email}</option>)}
+        </select>
+        <button type="button" onClick={() => setShowCadastro(!showCadastro)}
+          className="px-4 py-2 rounded-lg text-white text-sm font-medium" style={{ backgroundColor: ACCENT }}>
+          Cadastro rápido
+        </button>
+      </div>
+      {showCadastro && (
+        <div className="border rounded-lg p-4 bg-orange-50 space-y-3">
+          <h3 className="font-semibold text-sm">Novo cliente</h3>
+          <input placeholder="Nome" className="w-full border rounded px-3 py-2 text-sm" value={novoCliente.nome} onChange={e => setNovoCliente({ ...novoCliente, nome: e.target.value })} />
+          <input placeholder="Email" className="w-full border rounded px-3 py-2 text-sm" value={novoCliente.email} onChange={e => setNovoCliente({ ...novoCliente, email: e.target.value })} />
+          <input placeholder="Telefone" className="w-full border rounded px-3 py-2 text-sm" value={novoCliente.telefone} onChange={e => setNovoCliente({ ...novoCliente, telefone: e.target.value })} />
+          <button type="button" onClick={handleCadastroRapido} className="px-4 py-2 rounded text-white text-sm" style={{ backgroundColor: ACCENT }}>Salvar cliente</button>
+        </div>
+      )}
+      {clienteSelecionado && (
+        <div className="border rounded-lg p-4 bg-gray-50">
+          <p className="font-semibold">{clienteSelecionado.nome}</p>
+          <p className="text-sm text-gray-600">{clienteSelecionado.email} • {clienteSelecionado.telefone}</p>
+        </div>
+      )}
+    </div>
+  );
+
+  // ─── STEP 2: OPÇÕES ───
+  const StepOpcoes = () => (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <h2 className="text-lg font-bold flex items-center gap-2"><Package size={20} /> Opções do Orçamento</h2>
+        <button type="button" onClick={addOpcao} disabled={opcoes.length >= 5}
+          className="flex items-center gap-1 px-3 py-2 rounded-lg text-white text-sm disabled:opacity-50" style={{ backgroundColor: ACCENT }}>
+          <Plus size={14} /> Opção
+        </button>
+      </div>
+      {opcoes.map((opcao, oi) => (
+        <div key={opcao.id} className="border rounded-lg p-4 space-y-3 bg-white shadow-sm">
+          <div className="flex items-center justify-between">
+            <input placeholder="Nome da opção" className="flex-1 border rounded px-3 py-2 font-semibold"
+              value={opcao.nome} onChange={e => updateOpcao(oi, 'nome', e.target.value)} />
+            <div className="flex items-center gap-2 ml-3">
+              <button type="button" onClick={() => updateOpcao(oi, 'destaque', !opcao.destaque)}
+                className={`p-2 rounded ${opcao.destaque ? 'text-orange-600 bg-orange-100' : 'text-gray-400'}`} title="Destaque">
+                <Star size={18} fill={opcao.destaque ? ACCENT : 'none'} />
+              </button>
+              <button type="button" onClick={() => duplicarOpcao(oi)} className="p-2 text-gray-500 hover:text-blue-600" title="Duplicar"><Copy size={16} /></button>
+              <button type="button" onClick={() => removeOpcao(oi)} className="p-2 text-gray-500 hover:text-red-600" title="Remover"
+                disabled={opcoes.length <= 1}><Trash2 size={16} /></button>
+            </div>
+          </div>
+          <textarea placeholder="Descrição" className="w-full border rounded px-3 py-2 text-sm" rows={2}
+            value={opcao.descricao} onChange={e => updateOpcao(oi, 'descricao', e.target.value)} />
+          {/* Eventos */}
+          <div className="border-t pt-3">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-sm font-semibold flex items-center gap-1"><Calendar size={14} /> Eventos</span>
+              <button type="button" onClick={() => addEvento(oi)} className="text-xs px-2 py-1 rounded bg-gray-100 hover:bg-gray-200 flex items-center gap-1"><Plus size={12} /> Evento</button>
+            </div>
+            {opcao.eventos.map((ev, ei) => (
+              <div key={ei} className="grid grid-cols-6 gap-2 mb-2 items-center">
+                <select className="border rounded px-2 py-1 text-sm" value={ev.tipo} onChange={e => updateEvento(oi, ei, 'tipo', e.target.value)}>
+                  <option value="">Tipo</option>
+                  {EVENTO_TIPOS.map(t => <option key={t} value={t}>{t}</option>)}
+                </select>
+                <input type="date" className="border rounded px-2 py-1 text-sm" value={ev.data} onChange={e => updateEvento(oi, ei, 'data', e.target.value)} />
+                <input type="time" className="border rounded px-2 py-1 text-sm" value={ev.hora_inicio} onChange={e => updateEvento(oi, ei, 'hora_inicio', e.target.value)} />
+                <input type="time" className="border rounded px-2 py-1 text-sm" value={ev.hora_fim} onChange={e => updateEvento(oi, ei, 'hora_fim', e.target.value)} />
+                <input placeholder="Local" className="border rounded px-2 py-1 text-sm" value={ev.local} onChange={e => updateEvento(oi, ei, 'local', e.target.value)} />
+                <button type="button" onClick={() => removeEvento(oi, ei)} className="text-red-400 hover:text-red-600"><Trash2 size={14} /></button>
+              </div>
+            ))}
+          </div>
+          {/* Itens */}
+          <div className="border-t pt-3">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-sm font-semibold">Itens do Catálogo</span>
+              <select className="text-xs border rounded px-2 py-1" onChange={e => { addItem(oi, e.target.value); e.target.value = ''; }} defaultValue="">
+                <option value="">+ Item do Catálogo</option>
+                {catalogo.map(c => <option key={c.id} value={c.id}>{c.nome} — {fmtBRL(c.valor || c.valor_unitario || 0)}</option>)}
+              </select>
+            </div>
+            {opcao.itens_snapshot.map((it, ii) => (
+              <div key={ii} className="flex items-center gap-2 mb-1 text-sm bg-gray-50 rounded px-2 py-1">
+                <span className="flex-1 truncate">{it.nome}</span>
+                <input type="number" min={0} step={0.01} className="w-24 border rounded px-1 py-0.5 text-center text-sm"
+                  value={it.valor_unitario} onChange={e => updateItem(oi, ii, 'valor_unitario', Math.max(0, +e.target.value))} />
+                <span className="text-gray-400">×</span>
+                <input type="number" min={1} className="w-14 border rounded px-1 py-0.5 text-center" value={it.quantidade}
+                  onChange={e => updateItem(oi, ii, 'quantidade', Math.max(1, +e.target.value))} />
+                <span className="font-medium w-24 text-right">{fmtBRL(it.valor_unitario * it.quantidade)}</span>
+                <button type="button" onClick={() => removeItem(oi, ii)} className="text-red-400 hover:text-red-600"><Trash2 size={14} /></button>
+              </div>
+            ))}
+          </div>
+          <div className="border-t pt-2 text-right">
+            <span className="text-sm text-gray-500">Subtotal:</span>
+            <span className="ml-2 font-bold text-lg">{fmtBRL(calcSubtotal(opcao))}</span>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+
+
+  // ─── STEP 3: VALORES ───
+  const StepValores = () => (
+    <div className="space-y-4">
+      <h2 className="text-lg font-bold flex items-center gap-2"><DollarSign size={20} /> Descontos e Valores Finais</h2>
+      {opcoes.map((opcao, oi) => {
+        const sub = calcSubtotal(opcao);
+        const desc = calcDesconto(opcao);
+        const total = calcTotal(opcao);
+        const excede = opcao.desconto_tipo === 'pct' ? opcao.desconto_valor > config.max_desconto : desc > sub * (config.max_desconto / 100);
+        return (
+          <div key={opcao.id} className="border rounded-lg p-4 bg-white shadow-sm space-y-3">
+            <h3 className="font-semibold">{opcao.nome || `Opção ${oi + 1}`}</h3>
+            <div className="flex items-center gap-3">
+              <select className="border rounded px-3 py-2 text-sm" value={opcao.desconto_tipo}
+                onChange={e => updateOpcao(oi, 'desconto_tipo', e.target.value)}>
+                <option value="pct">Percentual (%)</option>
+                <option value="fixo">Valor fixo (R$)</option>
+              </select>
+              <input type="number" min={0} step={0.01} className="w-28 border rounded px-3 py-2 text-sm"
+                value={opcao.desconto_valor} onChange={e => updateOpcao(oi, 'desconto_valor', Math.max(0, +e.target.value))} />
+              <span className="text-sm text-gray-500">Desconto: {fmtBRL(desc)}</span>
+            </div>
+            {excede && (
+              <div className="flex items-center gap-2 text-amber-700 bg-amber-50 border border-amber-200 rounded p-2 text-sm">
+                <AlertTriangle size={16} /> Desconto excede o máximo permitido ({config.max_desconto}%)
+              </div>
+            )}
+            <div className="flex items-center justify-between pt-2 border-t">
+              <span className="text-sm text-gray-500">Subtotal: {fmtBRL(sub)}</span>
+              <span className="text-lg font-bold" style={{ color: ACCENT }}>Total: {fmtBRL(total)}</span>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+
+
+  // ─── STEP 4: PAGAMENTO ───
+  const StepPagamento = () => (
+    <div className="space-y-4">
+      <h2 className="text-lg font-bold flex items-center gap-2"><CreditCard size={20} /> Condições de Pagamento</h2>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {/* À Vista */}
+        <div className={`border rounded-lg p-4 space-y-3 ${condicoes.avista.ativo ? 'bg-white shadow-sm' : 'bg-gray-50 opacity-60'}`}>
+          <div className="flex items-center justify-between">
+            <h3 className="font-semibold text-sm">À Vista</h3>
+            <label className="relative inline-flex items-center cursor-pointer">
+              <input type="checkbox" className="sr-only peer" checked={condicoes.avista.ativo}
+                onChange={e => setCondicoes({ ...condicoes, avista: { ...condicoes.avista, ativo: e.target.checked } })} />
+              <div className="w-9 h-5 bg-gray-200 peer-checked:bg-orange-500 rounded-full after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:after:translate-x-full"></div>
+            </label>
+          </div>
+          <div className="flex items-center gap-2">
+            <label className="text-xs text-gray-500">Desconto %</label>
+            <input type="number" min={0} max={100} className="w-20 border rounded px-2 py-1 text-sm"
+              value={condicoes.avista.desconto_pct} onChange={e => setCondicoes({ ...condicoes, avista: { ...condicoes.avista, desconto_pct: +e.target.value } })} />
+          </div>
+          {condicoes.avista.ativo && opcoes.map((op, i) => {
+            const total = calcTotal(op);
+            const val = total * (1 - condicoes.avista.desconto_pct / 100);
+            return <p key={i} className="text-xs text-gray-600">{op.nome || `Opção ${i+1}`}: <span className="font-semibold">{fmtBRL(val)}</span></p>;
+          })}
+        </div>
+        {/* Sem Juros */}
+        <div className={`border rounded-lg p-4 space-y-3 ${condicoes.sem_juros.ativo ? 'bg-white shadow-sm' : 'bg-gray-50 opacity-60'}`}>
+          <div className="flex items-center justify-between">
+            <h3 className="font-semibold text-sm">Sem Juros</h3>
+            <label className="relative inline-flex items-center cursor-pointer">
+              <input type="checkbox" className="sr-only peer" checked={condicoes.sem_juros.ativo}
+                onChange={e => setCondicoes({ ...condicoes, sem_juros: { ...condicoes.sem_juros, ativo: e.target.checked } })} />
+              <div className="w-9 h-5 bg-gray-200 peer-checked:bg-orange-500 rounded-full after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:after:translate-x-full"></div>
+            </label>
+          </div>
+          <div className="flex items-center gap-2">
+            <label className="text-xs text-gray-500">Parcelas</label>
+            <input type="number" min={1} max={24} className="w-20 border rounded px-2 py-1 text-sm"
+              value={condicoes.sem_juros.max_parcelas} onChange={e => setCondicoes({ ...condicoes, sem_juros: { ...condicoes.sem_juros, max_parcelas: +e.target.value } })} />
+          </div>
+          {condicoes.sem_juros.ativo && opcoes.map((op, i) => {
+            const total = calcTotal(op);
+            const parc = total / condicoes.sem_juros.max_parcelas;
+            return <p key={i} className="text-xs text-gray-600">{op.nome || `Opção ${i+1}`}: {condicoes.sem_juros.max_parcelas}× <span className="font-semibold">{fmtBRL(parc)}</span></p>;
+          })}
+        </div>
+        {/* Com Juros */}
+        <div className={`border rounded-lg p-4 space-y-3 ${condicoes.com_juros.ativo ? 'bg-white shadow-sm' : 'bg-gray-50 opacity-60'}`}>
+          <div className="flex items-center justify-between">
+            <h3 className="font-semibold text-sm">Com Juros</h3>
+            <label className="relative inline-flex items-center cursor-pointer">
+              <input type="checkbox" className="sr-only peer" checked={condicoes.com_juros.ativo}
+                onChange={e => setCondicoes({ ...condicoes, com_juros: { ...condicoes.com_juros, ativo: e.target.checked } })} />
+              <div className="w-9 h-5 bg-gray-200 peer-checked:bg-orange-500 rounded-full after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:after:translate-x-full"></div>
+            </label>
+          </div>
+          <div className="flex items-center gap-2">
+            <label className="text-xs text-gray-500">Parcelas</label>
+            <input type="number" min={1} max={48} className="w-16 border rounded px-2 py-1 text-sm"
+              value={condicoes.com_juros.max_parcelas} onChange={e => setCondicoes({ ...condicoes, com_juros: { ...condicoes.com_juros, max_parcelas: +e.target.value } })} />
+            <label className="text-xs text-gray-500">Taxa %</label>
+            <input type="number" min={0} step={0.01} className="w-16 border rounded px-2 py-1 text-sm"
+              value={condicoes.com_juros.taxa_mensal} onChange={e => setCondicoes({ ...condicoes, com_juros: { ...condicoes.com_juros, taxa_mensal: +e.target.value } })} />
+          </div>
+          {condicoes.com_juros.ativo && opcoes.map((op, i) => {
+            const total = calcTotal(op);
+            const parc = calcPrice(total, condicoes.com_juros.max_parcelas, condicoes.com_juros.taxa_mensal);
+            return <p key={i} className="text-xs text-gray-600">{op.nome || `Opção ${i+1}`}: {condicoes.com_juros.max_parcelas}× <span className="font-semibold">{fmtBRL(parc)}</span></p>;
+          })}
+        </div>
+      </div>
+    </div>
+  );
+
+
+  // ─── STEP 5: ENVIO ───
+  const StepEnvio = () => (
+    <div className="space-y-4">
+      <h2 className="text-lg font-bold flex items-center gap-2"><Send size={20} /> Envio</h2>
+      <div className="border rounded-lg p-4 bg-white shadow-sm space-y-4">
+        <div className="flex items-center gap-4">
+          <label className="text-sm font-medium">Validade (dias)</label>
+          <input type="number" min={1} max={90} className="w-20 border rounded px-3 py-2 text-sm"
+            value={validadeDias} onChange={e => setValidadeDias(Math.max(1, +e.target.value))} />
+        </div>
+        <div>
+          <label className="text-sm font-medium block mb-1">Mensagem personalizada</label>
+          <textarea className="w-full border rounded px-3 py-2 text-sm" rows={4} placeholder="Mensagem que acompanhará o orçamento..."
+            value={mensagem} onChange={e => setMensagem(e.target.value)} />
+        </div>
+        <div className="flex items-center gap-3 pt-4 border-t">
+          <button type="button" onClick={() => handleSubmit('rascunho')} disabled={loading}
+            className="px-5 py-2.5 border rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50">
+            Salvar Rascunho
+          </button>
+          <button type="button" onClick={() => handleSubmit('enviado')} disabled={loading || !clienteId}
+            className="px-5 py-2.5 rounded-lg text-white text-sm font-medium disabled:opacity-50 flex items-center gap-2"
+            style={{ backgroundColor: ACCENT }}>
+            <Send size={16} /> Enviar Orçamento
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+
+  // ─── RENDER ───
+  const stepContent = [StepCliente, StepOpcoes, StepValores, StepPagamento, StepEnvio];
+  const CurrentStep = stepContent[step];
 
   return (
-    <div>
-      <button onClick={() => navigate('/admin/orcamentos')} className="flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700 mb-4">
-        <ArrowLeft size={16} /> Voltar
-      </button>
-      <h1 className="text-2xl font-bold text-gray-900 mb-6">{id ? 'Editar Orçamento' : 'Novo Orçamento'}</h1>
+    <div className="max-w-4xl mx-auto p-6">
+      <div className="flex items-center justify-between mb-6">
+        <h1 className="text-2xl font-bold text-gray-800">Novo Orçamento</h1>
+        <button onClick={() => navigate('/admin/orcamentos')} className="text-sm text-gray-500 hover:text-gray-700">← Voltar</button>
+      </div>
 
-      <div className="space-y-6">
-        {/* SEÇÃO 1 - Cliente */}
-        <div className={sectionCls}>
-          <div className="flex items-center justify-between">
-            <h3 className="font-semibold text-gray-900">1. Cliente</h3>
-            <button type="button" onClick={() => setShowQuickClient(!showQuickClient)} className="text-sm font-medium flex items-center gap-1" style={{ color: ACCENT }}>
-              <UserPlus size={14} /> Cadastro rápido
-            </button>
-          </div>
-          <select name="cliente_id" value={form.cliente_id} onChange={handleChange} className={inputCls}>
-            <option value="">Selecione o cliente...</option>
-            {clientes.map(c => <option key={c.id} value={c.id}>{c.nome || c.name} — {c.email}</option>)}
-          </select>
-          {showQuickClient && (
-            <div className="grid md:grid-cols-4 gap-3 p-4 bg-orange-50 rounded-lg border border-orange-200">
-              <input placeholder="Nome" value={quickClient.nome} onChange={e => setQuickClient({ ...quickClient, nome: e.target.value })} className={inputCls} />
-              <input placeholder="Email" type="email" value={quickClient.email} onChange={e => setQuickClient({ ...quickClient, email: e.target.value })} className={inputCls} />
-              <input placeholder="Telefone" value={quickClient.telefone} onChange={e => setQuickClient({ ...quickClient, telefone: e.target.value })} className={inputCls} />
-              <button type="button" onClick={handleQuickClient} className="px-4 py-2.5 text-white rounded-lg text-sm font-medium" style={{ background: ACCENT }}>Salvar</button>
-            </div>
-          )}
-        </div>
+      <ProgressBar />
 
-        {/* SEÇÃO 2 - Evento */}
-        <div className={sectionCls}>
-          <h3 className="font-semibold text-gray-900">2. Evento</h3>
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-            <div><label className={labelCls}>Tipo de Evento</label>
-              <select name="tipo_evento" value={form.tipo_evento} onChange={handleChange} className={inputCls}>
-                <option value="">Selecione...</option>
-                {TIPOS_EVENTO.map(t => <option key={t} value={t}>{t}</option>)}
-              </select></div>
-            <div><label className={labelCls}>Data do Evento</label>
-              <input name="data_evento" type="date" value={form.data_evento} onChange={handleChange} className={inputCls} /></div>
-            <div><label className={labelCls}>Local</label>
-              <input name="local" value={form.local} onChange={handleChange} className={inputCls} /></div>
-            <div><label className={labelCls}>Hora Início</label>
-              <input name="hora_inicio" type="time" value={form.hora_inicio} onChange={handleChange} className={inputCls} /></div>
-            <div><label className={labelCls}>Hora Fim</label>
-              <input name="hora_fim" type="time" value={form.hora_fim} onChange={handleChange} className={inputCls} /></div>
-            <div><label className={labelCls}>Duração</label>
-              <div className="px-3 py-2.5 bg-gray-100 border rounded-lg text-sm text-gray-700">{duracao ? `${duracao.toFixed(1)}h` : 'Automático'}</div></div>
-          </div>
-        </div>
+      <div className="min-h-[400px]">
+        <CurrentStep />
+      </div>
 
-        {/* SEÇÃO 3 - Serviços e Opcionais */}
-        <div className={sectionCls}>
-          <div className="flex items-center justify-between">
-            <h3 className="font-semibold text-gray-900">3. Serviços e Opcionais</h3>
-            <div className="flex gap-2">
-              <select onChange={e => { addServico(e.target.value); e.target.value = ''; }} className="text-sm border rounded-lg px-2 py-1.5" defaultValue="">
-                <option value="" disabled>+ Serviço</option>
-                {servicosCat.map(c => <option key={c.id} value={c.id}>{c.nome || c.name}</option>)}
-              </select>
-              <select onChange={e => { addOpcional(e.target.value); e.target.value = ''; }} className="text-sm border rounded-lg px-2 py-1.5" defaultValue="">
-                <option value="" disabled>+ Opcional</option>
-                {opcionaisCat.map(c => <option key={c.id} value={c.id}>{c.nome || c.name}</option>)}
-              </select>
-            </div>
-          </div>
-
-          {form.servicos.length > 0 && <div className="space-y-2">
-            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Serviços Principais</p>
-            {form.servicos.map((s, i) => (
-              <div key={i} className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
-                <div className="flex flex-col gap-0.5">
-                  <button type="button" onClick={() => moveServico(i, -1)} className="text-gray-400 hover:text-gray-600"><ChevronUp size={14} /></button>
-                  <button type="button" onClick={() => moveServico(i, 1)} className="text-gray-400 hover:text-gray-600"><ChevronDown size={14} /></button>
-                </div>
-                <span className="flex-1 text-sm font-medium">{s.nome}</span>
-                <span className="text-sm text-gray-600">R$ {fmt(s.valor_base)}</span>
-                <div className="flex items-center gap-1">
-                  <input type="number" min={0} value={s.horas_extras} onChange={e => updateServico(i, 'horas_extras', Number(e.target.value))} className="w-14 px-2 py-1 border rounded text-sm text-center" />
-                  <span className="text-xs text-gray-500">h.extra</span>
-                </div>
-                <span className="text-xs text-gray-500">× R$ {fmt(s.valor_hora_extra)}</span>
-                <span className="text-sm font-semibold w-24 text-right">R$ {fmt(s.valor_base + s.horas_extras * s.valor_hora_extra)}</span>
-                <button type="button" onClick={() => removeServico(i)} className="p-1 text-red-400 hover:text-red-600"><Trash2 size={14} /></button>
-              </div>
-            ))}
-          </div>}
-
-          {form.opcionais.length > 0 && <div className="space-y-2">
-            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Opcionais / Adicionais</p>
-            {form.opcionais.map((o, i) => (
-              <div key={i} className="flex items-center gap-3 p-3 bg-orange-50 rounded-lg">
-                <div className="flex flex-col gap-0.5">
-                  <button type="button" onClick={() => moveOpcional(i, -1)} className="text-gray-400 hover:text-gray-600"><ChevronUp size={14} /></button>
-                  <button type="button" onClick={() => moveOpcional(i, 1)} className="text-gray-400 hover:text-gray-600"><ChevronDown size={14} /></button>
-                </div>
-                <span className="flex-1 text-sm font-medium">{o.nome}</span>
-                <span className="text-sm font-semibold">R$ {fmt(o.valor)}</span>
-                <button type="button" onClick={() => removeOpcional(i)} className="p-1 text-red-400 hover:text-red-600"><Trash2 size={14} /></button>
-              </div>
-            ))}
-          </div>}
-
-          {form.servicos.length === 0 && form.opcionais.length === 0 && (
-            <p className="text-sm text-gray-400 py-6 text-center">Adicione serviços e opcionais dos seus produtos</p>
-          )}
-          <div className="flex justify-end pt-3 border-t"><span className="text-sm text-gray-600">Sub-total: <b>R$ {fmt(subtotal)}</b></span></div>
-        </div>
-
-        {/* SEÇÃO 4 - Valores e Desconto */}
-        <div className={sectionCls}>
-          <h3 className="font-semibold text-gray-900">4. Valores e Desconto</h3>
-          <div className="grid md:grid-cols-3 gap-4">
-            <div><label className={labelCls}>Tipo de Desconto</label>
-              <select name="desconto_tipo" value={form.desconto_tipo} onChange={handleChange} className={inputCls}>
-                <option value="percentual">Percentual (%)</option>
-                <option value="fixo">Valor Fixo (R$)</option>
-              </select></div>
-            <div><label className={labelCls}>Desconto</label>
-              <input name="desconto_valor" type="number" step="0.01" min={0} value={form.desconto_valor} onChange={handleChange} className={inputCls} /></div>
-            <div className="flex items-end"><div className="px-3 py-2.5 bg-gray-100 border rounded-lg text-sm w-full text-center">
-              Subtotal: R$ {fmt(subtotal)}</div></div>
-          </div>
-          {descontoExcedido && (
-            <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
-              <AlertTriangle size={16} /> Acima do máximo permitido ({maxDesconto}%)
-            </div>
-          )}
-          {form.desconto_valor > 0 && (
-            <div><label className={labelCls}>Observação do desconto <span className="text-red-500">*</span></label>
-              <textarea name="desconto_obs" value={form.desconto_obs} onChange={handleChange} rows={2} className={`${inputCls} resize-none`} placeholder="Justifique o desconto aplicado..." /></div>
-          )}
-          <div className="flex justify-end pt-4 border-t">
-            <div className="text-right">
-              <p className="text-sm text-gray-500">Valor Final</p>
-              <p className="text-3xl font-bold" style={{ color: ACCENT }}>R$ {fmt(valorFinal)}</p>
-            </div>
-          </div>
-        </div>
-
-        {/* SEÇÃO 5 - Condições de Pagamento */}
-        <div className={sectionCls}>
-          <h3 className="font-semibold text-gray-900">5. Condições de Pagamento</h3>
-          <div className="flex gap-1 bg-gray-100 p-1 rounded-lg w-fit">
-            {[['avista', 'À Vista'], ['sem_juros', 'Sem Juros'], ['com_juros', 'Com Juros']].map(([k, label]) => (
-              <button key={k} type="button" onClick={() => setAbaPayment(k)}
-                className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${abaPayment === k ? 'bg-white shadow text-gray-900' : 'text-gray-500 hover:text-gray-700'}`}>
-                {label}
-              </button>
-            ))}
-          </div>
-
-          {abaPayment === 'avista' && (
-            <div className="p-4 bg-green-50 rounded-lg border border-green-200">
-              <p className="text-sm text-green-800">Desconto de <b>{descontoAvista}%</b> para pagamento à vista</p>
-              <p className="text-2xl font-bold text-green-700 mt-1">R$ {fmt(valorAvista)}</p>
-            </div>
-          )}
-
-          {abaPayment === 'sem_juros' && (
-            <div className="space-y-3">
-              <div><label className={labelCls}>Parcelas</label>
-                <select name="parcelas_sem_juros" value={form.parcelas_sem_juros} onChange={handleChange} className={inputCls}>
-                  {Array.from({ length: maxParcelas }, (_, i) => i + 1).map(n => <option key={n} value={n}>{n}x</option>)}
-                </select></div>
-              <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
-                <p className="text-lg font-bold text-blue-700">{form.parcelas_sem_juros}x de R$ {fmt(valorParcelaSemJuros)}</p>
-                {valorParcelaSemJuros < parcelaMinima && <p className="text-sm text-red-600 mt-1">⚠ Parcela abaixo do mínimo (R$ {fmt(parcelaMinima)})</p>}
-              </div>
-            </div>
-          )}
-
-          {abaPayment === 'com_juros' && (
-            <div className="space-y-3">
-              <div><label className={labelCls}>Parcelas (taxa: {taxaJuros}% a.m.)</label>
-                <select name="parcelas_com_juros" value={form.parcelas_com_juros} onChange={handleChange} className={inputCls}>
-                  {Array.from({ length: maxParcelas }, (_, i) => i + 1).map(n => <option key={n} value={n}>{n}x</option>)}
-                </select></div>
-              <div className="p-4 bg-yellow-50 rounded-lg border border-yellow-200">
-                <p className="text-lg font-bold text-yellow-800">{form.parcelas_com_juros}x de R$ {fmt(valorParcelaComJuros)}</p>
-                <p className="text-xs text-yellow-700">Total: R$ {fmt(valorParcelaComJuros * form.parcelas_com_juros)} (Sistema Price)</p>
-                {valorParcelaComJuros < parcelaMinima && <p className="text-sm text-red-600 mt-1">⚠ Parcela abaixo do mínimo (R$ {fmt(parcelaMinima)})</p>}
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* SEÇÃO 6 - Validade e Envio */}
-        <div className={sectionCls}>
-          <h3 className="font-semibold text-gray-900">6. Validade e Envio</h3>
-          <div className="grid md:grid-cols-2 gap-4">
-            <div><label className={labelCls}>Validade (dias)</label>
-              <input name="validade_dias" type="number" min={1} value={form.validade_dias} onChange={handleChange} className={inputCls} /></div>
-            <div><label className={labelCls}>Data de Expiração</label>
-              <div className="px-3 py-2.5 bg-gray-100 border rounded-lg text-sm text-gray-700">{dataExpiracao}</div></div>
-          </div>
-          <div><label className={labelCls}>Mensagem Personalizada</label>
-            <textarea name="mensagem" value={form.mensagem} onChange={handleChange} rows={3} className={`${inputCls} resize-none`}
-              placeholder={config.mensagem_placeholder || 'Obrigado pelo interesse! Segue nossa proposta...'} /></div>
-        </div>
-
-        {/* Ações */}
-        <div className="flex gap-3 justify-end pb-8">
-          <button type="button" onClick={() => navigate('/admin/orcamentos')} className="px-5 py-2.5 border rounded-lg text-sm font-medium hover:bg-gray-50">
-            Cancelar
+      {/* Navigation */}
+      <div className="flex items-center justify-between mt-8 pt-4 border-t">
+        <button type="button" onClick={() => setStep(s => s - 1)} disabled={step === 0}
+          className="flex items-center gap-1 px-4 py-2 rounded-lg border text-sm font-medium text-gray-600 hover:bg-gray-50 disabled:opacity-30">
+          <ChevronLeft size={16} /> Anterior
+        </button>
+        <span className="text-sm text-gray-400">{step + 1} de {STEPS.length}</span>
+        {step < STEPS.length - 1 && (
+          <button type="button" onClick={() => setStep(s => s + 1)}
+            className="flex items-center gap-1 px-4 py-2 rounded-lg text-white text-sm font-medium"
+            style={{ backgroundColor: ACCENT }}>
+            Próximo <ChevronRight size={16} />
           </button>
-          <button type="button" onClick={() => handleSubmit('rascunho')} disabled={saving}
-            className="px-5 py-2.5 border rounded-lg text-sm font-medium hover:bg-gray-50 disabled:opacity-50 flex items-center gap-2">
-            <Save size={16} /> Salvar Rascunho
-          </button>
-          <button type="button" onClick={() => handleSubmit('enviado')} disabled={saving} style={{ background: ACCENT }}
-            className="px-5 py-2.5 text-white rounded-lg text-sm font-medium hover:opacity-90 disabled:opacity-50 flex items-center gap-2">
-            <Send size={16} /> Salvar e Enviar
-          </button>
-        </div>
+        )}
+        {step === STEPS.length - 1 && <div />}
       </div>
     </div>
   );
