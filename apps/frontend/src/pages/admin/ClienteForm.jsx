@@ -2,36 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { Users, Save, ArrowLeft, X, Plus } from 'lucide-react';
+import MaskedInput from '../../components/form/MaskedInput';
+import AddressForm from '../../components/form/AddressForm';
 
 const ACCENT = '#EA580C';
-
-const COMO_CONHECEU_OPTIONS = ['Instagram', 'Google', 'Indicação', 'Outro'];
-
-const ESTADOS = [
-  'AC','AL','AP','AM','BA','CE','DF','ES','GO','MA','MT','MS','MG',
-  'PA','PB','PR','PE','PI','RJ','RN','RS','RO','RR','SC','SP','SE','TO'
-];
-
-function maskPhone(value) {
-  const digits = value.replace(/\D/g, '').slice(0, 11);
-  if (digits.length <= 2) return `(${digits}`;
-  if (digits.length <= 7) return `(${digits.slice(0,2)}) ${digits.slice(2)}`;
-  return `(${digits.slice(0,2)}) ${digits.slice(2,7)}-${digits.slice(7)}`;
-}
-
-function maskCPF(value) {
-  const digits = value.replace(/\D/g, '').slice(0, 11);
-  if (digits.length <= 3) return digits;
-  if (digits.length <= 6) return `${digits.slice(0,3)}.${digits.slice(3)}`;
-  if (digits.length <= 9) return `${digits.slice(0,3)}.${digits.slice(3,6)}.${digits.slice(6)}`;
-  return `${digits.slice(0,3)}.${digits.slice(3,6)}.${digits.slice(6,9)}-${digits.slice(9)}`;
-}
-
-function maskCEP(value) {
-  const digits = value.replace(/\D/g, '').slice(0, 8);
-  if (digits.length <= 5) return digits;
-  return `${digits.slice(0,5)}-${digits.slice(5)}`;
-}
 
 export default function ClienteForm() {
   const { authFetch } = useAuth();
@@ -212,34 +186,16 @@ export default function ClienteForm() {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Telefone</label>
-              <input
-                type="text"
-                value={form.telefone}
-                onChange={(e) => handleChange('telefone', maskPhone(e.target.value))}
-                placeholder="(00) 00000-0000"
-                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-200"
-              />
+              <MaskedInput type="phone" label="Telefone" value={form.telefone}
+                onChange={(e) => handleChange('telefone', e.target.value)} />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">WhatsApp</label>
-              <input
-                type="text"
-                value={form.whatsapp}
-                onChange={(e) => handleChange('whatsapp', maskPhone(e.target.value))}
-                placeholder="(00) 00000-0000"
-                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-200"
-              />
+              <MaskedInput type="phone" label="WhatsApp" value={form.whatsapp}
+                onChange={(e) => handleChange('whatsapp', e.target.value)} />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">CPF</label>
-              <input
-                type="text"
-                value={form.cpf}
-                onChange={(e) => handleChange('cpf', maskCPF(e.target.value))}
-                placeholder="000.000.000-00"
-                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-200"
-              />
+              <MaskedInput type="cpf" label="CPF" value={form.cpf}
+                onChange={(e) => handleChange('cpf', e.target.value)} />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Data de Nascimento</label>
