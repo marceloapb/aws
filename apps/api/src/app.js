@@ -103,6 +103,62 @@ app.use('/public', publicRoutes);
 // Auth pública (login/signup - sem auth)
 app.use('/auth', clientAuthRoutes);
 
+// Notificações in-app (admin)
+app.get('/admin/notificacoes', adminAuth, async (req, res) => {
+  try {
+    const { DynamoDBClient } = require('@aws-sdk/client-dynamodb');
+    const { DynamoDBDocumentClient, QueryCommand } = require('@aws-sdk/lib-dynamodb');
+    const ddb = DynamoDBDocumentClient.from(new DynamoDBClient({}));
+    const result = await ddb.send(new QueryCommand({
+      TableName: process.env.TABLE_NAME,
+      IndexName: 'GSI1',
+      KeyConditionExpression: 'GSI1PK = :pk',
+      ExpressionAttributeValues: { ':pk': `NOTIF#${req.user.sub}` },
+      ScanIndexForward: false,
+      Limit: 20,
+    }));
+    res.json({ success: true, data: result.Items || [] });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+app.get('/admin/notificacoes/count', adminAuth, async (req, res) => {
+  try {
+    const { DynamoDBClient } = require('@aws-sdk/client-dynamodb');
+    const { DynamoDBDocumentClient, QueryCommand } = require('@aws-sdk/lib-dynamodb');
+    const ddb = DynamoDBDocumentClient.from(new DynamoDBClient({}));
+    const result = await ddb.send(new QueryCommand({
+      TableName: process.env.TABLE_NAME,
+      IndexName: 'GSI1',
+      KeyConditionExpression: 'GSI1PK = :pk',
+      FilterExpression: 'lida = :false',
+      ExpressionAttributeValues: { ':pk': `NOTIF#${req.user.sub}`, ':false': false },
+      Select: 'COUNT',
+    }));
+    res.json({ success: true, data: { count: result.Count || 0 } });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+app.put('/admin/notificacoes/:id/lida', adminAuth, async (req, res) => {
+  try {
+    const { DynamoDBClient } = require('@aws-sdk/client-dynamodb');
+    const { DynamoDBDocumentClient, UpdateCommand } = require('@aws-sdk/lib-dynamodb');
+    const ddb = DynamoDBDocumentClient.from(new DynamoDBClient({}));
+    await ddb.send(new UpdateCommand({
+      TableName: process.env.TABLE_NAME,
+      Key: { PK: `TENANT#${req.user.sub}`, SK: `NOTIF#${req.params.id}` },
+      UpdateExpression: 'SET lida = :true',
+      ExpressionAttributeValues: { ':true': true },
+    }));
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
 // Presigned GET URL para exibir imagens (admin)
 app.post('/admin/fotos/view-url', adminAuth, async (req, res) => {
   try {

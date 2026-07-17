@@ -45,9 +45,11 @@ export default function Layout() {
             <button onClick={() => setSearchOpen(true)} className="sm:hidden p-2 rounded-md hover:bg-gray-100">
               <Search size={20} className="text-gray-500" />
             </button>
-            <span className="text-sm text-gray-600">Olá, <strong>{user?.name}</strong></span>
-            <div className="w-8 h-8 rounded-full bg-accent text-white flex items-center justify-center text-sm font-medium">
-              {user?.name?.charAt(0).toUpperCase()}
+            {/* Notification bell */}
+            <NotificationBell />
+            <span className="hidden sm:inline text-sm text-gray-600">Olá, <strong>{user?.email?.split('@')[0]}</strong></span>
+            <div className="w-8 h-8 rounded-full bg-orange-500 text-white flex items-center justify-center text-sm font-medium">
+              {(user?.email || 'U').charAt(0).toUpperCase()}
             </div>
           </div>
         </header>

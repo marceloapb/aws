@@ -83,6 +83,7 @@ function App() {
         <Route path="clientes/novo" element={<ClienteForm />} />
         <Route path="clientes/:id" element={<ClienteDetalhe />} />
         <Route path="clientes/:id/editar" element={<ClienteForm />} />
+        <Route path="clientes/:id/editar" element={<ClienteForm />} />
 
         {/* Outros */}
         <Route path="feedback" element={<Feedback />} />
