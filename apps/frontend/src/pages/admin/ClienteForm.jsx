@@ -2,8 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { Users, Save, ArrowLeft, X, Plus } from 'lucide-react';
-import MaskedInput from '../../components/form/MaskedInput';
-import AddressForm from '../../components/form/AddressForm';
 
 const ACCENT = '#EA580C';
 
@@ -186,16 +184,19 @@ export default function ClienteForm() {
               />
             </div>
             <div>
-              <MaskedInput type="phone" label="Telefone" value={form.telefone}
-                onChange={(e) => handleChange('telefone', e.target.value)} />
+              <label className="block text-sm font-medium text-gray-700 mb-1">Telefone</label>
+              <input type="text" value={form.telefone} onChange={(e) => handleChange('telefone', e.target.value)}
+                placeholder="(11) 99999-9999" className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-200" />
             </div>
             <div>
-              <MaskedInput type="phone" label="WhatsApp" value={form.whatsapp}
-                onChange={(e) => handleChange('whatsapp', e.target.value)} />
+              <label className="block text-sm font-medium text-gray-700 mb-1">WhatsApp</label>
+              <input type="text" value={form.whatsapp} onChange={(e) => handleChange('whatsapp', e.target.value)}
+                placeholder="(11) 99999-9999" className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-200" />
             </div>
             <div>
-              <MaskedInput type="cpf" label="CPF" value={form.cpf}
-                onChange={(e) => handleChange('cpf', e.target.value)} />
+              <label className="block text-sm font-medium text-gray-700 mb-1">CPF</label>
+              <input type="text" value={form.cpf} onChange={(e) => handleChange('cpf', e.target.value)}
+                placeholder="000.000.000-00" className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-200" />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Data de Nascimento</label>
