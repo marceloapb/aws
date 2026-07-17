@@ -1,4 +1,4 @@
-# CT-08: Notificações (Gerado + Assinado)
+# CT-08: Notificações (Contrato Gerado + Assinado)
 
 ## Metadados
 - **ID:** CT-08
@@ -9,92 +9,95 @@
 - **Dependência:** CT-05
 
 ## Contexto
-Notificar as partes em eventos-chave do contrato: (1) contrato gerado → cliente recebe link, (2) contrato assinado → admin notificado + cliente recebe cópia PDF.
+Enviar notificações por email e WhatsApp nos eventos: contrato gerado (para cliente), contrato assinado (para admin e cliente), contrato expirado (para admin).
 
 ## Escopo
 - `apps/backend/src/handlers/contratos/notificar.js` — NOVO
-- Consome eventos: 'contrato.gerado', 'contrato.assinado', 'contrato.pdf_gerado'
+- EventBridge: consumir eventos de contrato
+- SES: emails
+- WhatsApp (WPP-06): mensagens
 
 ## Fora de Escopo (NÃO TOCAR)
-- Follow-up automático (CT-09)
-- WhatsApp (WPP-* — se integrado, consome os mesmos eventos)
-- PDF (CT-06)
+- Aceite (CT-05)
+- Follow-up (CT-09 — régua separada)
+- Templates WhatsApp (WPP-03)
 
 ## Spec Técnica
 
-### Eventos → Notificações
-| Evento | Para | Canal | Conteúdo |
+### Eventos Consumidos
+| Evento | Destinatário | Canal | Mensagem |
 |---|---|---|---|
-| contrato.gerado | Cliente | Email + WhatsApp | Link para assinar |
-| contrato.gerado | Admin | In-app | "Contrato enviado para Ana" |
-| contrato.assinado | Admin | Email + WhatsApp + In-app | "Ana assinou o contrato!" |
-| contrato.pdf_gerado | Cliente | Email | PDF anexo |
-| contrato.expirado | Admin | In-app | "Contrato expirou" |
+| contrato.gerado | Cliente | Email + WhatsApp | "Seu contrato está pronto para assinatura" |
+| contrato.assinado | Admin | Email + WhatsApp | "Cliente assinou o contrato!" |
+| contrato.assinado | Cliente | Email | "Confirmação: contrato assinado" + PDF anexo |
+| contrato.expirado | Admin | Email | "Contrato expirou sem assinatura" |
+| contrato.pdf_gerado | Cliente | Email | PDF do contrato como anexo |
 
-### Email — Contrato Gerado (para cliente)
-```
-Assunto: Seu contrato está pronto para assinatura — {nome_fotografo}
-Corpo:
-  Olá {nome_cliente},
+### Notificação — Contrato Gerado (para cliente)
+```js
+async function notificarContratoGerado(evento) {
+  const { tenant_id, contrato_id } = evento
+  const contrato = await getContrato(tenant_id, contrato_id)
+  const cliente = await getCliente(tenant_id, contrato.cliente_id)
   
-  Seu contrato para {tipo_evento} está pronto!
-  Clique no link abaixo para visualizar e assinar:
+  // Email
+  await enviarEmail({
+    para: cliente.email,
+    assunto: 'Seu contrato está pronto para assinatura',
+    template: 'contrato-gerado',
+    dados: {
+      nome_cliente: cliente.nome,
+      link_contrato: contrato.link_cliente,
+      prazo_dias: contrato.prazo_assinatura_dias
+    }
+  })
   
-  [Assinar Contrato]({link_contrato})
-  
-  Prazo para assinatura: {prazo_dias} dias ({data_expiracao})
-  
-  Dúvidas? Responda este email.
-  
-  {nome_fotografo}
-```
-
-### Email — Contrato Assinado (PDF para cliente)
-```
-Assunto: ✅ Contrato assinado — cópia em anexo
-Corpo:
-  Olá {nome_cliente},
-  
-  Seu contrato foi assinado com sucesso em {data_aceite}!
-  Em anexo está sua cópia em PDF.
-  
-  Próximos passos:
-  - Aguarde confirmação do pagamento
-  - Entraremos em contato sobre os detalhes do evento
-  
-  {nome_fotografo}
-  
-Anexo: contrato_{id}.pdf
+  // WhatsApp (se configurado)
+  await enviarWhatsApp(tenant_id, cliente.telefone, 'contrato_gerado', {
+    nome: cliente.nome,
+    link: contrato.link_cliente
+  })
+}
 ```
 
-### WhatsApp (se WPP configurado)
-- Contrato gerado: template 'contrato_pronto' com link
-- Contrato assinado: texto livre (janela aberta pelo evento)
-
-### Regras
-- Email via SES
-- WhatsApp opcional (só se módulo WPP configurado)
-- Rate limit: não enviar mais de 1 notificação/minuto por cliente
-- Se email falha: log + retry
+### Notificação — Contrato Assinado (para admin)
+```js
+async function notificarContratoAssinado(evento) {
+  const { tenant_id, contrato_id } = evento
+  const contrato = await getContrato(tenant_id, contrato_id)
+  const cliente = await getCliente(tenant_id, contrato.cliente_id)
+  
+  // Email para admin
+  await enviarEmailAdmin(tenant_id, {
+    assunto: `✅ ${cliente.nome} assinou o contrato!`,
+    template: 'contrato-assinado-admin',
+    dados: { nome_cliente: cliente.nome, contrato_id }
+  })
+  
+  // WhatsApp para admin (WPP-10)
+  await avisarAdmin(tenant_id, `✅ ${cliente.nome} assinou o contrato para ${contrato.snapshot_orcamento.tipo_evento}`)
+}
+```
 
 ## Critérios de Aceite
-- [ ] Email enviado ao cliente (contrato gerado)
-- [ ] Email enviado ao cliente (PDF pós-aceite)
-- [ ] Admin notificado (in-app + email)
-- [ ] WhatsApp se configurado
-- [ ] Rate limit respeitado
-- [ ] Eventos consumidos corretamente
+- [ ] Email enviado ao gerar contrato
+- [ ] WhatsApp enviado ao gerar (se configurado)
+- [ ] Admin notificado ao assinar
+- [ ] Cliente recebe confirmação + PDF ao assinar
+- [ ] Admin notificado ao expirar
+- [ ] Consume eventos via EventBridge
 
 ## Prompt Pronto para o Kiro CLI
 
 ```
-Implemente a spec CT-08: Notificações de Contrato.
+Implemente a spec CT-08: Notificações de Contratos.
 
-1. Crie handlers/contratos/notificar.js: consumir eventos.
-2. Email SES: contrato gerado (link), contrato assinado (PDF).
-3. Notificação in-app para admin.
-4. WhatsApp se módulo configurado.
-5. SAM: triggers EventBridge para os 3 eventos.
+1. Crie handlers/contratos/notificar.js: consumir eventos contrato.*
+2. Contrato gerado: email + WhatsApp para cliente.
+3. Contrato assinado: email admin + email+PDF cliente.
+4. Contrato expirado: email admin.
+5. Usar SES + WPP-06 (se configurado).
+6. SAM: triggers EventBridge para 3 eventos.
 
 Altere SOMENTE os arquivos listados. Não refatore, renomeie ou mexa em mais nada.
 ```
