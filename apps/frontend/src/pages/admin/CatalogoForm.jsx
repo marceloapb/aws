@@ -37,7 +37,15 @@ export default function CatalogoForm() {
     try {
       const method = id ? 'PUT' : 'POST';
       const path = id ? `/admin/catalogo/${id}` : '/admin/catalogo';
-      const payload = { ...form, price: Number(form.price), duration: Number(form.duration) || null };
+      const payload = {
+        nome: form.name,
+        descricao: form.description,
+        tipo: form.category?.toLowerCase() || 'custom',
+        preco: Number(form.price),
+        duracaoHoras: Number(form.duration) || 0,
+        itensInclusos: form.includes || [],
+        quantidadeFotos: 0,
+      };
       await authFetch(path, { method, body: JSON.stringify(payload) });
       navigate('/admin/catalogo');
     } catch {}
