@@ -94,6 +94,34 @@ app.use('/public', publicRoutes);
 // Auth pública (login/signup - sem auth)
 app.use('/auth', clientAuthRoutes);
 
+// Storage stats (admin)
+app.get('/admin/storage/stats', adminAuth, async (req, res) => {
+  try {
+    const { S3Client, ListObjectsV2Command } = require('@aws-sdk/client-s3');
+    const s3 = new S3Client({});
+    const BUCKET = process.env.S3_BUCKET_NAME;
+    const prefixes = ['fotos/', 'backups/', 'uploads/', 'processed/', 'contratos/'];
+    const byPrefix = [];
+    let totalBytes = 0, totalObjects = 0;
+
+    for (const prefix of prefixes) {
+      let bytes = 0, objects = 0, token = undefined;
+      do {
+        const resp = await s3.send(new ListObjectsV2Command({ Bucket: BUCKET, Prefix: prefix, ContinuationToken: token }));
+        (resp.Contents || []).forEach(obj => { bytes += obj.Size; objects++; });
+        token = resp.IsTruncated ? resp.NextContinuationToken : undefined;
+      } while (token);
+      byPrefix.push({ prefix, bytes, objects });
+      totalBytes += bytes;
+      totalObjects += objects;
+    }
+
+    res.json({ success: true, data: { totalBytes, totalObjects, byPrefix, bucket: BUCKET } });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
 // Webhooks (sem auth - validação interna)
 app.use('/webhooks', webhooksRoutes);
 

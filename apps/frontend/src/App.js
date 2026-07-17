@@ -29,6 +29,7 @@ import Equipamentos from './pages/admin/Equipamentos';
 import Instagram from './pages/admin/Instagram';
 import WhatsApp from './pages/admin/WhatsApp';
 import ImportCSV from './pages/admin/ImportCSV';
+import Storage from './pages/admin/Storage';
 import MeusOrcamentos from './pages/cliente/MeusOrcamentos';
 import MeusContratos from './pages/cliente/MeusContratos';
 import MeusAlbuns from './pages/cliente/MeusAlbuns';
@@ -87,6 +88,7 @@ function App() {
         <Route path="instagram" element={<Instagram />} />
         <Route path="whatsapp" element={<WhatsApp />} />
         <Route path="import" element={<ImportCSV />} />
+        <Route path="storage" element={<Storage />} />
       </Route>
 
       {/* Cliente */}
