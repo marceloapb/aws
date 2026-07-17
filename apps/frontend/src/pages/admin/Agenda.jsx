@@ -173,10 +173,9 @@ export default function Agenda() {
                     </span>
                     <div className="mt-1 space-y-0.5">
                       {evts.slice(0, 3).map(ev => (
-                        <div key={ev.id} className="pill-evento px-1 py-0.5 rounded text-[10px] truncate cursor-pointer"
-                          style={{ backgroundColor: getStatusColor(ev.status).pill, color: '#fff' }}
+                        <div key={ev.id} className={`pill-evento px-1 py-0.5 rounded text-[10px] truncate cursor-pointer ${getStatusColor(ev.status || 'pendente').pill}`}
                           onClick={(e) => { e.stopPropagation(); setDrawerEvento(ev); }}>
-                          {ev.horario_inicio?.slice(0, 5)} {ev.cliente_nome}
+                          {ev.horario_inicio?.slice(0, 5)} {ev.cliente_nome || ev.tipo_evento}
                           {ev.reserva_expira_em && ev.reserva_expira_em <= 7 && <span className="ml-1">⏳</span>}
                         </div>
                       ))}
@@ -197,12 +196,11 @@ export default function Agenda() {
     <div className="space-y-3">
       {eventosFiltrados.sort((a, b) => a.data_evento.localeCompare(b.data_evento)).map(ev => (
         <div key={ev.id} onClick={() => setDrawerEvento(ev)}
-          className="bg-white rounded-xl border flex overflow-hidden cursor-pointer hover:shadow-md transition-shadow"
-          style={{ borderLeftWidth: '4px', borderLeftColor: getStatusColor(ev.status).border }}>
+          className={`bg-white rounded-xl border-l-4 flex overflow-hidden cursor-pointer hover:shadow-md transition-shadow ${getStatusColor(ev.status || 'pendente').border}`}>
           <div className="p-4 flex-1">
             <div className="flex items-center gap-2 mb-1">
-              <span className="font-semibold text-gray-900">{ev.cliente_nome}</span>
-              <span className="text-xs px-2 py-0.5 rounded-full" style={{ backgroundColor: getStatusColor(ev.status).pill, color: '#fff' }}>{ev.status}</span>
+              <span className="font-semibold text-gray-900">{ev.cliente_nome || ev.tipo_evento}</span>
+              <span className={`text-xs px-2 py-0.5 rounded-full ${getStatusColor(ev.status || 'pendente').badge}`}>{ev.status || 'pendente'}</span>
               <ExpirationBadge evento={ev} />
             </div>
             <div className="flex items-center gap-4 text-sm text-gray-500">
