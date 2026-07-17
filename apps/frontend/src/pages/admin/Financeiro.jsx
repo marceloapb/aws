@@ -203,12 +203,12 @@ export default function Financeiro() {
           {/* 6 KPIs */}
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
             {[
-              { label: 'Receita mês', valor: resumo.receita_mes, icon: TrendingUp, cor: 'text-green-600' },
-              { label: 'A receber', valor: resumo.a_receber, icon: Receipt, cor: 'text-blue-600' },
-              { label: 'Recebido', valor: resumo.recebido, icon: Check, cor: 'text-emerald-600' },
-              { label: 'Inadimplência', valor: `${resumo.inadimplencia_pct || 0}%`, icon: AlertTriangle, cor: 'text-red-600', raw: true },
-              { label: 'Ticket médio', valor: resumo.ticket_medio, icon: CreditCard, cor: 'text-purple-600' },
-              { label: 'Despesas mês', valor: resumo.despesas_mes, icon: TrendingDown, cor: 'text-red-500' },
+              { label: 'Receita mês', valor: resumo.receitaMesAtual || resumo.receita_mes || 0, icon: TrendingUp, cor: 'text-green-600' },
+              { label: 'A receber', valor: resumo.aReceber || resumo.a_receber || 0, icon: Receipt, cor: 'text-blue-600' },
+              { label: 'Recebido', valor: resumo.receitaTotal || resumo.recebido || 0, icon: Check, cor: 'text-emerald-600' },
+              { label: 'Inadimplência', valor: `${resumo.inadimplencia || resumo.inadimplencia_pct || 0}%`, icon: AlertTriangle, cor: 'text-red-600', raw: true },
+              { label: 'Ticket médio', valor: resumo.ticketMedio || resumo.ticket_medio || 0, icon: CreditCard, cor: 'text-purple-600' },
+              { label: 'Despesas mês', valor: resumo.despesas_mes || 0, icon: TrendingDown, cor: 'text-red-500' },
             ].map((kpi, i) => (
               <div key={i} className="bg-white rounded-xl border p-4 shadow-sm">
                 <div className="flex items-center gap-2 mb-1">
@@ -221,7 +221,7 @@ export default function Financeiro() {
           </div>
 
           {/* Gráfico Evolução 6 meses - CSS puro (FIN-20) */}
-          {resumo.evolucao && (
+          {(resumo.evolucao && resumo.evolucao.length > 0) ? (
             <div className="bg-white rounded-xl border p-6 shadow-sm">
               <h3 className="text-sm font-semibold text-gray-700 mb-4 flex items-center gap-2">
                 <BarChart3 size={16} /> Evolução Financeira — Últimos 6 meses
@@ -245,10 +245,19 @@ export default function Financeiro() {
                 <span className="flex items-center gap-1 text-xs"><span className="w-3 h-3 bg-red-500 rounded" /> Saídas</span>
               </div>
             </div>
+          ) : (
+            <div className="bg-white rounded-xl border p-6 shadow-sm">
+              <h3 className="text-sm font-semibold text-gray-700 mb-4 flex items-center gap-2">
+                <BarChart3 size={16} /> Evolução Financeira — Últimos 6 meses
+              </h3>
+              <div className="h-48 flex items-center justify-center text-gray-400 text-sm">
+                Dados de evolução aparecerão aqui conforme o sistema registrar receitas e despesas
+              </div>
+            </div>
           )}
 
           {/* Top 5 clientes */}
-          {resumo.top_clientes && (
+          {(resumo.top_clientes && resumo.top_clientes.length > 0) ? (
             <div className="bg-white rounded-xl border p-6 shadow-sm">
               <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
                 <Users size={16} /> Top 5 Clientes por Receita
@@ -261,6 +270,11 @@ export default function Financeiro() {
                   </div>
                 ))}
               </div>
+            </div>
+          ) : (
+            <div className="bg-white rounded-xl border p-6 shadow-sm">
+              <h3 className="text-sm font-semibold text-gray-700 mb-3">Top 5 Clientes</h3>
+              <div className="py-8 text-center text-gray-400 text-sm">Nenhuma receita registrada ainda</div>
             </div>
           )}
         </div>
