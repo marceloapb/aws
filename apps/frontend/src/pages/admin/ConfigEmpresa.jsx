@@ -95,16 +95,18 @@ export default function ConfigEmpresa() {
   return (
     <div>
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-center justify-between mb-6 flex-col sm:flex-row gap-3">
         <div className="flex items-center gap-3">
-          <Settings size={24} style={{ color: ACCENT }} />
+          <Settings size={24} style={{ color: '#EA580C' }} />
           <h1 className="text-2xl font-bold text-gray-900">Configurações</h1>
         </div>
-        <button onClick={handleSave} disabled={saving} style={{ background: ACCENT }}
-          className="inline-flex items-center gap-2 px-5 py-2.5 text-white rounded-lg text-sm font-medium hover:opacity-90 disabled:opacity-50">
-          <Save size={16} />
-          {saving ? 'Salvando...' : 'Salvar'}
-        </button>
+        <div className="flex gap-2">
+          <button onClick={handleSave} disabled={saving} style={{ background: ACCENT }}
+            className="inline-flex items-center gap-2 px-5 py-2.5 text-white rounded-lg text-sm font-medium hover:opacity-90 disabled:opacity-50">
+            <Save size={16} />
+            {saving ? 'Salvando...' : 'Salvar'}
+          </button>
+        </div>
       </div>
 
       {/* Feedback */}

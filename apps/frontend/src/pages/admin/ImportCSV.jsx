@@ -202,7 +202,14 @@ export default function ImportCSV() {
   // ═══ RENDER ═══
   return (
     <div className="p-6 max-w-6xl mx-auto space-y-8">
-      <h1 className="text-2xl font-bold" style={{ color: ACCENT }}>Importar / Exportar Dados</h1>
+      <div className="flex items-center justify-between mb-6 flex-col sm:flex-row gap-3">
+        <div className="flex items-center gap-3">
+          <Upload size={24} style={{ color: '#EA580C' }} />
+          <h1 className="text-2xl font-bold text-gray-900">Importar / Exportar Dados</h1>
+        </div>
+        <div className="flex gap-2">
+        </div>
+      </div>
 
       {/* Wizard Steps Indicator */}
       <div className="flex items-center gap-2 text-sm mb-4">

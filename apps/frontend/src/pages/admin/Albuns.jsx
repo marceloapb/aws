@@ -127,14 +127,16 @@ export default function Albuns() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between mb-6 flex-col sm:flex-row gap-3">
         <div className="flex items-center gap-3">
-          <Image size={24} style={{ color: ACCENT }} />
+          <Image size={24} style={{ color: '#EA580C' }} />
           <h1 className="text-2xl font-bold text-gray-900">Álbuns</h1>
         </div>
-        <button onClick={() => setModal(true)} style={{ background: ACCENT }} className="inline-flex items-center gap-2 px-4 py-2.5 text-white rounded-lg text-sm font-medium hover:opacity-90 transition shadow-sm">
-          <Plus size={16} /> Novo Álbum
-        </button>
+        <div className="flex gap-2">
+          <button onClick={() => setModal(true)} style={{ background: ACCENT }} className="inline-flex items-center gap-2 px-4 py-2.5 text-white rounded-lg text-sm font-medium hover:opacity-90 transition shadow-sm">
+            <Plus size={16} /> Novo Álbum
+          </button>
+        </div>
       </div>
 
       {/* KPIs */}

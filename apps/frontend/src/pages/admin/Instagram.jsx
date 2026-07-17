@@ -224,9 +224,13 @@ export default function Instagram() {
 
   return (
     <div>
-      <div className="flex items-center gap-3 mb-6">
-        <InstagramIcon size={24} style={{ color: ACCENT }} />
-        <h1 className="text-2xl font-bold text-gray-900">Instagram</h1>
+      <div className="flex items-center justify-between mb-6 flex-col sm:flex-row gap-3">
+        <div className="flex items-center gap-3">
+          <InstagramIcon size={24} style={{ color: '#EA580C' }} />
+          <h1 className="text-2xl font-bold text-gray-900">Instagram</h1>
+        </div>
+        <div className="flex gap-2">
+        </div>
       </div>
       <div className="flex gap-1 mb-6 border-b border-gray-200">
         {TABS.map((t, i) => (

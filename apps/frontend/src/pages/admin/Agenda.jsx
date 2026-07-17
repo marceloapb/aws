@@ -367,8 +367,11 @@ export default function Agenda() {
 
   return (
     <div className="p-6 max-w-7xl mx-auto">
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Agenda</h1>
+      <div className="flex items-center justify-between mb-6 flex-col sm:flex-row gap-3">
+        <div className="flex items-center gap-3">
+          <Calendar size={24} style={{ color: '#EA580C' }} />
+          <h1 className="text-2xl font-bold text-gray-900">Agenda</h1>
+        </div>
         <div className="flex gap-2">
           <button onClick={() => setModalBloquear(true)} className="px-4 py-2 rounded-lg text-sm font-medium border border-gray-300 hover:bg-gray-50 flex items-center gap-2"><Lock size={16} />Bloquear Data</button>
           <button onClick={() => setModalNovaSessao(true)} className="px-4 py-2 rounded-lg text-sm font-medium text-white flex items-center gap-2" style={{ backgroundColor: ACCENT }}><Plus size={16} />Nova Sessão</button>

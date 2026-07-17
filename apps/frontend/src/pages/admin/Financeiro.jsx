@@ -147,10 +147,11 @@ export default function Financeiro() {
   return (
     <div className="p-6 space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-          <DollarSign style={{ color: ACCENT }} /> Financeiro
-        </h1>
+      <div className="flex items-center justify-between mb-6 flex-col sm:flex-row gap-3">
+        <div className="flex items-center gap-3">
+          <CreditCard size={24} style={{ color: '#EA580C' }} />
+          <h1 className="text-2xl font-bold text-gray-900">Financeiro</h1>
+        </div>
         <div className="flex gap-2">
           <button onClick={() => exportar('pdf')} className="flex items-center gap-1 px-3 py-2 border rounded-lg hover:bg-gray-50 text-sm">
             <FileText size={16} /> Exportar PDF

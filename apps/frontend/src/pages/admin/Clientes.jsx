@@ -198,22 +198,24 @@ export default function Clientes() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between mb-6 flex-col sm:flex-row gap-3">
         <div className="flex items-center gap-3">
-          <Users size={24} style={{ color: ACCENT }} />
+          <Users size={24} style={{ color: '#EA580C' }} />
           <h1 className="text-2xl font-bold text-gray-900">Clientes</h1>
         </div>
-        <button
-          onClick={() => navigate('/admin/clientes/novo')}
-          style={{ background: ACCENT }}
-          className="inline-flex items-center gap-2 px-4 py-2 text-white rounded-lg text-sm font-medium hover:opacity-90"
-        >
-          <Plus size={16} /> Novo Cliente
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={() => navigate('/admin/clientes/novo')}
+            style={{ background: ACCENT }}
+            className="inline-flex items-center gap-2 px-4 py-2 text-white rounded-lg text-sm font-medium hover:opacity-90"
+          >
+            <Plus size={16} /> Novo Cliente
+          </button>
+        </div>
       </div>
 
       {/* CLI-07 KPI Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {[
           { label: 'Total Clientes', value: kpis.total, icon: Users, color: '#6B7280' },
           { label: 'Leads Novos', value: kpis.leadsNovos, icon: UserPlus, color: '#3B82F6' },

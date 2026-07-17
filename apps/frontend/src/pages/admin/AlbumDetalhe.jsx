@@ -208,9 +208,10 @@ export default function AlbumDetalhe() {
     <div className="min-h-screen bg-gray-50">
       {/* HEADER */}
       <header className="bg-white border-b px-6 py-4">
-        <div className="flex items-center justify-between flex-wrap gap-4">
-          <div>
-            <h1 className="text-2xl font-bold" style={{ color: ACCENT }}>{album.titulo}</h1>
+        <div className="flex items-center justify-between mb-6 flex-col sm:flex-row gap-3">
+          <div className="flex items-center gap-3">
+            <Image size={24} style={{ color: '#EA580C' }} />
+            <h1 className="text-2xl font-bold text-gray-900">{album.titulo}</h1>
             <p className="text-gray-600 text-sm">{album.cliente} • {album.data_evento}</p>
           </div>
           <div className="flex items-center gap-2 flex-wrap">

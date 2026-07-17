@@ -4,7 +4,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import {
   User, Edit2, MessageCircle, Mail, ChevronDown, ArrowLeft,
   FileText, FolderOpen, Image, CreditCard, Clock, StickyNote,
-  UserPlus, FileCheck, CheckCircle, DollarSign, Camera, Star
+  UserPlus, FileCheck, CheckCircle, DollarSign, Camera, Star, Users
 } from 'lucide-react';
 
 const ACCENT = '#EA580C';
@@ -101,13 +101,14 @@ export default function ClienteDetalhe() {
 
       {/* Header */}
       <div className="bg-white rounded-xl border border-gray-200 p-6 mb-6">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-          <div className="flex items-center gap-4">
+        <div className="flex items-center justify-between mb-6 flex-col sm:flex-row gap-3">
+          <div className="flex items-center gap-3">
+            <Users size={24} style={{ color: '#EA580C' }} />
             <div className="w-14 h-14 rounded-full flex items-center justify-center text-xl font-bold text-white" style={{ background: ACCENT }}>
               {nome.charAt(0).toUpperCase()}
             </div>
             <div>
-              <h1 className="text-xl font-bold text-gray-900">{nome}</h1>
+              <h1 className="text-2xl font-bold text-gray-900">{nome}</h1>
               <p className="text-sm text-gray-500">{cliente.email}</p>
               <span className={`inline-block mt-1 text-xs font-medium px-2.5 py-0.5 rounded-full ${STATUS_COLORS[status] || 'bg-gray-100 text-gray-600'}`}>{status}</span>
             </div>

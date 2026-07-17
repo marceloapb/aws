@@ -88,8 +88,9 @@ export default function OrcamentoDetalhe() {
       </button>
 
       {/* ─── HEADER ─── */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-6">
-        <div>
+      <div className="flex items-center justify-between mb-6 flex-col sm:flex-row gap-3">
+        <div className="flex items-center gap-3">
+          <FileText size={24} style={{ color: '#EA580C' }} />
           <h1 className="text-2xl font-bold text-gray-900">{orc.titulo || `Orçamento #${id?.slice(0, 8)}`}</h1>
           <span className={`inline-block mt-1 px-2.5 py-1 rounded-full text-xs font-semibold ${st.color}`}>{st.label}</span>
         </div>

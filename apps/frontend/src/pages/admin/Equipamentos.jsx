@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Package, Tag, ClipboardList, CheckCircle2, Plus, Search, Edit, Trash2, Copy, Star, Power, Filter, ArrowUpDown, AlertTriangle, X } from 'lucide-react';
+import { Package, Tag, ClipboardList, CheckCircle2, Plus, Search, Edit, Trash2, Copy, Star, Power, Filter, ArrowUpDown, AlertTriangle, X, Wrench } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 
 const ACCENT = '#EA580C';
@@ -187,8 +187,13 @@ export default function Equipamentos() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-gray-900">Equipamentos</h1>
+      <div className="flex items-center justify-between mb-6 flex-col sm:flex-row gap-3">
+        <div className="flex items-center gap-3">
+          <Wrench size={24} style={{ color: '#EA580C' }} />
+          <h1 className="text-2xl font-bold text-gray-900">Equipamentos</h1>
+        </div>
+        <div className="flex gap-2">
+        </div>
       </div>
 
       {/* Tabs */}
@@ -204,7 +209,7 @@ export default function Equipamentos() {
       {tab === 0 && (
         <div className="space-y-4">
           {/* KPIs */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
             {[
               { label: 'Total', value: kpis.total, color: 'bg-gray-100 text-gray-800' },
               { label: 'Ativos', value: kpis.ativos, color: 'bg-green-100 text-green-800' },

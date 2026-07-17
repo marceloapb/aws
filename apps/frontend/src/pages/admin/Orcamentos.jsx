@@ -86,14 +86,16 @@ export default function Orcamentos() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between mb-6 flex-col sm:flex-row gap-3">
         <div className="flex items-center gap-3">
-          <FileText size={24} style={{ color: ACCENT }} />
+          <FileText size={24} style={{ color: '#EA580C' }} />
           <h1 className="text-2xl font-bold text-gray-900">Orçamentos</h1>
         </div>
-        <button onClick={() => navigate('/admin/orcamentos/novo')} style={{ background: ACCENT }} className="inline-flex items-center gap-2 px-4 py-2.5 text-white rounded-lg text-sm font-medium hover:opacity-90 transition-opacity">
-          <Plus size={16} /> Novo Orçamento
-        </button>
+        <div className="flex gap-2">
+          <button onClick={() => navigate('/admin/orcamentos/novo')} style={{ background: ACCENT }} className="inline-flex items-center gap-2 px-4 py-2.5 text-white rounded-lg text-sm font-medium hover:opacity-90 transition-opacity">
+            <Plus size={16} /> Novo Orçamento
+          </button>
+        </div>
       </div>
 
       {/* KPIs */}

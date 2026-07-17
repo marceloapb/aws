@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import {
-  FileSignature, Search, Plus, Eye, Send, Download,
+  FolderOpen, Search, Plus, Eye, Send, Download,
   AlertTriangle, FileText, X, RefreshCw, Clock, CheckCircle2,
   Circle, PercentIcon
 } from 'lucide-react';
@@ -147,9 +147,9 @@ export default function Contratos() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+      <div className="flex items-center justify-between mb-6 flex-col sm:flex-row gap-3">
         <div className="flex items-center gap-3">
-          <FileSignature size={24} style={{ color: ACCENT }} />
+          <FolderOpen size={24} style={{ color: '#EA580C' }} />
           <h1 className="text-2xl font-bold text-gray-900">Contratos</h1>
         </div>
         <button onClick={abrirModal} style={{ background: ACCENT }} className="inline-flex items-center gap-2 px-4 py-2 text-white rounded-lg text-sm font-medium hover:opacity-90">

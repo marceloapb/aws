@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   ChevronLeft, ChevronRight, Plus, Trash2, Copy, Star, AlertTriangle,
-  User, Package, DollarSign, CreditCard, Send, Check, Calendar, MapPin
+  User, Package, DollarSign, CreditCard, Send, Check, Calendar, MapPin, FileText
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 
@@ -434,9 +434,14 @@ export default function OrcamentoForm() {
 
   return (
     <div className="max-w-4xl mx-auto p-6">
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold text-gray-800">Novo Orçamento</h1>
-        <button onClick={() => navigate('/admin/orcamentos')} className="text-sm text-gray-500 hover:text-gray-700">← Voltar</button>
+      <div className="flex items-center justify-between mb-6 flex-col sm:flex-row gap-3">
+        <div className="flex items-center gap-3">
+          <FileText size={24} style={{ color: '#EA580C' }} />
+          <h1 className="text-2xl font-bold text-gray-900">Novo Orçamento</h1>
+        </div>
+        <div className="flex gap-2">
+          <button onClick={() => navigate('/admin/orcamentos')} className="text-sm text-gray-500 hover:text-gray-700">← Voltar</button>
+        </div>
       </div>
 
       <ProgressBar />

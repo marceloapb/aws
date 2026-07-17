@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   ArrowLeft, Send, Copy, Download, Trash2, Edit, RefreshCw,
-  Clock, CheckCircle2, Eye, FileText, Plus, XCircle
+  Clock, CheckCircle2, Eye, FileText, Plus, XCircle, FolderOpen
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 
@@ -83,12 +83,13 @@ export default function ContratoDetalhe() {
   return (
     <div className="p-6 max-w-5xl mx-auto space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between mb-6 flex-col sm:flex-row gap-3">
         <div className="flex items-center gap-3">
           <button onClick={() => navigate(-1)} className="p-2 hover:bg-gray-100 rounded-lg">
             <ArrowLeft size={20} />
           </button>
-          <h1 className="text-2xl font-bold">Contrato #{contrato.id}</h1>
+          <FolderOpen size={24} style={{ color: '#EA580C' }} />
+          <h1 className="text-2xl font-bold text-gray-900">Contrato #{contrato.id}</h1>
           <span className={`px-3 py-1 rounded-full text-xs font-medium ${statusCfg.bg}`}>{statusCfg.label}</span>
         </div>
         <div className="flex gap-2">

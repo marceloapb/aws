@@ -4,7 +4,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import {
   Calendar, FileText, CreditCard, Image, Clock, MapPin, Users,
   PlusCircle, Lock, Send, RefreshCw, MessageCircle, Upload,
-  TrendingUp, AlertCircle, CheckCircle2, Bell
+  TrendingUp, AlertCircle, CheckCircle2, Bell, LayoutDashboard
 } from 'lucide-react';
 
 const ACCENT = '#EA580C';
@@ -99,9 +99,13 @@ export default function Dashboard() {
   return (
     <div className="space-y-6">
       {/* 1. Saudação */}
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">{getGreeting()}, {user?.name?.split(' ')[0] || 'Usuário'} 👋</h1>
-        <p className="text-sm text-gray-500 mt-1 capitalize">{todayStr}</p>
+      <div className="flex items-center justify-between mb-6 flex-col sm:flex-row gap-3">
+        <div className="flex items-center gap-3">
+          <LayoutDashboard size={24} style={{ color: '#EA580C' }} />
+          <h1 className="text-2xl font-bold text-gray-900">{getGreeting()}, {user?.name?.split(' ')[0] || 'Usuário'} 👋</h1>
+        </div>
+        <div className="flex gap-2">
+        </div>
       </div>
 
       {/* 2. Ações Rápidas */}

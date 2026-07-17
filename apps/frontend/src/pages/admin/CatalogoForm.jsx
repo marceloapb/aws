@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, Save, X, Plus } from 'lucide-react';
+import { ArrowLeft, Save, X, Plus, Package } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 
 const ACCENT = '#EA580C';
@@ -131,15 +131,17 @@ export default function CatalogoForm() {
   return (
     <div className="p-6 max-w-3xl mx-auto">
       {/* Header */}
-      <div className="flex items-center gap-4 mb-6">
-        <button onClick={() => navigate('/admin/catalogo')} className="p-2 hover:bg-gray-100 rounded-lg">
-          <ArrowLeft size={20} />
-        </button>
-        <div>
+      <div className="flex items-center justify-between mb-6 flex-col sm:flex-row gap-3">
+        <div className="flex items-center gap-3">
+          <button onClick={() => navigate('/admin/catalogo')} className="p-2 hover:bg-gray-100 rounded-lg">
+            <ArrowLeft size={20} />
+          </button>
+          <Package size={24} style={{ color: '#EA580C' }} />
           <h1 className="text-2xl font-bold text-gray-900">
             {isEditing ? 'Editar Item' : 'Novo Item'}
           </h1>
-          <p className="text-sm text-gray-500">Preencha os dados do item do catálogo</p>
+        </div>
+        <div className="flex gap-2">
         </div>
       </div>
 

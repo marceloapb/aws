@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
-import { ArrowLeft, X, Plus, Search, Loader2 } from 'lucide-react';
+import { ArrowLeft, X, Plus, Search, Loader2, Users } from 'lucide-react';
 
 const ACCENT = '#EA580C';
 const COMO_CONHECEU = ['Instagram', 'Google', 'Indicação', 'Site', 'Facebook', 'Outro'];
@@ -100,9 +100,14 @@ export default function ClienteForm() {
 
   return (
     <div>
-      <div className="flex items-center gap-3 mb-6">
-        <button onClick={() => navigate('/admin/clientes')} className="p-2 rounded-lg hover:bg-gray-100"><ArrowLeft size={20} /></button>
-        <h1 className="text-2xl font-bold text-gray-900">{isEditing ? 'Editar Cliente' : 'Novo Cliente'}</h1>
+      <div className="flex items-center justify-between mb-6 flex-col sm:flex-row gap-3">
+        <div className="flex items-center gap-3">
+          <button onClick={() => navigate('/admin/clientes')} className="p-2 rounded-lg hover:bg-gray-100"><ArrowLeft size={20} /></button>
+          <Users size={24} style={{ color: '#EA580C' }} />
+          <h1 className="text-2xl font-bold text-gray-900">{isEditing ? 'Editar Cliente' : 'Novo Cliente'}</h1>
+        </div>
+        <div className="flex gap-2">
+        </div>
       </div>
 
       {error && <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">{error}</div>}

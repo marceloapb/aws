@@ -123,13 +123,12 @@ export default function GatewayConfig() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center gap-3">
-        <div className="p-2 rounded-lg" style={{ background: `${ACCENT}15` }}>
-          <CreditCard size={24} style={{ color: ACCENT }} />
-        </div>
-        <div>
+      <div className="flex items-center justify-between mb-6 flex-col sm:flex-row gap-3">
+        <div className="flex items-center gap-3">
+          <CreditCard size={24} style={{ color: '#EA580C' }} />
           <h1 className="text-2xl font-bold text-gray-900">Gateway de Pagamento</h1>
-          <p className="text-sm text-gray-500">Configure provedores, credenciais e ambiente de operação.</p>
+        </div>
+        <div className="flex gap-2">
         </div>
       </div>
 
