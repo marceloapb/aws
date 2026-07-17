@@ -32,7 +32,18 @@ export default function ConfigEmpresa() {
     try {
       const res = await authFetch('/admin/configuracoes');
       const json = await res.json();
-      if (json.success && json.data) setForm(json.data);
+      if (json.success && json.data) {
+        const data = json.data;
+        // Se tem logoKey, buscar presigned URL para exibição
+        if (data.logoKey) {
+          try {
+            const logoRes = await authFetch('/admin/fotos/view-url', { method: 'POST', body: JSON.stringify({ key: data.logoKey }) });
+            const logoJson = await logoRes.json();
+            if (logoJson.success) data.logoUrl = logoJson.data.url;
+          } catch {}
+        }
+        setForm(data);
+      }
     } catch {}
     setLoading(false);
   };
@@ -69,7 +80,8 @@ export default function ConfigEmpresa() {
         const json = await res.json();
         if (json.success && json.data?.uploadUrl) {
           await fetch(json.data.uploadUrl, { method: 'PUT', body: file, headers: { 'Content-Type': file.type } });
-          setForm({ ...form, logoUrl: json.data.uploadUrl.split('?')[0] });
+          // Salvar o key do S3, não a URL direta
+          setForm({ ...form, logoKey: json.data.key, logoUrl: json.data.uploadUrl.split('?')[0] });
         }
       } catch (err) {
         console.error('Upload failed:', err);

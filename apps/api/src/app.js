@@ -50,6 +50,15 @@ app.use(helmet());
 app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 
+// CORS preflight - responder OPTIONS antes de qualquer auth
+app.options('*', (req, res) => {
+  res.header('Access-Control-Allow-Origin', req.headers.origin || '*');
+  res.header('Access-Control-Allow-Methods', 'GET,POST,PUT,PATCH,DELETE,OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Content-Type,Authorization,X-Requested-With,X-Amz-Date,X-Api-Key');
+  res.header('Access-Control-Max-Age', '86400');
+  res.status(204).send();
+});
+
 // Health check
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
@@ -93,6 +102,22 @@ app.use('/public', publicRoutes);
 
 // Auth pública (login/signup - sem auth)
 app.use('/auth', clientAuthRoutes);
+
+// Presigned GET URL para exibir imagens (admin)
+app.post('/admin/fotos/view-url', adminAuth, async (req, res) => {
+  try {
+    const { S3Client, GetObjectCommand } = require('@aws-sdk/client-s3');
+    const { getSignedUrl } = require('@aws-sdk/s3-request-presigner');
+    const s3 = new S3Client({});
+    const { key } = req.body;
+    if (!key) return res.status(400).json({ success: false, message: 'key é obrigatório' });
+    const command = new GetObjectCommand({ Bucket: process.env.S3_BUCKET_NAME, Key: key });
+    const url = await getSignedUrl(s3, command, { expiresIn: 3600 });
+    res.json({ success: true, data: { url } });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
 
 // Storage stats (admin)
 app.get('/admin/storage/stats', adminAuth, async (req, res) => {

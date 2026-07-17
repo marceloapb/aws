@@ -51,6 +51,7 @@ Resources:
       CorsConfiguration:
         AllowOrigins:
           - !Ref FrontendUrl
+          - 'https://mbfoto.com.br'
           - 'http://localhost:3000'
           - 'http://localhost:5173'
         AllowMethods:
@@ -64,7 +65,9 @@ Resources:
           - Content-Type
           - Authorization
           - X-Requested-With
-        AllowCredentials: true
+          - X-Amz-Date
+          - X-Api-Key
+        MaxAge: 86400
       Auth:
         DefaultAuthorizer: CognitoAuthorizer
         Authorizers:
@@ -100,6 +103,15 @@ Resources:
             ApiId: !Ref MbfApi
             Path: /{proxy+}
             Method: ANY
+        # OPTIONS preflight sem auth (CORS)
+        OptionsHandler:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref MbfApi
+            Path: /{proxy+}
+            Method: OPTIONS
+            Auth:
+              Authorizer: NONE
         # Rotas públicas sem Cognito Authorizer
         AuthRoutes:
           Type: HttpApi
