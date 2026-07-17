@@ -8,7 +8,7 @@ import {
 
 const ACCENT = '#EA580C';
 const API = '/admin/whatsapp';
-const TABS = ['Templates', 'Envios', 'Conversas', 'Custos'];
+const TABS = ['Envios', 'Conversas', 'Custos'];
 const EVENTOS = ['orcamento_enviado', 'contrato_pronto', 'pagamento_confirmado', 'album_publicado', 'lembrete_sessao'];
 const STATUS_ENVIO = { enviado: { icon: Check, color: 'text-gray-500' }, entregue: { icon: CheckCheck, color: 'text-gray-500' }, lido: { icon: CheckCheck, color: 'text-blue-500' }, falhou: { icon: X, color: 'text-red-500' } };
 
@@ -70,14 +70,12 @@ export default function WhatsApp() {
     setLoading(true);
     try {
       if (tab === 0) {
-        const r = await authFetch(`${API}/templates`); const d = await r.json(); setTemplates(d.data || []);
-      } else if (tab === 1) {
         const [e, c] = await Promise.all([authFetch(`${API}/envios`).then(r => r.json()), authFetch('/admin/clientes').then(r => r.json())]);
         setEnvios(e.data || []); setClientes(c.data || []);
         const t = await authFetch(`${API}/templates`).then(r => r.json()); setTemplates(t.data || []);
-      } else if (tab === 2) {
+      } else if (tab === 1) {
         const r = await authFetch(`${API}/conversas`); const d = await r.json(); setConversas(d.data || []);
-      } else if (tab === 3) {
+      } else if (tab === 2) {
         const r = await authFetch(`${API}/custos`); const d = await r.json(); setCustos(d.data);
       }
     } catch {}
@@ -581,10 +579,9 @@ export default function WhatsApp() {
         <div className="flex items-center justify-center py-12"><RefreshCw className="animate-spin text-gray-400" size={24} /></div>
       ) : (
         <>
-          {tab === 0 && renderTemplates()}
-          {tab === 1 && renderEnvios()}
-          {tab === 2 && renderConversas()}
-          {tab === 3 && renderCustos()}
+          {tab === 0 && renderEnvios()}
+          {tab === 1 && renderConversas()}
+          {tab === 2 && renderCustos()}
         </>
       )}
     </div>
