@@ -1,237 +1,385 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { Calendar, List, Plus, Lock, X, MapPin, Phone, Mail, Edit, RefreshCw, Clock, Users, CheckCircle, AlertCircle } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
-import { Calendar, Plus, Clock, MapPin, ChevronLeft, ChevronRight, List, Lock, AlertTriangle, CheckCircle2, Users, Timer } from 'lucide-react';
+import { getStatusColor, getTipoColor } from '../../utils/agendaColors';
 
 const ACCENT = '#EA580C';
-const DAYS = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
-const MONTHS = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
-const TIPO_CORES = { Casamento: '#EC4899', Ensaio: '#3B82F6', Corporativo: '#10B981', Bloqueio: '#6B7280' };
-const TIPOS = ['Casamento', 'Ensaio', 'Corporativo', 'Bloqueio'];
+const DIAS_SEMANA = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+const STATUS_OPTIONS = ['Todos', 'Confirmadas', 'Pendentes', 'Bloqueadas', 'Canceladas'];
+const TIPO_OPTIONS = ['Todos os tipos', 'Casamento', 'Ensaio', 'Aniversário', 'Corporativo', 'Batizado', 'Outros'];
 
 export default function Agenda() {
   const { authFetch } = useAuth();
-  const [events, setEvents] = useState([]);
-  const [currentDate, setCurrentDate] = useState(new Date());
-  const [view, setView] = useState('calendar');
-  const [showModal, setShowModal] = useState(null);
+  const [eventos, setEventos] = useState([]);
   const [clientes, setClientes] = useState([]);
-  const [form, setForm] = useState({ tipo_evento: '', cliente_id: '', data_evento: '', horario_inicio: '', horario_fim: '', local: '', observacoes: '' });
-  const [blockForm, setBlockForm] = useState({ data_evento: '', motivo: '' });
+  const [view, setView] = useState('calendario');
+  const [mesAtual, setMesAtual] = useState(new Date());
+  const [filtroStatus, setFiltroStatus] = useState(['Todos']);
+  const [filtroTipo, setFiltroTipo] = useState('Todos os tipos');
+  const [drawerEvento, setDrawerEvento] = useState(null);
+  const [modalNovaSessao, setModalNovaSessao] = useState(null);
+  const [modalBloquear, setModalBloquear] = useState(false);
+  const [novaSessao, setNovaSessao] = useState({ tipo_evento: '', cliente_id: '', data_evento: '', horario_inicio: '', horario_fim: '', local: '' });
+  const [bloqueio, setBloqueio] = useState({ data: '', motivo: '' });
 
-  useEffect(() => { loadEvents(); loadClientes(); }, []);
+  useEffect(() => {
+    authFetch('/admin/agenda').then(r => r.json()).then(d => { if (d.success) setEventos(d.data); });
+    authFetch('/admin/clientes').then(r => r.json()).then(d => { if (d.success) setClientes(d.data || d); });
+  }, []);
 
-  const loadEvents = async () => {
-    try {
-      const res = await authFetch('/admin/agenda');
-      const json = await res.json();
-      if (json.success) setEvents(json.data || []);
-    } catch (e) { console.error(e); }
-  };
-
-  const loadClientes = async () => {
-    try {
-      const res = await authFetch('/admin/clientes');
-      const json = await res.json();
-      if (json.success) setClientes(json.data || []);
-    } catch {}
-  };
-
-  const year = currentDate.getFullYear();
-  const month = currentDate.getMonth();
-  const firstDay = new Date(year, month, 1).getDay();
-  const daysInMonth = new Date(year, month + 1, 0).getDate();
-  const today = new Date();
-
-  const getEventsForDay = (day) => {
-    const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-    return events.filter(e => e.data_evento === dateStr);
-  };
-
-  const hasConflict = (dayEvents) => {
-    for (let i = 0; i < dayEvents.length; i++)
-      for (let j = i + 1; j < dayEvents.length; j++)
-        if (dayEvents[i].horario_inicio < dayEvents[j].horario_fim && dayEvents[j].horario_inicio < dayEvents[i].horario_fim) return true;
-    return false;
-  };
+  const eventosFiltrados = useMemo(() => {
+    return eventos.filter(e => {
+      const statusOk = filtroStatus.includes('Todos') || filtroStatus.includes(e.status);
+      const tipoOk = filtroTipo === 'Todos os tipos' || e.tipo_evento === filtroTipo;
+      return statusOk && tipoOk;
+    });
+  }, [eventos, filtroStatus, filtroTipo]);
 
   const kpis = useMemo(() => {
-    const monthStr = `${year}-${String(month + 1).padStart(2, '0')}`;
-    const thisMonth = events.filter(e => e.data_evento?.startsWith(monthStr));
-    const futureEvents = events.filter(e => e.data_evento >= today.toISOString().split('T')[0] && e.tipo_evento !== 'Bloqueio').sort((a, b) => a.data_evento.localeCompare(b.data_evento));
-    const next = futureEvents[0];
-    let countdown = '--';
-    if (next) {
-      const diff = Math.ceil((new Date(next.data_evento) - today) / (1000 * 60 * 60 * 24));
+    const hoje = new Date();
+    const mesAtualNum = hoje.getMonth();
+    const anoAtual = hoje.getFullYear();
+    const doMes = eventos.filter(e => { const d = new Date(e.data_evento); return d.getMonth() === mesAtualNum && d.getFullYear() === anoAtual; });
+    const confirmadas = doMes.filter(e => e.status === 'Confirmadas').length;
+    const pendentes = doMes.filter(e => e.status === 'Pendentes').length;
+    const futuras = eventos.filter(e => new Date(e.data_evento) >= hoje).sort((a, b) => new Date(a.data_evento) - new Date(b.data_evento));
+    const proxima = futuras[0];
+    let countdown = '—';
+    if (proxima) {
+      const diff = Math.ceil((new Date(proxima.data_evento) - hoje) / (1000 * 60 * 60 * 24));
       countdown = diff === 0 ? 'Hoje' : diff === 1 ? 'Amanhã' : `${diff} dias`;
     }
-    return {
-      total: thisMonth.filter(e => e.tipo_evento !== 'Bloqueio').length,
-      countdown,
-      confirmadas: thisMonth.filter(e => e.status === 'confirmado').length,
-      pendentes: thisMonth.filter(e => e.status === 'pendente').length
-    };
-  }, [events, year, month]);
+    return { total: doMes.length, countdown, confirmadas, pendentes };
+  }, [eventos]);
 
-  const groupedByDate = useMemo(() => {
-    const sorted = [...events].filter(e => e.data_evento >= today.toISOString().split('T')[0]).sort((a, b) => a.data_evento.localeCompare(b.data_evento) || (a.horario_inicio || '').localeCompare(b.horario_inicio || ''));
-    const groups = {};
-    sorted.forEach(e => { (groups[e.data_evento] ||= []).push(e); });
-    return groups;
-  }, [events]);
-
-  const handleSave = async () => {
-    try {
-      await authFetch('/admin/agenda', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(form) });
-      setShowModal(null); setForm({ tipo_evento: '', cliente_id: '', data_evento: '', horario_inicio: '', horario_fim: '', local: '', observacoes: '' });
-      loadEvents();
-    } catch {}
+  const toggleStatus = (s) => {
+    if (s === 'Todos') { setFiltroStatus(['Todos']); return; }
+    let novo = filtroStatus.filter(x => x !== 'Todos');
+    novo = novo.includes(s) ? novo.filter(x => x !== s) : [...novo, s];
+    setFiltroStatus(novo.length === 0 ? ['Todos'] : novo);
   };
 
-  const handleBlock = async () => {
-    try {
-      await authFetch('/admin/agenda', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...blockForm, tipo_evento: 'Bloqueio', status: 'bloqueio' }) });
-      setShowModal(null); setBlockForm({ data_evento: '', motivo: '' });
-      loadEvents();
-    } catch {}
+  const getDiasDoMes = () => {
+    const ano = mesAtual.getFullYear(), mes = mesAtual.getMonth();
+    const primeiro = new Date(ano, mes, 1);
+    const ultimo = new Date(ano, mes + 1, 0);
+    const dias = [];
+    for (let i = 0; i < primeiro.getDay(); i++) dias.push(null);
+    for (let i = 1; i <= ultimo.getDate(); i++) dias.push(new Date(ano, mes, i));
+    return dias;
   };
 
-  const KpiCard = ({ icon: Icon, label, value, color }) => (
-    <div className="bg-white rounded-xl border border-gray-200 p-4 flex items-center gap-3">
-      <div className="w-10 h-10 rounded-lg flex items-center justify-center" style={{ background: `${color}15` }}><Icon size={20} style={{ color }} /></div>
-      <div><p className="text-2xl font-bold text-gray-900">{value}</p><p className="text-xs text-gray-500">{label}</p></div>
+  const getEventosDoDia = (data) => {
+    if (!data) return [];
+    const str = data.toISOString().split('T')[0];
+    return eventosFiltrados.filter(e => e.data_evento === str);
+  };
+
+  const isBloqueado = (data) => {
+    if (!data) return null;
+    const str = data.toISOString().split('T')[0];
+    return eventos.find(e => e.data_evento === str && e.status === 'Bloqueadas');
+  };
+
+  const handleDiaClick = (data, e) => {
+    if (e.target.closest('.pill-evento')) return;
+    if (!data) return;
+    const bloq = isBloqueado(data);
+    if (bloq) { alert(`Data bloqueada: ${bloq.observacoes || 'Sem motivo informado'}`); return; }
+    setNovaSessao({ ...novaSessao, data_evento: data.toISOString().split('T')[0] });
+    setModalNovaSessao(true);
+  };
+
+  const ExpirationBadge = ({ evento }) => {
+    if (evento.status !== 'reserva' && evento.status !== 'Pendentes') return null;
+    if (!evento.reserva_expira_em || evento.reserva_expira_em > 7) return null;
+    const urgent = evento.reserva_expira_em <= 2;
+    return (
+      <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${urgent ? 'bg-red-100 text-red-700 animate-pulse' : 'bg-yellow-100 text-yellow-700'}`}>
+        Expira em {evento.reserva_expira_em}d
+      </span>
+    );
+  };
+
+  // KPI Cards
+  const KPICards = () => (
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+      {[
+        { icon: Calendar, label: 'Sessões este mês', value: kpis.total },
+        { icon: Clock, label: 'Próxima sessão', value: kpis.countdown },
+        { icon: CheckCircle, label: 'Confirmadas', value: kpis.confirmadas },
+        { icon: AlertCircle, label: 'Pendentes', value: kpis.pendentes },
+      ].map((k, i) => (
+        <div key={i} className="bg-white rounded-xl border p-4 flex items-center gap-3">
+          <div className="p-2 rounded-lg" style={{ backgroundColor: `${ACCENT}15` }}><k.icon size={20} style={{ color: ACCENT }} /></div>
+          <div><p className="text-sm text-gray-500">{k.label}</p><p className="text-xl font-bold text-gray-900">{k.value}</p></div>
+        </div>
+      ))}
     </div>
   );
 
-  const StatusBadge = ({ status }) => {
-    const map = { confirmado: { bg: '#DCFCE7', text: '#166534', label: 'Confirmado' }, pendente: { bg: '#FEF3C7', text: '#92400E', label: 'Pendente' }, bloqueio: { bg: '#F3F4F6', text: '#374151', label: 'Bloqueio' } };
-    const s = map[status] || map.pendente;
-    return <span className="px-2 py-0.5 rounded-full text-xs font-medium" style={{ background: s.bg, color: s.text }}>{s.label}</span>;
+  // Filtros
+  const Filtros = () => (
+    <div className="flex flex-wrap items-center gap-3 mb-4">
+      <div className="flex flex-wrap gap-2">
+        {STATUS_OPTIONS.map(s => (
+          <button key={s} onClick={() => toggleStatus(s)}
+            className={`px-3 py-1.5 rounded-full text-sm font-medium transition-all ${filtroStatus.includes(s) ? 'text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+            style={filtroStatus.includes(s) ? { backgroundColor: ACCENT } : {}}>
+            {s}
+          </button>
+        ))}
+      </div>
+      <select value={filtroTipo} onChange={e => setFiltroTipo(e.target.value)}
+        className="px-3 py-1.5 rounded-lg border text-sm focus:outline-none focus:ring-2" style={{ focusRingColor: ACCENT }}>
+        {TIPO_OPTIONS.map(t => <option key={t} value={t}>{t}</option>)}
+      </select>
+      <div className="ml-auto flex gap-2">
+        <button onClick={() => setView('calendario')} className={`p-2 rounded-lg ${view === 'calendario' ? 'bg-orange-100' : 'bg-gray-100'}`}>
+          <Calendar size={18} style={{ color: view === 'calendario' ? ACCENT : '#6b7280' }} />
+        </button>
+        <button onClick={() => setView('lista')} className={`p-2 rounded-lg ${view === 'lista' ? 'bg-orange-100' : 'bg-gray-100'}`}>
+          <List size={18} style={{ color: view === 'lista' ? ACCENT : '#6b7280' }} />
+        </button>
+      </div>
+    </div>
+  );
+
+  // Calendário
+  const CalendarioView = () => {
+    const dias = getDiasDoMes();
+    return (
+      <div className="bg-white rounded-xl border overflow-hidden">
+        <div className="flex items-center justify-between p-4 border-b">
+          <button onClick={() => setMesAtual(new Date(mesAtual.getFullYear(), mesAtual.getMonth() - 1))} className="p-1 hover:bg-gray-100 rounded">←</button>
+          <h3 className="font-semibold text-gray-900">{mesAtual.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })}</h3>
+          <button onClick={() => setMesAtual(new Date(mesAtual.getFullYear(), mesAtual.getMonth() + 1))} className="p-1 hover:bg-gray-100 rounded">→</button>
+        </div>
+        <div className="grid grid-cols-7">
+          {DIAS_SEMANA.map(d => <div key={d} className="p-2 text-center text-xs font-medium text-gray-500 border-b">{d}</div>)}
+          {dias.map((dia, i) => {
+            const evts = getEventosDoDia(dia);
+            const bloq = isBloqueado(dia);
+            return (
+              <div key={i} onClick={(e) => handleDiaClick(dia, e)}
+                className={`min-h-[80px] p-1 border-b border-r cursor-pointer hover:bg-gray-50 ${bloq ? 'bg-gray-100' : ''}`}
+                title={bloq ? `Bloqueado: ${bloq.observacoes || ''}` : ''}>
+                {dia && (
+                  <>
+                    <span className={`text-xs font-medium ${bloq ? 'line-through text-gray-400' : 'text-gray-700'}`}>
+                      {dia.getDate()} {bloq && '🔒'}
+                    </span>
+                    <div className="mt-1 space-y-0.5">
+                      {evts.slice(0, 3).map(ev => (
+                        <div key={ev.id} className="pill-evento px-1 py-0.5 rounded text-[10px] truncate cursor-pointer"
+                          style={{ backgroundColor: getStatusColor(ev.status).pill, color: '#fff' }}
+                          onClick={(e) => { e.stopPropagation(); setDrawerEvento(ev); }}>
+                          {ev.horario_inicio?.slice(0, 5)} {ev.cliente_nome}
+                          {ev.reserva_expira_em && ev.reserva_expira_em <= 7 && <span className="ml-1">⏳</span>}
+                        </div>
+                      ))}
+                      {evts.length > 3 && <span className="text-[10px] text-gray-500">+{evts.length - 3}</span>}
+                    </div>
+                  </>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  };
+
+  // Lista
+  const ListaView = () => (
+    <div className="space-y-3">
+      {eventosFiltrados.sort((a, b) => a.data_evento.localeCompare(b.data_evento)).map(ev => (
+        <div key={ev.id} onClick={() => setDrawerEvento(ev)}
+          className="bg-white rounded-xl border flex overflow-hidden cursor-pointer hover:shadow-md transition-shadow"
+          style={{ borderLeftWidth: '4px', borderLeftColor: getStatusColor(ev.status).border }}>
+          <div className="p-4 flex-1">
+            <div className="flex items-center gap-2 mb-1">
+              <span className="font-semibold text-gray-900">{ev.cliente_nome}</span>
+              <span className="text-xs px-2 py-0.5 rounded-full" style={{ backgroundColor: getStatusColor(ev.status).pill, color: '#fff' }}>{ev.status}</span>
+              <ExpirationBadge evento={ev} />
+            </div>
+            <div className="flex items-center gap-4 text-sm text-gray-500">
+              <span>{new Date(ev.data_evento + 'T00:00:00').toLocaleDateString('pt-BR')}</span>
+              <span>{ev.horario_inicio?.slice(0, 5)} - {ev.horario_fim?.slice(0, 5)}</span>
+              <span className="px-2 py-0.5 rounded text-xs" style={{ backgroundColor: getTipoColor(ev.tipo_evento) + '20', color: getTipoColor(ev.tipo_evento) }}>{ev.tipo_evento}</span>
+            </div>
+            {ev.local && <p className="text-sm text-gray-400 mt-1 flex items-center gap-1"><MapPin size={12} />{typeof ev.local === 'object' ? ev.local.nome : ev.local}</p>}
+          </div>
+        </div>
+      ))}
+      {eventosFiltrados.length === 0 && <p className="text-center text-gray-400 py-10">Nenhum evento encontrado.</p>}
+    </div>
+  );
+
+  // Drawer de Detalhe (AGD-01)
+  const Drawer = () => {
+    if (!drawerEvento) return null;
+    const ev = drawerEvento;
+    const endereco = typeof ev.local === 'object' ? ev.local?.endereco : ev.local;
+    const mapsUrl = endereco ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(endereco)}` : null;
+    return (
+      <>
+        <div className="fixed inset-0 bg-black/40 z-40" onClick={() => setDrawerEvento(null)} />
+        <div className="fixed top-0 right-0 h-full w-[400px] bg-white z-50 shadow-2xl overflow-y-auto flex flex-col">
+          <div className="p-6 border-b flex items-center justify-between">
+            <div>
+              <span className="text-xs px-2 py-1 rounded-full font-medium" style={{ backgroundColor: getTipoColor(ev.tipo_evento) + '20', color: getTipoColor(ev.tipo_evento) }}>{ev.tipo_evento}</span>
+              <h2 className="text-lg font-bold text-gray-900 mt-2">{ev.cliente_nome}</h2>
+            </div>
+            <button onClick={() => setDrawerEvento(null)} className="p-2 hover:bg-gray-100 rounded-lg"><X size={20} /></button>
+          </div>
+          <div className="flex-1 p-6 space-y-5">
+            <div>
+              <p className="text-sm text-gray-500 mb-1">Status</p>
+              <span className="px-3 py-1.5 rounded-full text-sm font-semibold text-white" style={{ backgroundColor: getStatusColor(ev.status).pill }}>{ev.status}</span>
+            </div>
+            <div>
+              <p className="text-sm text-gray-500 mb-1">Data / Hora</p>
+              <p className="font-medium">{new Date(ev.data_evento + 'T00:00:00').toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' })}</p>
+              <p className="text-gray-600">{ev.horario_inicio?.slice(0, 5)} — {ev.horario_fim?.slice(0, 5)}</p>
+            </div>
+            {endereco && (
+              <div>
+                <p className="text-sm text-gray-500 mb-1">Local</p>
+                <p className="font-medium">{typeof ev.local === 'object' ? ev.local.nome : ev.local}</p>
+                {mapsUrl && <a href={mapsUrl} target="_blank" rel="noopener noreferrer" className="text-sm flex items-center gap-1 mt-1" style={{ color: ACCENT }}><MapPin size={14} />Abrir no Maps</a>}
+              </div>
+            )}
+            <div>
+              <p className="text-sm text-gray-500 mb-1">Cliente</p>
+              <p className="font-medium">{ev.cliente_nome}</p>
+              {ev.cliente_tel && <p className="text-sm text-gray-500 flex items-center gap-1"><Phone size={12} />{ev.cliente_tel}</p>}
+              {ev.cliente_email && <p className="text-sm text-gray-500 flex items-center gap-1"><Mail size={12} />{ev.cliente_email}</p>}
+            </div>
+            {ev.orcamento && (
+              <div>
+                <p className="text-sm text-gray-500 mb-1">Orçamento</p>
+                <p className="font-medium">R$ {ev.orcamento.valor?.toLocaleString('pt-BR')}</p>
+                <p className="text-sm text-gray-500">{ev.orcamento.status}</p>
+              </div>
+            )}
+            <ExpirationBadge evento={ev} />
+            {/* AGD-10 Sync Google */}
+            <div>
+              <p className="text-sm text-gray-500 mb-1">Google Calendar</p>
+              {ev.sync_status === 'synced' || ev.google_event_id ? (
+                <span className="text-sm px-2 py-1 bg-green-50 text-green-700 rounded-full">✅ Sincronizado</span>
+              ) : (
+                <span className="text-sm px-2 py-1 bg-yellow-50 text-yellow-700 rounded-full">⚠️ Não sincronizado</span>
+              )}
+            </div>
+            {ev.observacoes && <div><p className="text-sm text-gray-500 mb-1">Observações</p><p className="text-sm text-gray-700">{ev.observacoes}</p></div>}
+          </div>
+          <div className="p-4 border-t flex gap-2">
+            <button className="flex-1 px-4 py-2 rounded-lg text-sm font-medium border hover:bg-gray-50 flex items-center justify-center gap-1"><Edit size={14} />Editar</button>
+            <button className="flex-1 px-4 py-2 rounded-lg text-sm font-medium bg-red-50 text-red-600 hover:bg-red-100">Cancelar</button>
+            <button className="flex-1 px-4 py-2 rounded-lg text-sm font-medium text-white flex items-center justify-center gap-1" style={{ backgroundColor: ACCENT }}><RefreshCw size={14} />Ressincronizar</button>
+          </div>
+        </div>
+      </>
+    );
+  };
+
+  // Modal Nova Sessão
+  const ModalNovaSessao = () => {
+    if (!modalNovaSessao) return null;
+    const handleSubmit = async (e) => {
+      e.preventDefault();
+      await authFetch('/admin/agenda', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(novaSessao) });
+      setModalNovaSessao(null);
+      setNovaSessao({ tipo_evento: '', cliente_id: '', data_evento: '', horario_inicio: '', horario_fim: '', local: '' });
+      authFetch('/admin/agenda').then(r => r.json()).then(d => { if (d.success) setEventos(d.data); });
+    };
+    return (
+      <>
+        <div className="fixed inset-0 bg-black/40 z-40" onClick={() => setModalNovaSessao(null)} />
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <form onSubmit={handleSubmit} className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6 space-y-4">
+            <div className="flex items-center justify-between"><h3 className="text-lg font-bold">Nova Sessão</h3><button type="button" onClick={() => setModalNovaSessao(null)}><X size={20} /></button></div>
+            <div>
+              <label className="text-sm text-gray-600">Tipo</label>
+              <select value={novaSessao.tipo_evento} onChange={e => setNovaSessao({ ...novaSessao, tipo_evento: e.target.value })} className="w-full mt-1 border rounded-lg px-3 py-2 text-sm" required>
+                <option value="">Selecione</option>
+                {TIPO_OPTIONS.filter(t => t !== 'Todos os tipos').map(t => <option key={t} value={t}>{t}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="text-sm text-gray-600">Cliente</label>
+              <select value={novaSessao.cliente_id} onChange={e => setNovaSessao({ ...novaSessao, cliente_id: e.target.value })} className="w-full mt-1 border rounded-lg px-3 py-2 text-sm" required>
+                <option value="">Selecione</option>
+                {clientes.map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="text-sm text-gray-600">Data</label>
+              <input type="date" value={novaSessao.data_evento} onChange={e => setNovaSessao({ ...novaSessao, data_evento: e.target.value })} className="w-full mt-1 border rounded-lg px-3 py-2 text-sm" required />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div><label className="text-sm text-gray-600">Início</label><input type="time" value={novaSessao.horario_inicio} onChange={e => setNovaSessao({ ...novaSessao, horario_inicio: e.target.value })} className="w-full mt-1 border rounded-lg px-3 py-2 text-sm" required /></div>
+              <div><label className="text-sm text-gray-600">Fim</label><input type="time" value={novaSessao.horario_fim} onChange={e => setNovaSessao({ ...novaSessao, horario_fim: e.target.value })} className="w-full mt-1 border rounded-lg px-3 py-2 text-sm" required /></div>
+            </div>
+            <div>
+              <label className="text-sm text-gray-600">Local</label>
+              <input type="text" value={novaSessao.local} onChange={e => setNovaSessao({ ...novaSessao, local: e.target.value })} className="w-full mt-1 border rounded-lg px-3 py-2 text-sm" placeholder="Endereço ou nome do local" />
+            </div>
+            <button type="submit" className="w-full py-2.5 rounded-lg text-white font-medium text-sm" style={{ backgroundColor: ACCENT }}>Criar Sessão</button>
+          </form>
+        </div>
+      </>
+    );
+  };
+
+  // Modal Bloquear Data
+  const ModalBloquear = () => {
+    if (!modalBloquear) return null;
+    const handleSubmit = async (e) => {
+      e.preventDefault();
+      await authFetch('/admin/agenda/bloquear', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(bloqueio) });
+      setModalBloquear(false);
+      setBloqueio({ data: '', motivo: '' });
+      authFetch('/admin/agenda').then(r => r.json()).then(d => { if (d.success) setEventos(d.data); });
+    };
+    return (
+      <>
+        <div className="fixed inset-0 bg-black/40 z-40" onClick={() => setModalBloquear(false)} />
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <form onSubmit={handleSubmit} className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6 space-y-4">
+            <div className="flex items-center justify-between"><h3 className="text-lg font-bold">Bloquear Data</h3><button type="button" onClick={() => setModalBloquear(false)}><X size={20} /></button></div>
+            <div>
+              <label className="text-sm text-gray-600">Data</label>
+              <input type="date" value={bloqueio.data} onChange={e => setBloqueio({ ...bloqueio, data: e.target.value })} className="w-full mt-1 border rounded-lg px-3 py-2 text-sm" required />
+            </div>
+            <div>
+              <label className="text-sm text-gray-600">Motivo</label>
+              <input type="text" value={bloqueio.motivo} onChange={e => setBloqueio({ ...bloqueio, motivo: e.target.value })} className="w-full mt-1 border rounded-lg px-3 py-2 text-sm" placeholder="Ex: Feriado, compromisso pessoal" required />
+            </div>
+            <button type="submit" className="w-full py-2.5 rounded-lg text-white font-medium text-sm bg-gray-800 hover:bg-gray-900">Bloquear</button>
+          </form>
+        </div>
+      </>
+    );
   };
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-        <div className="flex items-center gap-3"><Calendar size={24} style={{ color: ACCENT }} /><h1 className="text-2xl font-bold text-gray-900">Agenda</h1></div>
-        <div className="flex flex-wrap items-center gap-2">
-          <div className="flex gap-1 bg-gray-100 rounded-lg p-1">
-            <button onClick={() => setView('calendar')} className={`px-3 py-1.5 rounded-md text-xs font-medium flex items-center gap-1 ${view === 'calendar' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500'}`}><Calendar size={14} />Calendário</button>
-            <button onClick={() => setView('list')} className={`px-3 py-1.5 rounded-md text-xs font-medium flex items-center gap-1 ${view === 'list' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500'}`}><List size={14} />Lista</button>
-          </div>
-          <button onClick={() => setShowModal('block')} className="px-3 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 flex items-center gap-1"><Lock size={14} />Bloquear Data</button>
-          <button onClick={() => setShowModal('new')} style={{ background: ACCENT }} className="px-4 py-2 text-white rounded-lg text-sm font-medium hover:opacity-90 flex items-center gap-1"><Plus size={16} />Nova Sessão</button>
+    <div className="p-6 max-w-7xl mx-auto">
+      <div className="flex items-center justify-between mb-6">
+        <h1 className="text-2xl font-bold text-gray-900">Agenda</h1>
+        <div className="flex gap-2">
+          <button onClick={() => setModalBloquear(true)} className="px-4 py-2 rounded-lg text-sm font-medium border border-gray-300 hover:bg-gray-50 flex items-center gap-2"><Lock size={16} />Bloquear Data</button>
+          <button onClick={() => setModalNovaSessao(true)} className="px-4 py-2 rounded-lg text-sm font-medium text-white flex items-center gap-2" style={{ backgroundColor: ACCENT }}><Plus size={16} />Nova Sessão</button>
         </div>
       </div>
-
-      {/* KPIs */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <KpiCard icon={Users} label="Sessões este mês" value={kpis.total} color={ACCENT} />
-        <KpiCard icon={Timer} label="Próxima sessão" value={kpis.countdown} color="#8B5CF6" />
-        <KpiCard icon={CheckCircle2} label="Confirmadas" value={kpis.confirmadas} color="#10B981" />
-        <KpiCard icon={AlertTriangle} label="Pendentes" value={kpis.pendentes} color="#F59E0B" />
-      </div>
-
-      {/* Calendar View */}
-      {view === 'calendar' && (
-        <div className="bg-white rounded-xl border border-gray-200 p-4">
-          <div className="flex items-center justify-between mb-4">
-            <button onClick={() => setCurrentDate(new Date(year, month - 1, 1))} className="p-2 rounded-lg hover:bg-gray-100"><ChevronLeft size={18} /></button>
-            <h2 className="text-lg font-semibold text-gray-900">{MONTHS[month]} {year}</h2>
-            <button onClick={() => setCurrentDate(new Date(year, month + 1, 1))} className="p-2 rounded-lg hover:bg-gray-100"><ChevronRight size={18} /></button>
-          </div>
-          <div className="grid grid-cols-7 gap-px bg-gray-200 rounded-lg overflow-hidden">
-            {DAYS.map(d => <div key={d} className="bg-gray-50 py-2 text-center text-xs font-medium text-gray-500">{d}</div>)}
-            {Array.from({ length: firstDay }).map((_, i) => <div key={`e-${i}`} className="bg-white p-2 min-h-[90px]" />)}
-            {Array.from({ length: daysInMonth }).map((_, i) => {
-              const day = i + 1;
-              const dayEvents = getEventsForDay(day);
-              const isToday = today.getDate() === day && today.getMonth() === month && today.getFullYear() === year;
-              const conflict = hasConflict(dayEvents);
-              return (
-                <div key={day} className={`bg-white p-1.5 min-h-[90px] ${isToday ? 'ring-2 ring-inset' : ''} ${conflict ? 'border-2 border-red-500' : ''}`} style={isToday ? { '--tw-ring-color': ACCENT } : {}}>
-                  <span className={`text-xs ${isToday ? 'font-bold bg-orange-600 text-white w-6 h-6 rounded-full inline-flex items-center justify-center' : 'text-gray-600'}`}>{day}</span>
-                  {dayEvents.slice(0, 3).map((ev, idx) => (
-                    <div key={idx} className="mt-0.5 px-1 py-0.5 rounded text-[10px] truncate text-white" style={{ background: TIPO_CORES[ev.tipo_evento] || ACCENT }}>{ev.horario_inicio?.slice(0, 5)} {ev.cliente_nome || ev.tipo_evento}</div>
-                  ))}
-                  {dayEvents.length > 3 && <span className="text-[10px] text-gray-400">+{dayEvents.length - 3}</span>}
-                </div>
-              );
-            })}
-          </div>
-          <div className="flex items-center gap-4 mt-3 justify-end">
-            {Object.entries(TIPO_CORES).map(([tipo, cor]) => <div key={tipo} className="flex items-center gap-1"><div className="w-3 h-3 rounded" style={{ background: cor }} /><span className="text-xs text-gray-500">{tipo}</span></div>)}
-          </div>
-        </div>
-      )}
-
-      {/* List View */}
-      {view === 'list' && (
-        <div className="space-y-4">
-          {Object.keys(groupedByDate).length === 0 && <div className="bg-white rounded-xl border border-gray-200 p-8 text-center text-gray-400">Nenhuma sessão agendada</div>}
-          {Object.entries(groupedByDate).map(([date, evts]) => (
-            <div key={date}>
-              <h3 className="text-sm font-semibold text-gray-700 mb-2">{new Date(date + 'T12:00:00').toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' })}</h3>
-              <div className="space-y-2">
-                {evts.map(ev => (
-                  <div key={ev.id} className="bg-white rounded-xl border border-gray-200 p-4 flex items-center gap-4 hover:shadow-sm transition-shadow">
-                    <div className="w-1 h-12 rounded-full" style={{ background: TIPO_CORES[ev.tipo_evento] || ACCENT }} />
-                    <div className="flex-1 min-w-0">
-                      <p className="font-medium text-gray-900 truncate">{ev.cliente_nome || ev.tipo_evento}</p>
-                      <div className="flex items-center gap-3 mt-1 text-xs text-gray-500">
-                        <span className="flex items-center gap-1"><Clock size={12} />{ev.horario_inicio?.slice(0, 5)} - {ev.horario_fim?.slice(0, 5)}</span>
-                        {ev.local && <span className="flex items-center gap-1"><MapPin size={12} />{ev.local}</span>}
-                      </div>
-                    </div>
-                    <span className="px-2 py-1 rounded-full text-[10px] font-medium text-white" style={{ background: TIPO_CORES[ev.tipo_evento] || ACCENT }}>{ev.tipo_evento}</span>
-                    <StatusBadge status={ev.status} />
-                  </div>
-                ))}
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* Modal Nova Sessão */}
-      {showModal === 'new' && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setShowModal(null)}>
-          <div className="bg-white rounded-2xl p-6 w-full max-w-md space-y-4 max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
-            <h2 className="text-lg font-bold text-gray-900">Nova Sessão</h2>
-            <select value={form.tipo_evento} onChange={e => setForm({ ...form, tipo_evento: e.target.value })} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
-              <option value="">Tipo de evento</option>{TIPOS.filter(t => t !== 'Bloqueio').map(t => <option key={t} value={t}>{t}</option>)}
-            </select>
-            <select value={form.cliente_id} onChange={e => setForm({ ...form, cliente_id: e.target.value })} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
-              <option value="">Selecionar cliente</option>{clientes.map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}
-            </select>
-            <input type="date" value={form.data_evento} onChange={e => setForm({ ...form, data_evento: e.target.value })} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" />
-            <div className="grid grid-cols-2 gap-3">
-              <input type="time" value={form.horario_inicio} onChange={e => setForm({ ...form, horario_inicio: e.target.value })} className="border border-gray-300 rounded-lg px-3 py-2 text-sm" placeholder="Início" />
-              <input type="time" value={form.horario_fim} onChange={e => setForm({ ...form, horario_fim: e.target.value })} className="border border-gray-300 rounded-lg px-3 py-2 text-sm" placeholder="Fim" />
-            </div>
-            <input type="text" value={form.local} onChange={e => setForm({ ...form, local: e.target.value })} placeholder="Local" className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" />
-            <textarea value={form.observacoes} onChange={e => setForm({ ...form, observacoes: e.target.value })} placeholder="Observações" rows={2} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" />
-            <div className="flex gap-3 pt-2">
-              <button onClick={() => setShowModal(null)} className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700">Cancelar</button>
-              <button onClick={handleSave} style={{ background: ACCENT }} className="flex-1 px-4 py-2 text-white rounded-lg text-sm font-medium hover:opacity-90">Salvar</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Modal Bloquear Data */}
-      {showModal === 'block' && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setShowModal(null)}>
-          <div className="bg-white rounded-2xl p-6 w-full max-w-sm space-y-4 max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
-            <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2"><Lock size={18} />Bloquear Data</h2>
-            <input type="date" value={blockForm.data_evento} onChange={e => setBlockForm({ ...blockForm, data_evento: e.target.value })} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" />
-            <input type="text" value={blockForm.motivo} onChange={e => setBlockForm({ ...blockForm, motivo: e.target.value })} placeholder="Motivo do bloqueio" className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" />
-            <div className="flex gap-3 pt-2">
-              <button onClick={() => setShowModal(null)} className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700">Cancelar</button>
-              <button onClick={handleBlock} className="flex-1 px-4 py-2 bg-gray-700 text-white rounded-lg text-sm font-medium hover:bg-gray-800">Bloquear</button>
-            </div>
-          </div>
-        </div>
-      )}
+      <KPICards />
+      <Filtros />
+      {view === 'calendario' ? <CalendarioView /> : <ListaView />}
+      <Drawer />
+      <ModalNovaSessao />
+      <ModalBloquear />
     </div>
   );
 }
