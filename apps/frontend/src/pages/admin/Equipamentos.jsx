@@ -1,287 +1,542 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { Package, Tag, ClipboardList, CheckCircle2, Plus, Search, Edit, Trash2, Copy, Star, Power, Filter, ArrowUpDown, AlertTriangle, X } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
-import { Package, ClipboardList, CheckSquare, Plus, Trash2, Edit, X, Wrench, CheckCircle, ChevronDown, ChevronUp } from 'lucide-react';
 
 const ACCENT = '#EA580C';
-const CATEGORIAS = ['Câmera', 'Lente', 'Flash', 'Tripé', 'Drone', 'Iluminação', 'Acessório'];
-const STATUS_OPTIONS = ['disponível', 'em_uso', 'manutenção'];
-const TIPOS_EVENTO = ['Casamento', 'Ensaio', 'Aniversário', 'Corporativo', 'Batizado', 'Outros'];
-const STATUS_COLORS = { disponível: 'bg-green-100 text-green-800', em_uso: 'bg-blue-100 text-blue-800', manutenção: 'bg-yellow-100 text-yellow-800' };
+const TABS = ['Inventário', 'Categorias', 'Checklists', 'Conferência'];
+const STATUS_OPTIONS = [
+  { value: 'disponivel', label: 'Disponível', color: 'bg-green-100 text-green-800' },
+  { value: 'em_uso', label: 'Em Uso', color: 'bg-blue-100 text-blue-800' },
+  { value: 'manutencao', label: 'Manutenção', color: 'bg-yellow-100 text-yellow-800' },
+];
+const PRESET_COLORS = ['#EF4444','#F59E0B','#10B981','#3B82F6','#8B5CF6','#EC4899','#06B6D4','#84CC16','#F97316','#6366F1'];
+const DEFAULT_CATEGORIES = ['Câmeras','Lentes','Flash','Iluminação','Tripés','Drones','Estabilizadores','Áudio','Acessórios','Outros'];
+const EVENT_TYPES = ['Casamento','Ensaio','Corporativo','Aniversário','Formatura','Outros'];
 
 export default function Equipamentos() {
-  const { authFetch } = useAuth();
+  const { token } = useAuth();
   const [tab, setTab] = useState(0);
   const [equipamentos, setEquipamentos] = useState([]);
-  const [modelos, setModelos] = useState([]);
+  const [categorias, setCategorias] = useState([]);
   const [checklists, setChecklists] = useState([]);
   const [eventos, setEventos] = useState([]);
-  const [modal, setModal] = useState(null);
-  const [form, setForm] = useState({});
-  const [expanded, setExpanded] = useState(null);
+  const [loading, setLoading] = useState(true);
 
-  useEffect(() => { carregarDados(); }, []);
+  // Inventário state
+  const [search, setSearch] = useState('');
+  const [filterCat, setFilterCat] = useState('');
+  const [filterStatus, setFilterStatus] = useState('');
+  const [sortBy, setSortBy] = useState('nome');
+  const [modalEquip, setModalEquip] = useState(null);
 
-  const carregarDados = async () => {
-    const [eq, md, cl, ev] = await Promise.all([
-      authFetch('/admin/equipamentos').then(r => r.json()).catch(() => []),
-      authFetch('/admin/equipamentos/checklists').then(r => r.json()).catch(() => []),
-      authFetch('/admin/equipamentos/checklists?ativos=true').then(r => r.json()).catch(() => []),
-      authFetch('/admin/agenda').then(r => r.json()).catch(() => []),
-    ]);
-    setEquipamentos(eq); setModelos(md); setChecklists(cl); setEventos(ev);
-  };
+  // Categorias state
+  const [newCatName, setNewCatName] = useState('');
+  const [newCatColor, setNewCatColor] = useState(PRESET_COLORS[0]);
+  const [editingCat, setEditingCat] = useState(null);
 
-  const salvarEquipamento = async () => {
-    const method = form.id ? 'PUT' : 'POST';
-    const url = form.id ? `/admin/equipamentos/${form.id}` : '/admin/equipamentos';
-    await authFetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(form) });
-    setModal(null); carregarDados();
-  };
+  // Checklists state
+  const [modalChecklist, setModalChecklist] = useState(null);
 
-  const deletarEquipamento = async (id) => {
-    if (!confirm('Excluir este equipamento?')) return;
-    await authFetch(`/admin/equipamentos/${id}`, { method: 'DELETE' });
-    carregarDados();
-  };
+  // Conferência state
+  const [selectedEvento, setSelectedEvento] = useState('');
+  const [selectedChecklist, setSelectedChecklist] = useState('');
+  const [conferencia, setConferencia] = useState(null);
+  const [checked, setChecked] = useState({});
 
-  const alterarStatus = async (id, status) => {
-    await authFetch(`/admin/equipamentos/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status }) });
-    carregarDados();
-  };
+  const headers = { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' };
 
-  const salvarModelo = async () => {
-    await authFetch('/admin/equipamentos/checklists', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(form) });
-    setModal(null); carregarDados();
-  };
+  useEffect(() => { fetchAll(); }, []);
 
-  const gerarChecklist = async () => {
-    await authFetch('/admin/equipamentos/checklists/gerar', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(form) });
-    setModal(null); carregarDados();
-  };
+  async function fetchAll() {
+    setLoading(true);
+    try {
+      const [eqRes, catRes, chkRes, evRes] = await Promise.all([
+        fetch('/admin/equipamentos', { headers }),
+        fetch('/admin/equipamentos/categorias', { headers }),
+        fetch('/admin/equipamentos/checklists', { headers }),
+        fetch('/admin/agenda', { headers }),
+      ]);
+      setEquipamentos(await eqRes.json().catch(() => []));
+      setCategorias(await catRes.json().catch(() => DEFAULT_CATEGORIES.map((n, i) => ({ id: i+1, nome: n, cor: PRESET_COLORS[i] }))));
+      setChecklists(await chkRes.json().catch(() => []));
+      setEventos(await evRes.json().catch(() => []));
+    } catch (e) { console.error(e); }
+    setLoading(false);
+  }
 
-  const toggleItem = async (clId, itemIdx) => {
-    const cl = checklists.find(c => c.id === clId);
-    if (!cl) return;
-    const itens = [...cl.itens];
-    itens[itemIdx] = { ...itens[itemIdx], concluido: !itens[itemIdx].concluido, marcado_em: !itens[itemIdx].concluido ? new Date().toISOString() : null };
-    setChecklists(checklists.map(c => c.id === clId ? { ...c, itens } : c));
-    await authFetch(`/admin/equipamentos/checklists/${clId}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ itens }) });
-  };
+  async function saveEquip(data) {
+    const method = data.id ? 'PUT' : 'POST';
+    const url = data.id ? `/admin/equipamentos/${data.id}` : '/admin/equipamentos';
+    await fetch(url, { method, headers, body: JSON.stringify(data) });
+    setModalEquip(null); fetchAll();
+  }
 
-  const kpis = [
-    { label: 'Total', value: equipamentos.length, color: 'bg-gray-100 text-gray-800' },
-    { label: 'Disponíveis', value: equipamentos.filter(e => e.status === 'disponível').length, color: 'bg-green-100 text-green-800' },
-    { label: 'Em uso', value: equipamentos.filter(e => e.status === 'em_uso').length, color: 'bg-blue-100 text-blue-800' },
-    { label: 'Manutenção', value: equipamentos.filter(e => e.status === 'manutenção').length, color: 'bg-yellow-100 text-yellow-800' },
-  ];
+  async function deleteEquip(id) {
+    if (!confirm('Excluir equipamento?')) return;
+    await fetch(`/admin/equipamentos/${id}`, { method: 'DELETE', headers });
+    fetchAll();
+  }
 
-  const tabs = [
-    { label: 'Equipamentos', icon: <Package size={18} /> },
-    { label: 'Modelos de Checklist', icon: <ClipboardList size={18} /> },
-    { label: 'Checklists de Evento', icon: <CheckSquare size={18} /> },
-  ];
+  async function togglePadrao(eq) {
+    await fetch(`/admin/equipamentos/${eq.id}`, { method: 'PUT', headers, body: JSON.stringify({ ...eq, padrao: !eq.padrao }) });
+    fetchAll();
+  }
+
+  async function toggleAtivo(eq) {
+    await fetch(`/admin/equipamentos/${eq.id}`, { method: 'PUT', headers, body: JSON.stringify({ ...eq, ativo: !eq.ativo }) });
+    fetchAll();
+  }
+
+
+  const filtered = useMemo(() => {
+    let list = [...equipamentos];
+    if (search) list = list.filter(e => `${e.nome} ${e.marca} ${e.modelo}`.toLowerCase().includes(search.toLowerCase()));
+    if (filterCat) list = list.filter(e => e.categoria === filterCat);
+    if (filterStatus) list = list.filter(e => e.status === filterStatus);
+    list.sort((a, b) => {
+      if (sortBy === 'nome') return (a.nome || '').localeCompare(b.nome || '');
+      if (sortBy === 'categoria') return (a.categoria || '').localeCompare(b.categoria || '');
+      if (sortBy === 'valor') return (b.valor_estimado || 0) - (a.valor_estimado || 0);
+      return 0;
+    });
+    return list;
+  }, [equipamentos, search, filterCat, filterStatus, sortBy]);
+
+  const kpis = useMemo(() => ({
+    total: equipamentos.length,
+    ativos: equipamentos.filter(e => e.ativo !== false).length,
+    inativos: equipamentos.filter(e => e.ativo === false).length,
+    padrao: equipamentos.filter(e => e.padrao).length,
+  }), [equipamentos]);
+
+  // Conferência helpers
+  function iniciarConferencia() {
+    const chk = checklists.find(c => c.id == selectedChecklist);
+    if (!chk) return;
+    setConferencia(chk);
+    setChecked({});
+  }
+
+  function finalizarConferencia() {
+    const itens = conferencia?.itens || [];
+    const obrigatorios = itens.filter(i => i.obrigatorio);
+    const faltam = obrigatorios.filter(i => !checked[i.id]);
+    if (faltam.length > 0) {
+      alert(`⚠️ Faltam ${faltam.length} itens obrigatórios!`);
+    } else {
+      alert('✅ Conferência completa! Todos os itens foram verificados.');
+    }
+    setConferencia(null);
+  }
+
+  const conferenciaProgress = useMemo(() => {
+    if (!conferencia) return { checked: 0, total: 0 };
+    const total = conferencia.itens?.length || 0;
+    const done = Object.values(checked).filter(Boolean).length;
+    return { checked: done, total };
+  }, [conferencia, checked]);
+
+  const conferenciaStatus = useMemo(() => {
+    if (!conferencia) return null;
+    const itens = conferencia.itens || [];
+    const obrigatorios = itens.filter(i => i.obrigatorio);
+    const allDone = obrigatorios.every(i => checked[i.id]);
+    return allDone ? 'ok' : 'pendente';
+  }, [conferencia, checked]);
+
+  // Category helpers
+  async function addCategory() {
+    if (!newCatName.trim()) return;
+    await fetch('/admin/equipamentos/categorias', { method: 'POST', headers, body: JSON.stringify({ nome: newCatName, cor: newCatColor }) });
+    setNewCatName(''); fetchAll();
+  }
+
+  async function renameCategory(cat, nome) {
+    await fetch(`/admin/equipamentos/categorias/${cat.id}`, { method: 'PUT', headers, body: JSON.stringify({ ...cat, nome }) });
+    setEditingCat(null); fetchAll();
+  }
+
+  async function deleteCategory(cat) {
+    const count = equipamentos.filter(e => e.categoria === cat.nome).length;
+    if (count > 0) return alert('Não é possível excluir categoria com equipamentos vinculados.');
+    if (!confirm('Excluir categoria?')) return;
+    await fetch(`/admin/equipamentos/categorias/${cat.id}`, { method: 'DELETE', headers });
+    fetchAll();
+  }
+
+  // Checklist helpers
+  async function saveChecklist(data) {
+    const method = data.id ? 'PUT' : 'POST';
+    const url = data.id ? `/admin/equipamentos/checklists/${data.id}` : '/admin/equipamentos/checklists';
+    await fetch(url, { method, headers, body: JSON.stringify(data) });
+    setModalChecklist(null); fetchAll();
+  }
+
+  async function deleteChecklist(id) {
+    if (!confirm('Excluir modelo de checklist?')) return;
+    await fetch(`/admin/equipamentos/checklists/${id}`, { method: 'DELETE', headers });
+    fetchAll();
+  }
+
+  function duplicateChecklist(chk) {
+    setModalChecklist({ ...chk, id: undefined, nome: `${chk.nome} (cópia)` });
+  }
+
+
+  if (loading) return <div className="flex items-center justify-center h-64"><div className="animate-spin h-8 w-8 border-4 border-orange-500 border-t-transparent rounded-full"/></div>;
 
   return (
-    <div className="p-6 max-w-7xl mx-auto">
-      <h1 className="text-2xl font-bold mb-4" style={{ color: ACCENT }}>Inventário & Checklists</h1>
-      <div className="flex flex-wrap gap-1 mb-6 border-b">
-        {tabs.map((t, i) => (
-          <button key={i} onClick={() => setTab(i)} className={`flex items-center gap-2 px-4 py-2 font-medium transition-colors ${tab === i ? 'border-b-2 text-orange-600' : 'text-gray-500 hover:text-gray-700'}`} style={tab === i ? { borderColor: ACCENT } : {}}>
-            {t.icon}{t.label}
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-bold text-gray-900">Equipamentos</h1>
+      </div>
+
+      {/* Tabs */}
+      <div className="flex gap-1 border-b border-gray-200">
+        {TABS.map((t, i) => (
+          <button key={t} onClick={() => setTab(i)} className={`px-4 py-2 text-sm font-medium rounded-t-lg transition ${tab === i ? 'text-white' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'}`} style={tab === i ? { backgroundColor: ACCENT } : {}}>
+            {t}
           </button>
         ))}
       </div>
 
-      {/* === ABA EQUIPAMENTOS === */}
+      {/* === ABA INVENTÁRIO === */}
       {tab === 0 && (
-        <div>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-            {kpis.map(k => (
-              <div key={k.label} className={`rounded-xl p-4 ${k.color}`}>
+        <div className="space-y-4">
+          {/* KPIs */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            {[
+              { label: 'Total', value: kpis.total, color: 'bg-gray-100 text-gray-800' },
+              { label: 'Ativos', value: kpis.ativos, color: 'bg-green-100 text-green-800' },
+              { label: 'Inativos', value: kpis.inativos, color: 'bg-red-100 text-red-800' },
+              { label: 'Padrão', value: kpis.padrao, color: 'bg-amber-100 text-amber-800' },
+            ].map(k => (
+              <div key={k.label} className={`${k.color} rounded-xl p-4 text-center`}>
                 <div className="text-2xl font-bold">{k.value}</div>
-                <div className="text-sm font-medium">{k.label}</div>
+                <div className="text-sm">{k.label}</div>
               </div>
             ))}
           </div>
-          <button onClick={() => { setForm({ nome: '', categoria: 'Câmera', n_serie: '', status: 'disponível', valor_estimado: '', descricao: '', data_compra: '', proxima_manutencao: '' }); setModal('equip'); }} className="mb-4 flex items-center gap-2 text-white px-4 py-2 rounded-lg hover:opacity-90" style={{ backgroundColor: ACCENT }}>
-            <Plus size={16} /> Novo Equipamento
-          </button>
-          <div className="overflow-x-auto bg-white rounded-xl shadow-sm border">
+
+          {/* Filtros */}
+          <div className="flex flex-wrap gap-3 items-center">
+            <div className="relative flex-1 min-w-[200px]">
+              <Search className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
+              <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar nome, marca, modelo..." className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg text-sm" />
+            </div>
+            <select value={filterCat} onChange={e => setFilterCat(e.target.value)} className="border border-gray-300 rounded-lg px-3 py-2 text-sm">
+              <option value="">Todas categorias</option>
+              {categorias.map(c => <option key={c.id} value={c.nome}>{c.nome}</option>)}
+            </select>
+            <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)} className="border border-gray-300 rounded-lg px-3 py-2 text-sm">
+              <option value="">Todos status</option>
+              {STATUS_OPTIONS.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
+            </select>
+            <select value={sortBy} onChange={e => setSortBy(e.target.value)} className="border border-gray-300 rounded-lg px-3 py-2 text-sm">
+              <option value="nome">Ordenar: Nome</option>
+              <option value="categoria">Ordenar: Categoria</option>
+              <option value="valor">Ordenar: Valor</option>
+            </select>
+            <button onClick={() => setModalEquip({ ativo: true, padrao: false, status: 'disponivel' })} className="flex items-center gap-1 px-4 py-2 text-white rounded-lg text-sm font-medium" style={{ backgroundColor: ACCENT }}>
+              <Plus className="h-4 w-4" /> Novo
+            </button>
+          </div>
+
+          {/* Tabela */}
+          <div className="overflow-x-auto bg-white rounded-xl shadow">
             <table className="w-full text-sm">
-              <thead className="bg-gray-50 text-left">
+              <thead className="bg-gray-50 border-b">
                 <tr>
-                  <th className="px-4 py-3 font-medium">Nome</th>
-                  <th className="px-4 py-3 font-medium">Categoria</th>
-                  <th className="px-4 py-3 font-medium">Nº Série</th>
-                  <th className="px-4 py-3 font-medium">Valor Estimado</th>
-                  <th className="px-4 py-3 font-medium">Status</th>
-                  <th className="px-4 py-3 font-medium">Último uso</th>
-                  <th className="px-4 py-3 font-medium text-right">Ações</th>
+                  <th className="px-4 py-3 text-left font-medium text-gray-600">Nome</th>
+                  <th className="px-4 py-3 text-left font-medium text-gray-600">Categoria</th>
+                  <th className="px-4 py-3 text-left font-medium text-gray-600">Marca/Modelo</th>
+                  <th className="px-4 py-3 text-left font-medium text-gray-600">Nº Série</th>
+                  <th className="px-4 py-3 text-left font-medium text-gray-600">Status</th>
+                  <th className="px-4 py-3 text-left font-medium text-gray-600">Flags</th>
+                  <th className="px-4 py-3 text-right font-medium text-gray-600">Valor</th>
+                  <th className="px-4 py-3 text-center font-medium text-gray-600">Ações</th>
                 </tr>
               </thead>
-              <tbody className="divide-y">
-                {equipamentos.map(eq => (
-                  <tr key={eq.id} className="hover:bg-gray-50">
-                    <td className="px-4 py-3 font-medium">{eq.nome}</td>
-                    <td className="px-4 py-3">{eq.categoria}</td>
-                    <td className="px-4 py-3 text-gray-500">{eq.n_serie || eq.numero_serie}</td>
-                    <td className="px-4 py-3">R$ {Number(eq.valor_estimado || 0).toLocaleString('pt-BR')}</td>
-                    <td className="px-4 py-3"><span className={`px-2 py-0.5 rounded-full text-xs font-medium ${STATUS_COLORS[eq.status]}`}>{eq.status?.replace('_', ' ')}</span></td>
-                    <td className="px-4 py-3 text-gray-500">{eq.ultimo_uso ? new Date(eq.ultimo_uso).toLocaleDateString('pt-BR') : '—'}</td>
-                    <td className="px-4 py-3 text-right">
-                      <div className="flex justify-end gap-1">
-                        <button onClick={() => { setForm(eq); setModal('equip'); }} className="p-1.5 rounded hover:bg-blue-50 text-gray-400 hover:text-blue-600" title="Editar"><Edit size={15} /></button>
-                        {eq.status !== 'manutenção' && <button onClick={() => alterarStatus(eq.id, 'manutenção')} className="p-1.5 rounded hover:bg-yellow-50 text-gray-400 hover:text-yellow-600" title="Enviar para manutenção"><Wrench size={15} /></button>}
-                        {eq.status !== 'disponível' && <button onClick={() => alterarStatus(eq.id, 'disponível')} className="p-1.5 rounded hover:bg-green-50 text-gray-400 hover:text-green-600" title="Marcar disponível"><CheckCircle size={15} /></button>}
-                        <button onClick={() => deletarEquipamento(eq.id)} className="p-1.5 rounded hover:bg-red-50 text-gray-400 hover:text-red-600" title="Excluir"><Trash2 size={15} /></button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+              <tbody className="divide-y divide-gray-100">
+                {filtered.map(eq => {
+                  const cat = categorias.find(c => c.nome === eq.categoria);
+                  const st = STATUS_OPTIONS.find(s => s.value === eq.status);
+                  return (
+                    <tr key={eq.id} className="hover:bg-gray-50">
+                      <td className="px-4 py-3 font-medium">{eq.nome}</td>
+                      <td className="px-4 py-3"><span className="px-2 py-0.5 rounded-full text-xs font-medium" style={{ backgroundColor: cat?.cor + '20', color: cat?.cor }}>{eq.categoria}</span></td>
+                      <td className="px-4 py-3 text-gray-600">{eq.marca} {eq.modelo}</td>
+                      <td className="px-4 py-3 text-gray-500 font-mono text-xs">{eq.num_serie}</td>
+                      <td className="px-4 py-3"><span className={`px-2 py-0.5 rounded-full text-xs font-medium ${st?.color || ''}`}>{st?.label || eq.status}</span></td>
+                      <td className="px-4 py-3 flex gap-1">
+                        {eq.padrao && <span className="px-2 py-0.5 bg-amber-100 text-amber-800 rounded-full text-xs">⭐ Padrão</span>}
+                        {eq.ativo !== false && <span className="px-2 py-0.5 bg-green-100 text-green-800 rounded-full text-xs">Ativo</span>}
+                        {eq.ativo === false && <span className="px-2 py-0.5 bg-red-100 text-red-800 rounded-full text-xs">Inativo</span>}
+                      </td>
+                      <td className="px-4 py-3 text-right text-gray-700">{eq.valor_estimado ? `R$ ${Number(eq.valor_estimado).toLocaleString('pt-BR')}` : '-'}</td>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center justify-center gap-1">
+                          <button onClick={() => setModalEquip(eq)} className="p-1 hover:bg-gray-200 rounded" title="Editar"><Edit className="h-4 w-4 text-gray-600" /></button>
+                          <button onClick={() => togglePadrao(eq)} className="p-1 hover:bg-gray-200 rounded" title="Marcar Padrão"><Star className={`h-4 w-4 ${eq.padrao ? 'text-amber-500 fill-amber-500' : 'text-gray-400'}`} /></button>
+                          <button onClick={() => toggleAtivo(eq)} className="p-1 hover:bg-gray-200 rounded" title={eq.ativo !== false ? 'Desativar' : 'Ativar'}><Power className={`h-4 w-4 ${eq.ativo !== false ? 'text-green-600' : 'text-red-500'}`} /></button>
+                          <button onClick={() => deleteEquip(eq.id)} className="p-1 hover:bg-gray-200 rounded" title="Excluir"><Trash2 className="h-4 w-4 text-red-500" /></button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
-            {equipamentos.length === 0 && <p className="text-center text-gray-400 py-8">Nenhum equipamento cadastrado.</p>}
+            {filtered.length === 0 && <div className="text-center py-8 text-gray-500">Nenhum equipamento encontrado.</div>}
           </div>
         </div>
       )}
 
-      {/* === ABA MODELOS DE CHECKLIST === */}
+
+      {/* === ABA CATEGORIAS === */}
       {tab === 1 && (
-        <div>
-          <button onClick={() => { setForm({ nome: '', tipo_evento: 'Casamento', itens: [{ descricao: '', obrigatorio: true }] }); setModal('modelo'); }} className="mb-4 flex items-center gap-2 text-white px-4 py-2 rounded-lg hover:opacity-90" style={{ backgroundColor: ACCENT }}>
-            <Plus size={16} /> Novo Modelo
-          </button>
-          <div className="grid md:grid-cols-2 gap-4">
-            {modelos.map(m => (
-              <div key={m.id} className="bg-white p-5 rounded-xl shadow-sm border">
-                <div className="flex justify-between items-start mb-3">
-                  <div>
-                    <h3 className="font-semibold text-base">{m.nome || m.tipo_evento}</h3>
-                    <span className="text-xs px-2 py-0.5 rounded-full bg-orange-100 text-orange-700">{m.tipo_evento}</span>
-                  </div>
-                  <span className="text-xs text-gray-500">{(m.itens || []).length} itens</span>
-                </div>
-                <ul className="space-y-1.5">
-                  {(m.itens || []).map((item, i) => (
-                    <li key={i} className="flex items-center gap-2 text-sm text-gray-700">
-                      <span className="w-1.5 h-1.5 rounded-full bg-gray-400" />
-                      <span className="flex-1">{item.descricao}</span>
-                      {item.obrigatorio && <span className="text-xs px-1.5 py-0.5 bg-red-50 text-red-600 rounded font-medium">Obrigatório</span>}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ))}
+        <div className="space-y-4">
+          <div className="flex flex-wrap gap-3 items-end">
+            <input value={newCatName} onChange={e => setNewCatName(e.target.value)} placeholder="Nome da categoria" className="border border-gray-300 rounded-lg px-3 py-2 text-sm" />
+            <div className="flex gap-1">
+              {PRESET_COLORS.map(c => (
+                <button key={c} onClick={() => setNewCatColor(c)} className={`w-6 h-6 rounded-full border-2 ${newCatColor === c ? 'border-gray-800 scale-110' : 'border-transparent'}`} style={{ backgroundColor: c }} />
+              ))}
+            </div>
+            <button onClick={addCategory} className="flex items-center gap-1 px-4 py-2 text-white rounded-lg text-sm font-medium" style={{ backgroundColor: ACCENT }}>
+              <Plus className="h-4 w-4" /> Nova Categoria
+            </button>
           </div>
-          {modelos.length === 0 && <p className="text-center text-gray-400 py-8">Nenhum modelo criado.</p>}
-        </div>
-      )}
-
-      {/* === ABA CHECKLISTS DE EVENTO === */}
-      {tab === 2 && (
-        <div>
-          <button onClick={() => { setForm({ modelo_id: '', evento_id: '' }); setModal('gerar'); }} className="mb-4 flex items-center gap-2 text-white px-4 py-2 rounded-lg hover:opacity-90" style={{ backgroundColor: ACCENT }}>
-            <Plus size={16} /> Gerar para evento
-          </button>
-          <div className="space-y-4">
-            {checklists.map(cl => {
-              const total = (cl.itens || []).length;
-              const done = (cl.itens || []).filter(i => i.concluido).length;
-              const pct = total ? Math.round((done / total) * 100) : 0;
-              const isOpen = expanded === cl.id;
+          <div className="bg-white rounded-xl shadow divide-y">
+            {categorias.map(cat => {
+              const count = equipamentos.filter(e => e.categoria === cat.nome).length;
               return (
-                <div key={cl.id} className="bg-white rounded-xl shadow-sm border overflow-hidden">
-                  <button onClick={() => setExpanded(isOpen ? null : cl.id)} className="w-full flex items-center justify-between p-4 hover:bg-gray-50 text-left">
-                    <div>
-                      <span className="font-semibold">{cl.evento_nome || `Evento #${cl.evento_id}`}</span>
-                      <span className="ml-3 text-sm text-gray-500">{cl.data ? new Date(cl.data).toLocaleDateString('pt-BR') : ''}</span>
-                      <span className="ml-3 text-xs px-2 py-0.5 rounded bg-orange-50 text-orange-700">{cl.modelo_nome || 'Modelo'}</span>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <span className="text-sm font-medium" style={{ color: ACCENT }}>{done}/{total}</span>
-                      <div className="w-24 bg-gray-200 rounded-full h-2"><div className="h-2 rounded-full transition-all" style={{ width: `${pct}%`, backgroundColor: ACCENT }} /></div>
-                      {isOpen ? <ChevronUp size={18} className="text-gray-400" /> : <ChevronDown size={18} className="text-gray-400" />}
-                    </div>
-                  </button>
-                  {isOpen && (
-                    <div className="border-t px-4 py-3 space-y-2">
-                      {(cl.itens || []).map((item, ii) => (
-                        <label key={ii} className="flex items-center gap-3 cursor-pointer text-sm py-1">
-                          <input type="checkbox" checked={item.concluido || false} onChange={() => toggleItem(cl.id, ii)} className="rounded w-4 h-4" style={{ accentColor: ACCENT }} />
-                          <span className={`flex-1 ${item.concluido ? 'line-through text-gray-400' : ''}`}>{item.descricao}</span>
-                          {item.obrigatorio && <span className="text-xs text-red-500 font-medium">Obrig.</span>}
-                          {item.marcado_em && <span className="text-xs text-gray-400">{new Date(item.marcado_em).toLocaleString('pt-BR')}</span>}
-                        </label>
-                      ))}
-                    </div>
+                <div key={cat.id} className="flex items-center gap-3 px-4 py-3">
+                  <div className="w-4 h-4 rounded-full" style={{ backgroundColor: cat.cor }} />
+                  {editingCat === cat.id ? (
+                    <input autoFocus defaultValue={cat.nome} onBlur={e => renameCategory(cat, e.target.value)} onKeyDown={e => e.key === 'Enter' && renameCategory(cat, e.target.value)} className="border border-gray-300 rounded px-2 py-1 text-sm" />
+                  ) : (
+                    <span className="font-medium flex-1 cursor-pointer" onDoubleClick={() => setEditingCat(cat.id)}>{cat.nome}</span>
                   )}
+                  <span className="text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">{count} equip.</span>
+                  <button onClick={() => setEditingCat(cat.id)} className="p-1 hover:bg-gray-200 rounded"><Edit className="h-3.5 w-3.5 text-gray-500" /></button>
+                  <button onClick={() => deleteCategory(cat)} className="p-1 hover:bg-gray-200 rounded"><Trash2 className="h-3.5 w-3.5 text-red-500" /></button>
                 </div>
               );
             })}
+            {categorias.length === 0 && <div className="text-center py-8 text-gray-500">Nenhuma categoria cadastrada.</div>}
           </div>
-          {checklists.length === 0 && <p className="text-center text-gray-400 py-8">Nenhum checklist gerado.</p>}
         </div>
       )}
 
-      {/* === MODAIS === */}
-      {modal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setModal(null)}>
-          <div className="bg-white rounded-xl p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-lg font-bold">{modal === 'equip' ? (form.id ? 'Editar' : 'Novo') + ' Equipamento' : modal === 'modelo' ? 'Novo Modelo de Checklist' : 'Gerar Checklist para Evento'}</h2>
-              <button onClick={() => setModal(null)} className="text-gray-400 hover:text-gray-600"><X size={20} /></button>
+
+      {/* === ABA CHECKLISTS === */}
+      {tab === 2 && (
+        <div className="space-y-4">
+          <div className="flex justify-end">
+            <button onClick={() => { const padrao = equipamentos.filter(e => e.padrao).map(e => ({ equipamento_id: e.id, nome: e.nome, quantidade: 1, obrigatorio: true })); setModalChecklist({ nome: '', tipo_evento: '', ativo: true, itens: padrao }); }} className="flex items-center gap-1 px-4 py-2 text-white rounded-lg text-sm font-medium" style={{ backgroundColor: ACCENT }}>
+              <Plus className="h-4 w-4" /> Novo Modelo
+            </button>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {checklists.map(chk => (
+              <div key={chk.id} className="bg-white rounded-xl shadow p-4 space-y-2">
+                <div className="flex items-center justify-between">
+                  <h3 className="font-semibold text-gray-900">{chk.nome}</h3>
+                  {chk.ativo && <span className="px-2 py-0.5 bg-green-100 text-green-800 rounded-full text-xs">Ativo</span>}
+                </div>
+                <p className="text-sm text-gray-500">{chk.tipo_evento}</p>
+                <p className="text-sm text-gray-600">{chk.itens?.length || 0} itens</p>
+                <div className="flex gap-1 pt-2 border-t">
+                  <button onClick={() => setModalChecklist(chk)} className="p-1.5 hover:bg-gray-100 rounded" title="Editar"><Edit className="h-4 w-4 text-gray-600" /></button>
+                  <button onClick={() => duplicateChecklist(chk)} className="p-1.5 hover:bg-gray-100 rounded" title="Duplicar"><Copy className="h-4 w-4 text-gray-600" /></button>
+                  <button onClick={() => deleteChecklist(chk.id)} className="p-1.5 hover:bg-gray-100 rounded" title="Excluir"><Trash2 className="h-4 w-4 text-red-500" /></button>
+                </div>
+              </div>
+            ))}
+          </div>
+          {checklists.length === 0 && <div className="text-center py-8 text-gray-500">Nenhum modelo de checklist cadastrado.</div>}
+        </div>
+      )}
+
+
+      {/* === ABA CONFERÊNCIA === */}
+      {tab === 3 && (
+        <div className="space-y-4">
+          {!conferencia ? (
+            <div className="bg-white rounded-xl shadow p-6 space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Evento</label>
+                  <select value={selectedEvento} onChange={e => { setSelectedEvento(e.target.value); const ev = eventos.find(x => x.id == e.target.value); if (ev) { const match = checklists.find(c => c.tipo_evento === ev.tipo); if (match) setSelectedChecklist(match.id); } }} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+                    <option value="">Selecione um evento</option>
+                    {eventos.map(ev => <option key={ev.id} value={ev.id}>{ev.titulo || ev.nome} - {ev.data}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Modelo de Checklist</label>
+                  <select value={selectedChecklist} onChange={e => setSelectedChecklist(e.target.value)} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+                    <option value="">Selecione um checklist</option>
+                    {checklists.map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}
+                  </select>
+                </div>
+              </div>
+              {/* EQP-10 Badge */}
+              {selectedEvento && (
+                <div className="flex items-center gap-2">
+                  <span className={`px-3 py-1 rounded-full text-xs font-medium ${conferenciaStatus === 'ok' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>
+                    {conferenciaStatus === 'ok' ? '✅ Checklist OK' : '⏳ Pendente'}
+                  </span>
+                </div>
+              )}
+              <button onClick={iniciarConferencia} disabled={!selectedChecklist} className="px-4 py-2 text-white rounded-lg text-sm font-medium disabled:opacity-50" style={{ backgroundColor: ACCENT }}>
+                Iniciar Conferência
+              </button>
             </div>
-
-            {modal === 'equip' && (
-              <div className="space-y-3">
-                <div><label className="text-xs font-medium text-gray-600">Nome</label><input value={form.nome || ''} onChange={e => setForm({ ...form, nome: e.target.value })} className="w-full border rounded-lg px-3 py-2 mt-1" /></div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div><label className="text-xs font-medium text-gray-600">Categoria</label><select value={form.categoria || ''} onChange={e => setForm({ ...form, categoria: e.target.value })} className="w-full border rounded-lg px-3 py-2 mt-1">{CATEGORIAS.map(c => <option key={c}>{c}</option>)}</select></div>
-                  <div><label className="text-xs font-medium text-gray-600">Nº Série</label><input value={form.n_serie || ''} onChange={e => setForm({ ...form, n_serie: e.target.value })} className="w-full border rounded-lg px-3 py-2 mt-1" /></div>
+          ) : (
+            <div className="space-y-4">
+              <div className="bg-white rounded-xl shadow p-4">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="font-semibold">{conferencia.nome}</h3>
+                  <span className="text-sm text-gray-500">{conferenciaProgress.checked} de {conferenciaProgress.total} conferidos</span>
                 </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div><label className="text-xs font-medium text-gray-600">Valor Estimado (R$)</label><input type="number" value={form.valor_estimado || ''} onChange={e => setForm({ ...form, valor_estimado: e.target.value })} className="w-full border rounded-lg px-3 py-2 mt-1" /></div>
-                  <div><label className="text-xs font-medium text-gray-600">Status</label><select value={form.status || ''} onChange={e => setForm({ ...form, status: e.target.value })} className="w-full border rounded-lg px-3 py-2 mt-1">{STATUS_OPTIONS.map(s => <option key={s} value={s}>{s.replace('_', ' ')}</option>)}</select></div>
+                <div className="w-full bg-gray-200 rounded-full h-3 mb-4">
+                  <div className="h-3 rounded-full transition-all" style={{ width: `${conferenciaProgress.total ? (conferenciaProgress.checked / conferenciaProgress.total * 100) : 0}%`, backgroundColor: ACCENT }} />
                 </div>
-                <div><label className="text-xs font-medium text-gray-600">Descrição</label><textarea value={form.descricao || ''} onChange={e => setForm({ ...form, descricao: e.target.value })} rows={2} className="w-full border rounded-lg px-3 py-2 mt-1" /></div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div><label className="text-xs font-medium text-gray-600">Data de Compra</label><input type="date" value={form.data_compra || ''} onChange={e => setForm({ ...form, data_compra: e.target.value })} className="w-full border rounded-lg px-3 py-2 mt-1" /></div>
-                  <div><label className="text-xs font-medium text-gray-600">Próxima Manutenção</label><input type="date" value={form.proxima_manutencao || ''} onChange={e => setForm({ ...form, proxima_manutencao: e.target.value })} className="w-full border rounded-lg px-3 py-2 mt-1" /></div>
+                <div className="space-y-2">
+                  {(conferencia.itens || []).map(item => {
+                    const eq = equipamentos.find(e => e.id === item.equipamento_id);
+                    return (
+                      <label key={item.id || item.equipamento_id} className={`flex items-center gap-3 p-3 rounded-lg border-2 cursor-pointer transition ${checked[item.id || item.equipamento_id] ? 'border-green-500 bg-green-50' : 'border-gray-200 hover:border-gray-300'}`}>
+                        <input type="checkbox" checked={!!checked[item.id || item.equipamento_id]} onChange={e => setChecked(prev => ({ ...prev, [item.id || item.equipamento_id]: e.target.checked }))} className="w-6 h-6 rounded accent-orange-600" />
+                        <div className="flex-1">
+                          <span className="font-medium">{item.nome || eq?.nome}</span>
+                          <span className="text-xs text-gray-500 ml-2">{eq?.categoria}</span>
+                        </div>
+                        <span className={`px-2 py-0.5 rounded-full text-xs ${item.obrigatorio ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-600'}`}>
+                          {item.obrigatorio ? 'Obrigatório' : 'Opcional'}
+                        </span>
+                        {item.quantidade > 1 && <span className="text-xs text-gray-500">x{item.quantidade}</span>}
+                      </label>
+                    );
+                  })}
                 </div>
-                <button onClick={salvarEquipamento} className="w-full text-white py-2.5 rounded-lg font-medium hover:opacity-90 mt-2" style={{ backgroundColor: ACCENT }}>Salvar</button>
               </div>
-            )}
-
-            {modal === 'modelo' && (
-              <div className="space-y-3">
-                <div><label className="text-xs font-medium text-gray-600">Nome do Modelo</label><input value={form.nome || ''} onChange={e => setForm({ ...form, nome: e.target.value })} className="w-full border rounded-lg px-3 py-2 mt-1" /></div>
-                <div><label className="text-xs font-medium text-gray-600">Tipo de Evento</label><select value={form.tipo_evento || ''} onChange={e => setForm({ ...form, tipo_evento: e.target.value })} className="w-full border rounded-lg px-3 py-2 mt-1">{TIPOS_EVENTO.map(t => <option key={t}>{t}</option>)}</select></div>
-                <div><label className="text-xs font-medium text-gray-600 mb-2 block">Itens do Checklist</label>
-                  <div className="space-y-2">
-                    {(form.itens || []).map((item, i) => (
-                      <div key={i} className="flex gap-2 items-center">
-                        <input placeholder="Descrição do item" value={item.descricao} onChange={e => { const itens = [...form.itens]; itens[i] = { ...itens[i], descricao: e.target.value }; setForm({ ...form, itens }); }} className="flex-1 border rounded-lg px-3 py-2 text-sm" />
-                        <button onClick={() => { const itens = [...form.itens]; itens[i] = { ...itens[i], obrigatorio: !itens[i].obrigatorio }; setForm({ ...form, itens }); }} className={`text-xs px-2 py-1 rounded font-medium ${item.obrigatorio ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-500'}`}>{item.obrigatorio ? 'Obrig.' : 'Opcional'}</button>
-                        <button onClick={() => setForm({ ...form, itens: form.itens.filter((_, idx) => idx !== i) })} className="text-red-400 hover:text-red-600"><Trash2 size={15} /></button>
-                      </div>
-                    ))}
-                  </div>
-                  <button onClick={() => setForm({ ...form, itens: [...(form.itens || []), { descricao: '', obrigatorio: false }] })} className="mt-2 text-sm font-medium" style={{ color: ACCENT }}>+ Adicionar item</button>
-                </div>
-                <button onClick={salvarModelo} className="w-full text-white py-2.5 rounded-lg font-medium hover:opacity-90 mt-2" style={{ backgroundColor: ACCENT }}>Salvar Modelo</button>
+              <div className="flex gap-3">
+                <button onClick={() => setConferencia(null)} className="px-4 py-2 border border-gray-300 rounded-lg text-sm">Cancelar</button>
+                <button onClick={finalizarConferencia} className="px-4 py-2 text-white rounded-lg text-sm font-medium" style={{ backgroundColor: ACCENT }}>Finalizar Conferência</button>
               </div>
-            )}
+            </div>
+          )}
+        </div>
+      )}
 
-            {modal === 'gerar' && (
-              <div className="space-y-3">
-                <div><label className="text-xs font-medium text-gray-600">Modelo de Checklist</label><select value={form.modelo_id || ''} onChange={e => setForm({ ...form, modelo_id: e.target.value })} className="w-full border rounded-lg px-3 py-2 mt-1"><option value="">Selecione um modelo</option>{modelos.map(m => <option key={m.id} value={m.id}>{m.nome || m.tipo_evento}</option>)}</select></div>
-                <div><label className="text-xs font-medium text-gray-600">Evento da Agenda</label><select value={form.evento_id || ''} onChange={e => setForm({ ...form, evento_id: e.target.value })} className="w-full border rounded-lg px-3 py-2 mt-1"><option value="">Selecione um evento</option>{eventos.map(ev => <option key={ev.id} value={ev.id}>{ev.titulo || ev.nome} — {ev.data ? new Date(ev.data).toLocaleDateString('pt-BR') : ''}</option>)}</select></div>
-                <button onClick={gerarChecklist} disabled={!form.modelo_id || !form.evento_id} className="w-full text-white py-2.5 rounded-lg font-medium hover:opacity-90 mt-2 disabled:opacity-50" style={{ backgroundColor: ACCENT }}>Gerar Checklist</button>
+
+      {/* === MODAL EQUIPAMENTO === */}
+      {modalEquip && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto p-6 space-y-4">
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-bold">{modalEquip.id ? 'Editar Equipamento' : 'Novo Equipamento'}</h2>
+              <button onClick={() => setModalEquip(null)} className="p-1 hover:bg-gray-200 rounded"><X className="h-5 w-5" /></button>
+            </div>
+            <form onSubmit={e => { e.preventDefault(); const fd = new FormData(e.target); const data = { ...modalEquip, ...Object.fromEntries(fd.entries()), padrao: e.target.padrao.checked, ativo: e.target.ativo.checked }; saveEquip(data); }} className="space-y-3">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="col-span-2"><label className="block text-xs font-medium text-gray-600 mb-1">Nome *</label><input name="nome" defaultValue={modalEquip.nome} required className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" /></div>
+                <div><label className="block text-xs font-medium text-gray-600 mb-1">Categoria *</label><select name="categoria" defaultValue={modalEquip.categoria} required className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">{categorias.map(c => <option key={c.id} value={c.nome}>{c.nome}</option>)}</select></div>
+                <div><label className="block text-xs font-medium text-gray-600 mb-1">Status</label><select name="status" defaultValue={modalEquip.status || 'disponivel'} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">{STATUS_OPTIONS.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}</select></div>
+                <div><label className="block text-xs font-medium text-gray-600 mb-1">Marca</label><input name="marca" defaultValue={modalEquip.marca} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" /></div>
+                <div><label className="block text-xs font-medium text-gray-600 mb-1">Modelo</label><input name="modelo" defaultValue={modalEquip.modelo} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" /></div>
+                <div><label className="block text-xs font-medium text-gray-600 mb-1">Nº Série *</label><input name="num_serie" defaultValue={modalEquip.num_serie} required className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" /></div>
+                <div><label className="block text-xs font-medium text-gray-600 mb-1">Valor Estimado</label><input name="valor_estimado" type="number" step="0.01" defaultValue={modalEquip.valor_estimado} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" /></div>
+                <div><label className="block text-xs font-medium text-gray-600 mb-1">Localização</label><input name="localizacao" defaultValue={modalEquip.localizacao} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" /></div>
+                <div><label className="block text-xs font-medium text-gray-600 mb-1">Data Compra</label><input name="data_compra" type="date" defaultValue={modalEquip.data_compra} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" /></div>
+                <div className="col-span-2"><label className="block text-xs font-medium text-gray-600 mb-1">Descrição</label><textarea name="descricao" defaultValue={modalEquip.descricao} rows={2} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" /></div>
               </div>
-            )}
+              <div className="flex gap-6">
+                <label className="flex items-center gap-2 text-sm"><input type="checkbox" name="padrao" defaultChecked={modalEquip.padrao} className="rounded accent-orange-600" /> Equipamento Padrão</label>
+                <label className="flex items-center gap-2 text-sm"><input type="checkbox" name="ativo" defaultChecked={modalEquip.ativo !== false} className="rounded accent-orange-600" /> Ativo</label>
+              </div>
+              <div className="flex justify-end gap-2 pt-2">
+                <button type="button" onClick={() => setModalEquip(null)} className="px-4 py-2 border border-gray-300 rounded-lg text-sm">Cancelar</button>
+                <button type="submit" className="px-4 py-2 text-white rounded-lg text-sm font-medium" style={{ backgroundColor: ACCENT }}>Salvar</button>
+              </div>
+            </form>
           </div>
         </div>
       )}
+
+      {/* === MODAL CHECKLIST === */}
+      {modalChecklist && <ChecklistModal checklist={modalChecklist} equipamentos={equipamentos} eventTypes={EVENT_TYPES} onSave={saveChecklist} onClose={() => setModalChecklist(null)} />}
+    </div>
+  );
+}
+
+/* ========= CHECKLIST MODAL COMPONENT ========= */
+function ChecklistModal({ checklist, equipamentos, eventTypes, onSave, onClose }) {
+  const [form, setForm] = useState({ nome: checklist.nome || '', tipo_evento: checklist.tipo_evento || '', ativo: checklist.ativo !== false, itens: checklist.itens || [] });
+
+  function addItem() {
+    setForm(f => ({ ...f, itens: [...f.itens, { equipamento_id: '', nome: '', quantidade: 1, obrigatorio: false }] }));
+  }
+
+  function removeItem(idx) {
+    setForm(f => ({ ...f, itens: f.itens.filter((_, i) => i !== idx) }));
+  }
+
+  function updateItem(idx, field, value) {
+    setForm(f => {
+      const itens = [...f.itens];
+      itens[idx] = { ...itens[idx], [field]: value };
+      if (field === 'equipamento_id') { const eq = equipamentos.find(e => e.id == value); if (eq) itens[idx].nome = eq.nome; }
+      return { ...f, itens };
+    });
+  }
+
+  function handleSubmit(e) {
+    e.preventDefault();
+    onSave({ ...checklist, ...form });
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+      <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto p-6 space-y-4">
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-bold">{checklist.id ? 'Editar Checklist' : 'Novo Modelo de Checklist'}</h2>
+          <button onClick={onClose} className="p-1 hover:bg-gray-200 rounded"><X className="h-5 w-5" /></button>
+        </div>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="grid grid-cols-2 gap-3">
+            <div><label className="block text-xs font-medium text-gray-600 mb-1">Nome do Modelo *</label><input value={form.nome} onChange={e => setForm(f => ({ ...f, nome: e.target.value }))} required className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" /></div>
+            <div><label className="block text-xs font-medium text-gray-600 mb-1">Tipo de Evento</label><select value={form.tipo_evento} onChange={e => setForm(f => ({ ...f, tipo_evento: e.target.value }))} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"><option value="">Selecione</option>{eventTypes.map(t => <option key={t} value={t}>{t}</option>)}</select></div>
+          </div>
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <label className="text-sm font-medium text-gray-700">Itens do Checklist</label>
+              <button type="button" onClick={addItem} className="text-xs px-2 py-1 rounded text-white" style={{ backgroundColor: '#EA580C' }}>+ Adicionar Item</button>
+            </div>
+            <div className="space-y-2 max-h-60 overflow-y-auto">
+              {form.itens.map((item, idx) => (
+                <div key={idx} className="flex items-center gap-2 bg-gray-50 rounded-lg p-2">
+                  <select value={item.equipamento_id} onChange={e => updateItem(idx, 'equipamento_id', e.target.value)} className="flex-1 border border-gray-300 rounded px-2 py-1 text-sm">
+                    <option value="">Selecione equipamento</option>
+                    {equipamentos.filter(e => e.ativo !== false).map(e => <option key={e.id} value={e.id}>{e.nome}</option>)}
+                  </select>
+                  <input type="number" min="1" value={item.quantidade} onChange={e => updateItem(idx, 'quantidade', Number(e.target.value))} className="w-16 border border-gray-300 rounded px-2 py-1 text-sm text-center" />
+                  <label className="flex items-center gap-1 text-xs whitespace-nowrap"><input type="checkbox" checked={item.obrigatorio} onChange={e => updateItem(idx, 'obrigatorio', e.target.checked)} className="rounded accent-orange-600" />Obrig.</label>
+                  <button type="button" onClick={() => removeItem(idx)} className="p-1 hover:bg-gray-200 rounded"><Trash2 className="h-3.5 w-3.5 text-red-500" /></button>
+                </div>
+              ))}
+              {form.itens.length === 0 && <p className="text-sm text-gray-400 text-center py-3">Nenhum item adicionado.</p>}
+            </div>
+          </div>
+          <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={form.ativo} onChange={e => setForm(f => ({ ...f, ativo: e.target.checked }))} className="rounded accent-orange-600" /> Modelo Ativo</label>
+          <div className="flex justify-end gap-2 pt-2">
+            <button type="button" onClick={onClose} className="px-4 py-2 border border-gray-300 rounded-lg text-sm">Cancelar</button>
+            <button type="submit" className="px-4 py-2 text-white rounded-lg text-sm font-medium" style={{ backgroundColor: '#EA580C' }}>Salvar</button>
+          </div>
+        </form>
+      </div>
     </div>
   );
 }
