@@ -20,7 +20,6 @@ const adminSections = [
       { to: '/admin/orcamentos', icon: FileText, label: 'Orçamentos' },
       { to: '/admin/contratos', icon: FolderOpen, label: 'Contratos' },
       { to: '/admin/financeiro', icon: CreditCard, label: 'Financeiro' },
-      { to: '/admin/gateway', icon: CreditCard, label: 'Gateway' },
       { to: '/admin/notas-fiscais', icon: Receipt, label: 'Notas Fiscais' },
       { to: '/admin/aditivos', icon: FilePlus, label: 'Aditivos' },
     ],
@@ -44,6 +43,7 @@ const adminSections = [
   {
     label: 'Sistema',
     links: [
+      { to: '/admin/gateway', icon: CreditCard, label: 'Gateway Pagamento' },
       { to: '/admin/storage', icon: HardDrive, label: 'Armazenamento' },
       { to: '/admin/import', icon: Upload, label: 'Import/Export' },
       { to: '/admin/config', icon: Settings, label: 'Configurações' },
