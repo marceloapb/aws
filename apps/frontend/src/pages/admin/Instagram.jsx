@@ -31,6 +31,8 @@ export default function Instagram() {
   const [tipoPost, setTipoPost] = useState('unico');
   const [albuns, setAlbuns] = useState([]);
   const [selectedPhotos, setSelectedPhotos] = useState([]);
+  const [selectedAlbumId, setSelectedAlbumId] = useState(null);
+  const [albumFotos, setAlbumFotos] = useState([]);
   const [caption, setCaption] = useState('');
   const [agendar, setAgendar] = useState(false);
   const [scheduleDate, setScheduleDate] = useState('');
@@ -298,11 +300,24 @@ export default function Instagram() {
             {/* Left: Seleção de fotos + Caption */}
             <div className="space-y-4">
               <h3 className="text-sm font-semibold text-gray-700">Selecionar Fotos {tipoPost === 'carrossel' && `(${selectedPhotos.length}/10)`}</h3>
+              {/* Selecionar álbum primeiro */}
+              <select value={selectedAlbumId || ''} onChange={async (e) => {
+                setSelectedAlbumId(e.target.value);
+                setSelectedPhotos([]);
+                if (e.target.value) {
+                  try { const r = await authFetch(`/admin/albuns/${e.target.value}`); const d = await r.json(); setAlbumFotos(d.data?.fotos || d.fotos || []); } catch { setAlbumFotos([]); }
+                } else { setAlbumFotos([]); }
+              }} className="w-full border rounded-lg px-3 py-2 text-sm">
+                <option value="">Selecione um álbum...</option>
+                {albuns.map(a => <option key={a.id} value={a.id}>{a.titulo} ({a.total_fotos || '?'} fotos)</option>)}
+              </select>
+              {/* Grid de fotos do álbum selecionado */}
               <div className="grid grid-cols-4 gap-2 max-h-48 overflow-y-auto border rounded-lg p-2">
-                {albuns.flatMap(a => a.fotos || []).map((foto, i) => (
-                  <div key={i} onClick={() => togglePhoto(foto.url)} className={`relative cursor-pointer rounded-lg overflow-hidden border-2 ${selectedPhotos.includes(foto.url) ? 'border-[#EA580C]' : 'border-transparent'}`}>
-                    <img src={foto.thumbnail || foto.url} alt="" className="w-full h-16 object-cover" />
-                    {selectedPhotos.includes(foto.url) && (
+                {albumFotos.length === 0 && <p className="col-span-4 text-center text-xs text-gray-400 py-4">{selectedAlbumId ? 'Nenhuma foto neste álbum' : 'Selecione um álbum acima'}</p>}
+                {albumFotos.map((foto, i) => (
+                  <div key={i} onClick={() => togglePhoto(foto.url || foto.url_thumb)} className={`relative cursor-pointer rounded-lg overflow-hidden border-2 ${selectedPhotos.includes(foto.url || foto.url_thumb) ? 'border-[#EA580C]' : 'border-transparent'}`}>
+                    <img src={foto.url_thumb || foto.url || ''} alt="" className="w-full h-16 object-cover" />
+                    {selectedPhotos.includes(foto.url || foto.url_thumb) && (
                       <div className="absolute inset-0 bg-orange-500/30 flex items-center justify-center">
                         <CheckCircle size={18} className="text-white" />
                       </div>
