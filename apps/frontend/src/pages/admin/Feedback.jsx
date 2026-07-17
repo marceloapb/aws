@@ -59,7 +59,7 @@ export default function Feedback() {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-6">
         <div className="flex items-center gap-3">
           <MessageSquare size={24} style={{ color: ACCENT }} />
           <h1 className="text-2xl font-bold text-gray-900">Feedback & Avaliações</h1>
@@ -71,7 +71,7 @@ export default function Feedback() {
       </div>
 
       {/* KPIs */}
-      <div className="grid grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <div className="bg-white rounded-xl border p-4 text-center">
           <div className="text-3xl font-bold" style={{ color: ACCENT }}>{media}</div>
           <div className="mt-1 flex justify-center"><Estrelas valor={Math.round(media)} tamanho={14} leitura /></div>
@@ -153,7 +153,7 @@ export default function Feedback() {
       {/* Modal Solicitar */}
       {showSolicitar && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl w-full max-w-md p-6">
+          <div className="bg-white rounded-xl w-full max-w-md p-6 max-h-[90vh] overflow-y-auto">
             <h2 className="text-lg font-bold mb-4">Solicitar Feedback</h2>
             <select value={solicitarCliente} onChange={(e) => setSolicitarCliente(e.target.value)}
               className="w-full px-3 py-2.5 border rounded-lg mb-4">

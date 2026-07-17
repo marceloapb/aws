@@ -111,9 +111,9 @@ export default function Agenda() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
         <div className="flex items-center gap-3"><Calendar size={24} style={{ color: ACCENT }} /><h1 className="text-2xl font-bold text-gray-900">Agenda</h1></div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <div className="flex gap-1 bg-gray-100 rounded-lg p-1">
             <button onClick={() => setView('calendar')} className={`px-3 py-1.5 rounded-md text-xs font-medium flex items-center gap-1 ${view === 'calendar' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500'}`}><Calendar size={14} />Calendário</button>
             <button onClick={() => setView('list')} className={`px-3 py-1.5 rounded-md text-xs font-medium flex items-center gap-1 ${view === 'list' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500'}`}><List size={14} />Lista</button>
@@ -124,7 +124,7 @@ export default function Agenda() {
       </div>
 
       {/* KPIs */}
-      <div className="grid grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <KpiCard icon={Users} label="Sessões este mês" value={kpis.total} color={ACCENT} />
         <KpiCard icon={Timer} label="Próxima sessão" value={kpis.countdown} color="#8B5CF6" />
         <KpiCard icon={CheckCircle2} label="Confirmadas" value={kpis.confirmadas} color="#10B981" />
@@ -195,7 +195,7 @@ export default function Agenda() {
       {/* Modal Nova Sessão */}
       {showModal === 'new' && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setShowModal(null)}>
-          <div className="bg-white rounded-2xl p-6 w-full max-w-md space-y-4" onClick={e => e.stopPropagation()}>
+          <div className="bg-white rounded-2xl p-6 w-full max-w-md space-y-4 max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
             <h2 className="text-lg font-bold text-gray-900">Nova Sessão</h2>
             <select value={form.tipo_evento} onChange={e => setForm({ ...form, tipo_evento: e.target.value })} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
               <option value="">Tipo de evento</option>{TIPOS.filter(t => t !== 'Bloqueio').map(t => <option key={t} value={t}>{t}</option>)}
@@ -221,7 +221,7 @@ export default function Agenda() {
       {/* Modal Bloquear Data */}
       {showModal === 'block' && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setShowModal(null)}>
-          <div className="bg-white rounded-2xl p-6 w-full max-w-sm space-y-4" onClick={e => e.stopPropagation()}>
+          <div className="bg-white rounded-2xl p-6 w-full max-w-sm space-y-4 max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
             <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2"><Lock size={18} />Bloquear Data</h2>
             <input type="date" value={blockForm.data_evento} onChange={e => setBlockForm({ ...blockForm, data_evento: e.target.value })} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" />
             <input type="text" value={blockForm.motivo} onChange={e => setBlockForm({ ...blockForm, motivo: e.target.value })} placeholder="Motivo do bloqueio" className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" />

@@ -47,7 +47,7 @@ export default function ClienteDetalhe() {
 
       {/* Header */}
       <div className="bg-white rounded-xl border border-gray-200 p-6 mb-6">
-        <div className="flex items-start justify-between">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
           <div className="flex items-center gap-4">
             <div className="w-16 h-16 rounded-full flex items-center justify-center" style={{ background: `${ACCENT}15` }}>
               <User size={28} style={{ color: ACCENT }} />
@@ -59,7 +59,7 @@ export default function ClienteDetalhe() {
               {cliente.cidade && <p className="text-sm text-gray-400">{cliente.cidade}/{cliente.estado}</p>}
             </div>
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             {cliente.whatsapp && (
               <a href={`https://wa.me/55${(cliente.whatsapp || '').replace(/\D/g, '')}`} target="_blank" rel="noopener noreferrer"
                 className="inline-flex items-center gap-1 px-3 py-2 border rounded-lg text-sm hover:bg-gray-50">
@@ -78,7 +78,7 @@ export default function ClienteDetalhe() {
         </div>
 
         {/* KPIs */}
-        <div className="grid grid-cols-4 gap-4 mt-6 pt-6 border-t">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mt-6 pt-6 border-t">
           <div className="text-center">
             <p className="text-2xl font-bold text-gray-900">{orcamentos.length}</p>
             <p className="text-xs text-gray-500">Orçamentos</p>

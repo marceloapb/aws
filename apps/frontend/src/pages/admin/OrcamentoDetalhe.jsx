@@ -53,12 +53,12 @@ export default function OrcamentoDetalhe() {
       </button>
 
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-6">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Orçamento #{id?.slice(0, 8)}</h1>
           <span className={`inline-block mt-1 px-2.5 py-1 rounded-full text-xs font-medium ${st.color}`}>{st.label}</span>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           {orc.status === 'rascunho' && (
             <>
               <button onClick={() => navigate(`/admin/orcamentos/${id}/editar`)} className="inline-flex items-center gap-1 px-3 py-2 border rounded-lg text-sm hover:bg-gray-50">
@@ -93,7 +93,7 @@ export default function OrcamentoDetalhe() {
           {/* Info evento */}
           <div className="bg-white rounded-xl border p-6">
             <h3 className="font-semibold text-gray-900 mb-4">Evento</h3>
-            <div className="grid grid-cols-2 gap-4 text-sm">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
               <div><span className="text-gray-500">Tipo:</span> <span className="font-medium">{orc.tipo_evento || '-'}</span></div>
               <div><span className="text-gray-500">Data:</span> <span className="font-medium">{orc.data_evento ? new Date(orc.data_evento).toLocaleDateString('pt-BR') : '-'}</span></div>
               <div><span className="text-gray-500">Local:</span> <span className="font-medium">{orc.local || '-'}</span></div>
@@ -107,6 +107,7 @@ export default function OrcamentoDetalhe() {
             {(orc.itens || []).length === 0 ? (
               <p className="text-sm text-gray-400">Nenhum item</p>
             ) : (
+              <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead><tr className="border-b"><th className="text-left py-2">Item</th><th className="text-center py-2">Qtd</th><th className="text-right py-2">Unitário</th><th className="text-right py-2">Subtotal</th></tr></thead>
                 <tbody>
@@ -120,6 +121,7 @@ export default function OrcamentoDetalhe() {
                   ))}
                 </tbody>
               </table>
+              </div>
             )}
           </div>
 

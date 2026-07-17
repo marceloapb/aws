@@ -124,7 +124,7 @@ export default function WhatsApp() {
       {tab === 'whatsapp' && (
         <div>
           {config && (
-            <div className="bg-white rounded-xl border border-gray-200 p-4 mb-4 flex items-center justify-between">
+            <div className="bg-white rounded-xl border border-gray-200 p-4 mb-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
               <div className="flex items-center gap-3">
                 {config.connected ? <Wifi size={16} className="text-green-500"/> : <WifiOff size={16} className="text-red-500"/>}
                 <span className={`text-sm font-medium ${config.connected ? 'text-green-600' : 'text-red-600'}`}>{config.connected ? 'Conectado' : 'Desconectado'}</span>
@@ -136,7 +136,7 @@ export default function WhatsApp() {
               </div>
             </div>
           )}
-          <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+          <div className="bg-white rounded-xl border border-gray-200 overflow-x-auto">
             <table className="w-full">
               <thead className="bg-gray-50 border-b border-gray-200">
                 <tr>
@@ -225,7 +225,7 @@ export default function WhatsApp() {
       {/* Modal Enviar Template */}
       {showSendModal && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl w-full max-w-md p-6">
+          <div className="bg-white rounded-xl w-full max-w-md p-6 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-bold">Enviar Template</h2>
               <button onClick={() => setShowSendModal(false)} className="p-1 rounded hover:bg-gray-100"><X size={18}/></button>

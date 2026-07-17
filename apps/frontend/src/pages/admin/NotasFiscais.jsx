@@ -53,7 +53,7 @@ export default function NotasFiscais() {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-6">
         <div className="flex items-center gap-3">
           <Receipt size={24} style={{ color: ACCENT }} />
           <h1 className="text-2xl font-bold text-gray-900">Notas Fiscais</h1>
@@ -65,7 +65,7 @@ export default function NotasFiscais() {
       </div>
 
       {/* KPIs */}
-      <div className="grid grid-cols-3 gap-4 mb-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
         <div className="bg-white rounded-xl border p-4 text-center">
           <div className="text-3xl font-bold" style={{ color: ACCENT }}>{totalEmitidas}</div>
           <p className="text-xs text-gray-400 mt-1">notas emitidas</p>
@@ -91,7 +91,7 @@ export default function NotasFiscais() {
       </div>
 
       {/* Lista */}
-      <div className="bg-white rounded-xl border overflow-hidden">
+      <div className="bg-white rounded-xl border overflow-x-auto">
         {filtradas.length === 0 ? (
           <div className="p-12 text-center text-gray-400">Nenhuma nota fiscal {aba !== 'todas' ? `com status "${aba}"` : ''}</div>
         ) : (
@@ -143,7 +143,7 @@ export default function NotasFiscais() {
       {/* Modal Emitir */}
       {showEmitir && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl w-full max-w-lg p-6">
+          <div className="bg-white rounded-xl w-full max-w-lg p-6 max-h-[90vh] overflow-y-auto">
             <h2 className="text-lg font-bold mb-4">Emitir Nota Fiscal</h2>
             <div className="space-y-4">
               <div>

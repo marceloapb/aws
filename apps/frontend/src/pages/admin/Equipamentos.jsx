@@ -84,7 +84,7 @@ export default function Equipamentos() {
   return (
     <div className="p-6 max-w-7xl mx-auto">
       <h1 className="text-2xl font-bold mb-4" style={{ color: ACCENT }}>Inventário & Checklists</h1>
-      <div className="flex gap-1 mb-6 border-b">
+      <div className="flex flex-wrap gap-1 mb-6 border-b">
         {tabs.map((t, i) => (
           <button key={i} onClick={() => setTab(i)} className={`flex items-center gap-2 px-4 py-2 font-medium transition-colors ${tab === i ? 'border-b-2 text-orange-600' : 'text-gray-500 hover:text-gray-700'}`} style={tab === i ? { borderColor: ACCENT } : {}}>
             {t.icon}{t.label}
@@ -226,7 +226,7 @@ export default function Equipamentos() {
       {/* === MODAIS === */}
       {modal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setModal(null)}>
-          <div className="bg-white rounded-xl p-6 w-full max-w-lg max-h-[85vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+          <div className="bg-white rounded-xl p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-lg font-bold">{modal === 'equip' ? (form.id ? 'Editar' : 'Novo') + ' Equipamento' : modal === 'modelo' ? 'Novo Modelo de Checklist' : 'Gerar Checklist para Evento'}</h2>
               <button onClick={() => setModal(null)} className="text-gray-400 hover:text-gray-600"><X size={20} /></button>
