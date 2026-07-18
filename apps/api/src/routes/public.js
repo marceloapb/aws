@@ -232,4 +232,64 @@ router.post('/contato', async (req, res) => {
   }
 });
 
+// GET /public/portfolio — Categorias visíveis com fotos prontas (portfolio público)
+router.get('/portfolio', async (req, res) => {
+  try {
+    const CDN_BASE_URL = process.env.CDN_BASE_URL || '';
+
+    // Fetch all visible categories
+    const catResult = await docClient.send(new QueryCommand({
+      TableName: TABLE_NAME,
+      KeyConditionExpression: 'PK = :pk AND begins_with(SK, :sk)',
+      ExpressionAttributeValues: {
+        ':pk': 'TENANT#1',
+        ':sk': 'CATPORTFOLIO#',
+      },
+    }));
+
+    const categorias = (catResult.Items || [])
+      .filter(cat => cat.visivel === true)
+      .sort((a, b) => (a.ordem || 0) - (b.ordem || 0));
+
+    // Fetch photos for each visible category
+    const categoriasComFotos = await Promise.all(
+      categorias.map(async (cat) => {
+        const fotosResult = await docClient.send(new QueryCommand({
+          TableName: TABLE_NAME,
+          KeyConditionExpression: 'PK = :pk AND begins_with(SK, :sk)',
+          ExpressionAttributeValues: {
+            ':pk': 'TENANT#1',
+            ':sk': `FOTOPORT#${cat.id}#`,
+          },
+        }));
+
+        const fotos = (fotosResult.Items || [])
+          .filter(f => f.status === 'pronta')
+          .sort((a, b) => (a.ordem || 0) - (b.ordem || 0))
+          .map(f => ({
+            id: f.id,
+            titulo: f.titulo || '',
+            descricao: f.descricao || '',
+            ordem: f.ordem || 0,
+            url: f.s3_key ? `${CDN_BASE_URL}/${f.s3_key}` : null,
+          }));
+
+        return {
+          id: cat.id,
+          nome: cat.nome,
+          texto: cat.texto || '',
+          ordem: cat.ordem || 0,
+          fotos,
+        };
+      })
+    );
+
+    res.set('Cache-Control', 'public, max-age=300');
+    res.json({ success: true, data: categoriasComFotos });
+  } catch (error) {
+    logger.error({ action: 'public_portfolio_categorias_error', error: error.message });
+    res.status(500).json({ success: false, error: 'Erro ao buscar portfólio' });
+  }
+});
+
 module.exports = router;

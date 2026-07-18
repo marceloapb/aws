@@ -5,7 +5,13 @@ import Layout from './components/Layout';
 import PrivateRoute from './components/PrivateRoute';
 import Login from './pages/Login';
 import Cadastro from './pages/Cadastro';
-import Home from './pages/public/Home';
+import SiteLayout from './pages/public/SiteLayout';
+import HomePage from './pages/public/HomePage';
+import PortfolioPage from './pages/public/PortfolioPage';
+import NovidadesPage from './pages/public/NovidadesPage';
+import NovidadeDetalhe from './pages/public/NovidadeDetalhe';
+import SobrePage from './pages/public/SobrePage';
+import ContatoPage from './pages/public/ContatoPage';
 import Dashboard from './pages/admin/Dashboard';
 import ConfigEmpresa from './pages/admin/ConfigEmpresa';
 import Catalogo from './pages/admin/Catalogo';
@@ -37,6 +43,9 @@ import TrocarSenha from './pages/admin/TrocarSenha';
 import GatewayConfig from './pages/admin/GatewayConfig';
 import Onboarding from './pages/admin/Onboarding';
 import IntegracoesLogs from './pages/admin/IntegracoesLogs';
+import Novidades from './pages/admin/Novidades';
+import NovidadesEditor from './pages/admin/NovidadesEditor';
+import CmsEditor from './pages/admin/CmsEditor';
 import MeusOrcamentos from './pages/cliente/MeusOrcamentos';
 import MeusContratos from './pages/cliente/MeusContratos';
 import MeusAlbuns from './pages/cliente/MeusAlbuns';
@@ -47,8 +56,16 @@ function App() {
 
   return (
     <Routes>
-      {/* Público */}
-      <Route path="/" element={<Home />} />
+      {/* Público - Site */}
+      <Route element={<SiteLayout />}>
+        <Route path="/" element={<HomePage />} />
+        <Route path="/portfolio" element={<PortfolioPage />} />
+        <Route path="/novidades" element={<NovidadesPage />} />
+        <Route path="/novidades/:slug" element={<NovidadeDetalhe />} />
+        <Route path="/sobre" element={<SobrePage />} />
+        <Route path="/contato" element={<ContatoPage />} />
+      </Route>
+
       <Route path="/login" element={user ? <Navigate to={user.role === 'admin' ? '/admin' : '/cliente/orcamentos'} /> : <Login />} />
       <Route path="/cadastro" element={<Cadastro />} />
 
@@ -99,6 +116,10 @@ function App() {
         <Route path="whatsapp" element={<WhatsApp />} />
         <Route path="integracoes/logs" element={<IntegracoesLogs />} />
         <Route path="followup" element={<Followup />} />
+        <Route path="novidades" element={<Novidades />} />
+        <Route path="novidades/novo" element={<NovidadesEditor />} />
+        <Route path="novidades/:id/editar" element={<NovidadesEditor />} />
+        <Route path="cms" element={<CmsEditor />} />
         <Route path="import" element={<ImportCSV />} />
         <Route path="storage" element={<Storage />} />
         <Route path="notificacoes" element={<Notificacoes />} />

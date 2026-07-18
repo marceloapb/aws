@@ -113,3 +113,5 @@ apps/
 - Depois de alterações, fazer commit + push + deploy (SAM + S3/CloudFront) quando pedido
 - PowerShell no Windows (usar Set-Location, não cd &&)
 - git pull --rebase antes de push se rejeitar
+- Quando o Marcelo pedir pra publicar/deploy, faz tudo de uma vez (build + deploy API + deploy frontend + commit + push)
+- Não perguntar sobre cache do navegador ou se o deploy está no lugar certo — confia no processo

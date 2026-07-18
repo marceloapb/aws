@@ -29,6 +29,9 @@ const adminNotasFiscaisRoutes = require('./routes/admin-notas-fiscais');
 const adminFinanceiroRoutes = require('./routes/admin-financeiro');
 const adminFollowupRoutes = require('./routes/admin-followup');
 const adminIntegracoesRoutes = require('./routes/admin-integracoes');
+const adminNotificacoesRoutes = require('./routes/admin-notificacoes');
+const adminNovidadesRoutes = require('./routes/admin-novidades');
+const adminSiteRoutes = require('./routes/admin-site');
 
 // Rotas Client
 const clientAuthRoutes = require('./routes/client-auth');
@@ -38,9 +41,12 @@ const clientOrcamentosRoutes = require('./routes/client-orcamentos');
 const clientPagamentosRoutes = require('./routes/client-pagamentos');
 const clientFeedbackRoutes = require('./routes/client-feedback');
 const clientAditivosRoutes = require('./routes/client-aditivos');
+const clientPortalRoutes = require('./routes/client-portal');
 
 // Rotas Públicas (sem auth)
 const publicRoutes = require('./routes/public');
+const publicNovidadesRoutes = require('./routes/public-novidades');
+const publicSiteRoutes = require('./routes/public-site');
 
 // Rotas Webhook
 const webhooksRoutes = require('./routes/webhooks');
@@ -89,6 +95,9 @@ app.use('/admin/aditivos', adminAuth, adminAditivosRoutes);
 app.use('/admin/notas-fiscais', adminAuth, adminNotasFiscaisRoutes);
 app.use('/admin/financeiro', adminAuth, adminFinanceiroRoutes);
 app.use('/admin/followup', adminAuth, adminFollowupRoutes);
+app.use('/admin/notificacoes', adminAuth, adminNotificacoesRoutes);
+app.use('/admin/novidades', adminAuth, adminNovidadesRoutes);
+app.use('/admin/site', adminAuth, adminSiteRoutes);
 
 // Registrar rotas Client (protegidas por clientAuth)
 app.use('/client/auth', clientAuthRoutes);
@@ -101,67 +110,18 @@ app.use('/client/pagamentos', clientAuth, clientPagamentosRoutes);
 app.use('/client/feedback', clientFeedbackRoutes);
 app.use('/client/aditivos', clientAditivosRoutes);
 
+// Rotas Client Portal (consolidadas, com auth)
+app.use('/client/portal', clientAuth, clientPortalRoutes);
+
 // Rotas Públicas (site institucional, sem auth)
 app.use('/public', publicRoutes);
+app.use('/public/novidades', publicNovidadesRoutes);
+app.use('/public/site', publicSiteRoutes);
 
 // Auth pública (login/signup - sem auth)
 app.use('/auth', clientAuthRoutes);
 
-// Notificações in-app (admin)
-app.get('/admin/notificacoes', adminAuth, async (req, res) => {
-  try {
-    const { DynamoDBClient } = require('@aws-sdk/client-dynamodb');
-    const { DynamoDBDocumentClient, QueryCommand } = require('@aws-sdk/lib-dynamodb');
-    const ddb = DynamoDBDocumentClient.from(new DynamoDBClient({}));
-    const result = await ddb.send(new QueryCommand({
-      TableName: process.env.TABLE_NAME,
-      IndexName: 'GSI1',
-      KeyConditionExpression: 'GSI1PK = :pk',
-      ExpressionAttributeValues: { ':pk': `NOTIF#${req.user.sub}` },
-      ScanIndexForward: false,
-      Limit: 20,
-    }));
-    res.json({ success: true, data: result.Items || [] });
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
-  }
-});
-
-app.get('/admin/notificacoes/count', adminAuth, async (req, res) => {
-  try {
-    const { DynamoDBClient } = require('@aws-sdk/client-dynamodb');
-    const { DynamoDBDocumentClient, QueryCommand } = require('@aws-sdk/lib-dynamodb');
-    const ddb = DynamoDBDocumentClient.from(new DynamoDBClient({}));
-    const result = await ddb.send(new QueryCommand({
-      TableName: process.env.TABLE_NAME,
-      IndexName: 'GSI1',
-      KeyConditionExpression: 'GSI1PK = :pk',
-      FilterExpression: 'lida = :false',
-      ExpressionAttributeValues: { ':pk': `NOTIF#${req.user.sub}`, ':false': false },
-      Select: 'COUNT',
-    }));
-    res.json({ success: true, data: { count: result.Count || 0 } });
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
-  }
-});
-
-app.put('/admin/notificacoes/:id/lida', adminAuth, async (req, res) => {
-  try {
-    const { DynamoDBClient } = require('@aws-sdk/client-dynamodb');
-    const { DynamoDBDocumentClient, UpdateCommand } = require('@aws-sdk/lib-dynamodb');
-    const ddb = DynamoDBDocumentClient.from(new DynamoDBClient({}));
-    await ddb.send(new UpdateCommand({
-      TableName: process.env.TABLE_NAME,
-      Key: { PK: `TENANT#${req.user.sub}`, SK: `NOTIF#${req.params.id}` },
-      UpdateExpression: 'SET lida = :true',
-      ExpressionAttributeValues: { ':true': true },
-    }));
-    res.json({ success: true });
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
-  }
-});
+// Notificações in-app (admin) — MIGRADO para routes/admin-notificacoes.js
 
 // Google Maps (MAP-01 a MAP-08)
 app.post('/admin/maps/geocode', adminAuth, async (req, res) => {
