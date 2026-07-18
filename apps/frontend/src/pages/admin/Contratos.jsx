@@ -2,81 +2,76 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import {
-  FolderOpen, Search, Plus, Eye, Send, Download,
-  AlertTriangle, FileText, X, RefreshCw, Clock, CheckCircle2,
-  Circle, PercentIcon
+  FileText, Search, Plus, Eye, Send, Download, Copy, RefreshCw,
+  Clock, CheckCircle2, AlertTriangle, PercentIcon, X, Trash2,
+  Edit, Layers, ToggleLeft, ToggleRight, CreditCard, ArrowRightLeft
 } from 'lucide-react';
 
 const ACCENT = '#EA580C';
-const TABS = ['Todos', 'Gerado', 'Enviado', 'Assinado', 'Expirado'];
+const STATUS_TABS = ['Todos', 'Gerado', 'Enviado', 'Assinado', 'Expirado'];
 const STATUS_MAP = {
   gerado: { label: 'Gerado', cls: 'text-gray-700 bg-gray-100' },
   enviado: { label: 'Enviado', cls: 'text-blue-700 bg-blue-50' },
   assinado: { label: 'Assinado', cls: 'text-green-700 bg-green-50' },
   expirado: { label: 'Expirado', cls: 'text-red-700 bg-red-50' },
 };
-const TIMELINE_STEPS = ['Gerado', 'Enviado', 'Visualizado', 'Assinado'];
+const VARIAVEIS = ['{{nome_cliente}}', '{{cpf_cliente}}', '{{valor_total}}', '{{data_evento}}', '{{local}}', '{{itens_descricao}}', '{{condicoes_pagamento}}'];
 
 function diasRestantes(expiraEm) {
   if (!expiraEm) return null;
-  const diff = new Date(expiraEm) - new Date();
-  return Math.ceil(diff / 86400000);
+  return Math.ceil((new Date(expiraEm) - new Date()) / 86400000);
 }
-
-function formatDate(d) {
-  return d ? new Date(d).toLocaleDateString('pt-BR') : '—';
-}
-
-function formatCurrency(v) {
-  return `R$ ${Number(v || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`;
-}
-
-function Timeline({ status }) {
-  const idx = status === 'assinado' ? 3 : status === 'enviado' ? 1 : status === 'expirado' ? 1 : 0;
-  return (
-    <div className="flex items-center gap-1 py-2">
-      {TIMELINE_STEPS.map((step, i) => (
-        <React.Fragment key={step}>
-          <div className="flex flex-col items-center">
-            <div className={`w-3 h-3 rounded-full border-2 ${i <= idx ? 'border-orange-500 bg-orange-500' : 'border-gray-300 bg-white'}`} />
-            <span className="text-[10px] text-gray-500 mt-0.5">{step}</span>
-          </div>
-          {i < TIMELINE_STEPS.length - 1 && (
-            <div className={`flex-1 h-0.5 min-w-[16px] ${i < idx ? 'bg-orange-500' : 'bg-gray-200'}`} />
-          )}
-        </React.Fragment>
-      ))}
-    </div>
-  );
+function formatDate(d) { return d ? new Date(d).toLocaleDateString('pt-BR') : '—'; }
+function formatCurrency(v) { return `R$ ${Number(v || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`; }
+function diasEnviado(enviadoEm) {
+  if (!enviadoEm) return 0;
+  return Math.floor((new Date() - new Date(enviadoEm)) / 86400000);
 }
 
 export default function Contratos() {
   const { authFetch } = useAuth();
   const navigate = useNavigate();
+  const [abaGlobal, setAbaGlobal] = useState('Contratos');
+
+  // --- Aba Contratos state ---
   const [contratos, setContratos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState('Todos');
   const [busca, setBusca] = useState('');
   const [periodo, setPeriodo] = useState('');
-  const [expandedRow, setExpandedRow] = useState(null);
-  const [modal, setModal] = useState(false);
+  const [modalGerar, setModalGerar] = useState(false);
   const [orcamentos, setOrcamentos] = useState([]);
-  const [form, setForm] = useState({ orcamento_id: '', modelo: 'padrao' });
+  const [modelos, setModelos] = useState([]);
+  const [formGerar, setFormGerar] = useState({ orcamento_id: '', modelo_id: '' });
+
+  // --- Aba Modelos state ---
+  const [modalModelo, setModalModelo] = useState(false);
+  const [editModelo, setEditModelo] = useState(null);
+  const [formModelo, setFormModelo] = useState({ nome: '', tipo_evento: '', corpo_html: '', ativo: true });
+
+  // --- Aba Aditivos state ---
+  const [aditivos, setAditivos] = useState([]);
+  const [modalAditivo, setModalAditivo] = useState(false);
+  const [formAditivo, setFormAditivo] = useState({ contrato_id: '', motivo: '', tipo: 'acrescimo', novo_valor: '', itens_alterados: '', recalcular: false });
 
   useEffect(() => {
     setLoading(true);
-    authFetch('/admin/contratos').then(r => r.json()).then(j => {
-      if (j.success) setContratos(j.data || []);
+    Promise.all([
+      authFetch('/admin/contratos').then(r => r.json()),
+      authFetch('/admin/contratos/modelos').then(r => r.json()),
+      authFetch('/admin/aditivos').then(r => r.json()),
+    ]).then(([cj, mj, aj]) => {
+      if (cj.success) setContratos(cj.data || []);
+      if (mj.success) setModelos(mj.data || []);
+      if (aj.success) setAditivos(aj.data || []);
     }).catch(() => {}).finally(() => setLoading(false));
   }, []);
 
-  const hoje = new Date();
-  const mesAtual = hoje.getMonth();
-  const anoAtual = hoje.getFullYear();
-
+  // KPIs
   const kpis = useMemo(() => {
     const total = contratos.length;
-    const assinados = contratos.filter(c => c.status === 'assinado' && new Date(c.aceite_em).getMonth() === mesAtual && new Date(c.aceite_em).getFullYear() === anoAtual).length;
+    const now = new Date();
+    const assinados = contratos.filter(c => c.status === 'assinado' && new Date(c.aceite_em).getMonth() === now.getMonth() && new Date(c.aceite_em).getFullYear() === now.getFullYear()).length;
     const aguardando = contratos.filter(c => c.status === 'enviado').length;
     const expirados = contratos.filter(c => c.status === 'expirado').length;
     const taxa = total > 0 ? Math.round((contratos.filter(c => c.status === 'assinado').length / total) * 100) : 0;
@@ -87,50 +82,46 @@ export default function Contratos() {
     let list = contratos;
     if (tab !== 'Todos') list = list.filter(c => c.status === tab.toLowerCase());
     if (busca) list = list.filter(c => c.cliente_nome?.toLowerCase().includes(busca.toLowerCase()));
-    if (periodo) {
-      const [start, end] = periodo.split(',');
-      if (start) list = list.filter(c => new Date(c.gerado_em) >= new Date(start));
-      if (end) list = list.filter(c => new Date(c.gerado_em) <= new Date(end));
-    }
+    if (periodo) list = list.filter(c => new Date(c.gerado_em) >= new Date(periodo));
     return list;
   }, [contratos, tab, busca, periodo]);
 
-  const isExpirando = (c) => {
-    if (!c.expira_em || c.status === 'expirado' || c.status === 'assinado') return false;
-    const dias = diasRestantes(c.expira_em);
-    return dias !== null && dias > 0 && dias <= 3;
+  // Actions
+  const abrirModalGerar = () => {
+    authFetch('/admin/orcamentos?status=aceito').then(r => r.json()).then(j => { if (j.success) setOrcamentos(j.data || []); }).catch(() => {});
+    setModalGerar(true);
   };
-
-  const abrirModal = () => {
-    authFetch('/admin/orcamentos?status=aceito').then(r => r.json()).then(j => {
-      if (j.success) setOrcamentos(j.data || []);
-    }).catch(() => {});
-    setModal(true);
-  };
-
   const gerarContrato = () => {
-    if (!form.orcamento_id) return;
-    authFetch('/admin/contratos/gerar', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(form)
-    }).then(r => r.json()).then(j => {
-      if (j.success) { setModal(false); setContratos(prev => [j.data, ...prev]); }
-    }).catch(() => {});
+    if (!formGerar.orcamento_id || !formGerar.modelo_id) return;
+    authFetch('/admin/contratos/gerar', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(formGerar) })
+      .then(r => r.json()).then(j => { if (j.success) { setModalGerar(false); setContratos(p => [j.data, ...p]); setFormGerar({ orcamento_id: '', modelo_id: '' }); } }).catch(() => {});
   };
+  const enviar = (id) => authFetch(`/admin/contratos/${id}/enviar`, { method: 'POST' }).then(r => r.json()).then(j => { if (j.success) setContratos(p => p.map(c => c.id === id ? { ...c, status: 'enviado', enviado_em: new Date().toISOString() } : c)); }).catch(() => {});
+  const reenviar = (id) => authFetch(`/admin/contratos/${id}/enviar`, { method: 'POST' }).catch(() => {});
+  const downloadPdf = (id) => authFetch(`/admin/contratos/${id}/pdf`).then(r => r.blob()).then(b => { const u = URL.createObjectURL(b); const a = document.createElement('a'); a.href = u; a.download = `contrato-${id}.pdf`; a.click(); URL.revokeObjectURL(u); }).catch(() => {});
+  const copiarLink = (id) => { navigator.clipboard.writeText(`${window.location.origin}/contratos/${id}/assinar`); };
 
-  const enviar = (id) => authFetch(`/admin/contratos/${id}/enviar`, { method: 'POST' }).then(r => r.json()).then(j => {
-    if (j.success) setContratos(prev => prev.map(c => c.id === id ? { ...c, status: 'enviado' } : c));
-  }).catch(() => {});
+  // Modelos actions
+  const salvarModelo = () => {
+    const method = editModelo ? 'PUT' : 'POST';
+    const url = editModelo ? `/admin/contratos/modelos/${editModelo.id}` : '/admin/contratos/modelos';
+    authFetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(formModelo) })
+      .then(r => r.json()).then(j => { if (j.success) { setModalModelo(false); setModelos(p => editModelo ? p.map(m => m.id === editModelo.id ? j.data : m) : [...p, j.data]); resetFormModelo(); } }).catch(() => {});
+  };
+  const duplicarModelo = (m) => {
+    authFetch('/admin/contratos/modelos', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...m, nome: `${m.nome} (cópia)`, id: undefined }) })
+      .then(r => r.json()).then(j => { if (j.success) setModelos(p => [...p, j.data]); }).catch(() => {});
+  };
+  const excluirModelo = (id) => { authFetch(`/admin/contratos/modelos/${id}`, { method: 'DELETE' }).then(r => r.json()).then(j => { if (j.success) setModelos(p => p.filter(m => m.id !== id)); }).catch(() => {}); };
+  const resetFormModelo = () => { setFormModelo({ nome: '', tipo_evento: '', corpo_html: '', ativo: true }); setEditModelo(null); };
 
-  const reenviar = (id) => authFetch(`/admin/contratos/${id}/reenviar`, { method: 'POST' }).catch(() => {});
-
-  const downloadPdf = (id) => authFetch(`/admin/contratos/${id}/pdf`).then(r => r.blob()).then(b => {
-    const url = URL.createObjectURL(b);
-    const a = document.createElement('a'); a.href = url; a.download = `contrato-${id}.pdf`; a.click();
-    URL.revokeObjectURL(url);
-  }).catch(() => {});
-
-  const selectedOrc = orcamentos.find(o => String(o.id) === String(form.orcamento_id));
+  // Aditivos actions
+  const criarAditivo = () => {
+    authFetch('/admin/aditivos', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(formAditivo) })
+      .then(r => r.json()).then(j => { if (j.success) { setModalAditivo(false); setAditivos(p => [j.data, ...p]); setFormAditivo({ contrato_id: '', motivo: '', tipo: 'acrescimo', novo_valor: '', itens_alterados: '', recalcular: false }); } }).catch(() => {});
+  };
+  const aprovarAditivo = (id) => { authFetch(`/admin/aditivos/${id}/aprovar`, { method: 'PUT' }).then(r => r.json()).then(j => { if (j.success) setAditivos(p => p.map(a => a.id === id ? { ...a, status: 'aceito', recalculado: true } : a)); }).catch(() => {}); };
+  const enviarAditivoCliente = (id) => { authFetch(`/admin/aditivos/${id}/enviar`, { method: 'POST' }).catch(() => {}); };
 
   const KpiCard = ({ label, value, icon: Icon, suffix }) => (
     <div className="bg-white rounded-xl border border-gray-200 p-4 flex items-center gap-3">
@@ -144,149 +135,295 @@ export default function Contratos() {
     </div>
   );
 
+
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-6 flex-col sm:flex-row gap-3">
+      {/* Header + Abas Globais */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div className="flex items-center gap-3">
-          <FolderOpen size={24} style={{ color: '#EA580C' }} />
+          <FileText size={24} style={{ color: ACCENT }} />
           <h1 className="text-2xl font-bold text-gray-900">Contratos</h1>
         </div>
-        <button onClick={abrirModal} style={{ background: ACCENT }} className="inline-flex items-center gap-2 px-4 py-2 text-white rounded-lg text-sm font-medium hover:opacity-90">
-          <Plus size={16} /> Gerar Contrato
-        </button>
-      </div>
-
-      {/* KPIs */}
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
-        <KpiCard label="Total contratos" value={kpis.total} icon={FileText} />
-        <KpiCard label="Assinados (mês)" value={kpis.assinados} icon={CheckCircle2} />
-        <KpiCard label="Aguardando" value={kpis.aguardando} icon={Clock} />
-        <KpiCard label="Expirados" value={kpis.expirados} icon={AlertTriangle} />
-        <KpiCard label="Taxa de assinatura" value={kpis.taxa} suffix="%" icon={PercentIcon} />
-      </div>
-
-      {/* Filtros */}
-      <div className="flex flex-col sm:flex-row sm:items-center gap-3">
         <div className="flex gap-1 bg-gray-100 rounded-lg p-1">
-          {TABS.map(t => (
-            <button key={t} onClick={() => setTab(t)} className={`px-3 py-1.5 rounded-md text-sm font-medium transition ${tab === t ? 'bg-white shadow text-gray-900' : 'text-gray-500 hover:text-gray-700'}`}>
-              {t}
-            </button>
+          {['Contratos', 'Modelos', 'Aditivos'].map(a => (
+            <button key={a} onClick={() => setAbaGlobal(a)} className={`px-4 py-1.5 rounded-md text-sm font-medium transition ${abaGlobal === a ? 'bg-white shadow text-gray-900' : 'text-gray-500 hover:text-gray-700'}`}>{a}</button>
           ))}
         </div>
-        <div className="relative flex-1 max-w-xs">
-          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-          <input value={busca} onChange={e => setBusca(e.target.value)} placeholder="Buscar cliente..." className="w-full pl-9 pr-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-200" />
-        </div>
-        <input type="date" onChange={e => setPeriodo(e.target.value)} className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-200" />
       </div>
 
-      {/* Tabela ou Empty State */}
-      {loading ? (
-        <div className="bg-white rounded-xl border border-gray-200 p-10 text-center">
-          <RefreshCw size={24} className="mx-auto text-gray-300 animate-spin mb-2" />
-          <p className="text-gray-400 text-sm">Carregando...</p>
-        </div>
-      ) : filtered.length === 0 ? (
-        <div className="bg-white rounded-xl border border-gray-200 p-10 text-center">
-          <FileText size={40} className="mx-auto text-gray-300 mb-3" />
-          <p className="text-gray-600 mb-1">Nenhum contrato.</p>
-          <p className="text-gray-400 text-sm mb-3">Aceite um orçamento para gerar o primeiro!</p>
-          <button onClick={() => navigate('/admin/orcamentos')} className="text-sm font-medium hover:underline" style={{ color: ACCENT }}>
-            Ver orçamentos →
-          </button>
-        </div>
-      ) : (
-        <div className="bg-white rounded-xl border border-gray-200 overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead className="bg-gray-50 border-b border-gray-200">
-              <tr>
-                {['#ID', 'Cliente', 'Tipo evento', 'Valor', 'Status', 'Gerado em', 'Expira em', 'Assinado em', 'Ações'].map(h => (
-                  <th key={h} className="px-4 py-3 text-left font-medium text-gray-600 whitespace-nowrap">{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-              {filtered.map(c => {
-                const st = STATUS_MAP[c.status] || STATUS_MAP.gerado;
-                const expirando = isExpirando(c);
-                const dias = diasRestantes(c.expira_em);
-                const expanded = expandedRow === c.id;
-                return (
-                  <React.Fragment key={c.id}>
-                    <tr onClick={() => setExpandedRow(expanded ? null : c.id)} className={`hover:bg-gray-50 cursor-pointer ${expirando ? 'bg-yellow-50' : ''}`}>
-                      <td className="px-4 py-3 text-gray-500 font-mono text-xs">#{String(c.id).slice(-6)}</td>
-                      <td className="px-4 py-3 font-medium text-gray-900">{c.cliente_nome}</td>
-                      <td className="px-4 py-3 text-gray-600">{c.tipo_evento || '—'}</td>
-                      <td className="px-4 py-3 font-medium">{formatCurrency(c.valor_total)}</td>
-                      <td className="px-4 py-3">
-                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${st.cls}`}>{st.label}</span>
-                      </td>
-                      <td className="px-4 py-3 text-gray-500">{formatDate(c.gerado_em)}</td>
-                      <td className="px-4 py-3">
-                        {c.expira_em ? (
-                          <span className={dias !== null && dias <= 3 && dias > 0 ? 'text-red-600 font-semibold' : dias !== null && dias <= 0 ? 'text-red-400 line-through' : 'text-gray-500'}>
-                            {formatDate(c.expira_em)}
-                            {dias !== null && dias > 0 && dias <= 7 && <span className="ml-1 text-[11px]">({dias}d)</span>}
-                          </span>
-                        ) : '—'}
-                      </td>
-                      <td className="px-4 py-3 text-gray-500">{formatDate(c.aceite_em)}</td>
-                      <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
-                        <div className="flex gap-1">
-                          <button onClick={() => navigate(`/admin/contratos/${c.id}`)} title="Ver detalhes" className="p-1.5 rounded hover:bg-gray-100"><Eye size={15} /></button>
-                          {c.status === 'gerado' && <button onClick={() => enviar(c.id)} title="Enviar para assinatura" className="p-1.5 rounded hover:bg-gray-100"><Send size={15} /></button>}
-                          {c.status === 'enviado' && <button onClick={() => reenviar(c.id)} title="Reenviar" className="p-1.5 rounded hover:bg-gray-100"><RefreshCw size={15} /></button>}
-                          <button onClick={() => downloadPdf(c.id)} title="Download PDF" className="p-1.5 rounded hover:bg-gray-100"><Download size={15} /></button>
-                        </div>
-                      </td>
-                    </tr>
-                    {expanded && (
-                      <tr><td colSpan={9} className="px-6 py-2 bg-gray-50"><Timeline status={c.status} /></td></tr>
-                    )}
-                  </React.Fragment>
-                );
-              })}
-            </tbody>
-          </table>
+      {/* ========== ABA CONTRATOS ========== */}
+      {abaGlobal === 'Contratos' && (
+        <div className="space-y-6">
+          {/* KPIs */}
+          <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
+            <KpiCard label="Total contratos" value={kpis.total} icon={FileText} />
+            <KpiCard label="Assinados (mês)" value={kpis.assinados} icon={CheckCircle2} />
+            <KpiCard label="Aguardando" value={kpis.aguardando} icon={Clock} />
+            <KpiCard label="Expirados" value={kpis.expirados} icon={AlertTriangle} />
+            <KpiCard label="Taxa assinatura" value={kpis.taxa} suffix="%" icon={PercentIcon} />
+          </div>
+          {/* Filtros */}
+          <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+            <div className="flex gap-1 bg-gray-100 rounded-lg p-1">
+              {STATUS_TABS.map(t => (
+                <button key={t} onClick={() => setTab(t)} className={`px-3 py-1.5 rounded-md text-xs font-medium transition ${tab === t ? 'bg-white shadow text-gray-900' : 'text-gray-500 hover:text-gray-700'}`}>{t}</button>
+              ))}
+            </div>
+            <div className="relative flex-1 max-w-xs">
+              <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+              <input value={busca} onChange={e => setBusca(e.target.value)} placeholder="Buscar cliente..." className="w-full pl-9 pr-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-200" />
+            </div>
+            <input type="date" value={periodo} onChange={e => setPeriodo(e.target.value)} className="border border-gray-200 rounded-lg px-3 py-2 text-sm" />
+            <button onClick={abrirModalGerar} style={{ background: ACCENT }} className="inline-flex items-center gap-2 px-4 py-2 text-white rounded-lg text-sm font-medium hover:opacity-90">
+              <Plus size={16} /> Gerar Contrato
+            </button>
+          </div>
+          {/* Tabela */}
+          {loading ? (
+            <div className="bg-white rounded-xl border p-10 text-center"><RefreshCw size={24} className="mx-auto text-gray-300 animate-spin mb-2" /><p className="text-sm text-gray-400">Carregando...</p></div>
+          ) : filtered.length === 0 ? (
+            <div className="bg-white rounded-xl border p-10 text-center"><FileText size={40} className="mx-auto text-gray-300 mb-3" /><p className="text-gray-500">Nenhum contrato encontrado.</p></div>
+          ) : (
+            <div className="bg-white rounded-xl border overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-gray-50 border-b"><tr>
+                  {['#ID','Cliente','Tipo evento','Valor','Status','Gerado em','Expira','Assinado em','Ações'].map(h => <th key={h} className="px-4 py-3 text-left font-medium text-gray-600 whitespace-nowrap">{h}</th>)}
+                </tr></thead>
+                <tbody className="divide-y divide-gray-100">
+                  {filtered.map(c => {
+                    const st = STATUS_MAP[c.status] || STATUS_MAP.gerado;
+                    const dias = diasRestantes(c.expira_em);
+                    const expirando = dias !== null && dias > 0 && dias <= 3 && c.status !== 'assinado';
+                    const diasEnv = c.status === 'enviado' ? diasEnviado(c.enviado_em) : 0;
+                    return (
+                      <tr key={c.id} className={`hover:bg-gray-50 ${expirando ? 'bg-yellow-50' : ''}`}>
+                        <td className="px-4 py-3 font-mono text-xs text-gray-500">#{String(c.id).slice(-6)}</td>
+                        <td className="px-4 py-3 font-medium text-gray-900">{c.cliente_nome}</td>
+                        <td className="px-4 py-3 text-gray-600">{c.tipo_evento || '—'}</td>
+                        <td className="px-4 py-3 font-medium">{formatCurrency(c.valor_total)}</td>
+                        <td className="px-4 py-3">
+                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${st.cls}`}>{st.label}</span>
+                          {diasEnv >= 3 && <span className="ml-1 text-xs text-amber-600">⚠️ {diasEnv}d</span>}
+                        </td>
+                        <td className="px-4 py-3 text-gray-500">{formatDate(c.gerado_em)}</td>
+                        <td className="px-4 py-3">
+                          {dias !== null && dias > 0 ? <span className={dias <= 3 ? 'text-red-600 font-semibold' : 'text-gray-500'}>{dias}d restantes</span> : dias !== null && dias <= 0 ? <span className="text-red-400 text-xs">Expirado</span> : '—'}
+                        </td>
+                        <td className="px-4 py-3 text-gray-500">{formatDate(c.aceite_em)}</td>
+                        <td className="px-4 py-3">
+                          <div className="flex gap-1">
+                            <button onClick={() => navigate(`/admin/contratos/${c.id}`)} title="Ver" className="p-1.5 rounded hover:bg-gray-100"><Eye size={15} /></button>
+                            {c.status === 'gerado' && <button onClick={() => enviar(c.id)} title="Enviar" className="p-1.5 rounded hover:bg-gray-100"><Send size={15} /></button>}
+                            {c.status === 'enviado' && <button onClick={() => reenviar(c.id)} title="Reenviar" className="p-1.5 rounded hover:bg-gray-100"><RefreshCw size={15} /></button>}
+                            <button onClick={() => downloadPdf(c.id)} title="PDF" className="p-1.5 rounded hover:bg-gray-100"><Download size={15} /></button>
+                            <button onClick={() => copiarLink(c.id)} title="Copiar link" className="p-1.5 rounded hover:bg-gray-100"><Copy size={15} /></button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       )}
 
-      {/* Modal Gerar Contrato */}
-      {modal && (
+
+      {/* ========== ABA MODELOS ========== */}
+      {abaGlobal === 'Modelos' && (
+        <div className="space-y-6">
+          <div className="flex justify-between items-center">
+            <p className="text-sm text-gray-500">{modelos.length} modelo(s) cadastrado(s)</p>
+            <button onClick={() => { resetFormModelo(); setModalModelo(true); }} style={{ background: ACCENT }} className="inline-flex items-center gap-2 px-4 py-2 text-white rounded-lg text-sm font-medium hover:opacity-90">
+              <Plus size={16} /> Novo Modelo
+            </button>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {modelos.map(m => (
+              <div key={m.id} className="bg-white rounded-xl border border-gray-200 p-5 space-y-3">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <h3 className="font-semibold text-gray-900">{m.nome}</h3>
+                    <p className="text-xs text-gray-500">{m.tipo_evento}</p>
+                  </div>
+                  <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${m.ativo ? 'bg-green-50 text-green-700' : 'bg-gray-100 text-gray-500'}`}>{m.ativo ? 'Ativo' : 'Inativo'}</span>
+                </div>
+                <div className="flex flex-wrap gap-1">
+                  {(m.variaveis || VARIAVEIS.slice(0, 4)).map(v => <span key={v} className="text-[10px] bg-orange-50 text-orange-700 px-1.5 py-0.5 rounded">{v}</span>)}
+                </div>
+                <div className="flex gap-2 pt-2 border-t border-gray-100">
+                  <button onClick={() => { setEditModelo(m); setFormModelo({ nome: m.nome, tipo_evento: m.tipo_evento, corpo_html: m.corpo_html || '', ativo: m.ativo }); setModalModelo(true); }} className="text-xs text-gray-600 hover:text-gray-900 flex items-center gap-1"><Edit size={12} />Editar</button>
+                  <button onClick={() => duplicarModelo(m)} className="text-xs text-gray-600 hover:text-gray-900 flex items-center gap-1"><Layers size={12} />Duplicar</button>
+                  <button onClick={() => excluirModelo(m.id)} className="text-xs text-red-500 hover:text-red-700 flex items-center gap-1"><Trash2 size={12} />Excluir</button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+
+      {/* ========== ABA ADITIVOS ========== */}
+      {abaGlobal === 'Aditivos' && (
+        <div className="space-y-6">
+          <div className="flex justify-between items-center">
+            <p className="text-sm text-gray-500">{aditivos.length} aditivo(s)</p>
+            <button onClick={() => setModalAditivo(true)} style={{ background: ACCENT }} className="inline-flex items-center gap-2 px-4 py-2 text-white rounded-lg text-sm font-medium hover:opacity-90">
+              <Plus size={16} /> Novo Aditivo
+            </button>
+          </div>
+          <div className="bg-white rounded-xl border overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-gray-50 border-b"><tr>
+                {['Contrato','Motivo','Tipo','Status','Valor antes','Valor depois','Ações'].map(h => <th key={h} className="px-4 py-3 text-left font-medium text-gray-600">{h}</th>)}
+              </tr></thead>
+              <tbody className="divide-y divide-gray-100">
+                {aditivos.map(a => (
+                  <tr key={a.id} className="hover:bg-gray-50">
+                    <td className="px-4 py-3 font-mono text-xs">#{String(a.contrato_id).slice(-6)}</td>
+                    <td className="px-4 py-3 text-gray-700">{a.motivo}</td>
+                    <td className="px-4 py-3">
+                      <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${a.tipo === 'acrescimo' ? 'bg-blue-50 text-blue-700' : a.tipo === 'reducao' ? 'bg-yellow-50 text-yellow-700' : 'bg-purple-50 text-purple-700'}`}>
+                        {a.tipo === 'acrescimo' ? 'Acréscimo' : a.tipo === 'reducao' ? 'Redução' : 'Troca'}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3">
+                      <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${a.status === 'aceito' ? 'bg-green-50 text-green-700' : a.status === 'rejeitado' ? 'bg-red-50 text-red-700' : 'bg-gray-100 text-gray-600'}`}>
+                        {a.status === 'aceito' ? 'Aceito' : a.status === 'rejeitado' ? 'Rejeitado' : 'Pendente'}
+                      </span>
+                      {a.recalculado && <span className="ml-1 text-[10px] bg-green-100 text-green-700 px-1.5 py-0.5 rounded">Cobranças recalculadas</span>}
+                    </td>
+                    <td className="px-4 py-3 text-gray-500">{formatCurrency(a.valor_antes)}</td>
+                    <td className="px-4 py-3 font-medium">{formatCurrency(a.valor_depois)}</td>
+                    <td className="px-4 py-3">
+                      <div className="flex gap-1">
+                        {a.status === 'pendente' && <button onClick={() => aprovarAditivo(a.id)} title="Aprovar" className="p-1.5 rounded hover:bg-gray-100 text-green-600"><CheckCircle2 size={15} /></button>}
+                        {a.status === 'pendente' && <button onClick={() => enviarAditivoCliente(a.id)} title="Enviar ao cliente" className="p-1.5 rounded hover:bg-gray-100"><Send size={15} /></button>}
+                        {a.status === 'aceito' && a.tipo === 'reducao' && <button title="Registrar reembolso" className="p-1.5 rounded hover:bg-gray-100 text-amber-600"><CreditCard size={15} /></button>}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {aditivos.length === 0 && <div className="p-8 text-center text-gray-400 text-sm">Nenhum aditivo registrado.</div>}
+          </div>
+        </div>
+      )}
+
+
+      {/* ===== MODAL GERAR CONTRATO ===== */}
+      {modalGerar && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-6 space-y-4 max-h-[90vh] overflow-y-auto">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-6 space-y-4">
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-bold text-gray-900">Gerar Contrato</h2>
-              <button onClick={() => setModal(false)}><X size={20} className="text-gray-400 hover:text-gray-600" /></button>
+              <button onClick={() => setModalGerar(false)}><X size={20} className="text-gray-400 hover:text-gray-600" /></button>
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Orçamento aceito</label>
-              <select value={form.orcamento_id} onChange={e => setForm({ ...form, orcamento_id: e.target.value })} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-200">
-                <option value="">Selecione um orçamento...</option>
-                {orcamentos.map(o => (
-                  <option key={o.id} value={o.id}>#{o.id} — {o.cliente_nome} ({formatCurrency(o.valor_total)})</option>
-                ))}
+              <select value={formGerar.orcamento_id} onChange={e => setFormGerar({ ...formGerar, orcamento_id: e.target.value })} className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-orange-200">
+                <option value="">Selecione...</option>
+                {orcamentos.map(o => <option key={o.id} value={o.id}>#{o.id} — {o.cliente_nome} ({formatCurrency(o.valor_total)})</option>)}
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Modelo de contrato</label>
-              <select value={form.modelo} onChange={e => setForm({ ...form, modelo: e.target.value })} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-200">
-                <option value="padrao">Padrão</option>
-                <option value="personalizado">Personalizado</option>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Modelo</label>
+              <select value={formGerar.modelo_id} onChange={e => setFormGerar({ ...formGerar, modelo_id: e.target.value })} className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-orange-200">
+                <option value="">Selecione o modelo...</option>
+                {modelos.filter(m => m.ativo).map(m => <option key={m.id} value={m.id}>{m.nome}</option>)}
               </select>
             </div>
-            {selectedOrc && (
-              <div className="bg-orange-50 border border-orange-100 rounded-lg p-3 text-sm space-y-1">
-                <p className="font-medium text-gray-900">Preview</p>
-                <p className="text-gray-600">Cliente: {selectedOrc.cliente_nome}</p>
-                <p className="text-gray-600">Valor: {formatCurrency(selectedOrc.valor_total)}</p>
-                <p className="text-gray-600">Tipo: {selectedOrc.tipo_evento || 'N/A'}</p>
-              </div>
-            )}
-            <button onClick={gerarContrato} disabled={!form.orcamento_id} style={{ background: ACCENT }} className="w-full py-2.5 text-white rounded-lg text-sm font-medium hover:opacity-90 disabled:opacity-50">
+            <button onClick={gerarContrato} disabled={!formGerar.orcamento_id || !formGerar.modelo_id} style={{ background: ACCENT }} className="w-full py-2.5 text-white rounded-lg text-sm font-medium hover:opacity-90 disabled:opacity-50">
               Gerar Contrato
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ===== MODAL MODELO ===== */}
+      {modalModelo && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-lg p-6 space-y-4 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-bold text-gray-900">{editModelo ? 'Editar Modelo' : 'Novo Modelo'}</h2>
+              <button onClick={() => { setModalModelo(false); resetFormModelo(); }}><X size={20} className="text-gray-400 hover:text-gray-600" /></button>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Nome do modelo</label>
+              <input value={formModelo.nome} onChange={e => setFormModelo({ ...formModelo, nome: e.target.value })} placeholder="Ex: Casamento Padrão" className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-orange-200" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Tipo de evento</label>
+              <select value={formModelo.tipo_evento} onChange={e => setFormModelo({ ...formModelo, tipo_evento: e.target.value })} className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-orange-200">
+                <option value="">Selecione...</option>
+                {['Casamento','Aniversário','Corporativo','Formatura','Ensaio','Outro'].map(t => <option key={t} value={t}>{t}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Corpo HTML</label>
+              <textarea value={formModelo.corpo_html} onChange={e => setFormModelo({ ...formModelo, corpo_html: e.target.value })} rows={8} placeholder="Use variáveis: {{nome_cliente}}, {{cpf_cliente}}, {{valor_total}}, {{data_evento}}, {{local}}, {{itens_descricao}}, {{condicoes_pagamento}}" className="w-full border rounded-lg px-3 py-2 text-sm font-mono focus:ring-2 focus:ring-orange-200" />
+              <div className="flex flex-wrap gap-1 mt-2">
+                {VARIAVEIS.map(v => <span key={v} onClick={() => setFormModelo(f => ({ ...f, corpo_html: f.corpo_html + v }))} className="text-[10px] bg-orange-50 text-orange-700 px-1.5 py-0.5 rounded cursor-pointer hover:bg-orange-100">{v}</span>)}
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <button onClick={() => setFormModelo(f => ({ ...f, ativo: !f.ativo }))} className="text-gray-600">
+                {formModelo.ativo ? <ToggleRight size={24} style={{ color: ACCENT }} /> : <ToggleLeft size={24} />}
+              </button>
+              <span className="text-sm text-gray-700">{formModelo.ativo ? 'Ativo' : 'Inativo'}</span>
+            </div>
+            <button onClick={salvarModelo} disabled={!formModelo.nome || !formModelo.tipo_evento} style={{ background: ACCENT }} className="w-full py-2.5 text-white rounded-lg text-sm font-medium hover:opacity-90 disabled:opacity-50">
+              {editModelo ? 'Salvar Alterações' : 'Criar Modelo'}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ===== MODAL ADITIVO ===== */}
+      {modalAditivo && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-6 space-y-4 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-bold text-gray-900">Novo Aditivo</h2>
+              <button onClick={() => setModalAditivo(false)}><X size={20} className="text-gray-400 hover:text-gray-600" /></button>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Contrato</label>
+              <select value={formAditivo.contrato_id} onChange={e => setFormAditivo({ ...formAditivo, contrato_id: e.target.value })} className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-orange-200">
+                <option value="">Selecione...</option>
+                {contratos.filter(c => c.status === 'assinado').map(c => <option key={c.id} value={c.id}>#{String(c.id).slice(-6)} — {c.cliente_nome}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Motivo</label>
+              <input value={formAditivo.motivo} onChange={e => setFormAditivo({ ...formAditivo, motivo: e.target.value })} placeholder="Descreva o motivo..." className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-orange-200" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Tipo</label>
+              <select value={formAditivo.tipo} onChange={e => setFormAditivo({ ...formAditivo, tipo: e.target.value })} className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-orange-200">
+                <option value="acrescimo">Acréscimo</option>
+                <option value="reducao">Redução</option>
+                <option value="troca">Troca de item</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Novo valor total</label>
+              <input type="number" step="0.01" value={formAditivo.novo_valor} onChange={e => setFormAditivo({ ...formAditivo, novo_valor: e.target.value })} placeholder="0.00" className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-orange-200" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Itens alterados</label>
+              <textarea value={formAditivo.itens_alterados} onChange={e => setFormAditivo({ ...formAditivo, itens_alterados: e.target.value })} rows={3} placeholder="Descreva os itens..." className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-orange-200" />
+            </div>
+            <div className="flex items-center gap-2">
+              <button onClick={() => setFormAditivo(f => ({ ...f, recalcular: !f.recalcular }))} className="text-gray-600">
+                {formAditivo.recalcular ? <ToggleRight size={24} style={{ color: ACCENT }} /> : <ToggleLeft size={24} />}
+              </button>
+              <span className="text-sm text-gray-700">Recalcular cobranças automaticamente</span>
+            </div>
+            <button onClick={criarAditivo} disabled={!formAditivo.contrato_id || !formAditivo.motivo} style={{ background: ACCENT }} className="w-full py-2.5 text-white rounded-lg text-sm font-medium hover:opacity-90 disabled:opacity-50">
+              Criar Aditivo
             </button>
           </div>
         </div>
