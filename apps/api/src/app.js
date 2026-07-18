@@ -159,6 +159,59 @@ app.put('/admin/notificacoes/:id/lida', adminAuth, async (req, res) => {
   }
 });
 
+// Status das Integrações (para tela de Configurações)
+app.get('/admin/instagram', adminAuth, async (req, res) => {
+  try {
+    const { SSMClient, GetParameterCommand } = require('@aws-sdk/client-ssm');
+    const ssm = new SSMClient({});
+    const prefix = process.env.SSM_PREFIX || '/mbf/prod';
+    let connected = false, username = '', businessAccountId = '';
+    try {
+      const tokenParam = await ssm.send(new GetParameterCommand({ Name: `${prefix}/INSTAGRAM_ACCESS_TOKEN`, WithDecryption: true }));
+      const accountParam = await ssm.send(new GetParameterCommand({ Name: `${prefix}/INSTAGRAM_BUSINESS_ACCOUNT_ID` }));
+      const usernameParam = await ssm.send(new GetParameterCommand({ Name: `${prefix}/INSTAGRAM_USERNAME` }));
+      if (tokenParam.Parameter.Value) connected = true;
+      businessAccountId = accountParam.Parameter.Value || '';
+      username = usernameParam.Parameter.Value || '';
+    } catch {}
+    res.json({ success: true, data: { connected, username, businessAccountId, accountType: 'Business', permissions: ['instagram_business_basic', 'content_publish', 'manage_insights'] } });
+  } catch (error) { res.status(500).json({ success: false, message: error.message }); }
+});
+
+app.get('/admin/google-calendar', adminAuth, async (req, res) => {
+  try {
+    const { SSMClient, GetParameterCommand } = require('@aws-sdk/client-ssm');
+    const ssm = new SSMClient({});
+    const prefix = process.env.SSM_PREFIX || '/mbf/prod';
+    let connected = false, calendarName = '', lastSync = null;
+    try {
+      const emailParam = await ssm.send(new GetParameterCommand({ Name: `${prefix}/GOOGLE_CLIENT_EMAIL` }));
+      const calParam = await ssm.send(new GetParameterCommand({ Name: `${prefix}/GOOGLE_CALENDAR_ID` }));
+      if (emailParam.Parameter.Value && calParam.Parameter.Value) connected = true;
+      calendarName = calParam.Parameter.Value || '';
+    } catch {}
+    res.json({ success: true, data: { connected, calendarName, lastSync, syncEnabled: true } });
+  } catch (error) { res.status(500).json({ success: false, message: error.message }); }
+});
+
+app.get('/admin/whatsapp/config', adminAuth, async (req, res) => {
+  try {
+    const { SSMClient, GetParameterCommand } = require('@aws-sdk/client-ssm');
+    const ssm = new SSMClient({});
+    const prefix = process.env.SSM_PREFIX || '/mbf/prod';
+    let connected = false, phoneNumber = '', wabaId = '', phoneNumberId = '';
+    try {
+      const tokenParam = await ssm.send(new GetParameterCommand({ Name: `${prefix}/WHATSAPP_ACCESS_TOKEN`, WithDecryption: true }));
+      if (tokenParam.Parameter.Value) connected = true;
+    } catch {}
+    try {
+      const phoneParam = await ssm.send(new GetParameterCommand({ Name: `${prefix}/WHATSAPP_PHONE_NUMBER_ID` }));
+      phoneNumberId = phoneParam.Parameter.Value || '';
+    } catch {}
+    res.json({ success: true, data: { connected, phoneNumber, wabaId, phoneNumberId } });
+  } catch (error) { res.status(500).json({ success: false, message: error.message }); }
+});
+
 // IA - Gerar Caption Instagram (Bedrock)
 app.post('/admin/instagram/gerar-caption', adminAuth, async (req, res) => {
   try {
