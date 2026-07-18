@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import { CheckCircle, XCircle, RefreshCw, Zap, Eye, EyeOff, Copy, ArrowRight, AlertTriangle, Calendar, Instagram, Play, FileText } from 'lucide-react';
+import { CheckCircle, XCircle, RefreshCw, Zap, Eye, EyeOff, Copy, ArrowRight, AlertTriangle, Calendar, Instagram, Play, FileText, Mail, MapPin } from 'lucide-react';
 
 const ACCENT = '#EA580C';
 const WEBHOOK_URL = 'https://2fbg55ru9j.execute-api.us-east-1.amazonaws.com/prod/whatsapp/webhook';
@@ -12,6 +12,8 @@ export default function ConfigIntegracoes({ form, setForm }) {
   const [whatsappStatus, setWhatsappStatus] = useState(null);
   const [instagramStatus, setInstagramStatus] = useState(null);
   const [calendarStatus, setCalendarStatus] = useState(null);
+  const [emailStatus, setEmailStatus] = useState(null);
+  const [mapsStatus, setMapsStatus] = useState(null);
   const [subTab, setSubTab] = useState('whatsapp');
   const [showToken, setShowToken] = useState(false);
   const [showCalendarToken, setShowCalendarToken] = useState(false);
@@ -26,14 +28,18 @@ export default function ConfigIntegracoes({ form, setForm }) {
 
   const loadStatuses = async () => {
     try {
-      const [waRes, igRes, calRes] = await Promise.all([
+      const [waRes, igRes, calRes, emailRes, mapsRes] = await Promise.all([
         authFetch('/admin/whatsapp/config').then(r => r.json()).catch(() => null),
         authFetch('/admin/instagram/status').then(r => r.json()).catch(() => null),
         authFetch('/admin/google-calendar/status').then(r => r.json()).catch(() => null),
+        authFetch('/admin/integracoes/test/email-status').then(r => r.json()).catch(() => null),
+        authFetch('/admin/integracoes/test/maps-status').then(r => r.json()).catch(() => null),
       ]);
       if (waRes?.success) setWhatsappStatus(waRes.data);
       if (igRes?.success) setInstagramStatus(igRes.data);
       if (calRes?.success) setCalendarStatus(calRes.data);
+      if (emailRes?.success) setEmailStatus(emailRes.data);
+      if (mapsRes?.success) setMapsStatus(mapsRes.data);
     } catch {}
   };
 
@@ -147,10 +153,10 @@ export default function ConfigIntegracoes({ form, setForm }) {
     <div className="space-y-6">
       {/* Sub-tabs */}
       <div className="flex gap-1 bg-gray-100 rounded-lg p-1 w-fit overflow-x-auto">
-        {['whatsapp', 'instagram', 'pagamento', 'calendar'].map(t => (
+        {['whatsapp', 'instagram', 'email', 'maps', 'pagamento', 'calendar'].map(t => (
           <button key={t} type="button" onClick={() => { setSubTab(t); setTestResult(null); }}
             className={`px-4 py-2 rounded-md text-sm font-medium whitespace-nowrap transition-colors ${subTab === t ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-700'}`}>
-            {t === 'whatsapp' ? 'WhatsApp' : t === 'instagram' ? 'Instagram' : t === 'pagamento' ? 'Pagamento' : 'Google Calendar'}
+            {t === 'whatsapp' ? 'WhatsApp' : t === 'instagram' ? 'Instagram' : t === 'email' ? 'Email (SES)' : t === 'maps' ? 'Google Maps' : t === 'pagamento' ? 'Pagamento' : 'Google Calendar'}
           </button>
         ))}
       </div>
@@ -332,6 +338,98 @@ export default function ConfigIntegracoes({ form, setForm }) {
             <TestButton integracao="instagram" />
           </div>
           {testResult?.integracao === 'instagram' && <TestResultBanner />}
+        </div>
+      )}
+
+      {/* Email (SES) */}
+      {subTab === 'email' && (
+        <div className="space-y-4">
+          <div className="flex items-center gap-3 p-4 rounded-lg bg-gray-50 border">
+            {emailStatus?.connected ? (
+              <CheckCircle size={20} className="text-green-500" />
+            ) : (
+              <XCircle size={20} className="text-red-400" />
+            )}
+            <div className="flex-1">
+              <p className="text-sm font-medium text-gray-900">
+                {emailStatus?.connected ? `Remetente: ${emailStatus.fromEmail}` : 'Não configurado'}
+              </p>
+              <p className="text-xs text-gray-500">
+                {emailStatus?.connected ? `Domínio ${emailStatus.domain} verificado` : 'Configure o SES para enviar emails'}
+              </p>
+            </div>
+            {getStatusBadge(emailStatus?.connected)}
+          </div>
+
+          {emailStatus?.connected && (
+            <div className="grid md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Email Remetente</label>
+                <p className="text-sm text-gray-600 px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-lg">{emailStatus.fromEmail}</p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Região SES</label>
+                <p className="text-sm text-gray-600 px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-lg">us-east-1</p>
+              </div>
+            </div>
+          )}
+
+          <div className="p-4 rounded-lg bg-blue-50 border border-blue-200">
+            <p className="text-sm text-blue-700">
+              💡 O SES é usado para enviar emails de notificação, contratos, orçamentos e confirmações. A configuração é feita via AWS Console.
+            </p>
+          </div>
+
+          <div className="pt-2 border-t flex items-center gap-3">
+            <TestButton integracao="email" />
+          </div>
+          {testResult?.integracao === 'email' && <TestResultBanner />}
+        </div>
+      )}
+
+      {/* Google Maps */}
+      {subTab === 'maps' && (
+        <div className="space-y-4">
+          <div className="flex items-center gap-3 p-4 rounded-lg bg-gray-50 border">
+            {mapsStatus?.connected ? (
+              <CheckCircle size={20} className="text-green-500" />
+            ) : (
+              <XCircle size={20} className="text-red-400" />
+            )}
+            <div className="flex-1">
+              <p className="text-sm font-medium text-gray-900">
+                {mapsStatus?.connected ? 'API Key configurada' : 'Não configurado'}
+              </p>
+              <p className="text-xs text-gray-500">
+                {mapsStatus?.connected ? 'Geocoding, Distance Matrix e Maps Embed disponíveis' : 'Configure a API Key do Google Maps'}
+              </p>
+            </div>
+            {getStatusBadge(mapsStatus?.connected)}
+          </div>
+
+          {mapsStatus?.connected && mapsStatus.services && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Serviços Disponíveis</label>
+              <div className="flex flex-wrap gap-2">
+                {(mapsStatus.services || []).map((s, i) => (
+                  <span key={i} className="inline-flex items-center gap-1 px-2.5 py-1 bg-green-50 text-green-700 text-xs rounded-full border border-green-200">
+                    <CheckCircle size={10} /> {s}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div className="p-4 rounded-lg bg-blue-50 border border-blue-200">
+            <p className="text-sm text-blue-700">
+              💡 O Google Maps é usado para calcular distâncias nos orçamentos, mostrar mapas na agenda e gerar links de navegação.
+            </p>
+          </div>
+
+          <div className="pt-2 border-t flex items-center gap-3">
+            <TestButton integracao="maps" />
+          </div>
+          {testResult?.integracao === 'maps' && <TestResultBanner />}
         </div>
       )}
 

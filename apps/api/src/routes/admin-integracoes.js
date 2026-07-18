@@ -181,4 +181,89 @@ router.delete('/logs', async (req, res) => {
   }
 });
 
+// ═══════════════════════════════════════════════════
+// STATUS ENDPOINTS (for config page)
+// ═══════════════════════════════════════════════════
+
+// GET /api/admin/integracoes/test/email-status
+router.get('/test/email-status', async (req, res) => {
+  try {
+    const params = await loadParams();
+    const fromEmail = params.SES_FROM_EMAIL;
+    const connected = !!fromEmail;
+    const domain = fromEmail ? fromEmail.split('@')[1] : '';
+    res.json({ success: true, data: { connected, fromEmail: fromEmail || '', domain } });
+  } catch (error) {
+    res.json({ success: true, data: { connected: false, fromEmail: '', domain: '' } });
+  }
+});
+
+// GET /api/admin/integracoes/test/maps-status
+router.get('/test/maps-status', async (req, res) => {
+  try {
+    const params = await loadParams();
+    const connected = !!params.GOOGLE_MAPS_API_KEY;
+    const services = connected ? ['Geocoding', 'Distance Matrix', 'Maps Embed', 'Places'] : [];
+    res.json({ success: true, data: { connected, services } });
+  } catch (error) {
+    res.json({ success: true, data: { connected: false, services: [] } });
+  }
+});
+
+// POST /api/admin/integracoes/test/email
+router.post('/test/email', async (req, res) => {
+  try {
+    const params = await loadParams();
+    if (!params.SES_FROM_EMAIL) {
+      await salvarLog('email', 'teste', 'erro', 'SES_FROM_EMAIL não configurado');
+      return res.json({ success: false, message: 'Email (SES) não configurado.' });
+    }
+
+    // Test: try SES get identity
+    const { SESClient, GetIdentityVerificationAttributesCommand } = require('@aws-sdk/client-ses');
+    const ses = new SESClient({ region: 'us-east-1' });
+    const domain = params.SES_FROM_EMAIL.split('@')[1];
+    const result = await ses.send(new GetIdentityVerificationAttributesCommand({ Identities: [domain, params.SES_FROM_EMAIL] }));
+
+    const domainStatus = result.VerificationAttributes?.[domain]?.VerificationStatus;
+    const emailStatus = result.VerificationAttributes?.[params.SES_FROM_EMAIL]?.VerificationStatus;
+
+    if (domainStatus === 'Success' || emailStatus === 'Success') {
+      await salvarLog('email', 'teste', 'sucesso', `Remetente: ${params.SES_FROM_EMAIL} (${domainStatus || emailStatus})`);
+      res.json({ success: true, message: `SES OK. Remetente: ${params.SES_FROM_EMAIL} verificado.` });
+    } else {
+      await salvarLog('email', 'teste', 'erro', `Status: domínio=${domainStatus}, email=${emailStatus}`);
+      res.json({ success: false, message: `SES não verificado. Domínio: ${domainStatus || 'não encontrado'}, Email: ${emailStatus || 'não encontrado'}` });
+    }
+  } catch (error) {
+    await salvarLog('email', 'teste', 'erro', error.message);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// POST /api/admin/integracoes/test/maps
+router.post('/test/maps', async (req, res) => {
+  try {
+    const params = await loadParams();
+    if (!params.GOOGLE_MAPS_API_KEY) {
+      await salvarLog('maps', 'teste', 'erro', 'GOOGLE_MAPS_API_KEY não configurado');
+      return res.json({ success: false, message: 'Google Maps não configurado.' });
+    }
+
+    const response = await fetch(`https://maps.googleapis.com/maps/api/geocode/json?address=Sao+Paulo,BR&key=${params.GOOGLE_MAPS_API_KEY}`, { signal: AbortSignal.timeout(10000) });
+    const data = await response.json();
+
+    if (data.status === 'OK') {
+      await salvarLog('maps', 'teste', 'sucesso', `Geocoding OK - ${data.results?.[0]?.formatted_address}`);
+      res.json({ success: true, message: `Google Maps OK. Geocoding funcionando.` });
+    } else {
+      await salvarLog('maps', 'teste', 'erro', `Status: ${data.status} - ${data.error_message || ''}`);
+      res.json({ success: false, message: `Falha: ${data.status} - ${data.error_message || 'Erro desconhecido'}` });
+    }
+  } catch (error) {
+    await salvarLog('maps', 'teste', 'erro', error.message);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
 module.exports = router;
