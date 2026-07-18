@@ -6,61 +6,39 @@
 - **Prioridade:** P0
 - **Impacto:** Alto
 - **Esforço:** Baixo
-- **Dependência:** CFG-01
+- **Dependência:** Nenhuma (CFG-01 para tela de config)
 
 ## Contexto
-O endereço do estúdio é a ORIGEM para cálculos de distância/tempo. Admin configura na tela de Configurações. Ao salvar, geocodificar e armazenar lat/lng.
+O endereço do estúdio é o ponto de ORIGEM para cálculos de distância. Admin cadastra na tela de configurações. O sistema faz geocoding e salva lat/lng para uso futuro.
 
 ## Escopo
-- `apps/backend/src/handlers/configuracoes/endereco.js` — NOVO
-- `apps/frontend/src/pages/admin/ConfigEndereco.jsx` — NOVO (ou seção dentro de ConfigGeral)
-- API: PUT /admin/configuracoes/endereco, GET /admin/configuracoes/endereco
+- `apps/backend/src/handlers/config/endereco.js` — NOVO
+- Dentro da tela Configurações > Empresa (CFG-02)
+- API: PUT /admin/config/endereco-estudio
 
 ## Fora de Escopo (NÃO TOCAR)
-- Geocoding de evento (MAP-01)
+- Geocoding genérico (MAP-01)
 - Distance Matrix (MAP-02)
-- Configurações gerais (CFG-*)
+- Tela de configurações gerais (CFG-*)
 
 ## Spec Técnica
 
-### Entidade (dentro de CONFIG TENANT)
-```json
-{
-  "endereco_estudio": {
-    "logradouro": "Rua das Flores, 123",
-    "complemento": "Sala 5",
-    "bairro": "Centro",
-    "cidade": "São Paulo",
-    "estado": "SP",
-    "cep": "01234-567",
-    "lat": -23.5505,
-    "lng": -46.6333,
-    "geocodificado_em": "2026-07-17T10:00:00Z"
-  }
-}
-```
-
-### API — PUT /admin/configuracoes/endereco
+### API — PUT /admin/config/endereco-estudio
 ```json
 // Input
 {
-  "logradouro": "Rua das Flores, 123",
-  "complemento": "Sala 5",
+  "endereco": "Rua das Flores, 123",
   "bairro": "Centro",
   "cidade": "São Paulo",
   "estado": "SP",
-  "cep": "01234-567"
+  "cep": "01001-000"
 }
 
-// Backend: geocodificar ao salvar
 // Response
 {
   "sucesso": true,
-  "endereco": {
-    "logradouro": "Rua das Flores, 123",
-    "cidade": "São Paulo",
-    "estado": "SP",
-    "cep": "01234-567",
+  "endereco_completo": "Rua das Flores, 123 - Centro, São Paulo - SP, 01001-000",
+  "coordenadas": {
     "lat": -23.5505,
     "lng": -46.6333
   }
@@ -69,57 +47,66 @@ O endereço do estúdio é a ORIGEM para cálculos de distância/tempo. Admin co
 
 ### Backend
 ```js
-async function salvarEndereco(tenantId, endereco) {
-  // Geocodificar
-  const coords = await geocodificar(endereco)
+async function salvarEnderecoEstudio(tenantId, dados) {
+  // Geocoding do endereço
+  const endereco_completo = `${dados.endereco}, ${dados.bairro}, ${dados.cidade} - ${dados.estado}, ${dados.cep}`
+  const coordenadas = await geocodificar(endereco_completo)
   
-  const enderecoCompleto = {
-    ...endereco,
-    lat: coords.lat,
-    lng: coords.lng,
-    geocodificado_em: new Date().toISOString()
-  }
-  
+  // Salvar na config do tenant
   await atualizarConfig(tenantId, {
-    endereco_estudio: enderecoCompleto
+    endereco_estudio: {
+      ...dados,
+      endereco_completo,
+      lat: coordenadas.lat,
+      lng: coordenadas.lng,
+      geocodificado_em: new Date().toISOString()
+    }
   })
   
-  return enderecoCompleto
+  return { sucesso: true, endereco_completo, coordenadas }
 }
 ```
 
-### Frontend
-- **Campos:** Logradouro, Complemento, Bairro, Cidade, Estado (select), CEP
-- **Auto-preencher:** Ao digitar CEP, buscar endereço (ViaCEP grátis)
-- **Mapa preview:** Embed do Google Maps mostrando o pin
-- **Botão Salvar:** Geocodifica e salva
+### Entidade (dentro de CONFIG TENANT)
+```json
+{
+  "endereco_estudio": {
+    "endereco": "Rua das Flores, 123",
+    "bairro": "Centro",
+    "cidade": "São Paulo",
+    "estado": "SP",
+    "cep": "01001-000",
+    "endereco_completo": "Rua das Flores, 123 - Centro, São Paulo - SP, 01001-000",
+    "lat": -23.5505,
+    "lng": -46.6333,
+    "geocodificado_em": "2026-07-17T10:00:00Z"
+  }
+}
+```
 
 ### Regras
-- CEP obrigatório
-- Geocodificar ao salvar (não ao digitar)
-- Se geocoding falhar: salvar endereço sem lat/lng + aviso
-- ViaCEP: preenchimento automático (grátis)
-- Lat/lng necessários para Distance Matrix funcionar
+- Geocoding automático ao salvar
+- Se geocoding falha: salvar endereço sem coordenadas + aviso
+- Lat/lng usados como ORIGEM no Distance Matrix (MAP-02)
+- Obrigatório para MAP-02 funcionar
 
 ## Critérios de Aceite
-- [ ] Campos de endereço salvos
-- [ ] Geocoding ao salvar
-- [ ] Lat/lng armazenados
-- [ ] Auto-preenchimento por CEP (ViaCEP)
-- [ ] Preview no mapa
-- [ ] Aviso se geocoding falhar
+- [ ] Endereço salvo na config do tenant
+- [ ] Geocoding automático ao salvar
+- [ ] Lat/lng salvos
+- [ ] Se geocoding falha: salvar sem coordenadas + aviso
+- [ ] Exibido na tela de config (CFG-02)
 
 ## Prompt Pronto para o Kiro CLI
 
 ```
 Implemente a spec MAP-07: Config Endereço do Estúdio.
 
-1. Crie handlers/configuracoes/endereco.js: GET + PUT.
-2. Crie pages/admin/ConfigEndereco.jsx: form + preview mapa.
-3. Geocodificar ao salvar (Google Geocoding API).
-4. Auto-preencher via ViaCEP (grátis).
-5. Salvar lat/lng na config do tenant.
-6. SAM: rotas GET/PUT.
+1. Crie handlers/config/endereco.js: PUT salvar + geocodificar.
+2. Salvar na config do tenant (endereco_estudio).
+3. Geocoding automático ao salvar.
+4. Se geocoding falha: salvar sem coordenadas + aviso.
+5. SAM: rota PUT /admin/config/endereco-estudio.
 
 Altere SOMENTE os arquivos listados. Não refatore, renomeie ou mexa em mais nada.
 ```

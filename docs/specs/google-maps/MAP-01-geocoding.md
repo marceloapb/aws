@@ -9,17 +9,17 @@
 - **Dependência:** MAP-07
 
 ## Contexto
-Converter endereço do local do evento em coordenadas (lat/lng) para cálculos de distância. Cache por CEP no DynamoDB — o mesmo CEP nunca é geocodificado 2x (economia de API).
+Converter endereço em coordenadas (lat/lng) usando Google Geocoding API. Cache por CEP no DynamoDB — mesmo CEP nunca chama a API 2x. Usado para Distance Matrix e para o mapa embed.
 
 ## Escopo
 - `apps/backend/src/services/geocodingService.js` — NOVO
 - DynamoDB: entidade GEOCODING_CACHE
-- Google Geocoding API
+- Chave API no SSM
 
 ## Fora de Escopo (NÃO TOCAR)
 - Distance Matrix (MAP-02)
-- Config estúdio (MAP-07)
-- Agenda interna (AGD-*)
+- Mapa embed (MAP-04)
+- Config estúdio (MAP-07 — já feito)
 
 ## Spec Técnica
 
@@ -27,13 +27,14 @@ Converter endereço do local do evento em coordenadas (lat/lng) para cálculos d
 ```json
 {
   "PK": "GEOCACHE",
-  "SK": "CEP#01234567",
-  "cep": "01234567",
+  "SK": "CEP#01001000",
+  "cep": "01001-000",
+  "endereco_formatado": "Praça da Sé - Sé, São Paulo - SP, 01001-000",
   "lat": -23.5505,
   "lng": -46.6333,
-  "endereco_formatado": "Rua das Flores, 123 - Centro, São Paulo - SP",
+  "source": "google_geocoding_api",
   "created_at": "2026-07-17T10:00:00Z",
-  "ttl": 1784000000
+  "ttl": 1752710400
 }
 ```
 
@@ -41,99 +42,98 @@ Converter endereço do local do evento em coordenadas (lat/lng) para cálculos d
 ```js
 const axios = require('axios')
 
-async function geocodificar(endereco) {
-  const cep = endereco.cep?.replace(/\D/g, '')
-  
+async function geocodificar(endereco, cep) {
   // 1. Verificar cache
-  if (cep) {
-    const cached = await getGeocacheporCEP(cep)
-    if (cached) return { lat: cached.lat, lng: cached.lng, fonte: 'cache' }
-  }
+  const cepLimpo = cep.replace(/\D/g, '')
+  const cached = await getCacheGeocoding(cepLimpo)
+  if (cached) return { lat: cached.lat, lng: cached.lng, cache: true }
   
-  // 2. Chamar Google Geocoding API
+  // 2. Chamar Google API
   const apiKey = await getApiKey()
-  const enderecoString = formatarEndereco(endereco)
-  
   const response = await axios.get('https://maps.googleapis.com/maps/api/geocode/json', {
     params: {
-      address: enderecoString,
+      address: endereco,
       key: apiKey,
       language: 'pt-BR',
-      components: 'country:BR'
+      region: 'br'
     }
   })
   
   if (response.data.status !== 'OK' || !response.data.results.length) {
-    return null
+    return null // Endereço não encontrado
   }
   
-  const resultado = response.data.results[0]
-  const { lat, lng } = resultado.geometry.location
+  const { lat, lng } = response.data.results[0].geometry.location
+  const endereco_formatado = response.data.results[0].formatted_address
   
   // 3. Salvar no cache
-  if (cep) {
-    await salvarGeocache(cep, {
-      lat,
-      lng,
-      endereco_formatado: resultado.formatted_address,
-      ttl: Math.floor(Date.now() / 1000) + (365 * 24 * 60 * 60)
-    })
-  }
+  await salvarCacheGeocoding(cepLimpo, {
+    endereco_formatado,
+    lat,
+    lng,
+    ttl: Math.floor(Date.now() / 1000) + (365 * 24 * 60 * 60) // 1 ano
+  })
   
-  return { lat, lng, fonte: 'api' }
+  return { lat, lng, endereco_formatado, cache: false }
 }
 
-function formatarEndereco(endereco) {
-  const partes = [
-    endereco.logradouro,
-    endereco.numero,
-    endereco.bairro,
-    endereco.cidade,
-    endereco.estado,
-    endereco.cep
-  ].filter(Boolean)
-  return partes.join(', ') + ', Brasil'
+async function getApiKey() {
+  const param = await ssm.getParameter({
+    Name: '/mbf/global/google/maps_api_key',
+    WithDecryption: true
+  }).promise()
+  return param.Parameter.Value
 }
 
-module.exports = { geocodificar, getGeocacheporCEP }
+module.exports = { geocodificar, getApiKey }
 ```
 
-### Custo
-| Cenário | Custo |
+### Cache Strategy
+| Cenário | Ação |
 |---|---|
-| Cache hit (mesmo CEP) | $0 |
-| API call (CEP novo) | $0.005/chamada |
-| Free tier Google | ~28.000 chamadas/mês grátis |
+| CEP no cache | Retornar direto (0 custo) |
+| CEP não no cache | Chamar API + salvar cache |
+| API falha | Retornar null + log |
+| CEP inválido | Retornar null |
+
+### TTL do Cache
+- 1 ano (endereço por CEP não muda)
+- DynamoDB TTL limpa automaticamente
+
+### Custo
+- Geocoding API: $5 / 1000 chamadas
+- Com cache por CEP: na prática, pouquíssimas chamadas/mês
+- Free tier: 28.000 chamadas/mês
 
 ### Regras
-- Cache por CEP (não por endereço completo)
-- TTL do cache: 1 ano (endereço de CEP não muda)
-- Se API falhar: retornar null, não bloquear
-- Limpar números do CEP antes de buscar cache
-- API key em SSM Parameter Store
-- Componente BR (forçar resultados no Brasil)
+- Sempre verificar cache primeiro
+- CEP normalizado (só dígitos) como chave
+- API Key no SSM (/mbf/global/google/maps_api_key)
+- Region: 'br', Language: 'pt-BR'
+- Se API falha: não bloquear fluxo (retornar null)
+- Log de todas as chamadas à API (para monitorar custo)
 
 ## Critérios de Aceite
 - [ ] Geocoding funciona (endereço → lat/lng)
 - [ ] Cache por CEP no DynamoDB
-- [ ] Cache hit não chama API
+- [ ] Cache hit retorna sem chamar API
 - [ ] TTL 1 ano
+- [ ] API Key no SSM
 - [ ] Falha não bloqueia fluxo
-- [ ] API key em SSM
-- [ ] Forçar resultados Brasil
+- [ ] Log de chamadas à API
 
 ## Prompt Pronto para o Kiro CLI
 
 ```
-Implemente a spec MAP-01: Geocoding + Cache por CEP.
+Implemente a spec MAP-01: Geocoding + Cache.
 
 1. Crie services/geocodingService.js: geocodificar + cache.
 2. Entidade GEOCODING_CACHE no DynamoDB (PK=GEOCACHE, SK=CEP#xxx).
-3. Cache hit: retornar direto sem chamar API.
-4. API key em SSM Parameter Store.
-5. TTL 1 ano.
-6. Forçar country:BR.
-7. Retornar null se falhar (não bloquear).
+3. Verificar cache antes de chamar API.
+4. TTL 1 ano.
+5. API Key em SSM /mbf/global/google/maps_api_key.
+6. Se falha: retornar null (não bloquear).
+7. Log de chamadas.
 
 Altere SOMENTE os arquivos listados. Não refatore, renomeie ou mexa em mais nada.
 ```

@@ -1,18 +1,19 @@
 # Módulo Google Maps — Specs
 
 ## Decisões de Design (§6)
-- Geocoding + Distance Matrix: chamadas ao backend, cache por CEP
-- Link "abrir no Maps": URL de directions (custo zero)
+- Geocoding API: endereço → coordenadas (cache por CEP)
+- Distance Matrix: distância/tempo do estúdio ao local
+- Link "abrir no Maps": URL directions (custo zero)
 - Mapa embed: iframe clássico (sem chave de API)
-- Cache por CEP: DynamoDB com TTL longo
-- Chave de API: restrição de domínio + monitorar free tier
-- Módulo NÃO tem tela própria — aparece como widget em Agenda, Orçamento, Central
+- Cache por CEP no DynamoDB (TTL longo)
+- Free tier: ~$200/mês grátis no Google Maps Platform
+- Chave API: restrição de domínio/IP
 
 ## Fora de Escopo (confirmado)
-- Autocomplete de endereço (futuro P3)
-- Places API (busca de locais)
+- Places Autocomplete (futuro)
+- Rotas alternativas
+- Geofencing
 - Street View
-- Rota otimizada multi-paradas
 
 ## Dependências entre specs:
 
@@ -31,4 +32,4 @@
 | MAP-05 | [MAP-05-distancia-agenda.md](./MAP-05-distancia-agenda.md) | P1 | Distância na Agenda |
 | MAP-06 | [MAP-06-distancia-orcamento.md](./MAP-06-distancia-orcamento.md) | P1 | Distância no Orçamento |
 | MAP-07 | [MAP-07-config-estudio.md](./MAP-07-config-estudio.md) | P0 | Config Endereço Estúdio |
-| MAP-08 | [MAP-08-controle-custo.md](./MAP-08-controle-custo.md) | P1 | Controle de Custo API |
+| MAP-08 | [MAP-08-controle-custo.md](./MAP-08-controle-custo.md) | P1 | Controle de Custo |
