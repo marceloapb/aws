@@ -43,6 +43,7 @@ import TrocarSenha from './pages/admin/TrocarSenha';
 import GatewayConfig from './pages/admin/GatewayConfig';
 import Onboarding from './pages/admin/Onboarding';
 import IntegracoesLogs from './pages/admin/IntegracoesLogs';
+import Integracoes from './pages/admin/Integracoes';
 import Novidades from './pages/admin/Novidades';
 import NovidadesEditor from './pages/admin/NovidadesEditor';
 import CmsEditor from './pages/admin/CmsEditor';
@@ -114,6 +115,7 @@ function App() {
         <Route path="equipamentos" element={<Equipamentos />} />
         <Route path="instagram" element={<Instagram />} />
         <Route path="whatsapp" element={<WhatsApp />} />
+        <Route path="integracoes" element={<Integracoes />} />
         <Route path="integracoes/logs" element={<IntegracoesLogs />} />
         <Route path="followup" element={<Followup />} />
         <Route path="novidades" element={<Novidades />} />

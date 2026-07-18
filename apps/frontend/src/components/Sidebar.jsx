@@ -2,7 +2,7 @@ import React from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import usePendingCounts from '../hooks/usePendingCounts';
-import { LayoutDashboard, Calendar, Package, FileText, CreditCard, Image, Settings, FolderOpen, LogOut, Camera, X, Users, Star, Receipt, FilePlus, Wrench, Instagram, MessageCircle, Upload, HardDrive, Zap, ScrollText } from 'lucide-react';
+import { LayoutDashboard, Calendar, Package, FileText, CreditCard, Image, Settings, FolderOpen, LogOut, Camera, X, Users, Star, Receipt, FilePlus, Wrench, Instagram, MessageCircle, Upload, HardDrive, Zap, ScrollText, Plug, Mail, MapPin } from 'lucide-react';
 
 const ACCENT = '#EA580C';
 
@@ -43,10 +43,16 @@ const adminSections = [
     ],
   },
   {
+    label: 'Integrações',
+    links: [
+      { to: '/admin/integracoes', icon: Plug, label: 'Painel Integrações' },
+      { to: '/admin/gateway', icon: CreditCard, label: 'Gateway Pagamento' },
+      { to: '/admin/integracoes/logs', icon: ScrollText, label: 'Logs' },
+    ],
+  },
+  {
     label: 'Sistema',
     links: [
-      { to: '/admin/gateway', icon: CreditCard, label: 'Gateway Pagamento' },
-      { to: '/admin/integracoes/logs', icon: ScrollText, label: 'Logs Integrações' },
       { to: '/admin/storage', icon: HardDrive, label: 'Armazenamento' },
       { to: '/admin/import', icon: Upload, label: 'Import/Export' },
       { to: '/admin/config', icon: Settings, label: 'Configurações' },
