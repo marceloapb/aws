@@ -2,27 +2,26 @@
 
 ## Decisões de Design (§23)
 - Fire-and-forget: 1 disparo por evento, sem insistência (insistência = Follow-up §20)
-- Barramento EventBridge: todo domínio emite evento padronizado
-- Matriz configurável: evento × canal × destinatário
+- Barramento: EventBridge como bus único, todo domínio emite
 - Canais: in-app (admin), email (SES), WhatsApp (Cloud API)
-- Idempotência por evento_id (nunca notifica 2x)
-- Destinatário admin = in-app (sininho). Cliente = externo (email/WhatsApp)
-- Adapter de canal compartilhado com Follow-up
+- Idempotência: dedup por evento_id
+- Matriz configurável: admin escolhe quais eventos notificam e por qual canal
+- Destinatário: in-app = admin | externo = cliente
 
 ## Entidades DynamoDB
 - REGRA_NTF (PK: TENANT#t, SK: REGRA_NTF#id)
 - NOTIFICACAO (PK: TENANT#t, SK: NTF#id, GSI1: DEST#admin#lida)
-- LOG_ENTREGA (PK: NTF#id, SK: CANAL#email|wpp|inapp)
-- DEDUP_EVENTO (PK: TENANT#t, SK: DEDUP#evento_id, TTL: 7d)
+- LOG_ENTREGA (PK: TENANT#t, SK: LOG_NTF#id)
+- DEDUP_EVENTO (PK: EVENTO#evento_id — TTL 24h)
 
-## Fora de Escopo (confirmado)
-- Retry/insistência (pertence ao Follow-up)
-- Push notification mobile (futuro)
-- SMS (futuro)
+## Fora de Escopo
+- Follow-up/Lembretes (§20 — módulo separado)
+- SMS
+- Push notifications mobile
 
 ## Dependências entre specs:
 
-- **Fase 1 (P0):** NTF-01 → NTF-07 → NTF-03
+- **Fase 1 (P0):** NTF-01 → NTF-03 → NTF-07
 - **Fase 2 (P1):** NTF-02 | NTF-04 | NTF-05 | NTF-06 (paralelas, dependem de NTF-03)
 - **Fase 3 (P2):** NTF-08
 

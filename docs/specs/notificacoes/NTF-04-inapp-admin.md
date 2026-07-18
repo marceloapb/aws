@@ -1,26 +1,26 @@
-# NTF-04: Notificação In-App Admin (Sininho + Contador + Lida/Não Lida)
+# NTF-04: Notificação In-App Admin (sininho + contador + lida/não lida)
 
 ## Metadados
 - **ID:** NTF-04
 - **Tipo:** Feature
 - **Prioridade:** P1
-- **Impacto:** Médio
+- **Impacto:** Médio — experiência ADM
 - **Esforço:** Baixo
 - **Dependência:** NTF-03
 
 ## Contexto
-Ícone de sininho no header do admin com badge de contagem. Ao clicar, abre dropdown com notificações recentes. Admin pode marcar como lida, marcar todas como lidas, ou clicar para navegar ao recurso.
+Ícone de sininho no header do admin com badge de não-lidas. Ao clicar: dropdown com lista de notificações recentes. Clicar em uma notificação: marca como lida + navega para o recurso (deep link).
 
 ## Escopo
 - `apps/backend/src/handlers/notificacoes/inapp.js` — NOVO
-- `apps/frontend/src/components/NotificacaoSininho.jsx` — NOVO
+- `apps/frontend/src/components/NotificacaoBell.jsx` — NOVO
 - DynamoDB: entidade NOTIFICACAO
-- API: GET /admin/notificacoes, PATCH /admin/notificacoes/:id/lida, PATCH /admin/notificacoes/ler-todas
+- API: GET /admin/notificacoes, PATCH /admin/notificacoes/:id/lida, POST /admin/notificacoes/marcar-todas-lidas
 
 ## Fora de Escopo (NÃO TOCAR)
-- Dispatcher (NTF-03 — chama criarNotificacaoInApp)
+- Dispatcher (NTF-03 — já chama criarNotificacaoInApp)
 - Email/WhatsApp (NTF-05/06)
-- WebSocket/real-time (futuro — por ora, polling)
+- Regras (NTF-02)
 
 ## Spec Técnica
 
@@ -30,21 +30,21 @@
   "PK": "TENANT#t123",
   "SK": "NTF#ntf_001",
   "GSI1PK": "TENANT#t123",
-  "GSI1SK": "LIDA#false#2026-07-17T10:00:00Z",
+  "GSI1SK": "LIDA#0#2026-07-18T10:00:00Z",
   "id": "ntf_001",
   "tipo_evento": "orcamento.aceito",
-  "titulo": "💰 Orçamento aceito!",
-  "corpo": "Ana Carolina aceitou o orçamento de R$ 5.500",
+  "titulo": "🎉 Orçamento aceito!",
+  "corpo": "Ana Carolina aceitou o orçamento Casamento Ana & Pedro",
   "lida": false,
   "recurso_tipo": "orcamento",
   "recurso_id": "orc_001",
-  "link": "/admin/orcamentos/orc_001",
-  "created_at": "2026-07-17T10:00:00Z"
+  "deep_link": "/admin/orcamentos/orc_001",
+  "created_at": "2026-07-18T10:00:00Z"
 }
 ```
 
 ### API — GET /admin/notificacoes
-Query params: `lida` (true|false|all), `limit` (default 20), `cursor`
+Query params: `lida` (true|false), `limit` (default 20), `cursor`
 
 ```json
 {
@@ -52,17 +52,17 @@ Query params: `lida` (true|false|all), `limit` (default 20), `cursor`
   "notificacoes": [
     {
       "id": "ntf_001",
-      "titulo": "💰 Orçamento aceito!",
-      "corpo": "Ana Carolina aceitou o orçamento de R$ 5.500",
+      "titulo": "🎉 Orçamento aceito!",
+      "corpo": "Ana Carolina aceitou Casamento Ana & Pedro",
       "lida": false,
       "tipo_evento": "orcamento.aceito",
-      "link": "/admin/orcamentos/orc_001",
-      "created_at": "2026-07-17T10:00:00Z",
-      "tempo_relativo": "há 2 horas"
+      "deep_link": "/admin/orcamentos/orc_001",
+      "created_at": "2026-07-18T10:00:00Z",
+      "tempo_relativo": "há 5 min"
     }
   ],
   "total": 5,
-  "cursor": "next"
+  "cursor": "next_token"
 }
 ```
 
@@ -71,87 +71,97 @@ Query params: `lida` (true|false|all), `limit` (default 20), `cursor`
 { "sucesso": true }
 ```
 
-### API — PATCH /admin/notificacoes/ler-todas
+### API — POST /admin/notificacoes/marcar-todas-lidas
 ```json
 { "sucesso": true, "marcadas": 5 }
 ```
 
-### Backend — Criar Notificação (chamado pelo Dispatcher)
+### Criação (chamado pelo Dispatcher)
 ```js
-async function criarNotificacaoInApp({ tenantId, titulo_inapp, corpo_inapp, tipo_evento, payload }) {
+async function criarNotificacaoInApp({ tenantId, regra, evento }) {
   const id = `ntf_${ulid()}`
-  const link = gerarLink(tipo_evento, payload)
   
-  const notificacao = {
+  // Interpolar variáveis no título/corpo
+  const titulo = interpolar(regra.titulo_inapp, evento)
+  const corpo = interpolar(regra.corpo_inapp, evento)
+  const deepLink = gerarDeepLink(evento.dominio, evento.recurso_id)
+  
+  const ntf = {
     PK: `TENANT#${tenantId}`,
     SK: `NTF#${id}`,
     GSI1PK: `TENANT#${tenantId}`,
-    GSI1SK: `LIDA#false#${new Date().toISOString()}`,
+    GSI1SK: `LIDA#0#${new Date().toISOString()}`,
     id,
-    tipo_evento,
-    titulo: renderTemplate(titulo_inapp, payload),
-    corpo: renderTemplate(corpo_inapp, payload),
+    tipo_evento: evento.acao ? `${evento.dominio}.${evento.acao}` : '',
+    titulo,
+    corpo,
     lida: false,
-    recurso_tipo: tipo_evento.split('.')[0],
-    recurso_id: payload.recurso_id,
-    link,
+    recurso_tipo: evento.dominio,
+    recurso_id: evento.recurso_id,
+    deep_link: deepLink,
     created_at: new Date().toISOString()
   }
   
-  await dynamo.put({ TableName: TABLE, Item: notificacao }).promise()
+  await dynamo.put({ TableName: TABLE, Item: ntf }).promise()
+  return ntf
 }
 
-function gerarLink(tipoEvento, payload) {
-  const mapa = {
-    'orcamento': `/admin/orcamentos/${payload.recurso_id}`,
-    'contrato': `/admin/contratos/${payload.recurso_id}`,
-    'pagamento': `/admin/financeiro/${payload.recurso_id}`,
-    'album': `/admin/albuns/${payload.recurso_id}`,
-    'evento': `/admin/agenda/${payload.recurso_id}`,
-    'mensagem': `/admin/whatsapp/${payload.conversa_id}`,
-    'feedback': `/admin/pesquisa/${payload.recurso_id}`
+function gerarDeepLink(dominio, recursoId) {
+  const map = {
+    orcamento: '/admin/orcamentos/',
+    contrato: '/admin/contratos/',
+    pagamento: '/admin/financeiro/',
+    album: '/admin/albuns/',
+    evento: '/admin/agenda/',
+    cliente: '/admin/clientes/',
+    whatsapp: '/admin/whatsapp/'
   }
-  const tipo = tipoEvento.split('.')[0]
-  return mapa[tipo] || '/admin'
+  return `${map[dominio] || '/admin/'}${recursoId}`
 }
 ```
 
-### Frontend — NotificacaoSininho.jsx
+### Frontend — NotificacaoBell.jsx
 ```jsx
-function NotificacaoSininho() {
+function NotificacaoBell() {
+  const [aberto, setAberto] = useState(false)
   const [notificacoes, setNotificacoes] = useState([])
   const [naoLidas, setNaoLidas] = useState(0)
-  const [aberto, setAberto] = useState(false)
+  const navigate = useNavigate()
   
   // Polling a cada 30s
   useEffect(() => {
-    const interval = setInterval(buscarNotificacoes, 30000)
-    buscarNotificacoes()
+    const interval = setInterval(fetchNotificacoes, 30000)
+    fetchNotificacoes()
     return () => clearInterval(interval)
   }, [])
   
+  const marcarLida = async (ntf) => {
+    await api.patch(`/admin/notificacoes/${ntf.id}/lida`)
+    navigate(ntf.deep_link)
+  }
+  
   return (
-    <div className="sininho-container">
-      <button onClick={() => setAberto(!aberto)} className="sininho-btn">
+    <div className="ntf-bell">
+      <button onClick={() => setAberto(!aberto)} className="bell-button">
         🔔
-        {naoLidas > 0 && <span className="sininho-badge">{naoLidas > 9 ? '9+' : naoLidas}</span>}
+        {naoLidas > 0 && <span className="bell-badge">{naoLidas > 99 ? '99+' : naoLidas}</span>}
       </button>
       
       {aberto && (
-        <div className="sininho-dropdown">
-          <div className="sininho-header">
-            <h4>Notificações</h4>
+        <div className="ntf-dropdown">
+          <div className="ntf-header">
+            <span>Notificações</span>
             <button onClick={marcarTodasLidas}>Marcar todas como lidas</button>
           </div>
-          <div className="sininho-lista">
+          <ul className="ntf-lista">
             {notificacoes.map(ntf => (
-              <div key={ntf.id} className={`sininho-item ${!ntf.lida ? 'nao-lida' : ''}`} onClick={() => abrirNotificacao(ntf)}>
-                <p className="sininho-titulo">{ntf.titulo}</p>
-                <p className="sininho-corpo">{ntf.corpo}</p>
-                <span className="sininho-tempo">{ntf.tempo_relativo}</span>
-              </div>
+              <li key={ntf.id} className={ntf.lida ? 'ntf-lida' : 'ntf-nao-lida'} onClick={() => marcarLida(ntf)}>
+                <strong>{ntf.titulo}</strong>
+                <p>{ntf.corpo}</p>
+                <small>{ntf.tempo_relativo}</small>
+              </li>
             ))}
-          </div>
+          </ul>
         </div>
       )}
     </div>
@@ -160,35 +170,35 @@ function NotificacaoSininho() {
 ```
 
 ### Regras
-- Polling 30s (sem WebSocket por ora)
-- Badge: max "9+" se > 9
-- Click na notificação: navegar ao link + marcar como lida
+- Polling 30s para novas notificações
+- Badge: nao_lidas > 0 = badge vermelho
+- Clicar: marcar lida + navegar (deep link)
 - Marcar todas como lidas: batch update
-- Ordenar por created_at DESC
-- Reter últimas 100 notificações (TTL 30 dias)
-- GSI1 para query eficiente de não-lidas
+- Dropdown: últimas 20
+- Ordenar: mais recente primeiro
+- GSI1: permite query eficiente (não-lidas primeiro)
+- Retenção: 90 dias (TTL opcional)
 
 ## Critérios de Aceite
-- [ ] Sininho com badge de contagem
-- [ ] Dropdown com lista de notificações
-- [ ] Marcar individual como lida
+- [ ] Sininho com badge de não-lidas
+- [ ] Dropdown com lista (últimas 20)
+- [ ] Clicar marca lida + navega
 - [ ] Marcar todas como lidas
-- [ ] Click navega ao recurso
 - [ ] Polling 30s
-- [ ] Badge max "9+"
-- [ ] Notificações não-lidas destacadas
+- [ ] Deep link funciona
+- [ ] Badge 99+ se > 99
 
 ## Prompt Pronto para o Kiro CLI
 
 ```
 Implemente a spec NTF-04: In-App Admin.
 
-1. Crie handlers/notificacoes/inapp.js: GET + 2 PATCH.
-2. Crie components/NotificacaoSininho.jsx.
-3. Entidade NOTIFICACAO com GSI1 (lida/não-lida).
-4. criarNotificacaoInApp() chamada pelo dispatcher.
-5. Polling 30s, badge, dropdown.
-6. Click navega ao link.
+1. Crie handlers/notificacoes/inapp.js: GET + PATCH + POST marcar-todas.
+2. Crie components/NotificacaoBell.jsx: sininho + dropdown.
+3. Entidade NOTIFICACAO + GSI1 (não-lidas primeiro).
+4. Polling 30s.
+5. Deep link por domínio.
+6. Badge vermelho, 99+ max.
 7. SAM: 3 rotas.
 
 Altere SOMENTE os arquivos listados. Não refatore, renomeie ou mexa em mais nada.
