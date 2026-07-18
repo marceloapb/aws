@@ -1,4 +1,4 @@
-const { SSMClient, GetParameterCommand } = require('@aws-sdk/client-ssm');
+const { SSMClient, GetParameterCommand, PutParameterCommand } = require('@aws-sdk/client-ssm');
 
 const ssm = new SSMClient({});
 const PREFIX = process.env.SSM_PREFIX || '/mbf/prod';
@@ -16,6 +16,37 @@ async function getConfig() {
     businessAccountId: accountParam.Parameter.Value,
   };
   return cachedConfig;
+}
+
+/**
+ * Renova o token do Instagram (válido por mais 60 dias)
+ * Deve ser chamado a cada 30 dias para nunca expirar
+ */
+async function refreshToken() {
+  const config = await getConfig();
+
+  const response = await fetch(
+    `https://graph.instagram.com/refresh_access_token?grant_type=ig_refresh_token&access_token=${config.accessToken}`
+  );
+  const data = await response.json();
+
+  if (!response.ok || !data.access_token) {
+    throw new Error(`Erro ao renovar token: ${JSON.stringify(data.error || data)}`);
+  }
+
+  // Salvar novo token no SSM
+  await ssm.send(new PutParameterCommand({
+    Name: `${PREFIX}/INSTAGRAM_ACCESS_TOKEN`,
+    Value: data.access_token,
+    Type: 'SecureString',
+    Overwrite: true,
+  }));
+
+  // Limpar cache para usar novo token
+  cachedConfig = null;
+
+  console.log(`[INSTAGRAM] Token renovado. Expira em ${data.expires_in / 86400} dias. Permissões: ${data.permissions}`);
+  return { success: true, expires_in: data.expires_in, permissions: data.permissions };
 }
 
 /**
@@ -95,4 +126,5 @@ module.exports = {
   publicar,
   getInsights,
   getConfig,
+  refreshToken,
 };

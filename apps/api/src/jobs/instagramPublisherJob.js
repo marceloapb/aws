@@ -53,7 +53,19 @@ async function processarPublicacoes() {
   }
 }
 
-const handler = async () => { await processarPublicacoes(); };
+const handler = async () => {
+  // Renovar token a cada execução do dia 1 e 15 do mês (2x/mês, nunca expira)
+  const dia = new Date().getDate();
+  if (dia === 1 || dia === 15) {
+    try {
+      const { refreshToken } = require('../lib/instagram/client');
+      await refreshToken();
+    } catch (err) {
+      console.error('[INSTAGRAM] Erro ao renovar token:', err.message);
+    }
+  }
+
+  await processarPublicacoes();
+};
 
 module.exports = { handler };
-module.exports.default = { handler };
