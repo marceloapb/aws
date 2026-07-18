@@ -3,19 +3,13 @@
  * Gera captions para Instagram, textos para contratos, etc.
  */
 
-const { BedrockRuntimeClient, InvokeModelCommand } = require('@aws-sdk/client-bedrock-runtime');
+const { BedrockRuntimeClient, ConverseCommand } = require('@aws-sdk/client-bedrock-runtime');
 
 const bedrock = new BedrockRuntimeClient({ region: 'us-east-1' });
-const MODEL_ID = 'anthropic.claude-3-haiku-20240307-v1:0';
+const MODEL_ID = 'amazon.nova-micro-v1:0';
 
 /**
  * Gera caption para Instagram
- * @param {Object} opts
- * @param {string} opts.tipo_evento - casamento, ensaio, etc
- * @param {string} opts.cliente_nome - nome do cliente
- * @param {string} opts.tom - profissional, descontraido, emocional, poetico
- * @param {string} opts.contexto - informações extras (local, data, etc)
- * @param {boolean} opts.incluir_hashtags - incluir hashtags
  */
 async function gerarCaption({ tipo_evento, cliente_nome, tom = 'emocional', contexto = '', incluir_hashtags = true }) {
   const prompt = `Você é um fotógrafo profissional brasileiro especializado em ${tipo_evento || 'fotografia'}. 
@@ -36,22 +30,14 @@ Regras:
 
 Responda APENAS com a caption pronta, sem explicações.`;
 
-  const body = JSON.stringify({
-    anthropic_version: 'bedrock-2023-05-31',
-    max_tokens: 500,
-    messages: [{ role: 'user', content: prompt }],
-  });
-
-  const command = new InvokeModelCommand({
+  const command = new ConverseCommand({
     modelId: MODEL_ID,
-    contentType: 'application/json',
-    accept: 'application/json',
-    body,
+    messages: [{ role: 'user', content: [{ text: prompt }] }],
+    inferenceConfig: { maxTokens: 500, temperature: 0.7, topP: 0.9 },
   });
 
   const response = await bedrock.send(command);
-  const result = JSON.parse(new TextDecoder().decode(response.body));
-  return result.content[0].text;
+  return response.output.message.content[0].text.trim();
 }
 
 /**
