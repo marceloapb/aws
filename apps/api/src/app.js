@@ -159,6 +159,25 @@ app.put('/admin/notificacoes/:id/lida', adminAuth, async (req, res) => {
   }
 });
 
+// Google Maps (MAP-01 a MAP-08)
+app.post('/admin/maps/geocode', adminAuth, async (req, res) => {
+  try {
+    const { geocode } = require('./services/mapsService');
+    const { endereco, cep } = req.body;
+    const result = await geocode(endereco, cep);
+    res.json({ success: true, data: result });
+  } catch (error) { res.status(500).json({ success: false, message: error.message }); }
+});
+
+app.post('/admin/maps/distance', adminAuth, async (req, res) => {
+  try {
+    const { distanceMatrix } = require('./services/mapsService');
+    const { origem_lat, origem_lng, destino_lat, destino_lng } = req.body;
+    const result = await distanceMatrix(origem_lat, origem_lng, destino_lat, destino_lng);
+    res.json({ success: true, data: result });
+  } catch (error) { res.status(500).json({ success: false, message: error.message }); }
+});
+
 // Status das Integrações (para tela de Configurações)
 app.get('/admin/instagram', adminAuth, async (req, res) => {
   try {
