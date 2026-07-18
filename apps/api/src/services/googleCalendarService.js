@@ -1,95 +1,149 @@
+/**
+ * Google Calendar Service — usando Service Account (JWT)
+ * Credenciais em SSM Parameter Store
+ */
+
 const { google } = require('googleapis');
-const { dynamo, TABLE } = require('../config/dynamodb');
-const { QueryCommand, UpdateCommand } = require('@aws-sdk/lib-dynamodb');
-const { loadParams } = require('../config/env');
+const { SSMClient, GetParameterCommand } = require('@aws-sdk/client-ssm');
 
-const SCOPES = ['https://www.googleapis.com/auth/calendar'];
-const GC_PK = 'SYSTEM';
-const GC_SK = 'GOOGLE_CALENDAR_CONFIG';
+const ssm = new SSMClient({});
+const PREFIX = process.env.SSM_PREFIX || '/mbf/prod';
 
-function getOAuth2Client() {
-  return new google.auth.OAuth2(
-    process.env.GOOGLE_CLIENT_ID,
-    process.env.GOOGLE_CLIENT_SECRET,
-    process.env.GOOGLE_REDIRECT_URI
-  );
-}
+let cachedAuth = null;
+let cachedCalendarId = null;
 
-function getAuthUrl() {
-  const oauth2Client = getOAuth2Client();
-  return oauth2Client.generateAuthUrl({ access_type: 'offline', scope: SCOPES, prompt: 'consent' });
+async function getParam(name, decrypt = false) {
+  const result = await ssm.send(new GetParameterCommand({ Name: name, WithDecryption: decrypt }));
+  return result.Parameter.Value;
 }
 
 async function getAuthenticatedClient() {
-  const result = await dynamo.send(new QueryCommand({
-    TableName: TABLE,
-    KeyConditionExpression: 'PK = :pk AND SK = :sk',
-    ExpressionAttributeValues: { ':pk': GC_PK, ':sk': GC_SK },
-  }));
-  const config = result.Items?.[0];
-  if (!config || !config.connected) throw new Error('Google Calendar não conectado');
+  if (cachedAuth) return cachedAuth;
 
-  const oauth2Client = getOAuth2Client();
-  oauth2Client.setCredentials({ access_token: config.access_token, refresh_token: config.refresh_token });
+  const clientEmail = await getParam(`${PREFIX}/GOOGLE_CLIENT_EMAIL`);
+  const privateKey = await getParam(`${PREFIX}/GOOGLE_PRIVATE_KEY`, true);
+  cachedCalendarId = await getParam(`${PREFIX}/GOOGLE_CALENDAR_ID`);
 
-  if (Date.now() >= new Date(config.token_expiry).getTime()) {
-    const { credentials } = await oauth2Client.refreshAccessToken();
-    await dynamo.send(new UpdateCommand({
-      TableName: TABLE,
-      Key: { PK: GC_PK, SK: GC_SK },
-      UpdateExpression: 'SET access_token = :a, token_expiry = :t',
-      ExpressionAttributeValues: { ':a': credentials.access_token, ':t': new Date(credentials.expiry_date).toISOString() },
-    }));
-    oauth2Client.setCredentials(credentials);
+  const auth = new google.auth.JWT(
+    clientEmail,
+    null,
+    privateKey.replace(/\\n/g, '\n'),
+    ['https://www.googleapis.com/auth/calendar']
+  );
+
+  await auth.authorize();
+  cachedAuth = auth;
+  return auth;
+}
+
+async function getCalendar() {
+  const auth = await getAuthenticatedClient();
+  return google.calendar({ version: 'v3', auth });
+}
+
+async function getCalendarId() {
+  if (!cachedCalendarId) {
+    cachedCalendarId = await getParam(`${PREFIX}/GOOGLE_CALENDAR_ID`);
   }
-
-  return { oauth2Client, calendarId: config.calendar_id || 'primary' };
+  return cachedCalendarId;
 }
 
-async function criarEvento(dados) {
-  const { oauth2Client, calendarId } = await getAuthenticatedClient();
-  const calendar = google.calendar({ version: 'v3', auth: oauth2Client });
-  const event = {
-    summary: `${dados.tipo_evento} - ${dados.cliente_nome || 'Cliente'}`,
-    description: dados.observacoes || '',
-    start: { dateTime: `${dados.data_evento}T${dados.horario_inicio || '09:00'}:00`, timeZone: 'America/Sao_Paulo' },
-    end: { dateTime: `${dados.data_evento}T${dados.horario_fim || '18:00'}:00`, timeZone: 'America/Sao_Paulo' },
-    colorId: dados.cor_id || '7',
-    reminders: { useDefault: false, overrides: [{ method: 'popup', minutes: 60 }] },
+/**
+ * Criar evento no Google Calendar
+ */
+async function criarEvento(evento) {
+  const calendar = await getCalendar();
+  const calendarId = await getCalendarId();
+
+  const eventData = {
+    summary: `📸 ${evento.tipo_evento || 'Sessão'} — ${evento.cliente_nome || 'Cliente'}`,
+    description: evento.observacoes || '',
+    location: evento.local || '',
+    start: {
+      dateTime: `${evento.data_evento}T${evento.horario_inicio || '09:00'}:00`,
+      timeZone: 'America/Sao_Paulo',
+    },
+    end: {
+      dateTime: `${evento.data_evento}T${evento.horario_fim || '18:00'}:00`,
+      timeZone: 'America/Sao_Paulo',
+    },
+    colorId: getColorId(evento.tipo_evento),
   };
-  if (dados.local) event.location = dados.local;
-  const response = await calendar.events.insert({ calendarId, resource: event });
-  return response.data;
+
+  const result = await calendar.events.insert({ calendarId, requestBody: eventData });
+  return { id: result.data.id, htmlLink: result.data.htmlLink };
 }
 
-async function atualizarEvento(googleEventId, dados) {
-  const { oauth2Client, calendarId } = await getAuthenticatedClient();
-  const calendar = google.calendar({ version: 'v3', auth: oauth2Client });
-  const event = {
-    summary: `${dados.tipo_evento} - ${dados.cliente_nome || 'Cliente'}`,
-    description: dados.observacoes || '',
-    start: { dateTime: `${dados.data_evento}T${dados.horario_inicio || '09:00'}:00`, timeZone: 'America/Sao_Paulo' },
-    end: { dateTime: `${dados.data_evento}T${dados.horario_fim || '18:00'}:00`, timeZone: 'America/Sao_Paulo' },
+/**
+ * Atualizar evento no Google Calendar
+ */
+async function atualizarEvento(googleEventId, evento) {
+  const calendar = await getCalendar();
+  const calendarId = await getCalendarId();
+
+  const eventData = {
+    summary: `📸 ${evento.tipo_evento || 'Sessão'} — ${evento.cliente_nome || 'Cliente'}`,
+    description: evento.observacoes || '',
+    location: evento.local || '',
+    start: {
+      dateTime: `${evento.data_evento}T${evento.horario_inicio || '09:00'}:00`,
+      timeZone: 'America/Sao_Paulo',
+    },
+    end: {
+      dateTime: `${evento.data_evento}T${evento.horario_fim || '18:00'}:00`,
+      timeZone: 'America/Sao_Paulo',
+    },
   };
-  if (dados.local) event.location = dados.local;
-  const response = await calendar.events.update({ calendarId, eventId: googleEventId, resource: event });
-  return response.data;
+
+  await calendar.events.update({ calendarId, eventId: googleEventId, requestBody: eventData });
 }
 
+/**
+ * Excluir evento do Google Calendar
+ */
 async function excluirEvento(googleEventId) {
-  const { oauth2Client, calendarId } = await getAuthenticatedClient();
-  const calendar = google.calendar({ version: 'v3', auth: oauth2Client });
-  await calendar.events.delete({ calendarId, eventId: googleEventId });
+  const calendar = await getCalendar();
+  const calendarId = await getCalendarId();
+
+  try {
+    await calendar.events.delete({ calendarId, eventId: googleEventId });
+  } catch (e) {
+    if (e.code !== 410) throw e; // 410 = já deletado
+  }
 }
 
+/**
+ * Listar eventos do Google Calendar (para sync bidirecional futuro)
+ */
 async function listarEventos(dataInicio, dataFim) {
-  const { oauth2Client, calendarId } = await getAuthenticatedClient();
-  const calendar = google.calendar({ version: 'v3', auth: oauth2Client });
-  const response = await calendar.events.list({
-    calendarId, timeMin: new Date(dataInicio).toISOString(), timeMax: new Date(dataFim).toISOString(),
-    singleEvents: true, orderBy: 'startTime',
+  const calendar = await getCalendar();
+  const calendarId = await getCalendarId();
+
+  const result = await calendar.events.list({
+    calendarId,
+    timeMin: `${dataInicio}T00:00:00-03:00`,
+    timeMax: `${dataFim}T23:59:59-03:00`,
+    singleEvents: true,
+    orderBy: 'startTime',
+    maxResults: 100,
   });
-  return response.data.items || [];
+
+  return result.data.items || [];
 }
 
-module.exports = { getOAuth2Client, getAuthUrl, getAuthenticatedClient, criarEvento, atualizarEvento, excluirEvento, listarEventos };
+// Cores do Google Calendar por tipo de evento
+function getColorId(tipo) {
+  const cores = {
+    'Casamento': '11',    // Tomate (vermelho)
+    'Ensaio': '9',        // Blueberry (azul)
+    'Corporativo': '10',  // Basil (verde escuro)
+    'Aniversário': '6',   // Tangerine (laranja)
+    'Batizado': '7',      // Peacock (azul claro)
+    'Newborn': '4',       // Flamingo (rosa)
+    '15 anos': '3',       // Grape (roxo)
+    'Formatura': '5',     // Banana (amarelo)
+  };
+  return cores[tipo] || '9';
+}
+
+module.exports = { criarEvento, atualizarEvento, excluirEvento, listarEventos, getAuthenticatedClient };
