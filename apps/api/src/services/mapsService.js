@@ -8,7 +8,7 @@ const { DynamoDBDocumentClient, GetCommand, PutCommand } = require('@aws-sdk/lib
 const { SSMClient, GetParameterCommand } = require('@aws-sdk/client-ssm');
 
 const ddb = DynamoDBDocumentClient.from(new DynamoDBClient({}));
-const ssm = new SSMClient({});
+const ssm = new SSMClient({ region: 'us-east-1' });
 const TABLE = process.env.TABLE_NAME;
 const PREFIX = process.env.SSM_PREFIX || '/mbf/prod';
 
@@ -107,3 +107,4 @@ function gerarEmbedUrl(endereco) {
 }
 
 module.exports = { geocode, distanceMatrix, gerarLinkMaps, gerarEmbedUrl, getApiKey };
+

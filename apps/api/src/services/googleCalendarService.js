@@ -6,7 +6,7 @@
 const { google } = require('googleapis');
 const { SSMClient, GetParameterCommand } = require('@aws-sdk/client-ssm');
 
-const ssm = new SSMClient({});
+const ssm = new SSMClient({ region: 'us-east-1' });
 const PREFIX = process.env.SSM_PREFIX || '/mbf/prod';
 
 let cachedAuth = null;
@@ -147,3 +147,4 @@ function getColorId(tipo) {
 }
 
 module.exports = { criarEvento, atualizarEvento, excluirEvento, listarEventos, getAuthenticatedClient };
+

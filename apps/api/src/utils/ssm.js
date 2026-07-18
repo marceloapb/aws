@@ -1,7 +1,7 @@
 const { SSMClient, GetParameterCommand } = require('@aws-sdk/client-ssm');
 const logger = require('../config/logger');
 
-const ssmClient = new SSMClient({});
+const ssmClient = new SSMClient({ region: 'us-east-1' });
 
 /**
  * Busca parâmetro do SSM Parameter Store
@@ -23,3 +23,4 @@ async function getParameter(name, withDecryption = false) {
 }
 
 module.exports = { getParameter };
+

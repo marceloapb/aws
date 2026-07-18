@@ -10,7 +10,7 @@ const { DynamoDBDocumentClient, QueryCommand, PutCommand } = require('@aws-sdk/l
 const { SSMClient, GetParameterCommand, PutParameterCommand } = require('@aws-sdk/client-ssm');
 
 const ddb = DynamoDBDocumentClient.from(new DynamoDBClient({}));
-const ssm = new SSMClient({});
+const ssm = new SSMClient({ region: 'us-east-1' });
 const TABLE = process.env.TABLE_NAME;
 const PREFIX = process.env.SSM_PREFIX || '/mbf/prod';
 
@@ -184,3 +184,4 @@ async function contarUsoMensal() {
 }
 
 module.exports = { salvarApiKey, getStatus, contarUsoMensal };
+

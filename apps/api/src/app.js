@@ -219,7 +219,7 @@ app.get('/admin/dashboard/badges', adminAuth, async (req, res) => {
 app.get('/admin/instagram', adminAuth, async (req, res) => {
   try {
     const { SSMClient, GetParameterCommand } = require('@aws-sdk/client-ssm');
-    const ssm = new SSMClient({});
+    const ssm = new SSMClient({ region: 'us-east-1' });
     const prefix = process.env.SSM_PREFIX || '/mbf/prod';
     let connected = false, username = '', businessAccountId = '';
     try {
@@ -237,7 +237,7 @@ app.get('/admin/instagram', adminAuth, async (req, res) => {
 app.get('/admin/google-calendar', adminAuth, async (req, res) => {
   try {
     const { SSMClient, GetParameterCommand } = require('@aws-sdk/client-ssm');
-    const ssm = new SSMClient({});
+    const ssm = new SSMClient({ region: 'us-east-1' });
     const prefix = process.env.SSM_PREFIX || '/mbf/prod';
     let connected = false, calendarName = '', lastSync = null;
     try {
@@ -253,7 +253,7 @@ app.get('/admin/google-calendar', adminAuth, async (req, res) => {
 app.get('/admin/whatsapp/config', adminAuth, async (req, res) => {
   try {
     const { SSMClient, GetParameterCommand } = require('@aws-sdk/client-ssm');
-    const ssm = new SSMClient({});
+    const ssm = new SSMClient({ region: 'us-east-1' });
     const prefix = process.env.SSM_PREFIX || '/mbf/prod';
     let connected = false, phoneNumber = '', wabaId = '', phoneNumberId = '';
     try {
@@ -331,3 +331,4 @@ app.use('/webhooks', webhooksRoutes);
 app.use(errorHandler);
 
 module.exports = app;
+

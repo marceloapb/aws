@@ -10,8 +10,8 @@ async function loadParams() {
     cachedParams = process.env;
     return cachedParams;
   }
-  const ssm = new SSMClient({});
-  const path = `/horizons/${process.env.STAGE || 'prod'}/`;
+  const ssm = new SSMClient({ region: 'us-east-1' });
+  const path = process.env.SSM_PREFIX ? `${process.env.SSM_PREFIX}/` : `/mbf/${process.env.STAGE || 'prod'}/`;
   const result = await ssm.send(new GetParametersByPathCommand({
     Path: path, WithDecryption: true, Recursive: true,
   }));
