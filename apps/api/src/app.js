@@ -27,6 +27,7 @@ const adminFeedbackRoutes = require('./routes/admin-feedback');
 const adminAditivosRoutes = require('./routes/admin-aditivos');
 const adminNotasFiscaisRoutes = require('./routes/admin-notas-fiscais');
 const adminFinanceiroRoutes = require('./routes/admin-financeiro');
+const adminFollowupRoutes = require('./routes/admin-followup');
 
 // Rotas Client
 const clientAuthRoutes = require('./routes/client-auth');
@@ -85,6 +86,7 @@ app.use('/admin/feedback', adminAuth, adminFeedbackRoutes);
 app.use('/admin/aditivos', adminAuth, adminAditivosRoutes);
 app.use('/admin/notas-fiscais', adminAuth, adminNotasFiscaisRoutes);
 app.use('/admin/financeiro', adminAuth, adminFinanceiroRoutes);
+app.use('/admin/followup', adminAuth, adminFollowupRoutes);
 
 // Registrar rotas Client (protegidas por clientAuth)
 app.use('/client/auth', clientAuthRoutes);
@@ -176,6 +178,79 @@ app.post('/admin/maps/distance', adminAuth, async (req, res) => {
     const result = await distanceMatrix(origem_lat, origem_lng, destino_lat, destino_lng);
     res.json({ success: true, data: result });
   } catch (error) { res.status(500).json({ success: false, message: error.message }); }
+});
+
+// MAP-08: Controle de Custo Google Maps
+app.put('/admin/maps/config', adminAuth, async (req, res) => {
+  const { salvarApiKey } = require('./services/mapsConfigService');
+  return salvarApiKey(req, res);
+});
+
+app.get('/admin/maps/status', adminAuth, async (req, res) => {
+  const { getStatus } = require('./services/mapsConfigService');
+  return getStatus(req, res);
+});
+
+// DSH-07: Badges (contagem de pendências para o menu)
+app.get('/admin/dashboard/badges', adminAuth, async (req, res) => {
+  try {
+    const { DynamoDBClient } = require('@aws-sdk/client-dynamodb');
+    const { DynamoDBDocumentClient, QueryCommand } = require('@aws-sdk/lib-dynamodb');
+    const ddb = DynamoDBDocumentClient.from(new DynamoDBClient({}));
+    const tenantId = req.user.sub;
+    const TABLE = process.env.TABLE_NAME;
+
+    const [orcResult, ctResult, finResult, notifResult] = await Promise.all([
+      // Orçamentos pendentes (enviados, aguardando resposta)
+      ddb.send(new QueryCommand({
+        TableName: TABLE,
+        KeyConditionExpression: 'PK = :pk AND begins_with(SK, :sk)',
+        FilterExpression: '#s IN (:s1, :s2, :s3)',
+        ExpressionAttributeNames: { '#s': 'status' },
+        ExpressionAttributeValues: { ':pk': `TENANT#${tenantId}`, ':sk': 'ORC#', ':s1': 'enviado', ':s2': 'rascunho', ':s3': 'pendente' },
+        Select: 'COUNT',
+      })).catch(() => ({ Count: 0 })),
+      // Contratos aguardando aceite
+      ddb.send(new QueryCommand({
+        TableName: TABLE,
+        KeyConditionExpression: 'PK = :pk AND begins_with(SK, :sk)',
+        FilterExpression: '#s IN (:s1, :s2)',
+        ExpressionAttributeNames: { '#s': 'status' },
+        ExpressionAttributeValues: { ':pk': `TENANT#${tenantId}`, ':sk': 'CT#', ':s1': 'aguardando', ':s2': 'enviado' },
+        Select: 'COUNT',
+      })).catch(() => ({ Count: 0 })),
+      // Cobranças atrasadas
+      ddb.send(new QueryCommand({
+        TableName: TABLE,
+        KeyConditionExpression: 'PK = :pk AND begins_with(SK, :sk)',
+        FilterExpression: '#s = :s1',
+        ExpressionAttributeNames: { '#s': 'status' },
+        ExpressionAttributeValues: { ':pk': `TENANT#${tenantId}`, ':sk': 'COBRANCA#', ':s1': 'atrasada' },
+        Select: 'COUNT',
+      })).catch(() => ({ Count: 0 })),
+      // Notificações não lidas
+      ddb.send(new QueryCommand({
+        TableName: TABLE,
+        IndexName: 'GSI1',
+        KeyConditionExpression: 'GSI1PK = :pk',
+        FilterExpression: 'lida = :false',
+        ExpressionAttributeValues: { ':pk': `NOTIF#${tenantId}`, ':false': false },
+        Select: 'COUNT',
+      })).catch(() => ({ Count: 0 })),
+    ]);
+
+    res.json({
+      success: true,
+      data: {
+        orcamentos: orcResult.Count || 0,
+        contratos: ctResult.Count || 0,
+        financeiro: finResult.Count || 0,
+        notificacoes: notifResult.Count || 0,
+      },
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
 });
 
 // Status das Integrações (para tela de Configurações)

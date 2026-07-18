@@ -28,6 +28,7 @@ import Aditivos from './pages/admin/Aditivos';
 import Equipamentos from './pages/admin/Equipamentos';
 import Instagram from './pages/admin/Instagram';
 import WhatsApp from './pages/admin/WhatsApp';
+import Followup from './pages/admin/Followup';
 import ImportCSV from './pages/admin/ImportCSV';
 import Storage from './pages/admin/Storage';
 import Notificacoes from './pages/admin/Notificacoes';
@@ -95,6 +96,7 @@ function App() {
         <Route path="equipamentos" element={<Equipamentos />} />
         <Route path="instagram" element={<Instagram />} />
         <Route path="whatsapp" element={<WhatsApp />} />
+        <Route path="followup" element={<Followup />} />
         <Route path="import" element={<ImportCSV />} />
         <Route path="storage" element={<Storage />} />
         <Route path="notificacoes" element={<Notificacoes />} />

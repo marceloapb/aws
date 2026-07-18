@@ -4,3 +4,4 @@ stack_name = "horizons-prod"
 region = "sa-east-1"
 confirm_changeset = false
 capabilities = "CAPABILITY_IAM"
+s3_bucket = "mbf-sam-deploy-sa-east-1"

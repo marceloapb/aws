@@ -2,6 +2,9 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Calendar, List, Plus, Lock, X, MapPin, Phone, Mail, Edit, RefreshCw, Clock, Users, CheckCircle, AlertCircle } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { getStatusColor, getTipoColor } from '../../utils/agendaColors';
+import DistanceBadge from '../../components/DistanceBadge';
+import MapEmbed from '../../components/MapEmbed';
+import { MapLink } from '../../components/MapLink';
 
 const ACCENT = '#EA580C';
 const DIAS_SEMANA = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
@@ -208,7 +211,9 @@ export default function Agenda() {
               <span>{ev.horario_inicio?.slice(0, 5)} - {ev.horario_fim?.slice(0, 5)}</span>
               <span className="px-2 py-0.5 rounded text-xs" style={{ backgroundColor: getTipoColor(ev.tipo_evento) + '20', color: getTipoColor(ev.tipo_evento) }}>{ev.tipo_evento}</span>
             </div>
-            {ev.local && <p className="text-sm text-gray-400 mt-1 flex items-center gap-1"><MapPin size={12} />{typeof ev.local === 'object' ? ev.local.nome : ev.local}</p>}
+            {ev.local && <p className="text-sm text-gray-400 mt-1 flex items-center gap-1"><MapPin size={12} />{typeof ev.local === 'object' ? ev.local.nome : ev.local}
+              {ev.distancia_km && <DistanceBadge distancia_km={ev.distancia_km} duracao_minutos={ev.duracao_minutos} compact />}
+            </p>}
           </div>
         </div>
       ))}
@@ -221,7 +226,6 @@ export default function Agenda() {
     if (!drawerEvento) return null;
     const ev = drawerEvento;
     const endereco = typeof ev.local === 'object' ? ev.local?.endereco : ev.local;
-    const mapsUrl = endereco ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(endereco)}` : null;
     return (
       <>
         <div className="fixed inset-0 bg-black/40 z-40" onClick={() => setDrawerEvento(null)} />
@@ -247,7 +251,14 @@ export default function Agenda() {
               <div>
                 <p className="text-sm text-gray-500 mb-1">Local</p>
                 <p className="font-medium">{typeof ev.local === 'object' ? ev.local.nome : ev.local}</p>
-                {mapsUrl && <a href={mapsUrl} target="_blank" rel="noopener noreferrer" className="text-sm flex items-center gap-1 mt-1" style={{ color: ACCENT }}><MapPin size={14} />Abrir no Maps</a>}
+                <DistanceBadge
+                  distancia_km={ev.distancia_km}
+                  duracao_minutos={ev.duracao_minutos}
+                  endereco={endereco}
+                />
+                <div className="mt-2">
+                  <MapEmbed endereco={endereco} lat={ev.lat} lng={ev.lng} altura={180} />
+                </div>
               </div>
             )}
             <div>

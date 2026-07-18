@@ -1,7 +1,8 @@
 import React from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { LayoutDashboard, Calendar, Package, FileText, CreditCard, Image, Settings, FolderOpen, LogOut, Camera, X, Users, Star, Receipt, FilePlus, Wrench, Instagram, MessageCircle, Upload, HardDrive } from 'lucide-react';
+import usePendingCounts from '../hooks/usePendingCounts';
+import { LayoutDashboard, Calendar, Package, FileText, CreditCard, Image, Settings, FolderOpen, LogOut, Camera, X, Users, Star, Receipt, FilePlus, Wrench, Instagram, MessageCircle, Upload, HardDrive, Zap } from 'lucide-react';
 
 const ACCENT = '#EA580C';
 
@@ -38,6 +39,7 @@ const adminSections = [
       { to: '/admin/feedback', icon: Star, label: 'Feedback' },
       { to: '/admin/instagram', icon: Instagram, label: 'Instagram' },
       { to: '/admin/whatsapp', icon: MessageCircle, label: 'WhatsApp' },
+      { to: '/admin/followup', icon: Zap, label: 'Follow-up' },
     ],
   },
   {
@@ -61,6 +63,14 @@ export default function Sidebar({ onClose }) {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const isAdmin = user?.role === 'admin';
+  const counts = usePendingCounts();
+
+  // Map de badges por rota
+  const badgeMap = {
+    '/admin/orcamentos': counts.orcamentos,
+    '/admin/contratos': counts.contratos,
+    '/admin/financeiro': counts.financeiro,
+  };
 
   const handleLogout = () => {
     logout();
@@ -99,7 +109,12 @@ export default function Sidebar({ onClose }) {
                   }
                 >
                   <Icon size={18} />
-                  {label}
+                  <span className="flex-1">{label}</span>
+                  {badgeMap[to] > 0 && (
+                    <span className="min-w-[20px] h-5 flex items-center justify-center px-1.5 text-[10px] font-bold bg-red-500 text-white rounded-full">
+                      {badgeMap[to] > 99 ? '99+' : badgeMap[to]}
+                    </span>
+                  )}
                 </NavLink>
               ))}
             </div>

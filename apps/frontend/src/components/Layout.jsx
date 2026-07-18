@@ -5,6 +5,7 @@ import BottomNav from './BottomNav';
 import GlobalSearch from './search/GlobalSearch';
 import { useAuth } from '../contexts/AuthContext';
 import { useKeyboardShortcuts } from '../hooks/useKeyboardShortcuts';
+import usePendingCounts from '../hooks/usePendingCounts';
 import { Menu, Search, Bell, User as UserIcon, Lock, LogOut } from 'lucide-react';
 
 export default function Layout() {
@@ -12,6 +13,7 @@ export default function Layout() {
   const [profileOpen, setProfileOpen] = React.useState(false);
   const { user, logout } = useAuth();
   const { isOpen: searchOpen, setIsOpen: setSearchOpen } = useKeyboardShortcuts();
+  const counts = usePendingCounts();
 
   return (
     <div className="flex h-screen bg-gray-50">
@@ -49,6 +51,11 @@ export default function Layout() {
             {/* Notification bell */}
             <button className="relative p-2 rounded-md hover:bg-gray-100" onClick={() => window.location.href='/admin/notificacoes'}>
               <Bell size={20} className="text-gray-500" />
+              {counts.notificacoes > 0 && (
+                <span className="absolute top-1 right-1 min-w-[16px] h-4 flex items-center justify-center px-1 text-[10px] font-bold bg-red-500 text-white rounded-full">
+                  {counts.notificacoes > 99 ? '99+' : counts.notificacoes}
+                </span>
+              )}
             </button>
             <span className="hidden sm:inline text-sm text-gray-600">Olá, <strong>{user?.email?.split('@')[0]}</strong></span>
             <div className="relative">

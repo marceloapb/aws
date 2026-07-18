@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Navigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
+import useDashboardPreferences from '../../hooks/useDashboardPreferences';
 import {
   Calendar, FileText, CreditCard, Image, Clock, MapPin, Users,
   PlusCircle, Lock, Send, RefreshCw, MessageCircle, Upload,
-  TrendingUp, AlertCircle, CheckCircle2, Bell, LayoutDashboard
+  TrendingUp, AlertCircle, CheckCircle2, Bell, LayoutDashboard, Settings2
 } from 'lucide-react';
 
 const ACCENT = '#EA580C';
@@ -27,6 +28,8 @@ function getGreeting() {
 export default function Dashboard() {
   const { user, authFetch } = useAuth();
   const navigate = useNavigate();
+  const { prefs, updatePref } = useDashboardPreferences();
+  const [showPrefsModal, setShowPrefsModal] = useState(false);
   const [events, setEvents] = useState([]);
   const [quotes, setQuotes] = useState([]);
   const [contracts, setContracts] = useState([]);
@@ -105,10 +108,36 @@ export default function Dashboard() {
           <h1 className="text-2xl font-bold text-gray-900">{getGreeting()}, {user?.name?.split(' ')[0] || 'Usuário'} 👋</h1>
         </div>
         <div className="flex gap-2">
+          <button onClick={() => setShowPrefsModal(!showPrefsModal)} className="p-2 rounded-lg border border-gray-200 hover:bg-gray-50" title="Personalizar Dashboard">
+            <Settings2 size={18} className="text-gray-500" />
+          </button>
         </div>
       </div>
 
+      {/* Modal Preferências (DSH-09) */}
+      {showPrefsModal && (
+        <div className="bg-white rounded-xl border border-gray-200 p-5 mb-6">
+          <h3 className="text-sm font-semibold text-gray-900 mb-3">Personalizar Dashboard</h3>
+          <div className="space-y-2">
+            {[
+              { key: 'showAcoesRapidas', label: 'Ações Rápidas' },
+              { key: 'showKPIs', label: 'Indicadores (KPIs)' },
+              { key: 'showPendencias', label: 'Pendências' },
+              { key: 'showProximasSessiones', label: 'Próximas Sessões' },
+              { key: 'showAtividade', label: 'Atividade Recente' },
+            ].map(item => (
+              <label key={item.key} className="flex items-center gap-3 text-sm text-gray-700 cursor-pointer">
+                <input type="checkbox" checked={prefs[item.key]} onChange={e => updatePref(item.key, e.target.checked)} className="w-4 h-4 rounded border-gray-300 text-orange-600 focus:ring-orange-500" />
+                {item.label}
+              </label>
+            ))}
+          </div>
+          <button onClick={() => setShowPrefsModal(false)} className="mt-3 text-xs text-gray-500 hover:text-gray-700">Fechar</button>
+        </div>
+      )}
+
       {/* 2. Ações Rápidas */}
+      {prefs.showAcoesRapidas && (
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {[
           { label: 'Novo Orçamento', icon: PlusCircle, to: '/admin/orcamentos/novo' },
@@ -123,8 +152,10 @@ export default function Dashboard() {
           </button>
         ))}
       </div>
+      )}
 
       {/* 3. KPIs */}
+      {prefs.showKPIs && (
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {[
           { label: 'Sessões Hoje / Semana', value: `${sessionsToday} / ${sessionsWeek}`, icon: Calendar, bg: 'bg-blue-50', fg: 'text-blue-600' },
@@ -146,9 +177,10 @@ export default function Dashboard() {
           </div>
         ))}
       </div>
+      )}
 
       {/* 4. Pendências com Ação Direta */}
-      {pendencies.length > 0 && (
+      {prefs.showPendencias && pendencies.length > 0 && (
         <div className="bg-white rounded-xl border border-gray-200 p-5">
           <h2 className="text-base font-semibold text-gray-900 mb-3 flex items-center gap-2">
             <AlertCircle size={16} style={{ color: ACCENT }} /> Pendências
@@ -172,6 +204,7 @@ export default function Dashboard() {
       )}
 
       {/* 5. Próximas Sessões */}
+      {prefs.showProximasSessiones && (
       <div className="bg-white rounded-xl border border-gray-200 p-5">
         <h2 className="text-base font-semibold text-gray-900 mb-3 flex items-center gap-2">
           <Calendar size={16} style={{ color: ACCENT }} /> Próximas Sessões
@@ -203,9 +236,10 @@ export default function Dashboard() {
           </div>
         )}
       </div>
+      )}
 
       {/* 6. Atividade Recente */}
-      {recentActivity.length > 0 && (
+      {prefs.showAtividade && recentActivity.length > 0 && (
         <div className="bg-white rounded-xl border border-gray-200 p-5">
           <h2 className="text-base font-semibold text-gray-900 mb-3 flex items-center gap-2">
             <Clock size={16} style={{ color: ACCENT }} /> Atividade Recente

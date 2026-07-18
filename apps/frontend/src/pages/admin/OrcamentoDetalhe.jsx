@@ -3,8 +3,11 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import {
   ArrowLeft, Send, CheckCircle, Copy, FileText, Edit2, Download,
-  Trash2, RefreshCw, RotateCcw, Phone, Mail, Star, Clock, XCircle
+  Trash2, RefreshCw, RotateCcw, Phone, Mail, Star, Clock, XCircle, MapPin, AlertTriangle
 } from 'lucide-react';
+import DistanceBadge from '../../components/DistanceBadge';
+import MapEmbed from '../../components/MapEmbed';
+import { MapLink } from '../../components/MapLink';
 
 const ACCENT = '#EA580C';
 
@@ -156,6 +159,40 @@ export default function OrcamentoDetalhe() {
           )}
         </div>
       </div>
+
+      {/* ─── LOCAL DO EVENTO (MAP-06) ─── */}
+      {orc.local_evento && (
+        <div className="bg-white rounded-xl border p-5 mb-6">
+          <h3 className="font-semibold text-gray-900 mb-3 flex items-center gap-2"><MapPin size={18} /> Local do Evento</h3>
+          <p className="text-sm text-gray-700 mb-2">{orc.local_evento}</p>
+          <DistanceBadge
+            distancia_km={orc.distancia_km}
+            duracao_minutos={orc.duracao_minutos}
+            endereco={orc.local_evento}
+          />
+          {orc.distancia_km > 100 && (
+            <div className="mt-3 flex items-start gap-2 p-3 bg-red-50 border border-red-200 rounded-lg">
+              <AlertTriangle size={16} className="text-red-600 mt-0.5 shrink-0" />
+              <div className="text-xs text-red-700">
+                <p className="font-semibold">Distância acima de 100km</p>
+                <p>Considere taxa de deslocamento. Sugestão: R$ {Math.round(orc.distancia_km * 1.5)},00 (R$ 1,50/km)</p>
+              </div>
+            </div>
+          )}
+          {orc.distancia_km > 30 && orc.distancia_km <= 100 && (
+            <div className="mt-3 flex items-start gap-2 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+              <AlertTriangle size={16} className="text-yellow-600 mt-0.5 shrink-0" />
+              <div className="text-xs text-yellow-700">
+                <p className="font-semibold">Distância acima de 30km</p>
+                <p>Considere taxa de deslocamento. Sugestão: R$ {Math.round(orc.distancia_km * 1.5)},00 (R$ 1,50/km)</p>
+              </div>
+            </div>
+          )}
+          <div className="mt-3">
+            <MapEmbed endereco={orc.local_evento} lat={orc.local_lat} lng={orc.local_lng} altura={180} />
+          </div>
+        </div>
+      )}
 
       {/* ─── OPÇÕES (ORC-03) ─── */}
       {opcoes.length > 0 && (

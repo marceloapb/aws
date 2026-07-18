@@ -271,6 +271,24 @@ Resources:
           Properties:
             Schedule: cron(0 12 * * ? *)
 
+  FollowupScanFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub 'mbf-${Stage}-followup-scan'
+      Handler: src/jobs/followupScanJob.handler
+      CodeUri: .
+      Timeout: 300
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref TableName
+        - SSMParameterReadPolicy:
+            ParameterName: !Sub 'mbf/${Stage}/*'
+      Events:
+        Schedule:
+          Type: Schedule
+          Properties:
+            Schedule: rate(1 hour)
+
   # ═══ WEBHOOK FUNCTIONS ═══
   WhatsAppWebhookFunction:
     Type: AWS::Serverless::Function
