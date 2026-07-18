@@ -6,6 +6,66 @@ const { INSTAGRAM_STATUS } = require('../config/constants');
 
 const router = Router();
 
+// GET /api/admin/instagram/status
+router.get('/status', async (req, res) => {
+  try {
+    const { loadParams, features } = require('../config/env');
+    const params = await loadParams();
+    const connected = !!(params.INSTAGRAM_ACCESS_TOKEN && params.INSTAGRAM_BUSINESS_ACCOUNT_ID);
+    
+    let username = '';
+    let accountType = '';
+    let lastPublishAt = null;
+    
+    if (connected) {
+      // Try to get account info from Meta Graph API
+      try {
+        const response = await fetch(
+          `https://graph.facebook.com/v18.0/${params.INSTAGRAM_BUSINESS_ACCOUNT_ID}?fields=username,account_type&access_token=${params.INSTAGRAM_ACCESS_TOKEN}`,
+          { signal: AbortSignal.timeout(10000) }
+        );
+        if (response.ok) {
+          const data = await response.json();
+          username = data.username || '';
+          accountType = data.account_type || 'BUSINESS';
+        }
+      } catch {}
+      
+      // Get last successful publish from DB
+      try {
+        const lastPubResult = await dynamo.send(new QueryCommand({
+          TableName: TABLE,
+          IndexName: 'GSI1',
+          KeyConditionExpression: 'GSI1PK = :pk',
+          FilterExpression: '#s = :status',
+          ExpressionAttributeNames: { '#s': 'status' },
+          ExpressionAttributeValues: { ':pk': 'INSTAGRAM', ':status': 'PUBLICADO' },
+          ScanIndexForward: false,
+          Limit: 1,
+        }));
+        if (lastPubResult.Items?.length > 0) {
+          lastPublishAt = lastPubResult.Items[0].publicado_em;
+        }
+      } catch {}
+    }
+    
+    res.json({
+      success: true,
+      data: {
+        connected,
+        username,
+        accountType,
+        appId: params.INSTAGRAM_APP_ID || '',
+        businessAccountId: params.INSTAGRAM_BUSINESS_ACCOUNT_ID || '',
+        lastPublishAt,
+        tokenConfigured: !!params.INSTAGRAM_ACCESS_TOKEN,
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
 // GET /api/admin/instagram
 router.get('/', async (req, res) => {
   try {

@@ -28,6 +28,7 @@ const adminAditivosRoutes = require('./routes/admin-aditivos');
 const adminNotasFiscaisRoutes = require('./routes/admin-notas-fiscais');
 const adminFinanceiroRoutes = require('./routes/admin-financeiro');
 const adminFollowupRoutes = require('./routes/admin-followup');
+const adminIntegracoesRoutes = require('./routes/admin-integracoes');
 
 // Rotas Client
 const clientAuthRoutes = require('./routes/client-auth');
@@ -77,6 +78,7 @@ app.use('/admin/fotografos', adminAuth, adminFotografosRoutes);
 app.use('/admin/fotos', adminAuth, adminFotosRoutes);
 app.use('/admin/google-calendar', adminAuth, adminGoogleCalendarRoutes);
 app.use('/admin/instagram', adminAuth, adminInstagramRoutes);
+app.use('/admin/integracoes', adminAuth, adminIntegracoesRoutes);
 app.use('/admin/orcamentos', adminAuth, adminOrcamentosRoutes);
 app.use('/admin/pendencias', adminAuth, adminPendenciasRoutes);
 app.use('/admin/whatsapp', adminAuth, adminWhatsappRoutes);

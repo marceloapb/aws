@@ -36,6 +36,7 @@ import MeuPerfil from './pages/admin/MeuPerfil';
 import TrocarSenha from './pages/admin/TrocarSenha';
 import GatewayConfig from './pages/admin/GatewayConfig';
 import Onboarding from './pages/admin/Onboarding';
+import IntegracoesLogs from './pages/admin/IntegracoesLogs';
 import MeusOrcamentos from './pages/cliente/MeusOrcamentos';
 import MeusContratos from './pages/cliente/MeusContratos';
 import MeusAlbuns from './pages/cliente/MeusAlbuns';
@@ -96,6 +97,7 @@ function App() {
         <Route path="equipamentos" element={<Equipamentos />} />
         <Route path="instagram" element={<Instagram />} />
         <Route path="whatsapp" element={<WhatsApp />} />
+        <Route path="integracoes/logs" element={<IntegracoesLogs />} />
         <Route path="followup" element={<Followup />} />
         <Route path="import" element={<ImportCSV />} />
         <Route path="storage" element={<Storage />} />
