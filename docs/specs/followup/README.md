@@ -1,22 +1,17 @@
 # Módulo Follow-up / Lembretes — Specs
 
 ## Decisões de Design (§20 + §5.8)
-- Motor central único: observa inércia, dispara por régua configurável
-- Inversão de dependência: motor NÃO conhece regras de domínio
-- Canais agnósticos: email (SES) + WhatsApp (Cloud API)
-- Escalonamento por tentativa (email → WhatsApp)
-- Teto: 1 msg/cliente/dia com prioridade
-- Cron diário via EventBridge + SQS para despacho
-
-## Entidades DynamoDB
-- REGUA_FOLLOWUP (PK: TENANT#t, SK: REGUA#id)
-- GATILHO_INERCIA (PK: TENANT#t, SK: GATILHO#id, GSI1: CLIENTE#c)
-- DISPARO (PK: GATILHO#id, SK: DISPARO#tentativa)
+- Motor central único: observa inércia, dispara régua
+- Inversão de dependência: motor NÃO conhece regra de domínio
+- Canais agnósticos: SES (email) + WhatsApp Cloud API
+- Escalonamento por tentativa: email → WhatsApp
+- Teto: 1 msg/cliente/dia, prioridade entre pendências
+- Resolução event-driven (domínio emite evento → gatilho fecha)
 
 ## Fora de Escopo (confirmado)
-- Chatbot automático (futuro)
-- IA para personalização (futuro)
-- Push notification mobile
+- SMS (futuro)
+- Push notifications (futuro)
+- IA para melhor horário de envio
 
 ## Dependências entre specs:
 
@@ -35,10 +30,10 @@
 | FLW-04 | [FLW-04-disparo-email.md](./FLW-04-disparo-email.md) | P1 | Disparo Email |
 | FLW-05 | [FLW-05-disparo-whatsapp.md](./FLW-05-disparo-whatsapp.md) | P1 | Disparo WhatsApp |
 | FLW-06 | [FLW-06-escalonamento.md](./FLW-06-escalonamento.md) | P1 | Escalonamento Canal |
-| FLW-07 | [FLW-07-teto-diario.md](./FLW-07-teto-diario.md) | P1 | Teto 1/dia |
+| FLW-07 | [FLW-07-teto-prioridade.md](./FLW-07-teto-prioridade.md) | P1 | Teto + Prioridade |
 | FLW-08 | [FLW-08-painel-governanca.md](./FLW-08-painel-governanca.md) | P2 | Painel Governança |
-| FLW-09 | [FLW-09-config-reguas-frontend.md](./FLW-09-config-reguas-frontend.md) | P2 | Config Réguas UI |
-| FLW-10 | [FLW-10-resolucao-automatica.md](./FLW-10-resolucao-automatica.md) | P2 | Resolução Automática |
-| FLW-11 | [FLW-11-cancelamento-silenciar.md](./FLW-11-cancelamento-silenciar.md) | P2 | Cancelar/Silenciar |
+| FLW-09 | [FLW-09-tela-reguas.md](./FLW-09-tela-reguas.md) | P2 | Tela Config Réguas |
+| FLW-10 | [FLW-10-resolucao-auto.md](./FLW-10-resolucao-auto.md) | P2 | Resolução Automática |
+| FLW-11 | [FLW-11-cancelar-silenciar.md](./FLW-11-cancelar-silenciar.md) | P2 | Cancelar/Silenciar |
 | FLW-12 | [FLW-12-log-disparos.md](./FLW-12-log-disparos.md) | P2 | Log de Disparos |
-| FLW-13 | [FLW-13-metricas-eficacia.md](./FLW-13-metricas-eficacia.md) | P3 | Métricas Eficácia |
+| FLW-13 | [FLW-13-metricas.md](./FLW-13-metricas.md) | P3 | Métricas Eficácia |

@@ -9,18 +9,18 @@
 - **Dependência:** FLW-01
 
 ## Contexto
-Gatilho de inércia é criado quando um domínio entra em estado de espera (ex: orçamento enviado). É RESOLVIDO quando o evento esperado ocorre (ex: orçamento aceito). Enquanto ativo, o motor (FLW-03) dispara follow-ups.
+Gatilho é criado quando um item entra em estado de inércia (ex: orçamento vira 'pendente'). O gatilho fica ativo até ser resolvido (cliente responde) ou até todas tentativas esgotarem. Resolução é event-driven: domínio emite evento → listener fecha gatilho.
 
 ## Escopo
 - `apps/backend/src/handlers/followup/gatilhos.js` — NOVO
-- `apps/backend/src/services/followupService.js` — NOVO (funções compartilhadas)
+- `apps/backend/src/listeners/followup/criarGatilho.js` — NOVO
 - DynamoDB: entidade GATILHO_INERCIA
-- EventBridge: regras para capturar eventos de domínio
+- EventBridge: regras de criação de gatilho
 
 ## Fora de Escopo (NÃO TOCAR)
-- Motor de varredura (FLW-03)
-- Disparos (FLW-04, FLW-05)
-- CRUD Réguas (FLW-01 — já feito)
+- Motor de varredura (FLW-03 — consome gatilhos)
+- Disparo (FLW-04/05)
+- Tela (FLW-08/09)
 
 ## Spec Técnica
 
@@ -32,133 +32,144 @@ Gatilho de inércia é criado quando um domínio entra em estado de espera (ex: 
   "GSI1PK": "TENANT#t123",
   "GSI1SK": "STATUS#ativo#2026-07-17",
   "id": "gat_001",
-  "regua_id": "reg_001",
-  "cliente_id": "cli_001",
-  "cliente_nome": "Ana Carolina",
+  "regua_id": "regua_001",
   "dominio": "orcamento",
   "recurso_id": "orc_001",
-  "recurso_label": "Casamento Ana & Pedro - R$ 5.500",
-  "gatilho_tipo": "orcamento_enviado_sem_resposta",
+  "cliente_id": "cli_001",
+  "cliente_nome": "Ana Carolina",
   "status": "ativo",
-  "data_inicio": "2026-07-17T10:00:00Z",
-  "data_resolucao": null,
   "tentativa_atual": 0,
   "max_tentativas": 3,
-  "proximo_disparo": "2026-07-19T10:00:00Z",
-  "created_at": "2026-07-17T10:00:00Z"
+  "inicio_inercia": "2026-07-14T10:00:00Z",
+  "proximo_disparo": "2026-07-17T10:00:00Z",
+  "disparos": [],
+  "created_at": "2026-07-14T10:00:00Z",
+  "resolvido_em": null,
+  "motivo_resolucao": null
 }
 ```
 
-### Status do Gatilho
-| Status | Significado |
-|---|---|
-| ativo | Aguardando resolução, motor pode disparar |
-| resolvido | Evento de resolução recebido |
-| expirado | Todas tentativas esgotadas |
-| cancelado | Admin cancelou manualmente |
+### Eventos que CRIAM gatilho
+| Evento | Domínio | Status Gatilho |
+|---|---|---|
+| orcamento.criado (status=pendente) | orcamento | ativo |
+| contrato.enviado (aguardando aceite) | contrato | ativo |
+| pagamento.vencido | pagamento | ativo |
+| evento.realizado (aguardando feedback) | feedback | ativo |
+| album.publicado (aguardando download) | album | ativo |
 
-### Criação de Gatilho (Event-Driven)
+### Eventos que RESOLVEM gatilho
+| Evento | Ação |
+|---|---|
+| orcamento.aceito | Fechar gatilho (motivo: 'aceito') |
+| orcamento.recusado | Fechar gatilho (motivo: 'recusado') |
+| contrato.assinado | Fechar gatilho (motivo: 'assinado') |
+| pagamento.confirmado | Fechar gatilho (motivo: 'pago') |
+| feedback.respondido | Fechar gatilho (motivo: 'respondido') |
+| album.baixado | Fechar gatilho (motivo: 'baixado') |
+
+### Listener — criarGatilho.js
 ```js
-// Chamado pelo módulo de origem ao mudar estado
-async function criarGatilho(tenantId, dados) {
-  // Buscar régua ativa para este tipo de gatilho
-  const regua = await getReguaAtiva(tenantId, dados.gatilho_tipo)
-  if (!regua) return null // Sem régua configurada = sem follow-up
+async function handler(event) {
+  const { tenantId, dominio, recurso_id, cliente_id, cliente_nome } = event.detail
   
-  // Verificar se já existe gatilho ativo para este recurso
-  const existente = await getGatilhoAtivoByRecurso(tenantId, dados.recurso_id)
-  if (existente) return existente // Idempotência
+  // 1. Buscar régua ativa para este domínio
+  const regua = await getReguaAtiva(tenantId, dominio)
+  if (!regua) return // Sem régua configurada
   
-  const id = `gat_${ulid()}`
-  const primeiraTentativa = regua.tentativas[0]
-  const proximoDisparo = addDays(new Date(), primeiraTentativa.dias_apos_gatilho)
+  // 2. Verificar se já existe gatilho ativo para este recurso
+  const existente = await getGatilhoAtivo(tenantId, recurso_id)
+  if (existente) return // Já tem gatilho
   
+  // 3. Criar gatilho
   const gatilho = {
     PK: `TENANT#${tenantId}`,
-    SK: `GATILHO#${id}`,
+    SK: `GATILHO#gat_${ulid()}`,
     GSI1PK: `TENANT#${tenantId}`,
-    GSI1SK: `STATUS#ativo#${today()}`,
-    id,
+    GSI1SK: `STATUS#ativo#${hoje()}`,
+    id: `gat_${ulid()}`,
     regua_id: regua.id,
-    cliente_id: dados.cliente_id,
-    cliente_nome: dados.cliente_nome,
-    dominio: dados.dominio,
-    recurso_id: dados.recurso_id,
-    recurso_label: dados.recurso_label,
-    gatilho_tipo: dados.gatilho_tipo,
+    dominio,
+    recurso_id,
+    cliente_id,
+    cliente_nome,
     status: 'ativo',
-    data_inicio: new Date().toISOString(),
-    data_resolucao: null,
     tentativa_atual: 0,
-    max_tentativas: regua.max_tentativas,
-    proximo_disparo: proximoDisparo.toISOString(),
+    max_tentativas: regua.tentativas.length,
+    inicio_inercia: new Date().toISOString(),
+    proximo_disparo: calcularProximoDisparo(regua.tentativas[0]),
+    disparos: [],
     created_at: new Date().toISOString()
   }
   
   await dynamo.put({ TableName: TABLE, Item: gatilho }).promise()
-  return gatilho
 }
 ```
 
-### Resolução de Gatilho
+### Listener — resolverGatilho.js
 ```js
-// Chamado quando evento de resolução ocorre
-async function resolverGatilho(tenantId, recurso_id) {
-  const gatilho = await getGatilhoAtivoByRecurso(tenantId, recurso_id)
-  if (!gatilho) return null // Sem gatilho ativo
+async function handler(event) {
+  const { tenantId, dominio, recurso_id, motivo } = event.detail
   
-  await dynamo.update({
-    TableName: TABLE,
-    Key: { PK: gatilho.PK, SK: gatilho.SK },
-    UpdateExpression: 'SET #status = :resolvido, data_resolucao = :agora, GSI1SK = :gsi',
-    ExpressionAttributeNames: { '#status': 'status' },
-    ExpressionAttributeValues: {
-      ':resolvido': 'resolvido',
-      ':agora': new Date().toISOString(),
-      ':gsi': `STATUS#resolvido#${today()}`
-    }
-  }).promise()
+  const gatilho = await getGatilhoAtivoPorRecurso(tenantId, recurso_id)
+  if (!gatilho) return
   
-  return { resolvido: true, gatilho_id: gatilho.id }
+  await atualizarGatilho(gatilho, {
+    status: 'resolvido',
+    resolvido_em: new Date().toISOString(),
+    motivo_resolucao: motivo,
+    GSI1SK: `STATUS#resolvido#${hoje()}`
+  })
 }
 ```
 
-### Pontos de Integração (módulos chamam criarGatilho/resolverGatilho)
-| Módulo | Cria gatilho quando | Resolve quando |
-|---|---|---|
-| Orçamento | Envia orçamento ao cliente | Cliente aceita/recusa |
-| Contrato | Envia contrato para assinatura | Cliente assina |
-| Financeiro | Parcela vence | Pagamento confirmado |
-| Álbum | Entrega álbum | Cliente dá feedback |
-| Pesquisa | Envia pesquisa | Resposta recebida |
+### EventBridge Rules
+```yaml
+CriarGatilhoRule:
+  Type: AWS::Events::Rule
+  Properties:
+    EventPattern:
+      source: ["mbf.orcamentos", "mbf.contratos", "mbf.pagamentos", "mbf.albuns"]
+      detail-type: ["orcamento.criado", "contrato.enviado", "pagamento.vencido", "album.publicado"]
+    Targets:
+      - Arn: !GetAtt CriarGatilhoFunction.Arn
+
+ResolverGatilhoRule:
+  Type: AWS::Events::Rule
+  Properties:
+    EventPattern:
+      source: ["mbf.orcamentos", "mbf.contratos", "mbf.pagamentos", "mbf.feedbacks", "mbf.albuns"]
+      detail-type: ["orcamento.aceito", "orcamento.recusado", "contrato.assinado", "pagamento.confirmado", "feedback.respondido", "album.baixado"]
+    Targets:
+      - Arn: !GetAtt ResolverGatilhoFunction.Arn
+```
 
 ### Regras
-- Idempotência: 1 gatilho ativo por recurso (não duplicar)
-- Se não existe régua ativa: não criar gatilho (silencioso)
-- Resolução automática via eventos de domínio
-- GSI1 permite query eficiente: "todos ativos do tenant"
-- Status: ativo → resolvido/expirado/cancelado
+- 1 gatilho por recurso (não duplicar)
+- Gatilho ativo → motor pode disparar
+- Resolução: status='resolvido', registra motivo
+- Se régua desativada depois: gatilhos existentes continuam (decisão consciente)
+- GSI1 para query rápida por status + data
 
 ## Critérios de Aceite
-- [ ] Criar gatilho ao receber evento de inércia
-- [ ] Idempotência (não duplicar por recurso)
-- [ ] Se sem régua: não criar (silencioso)
-- [ ] Resolver ao receber evento de resolução
-- [ ] Status transiciona corretamente
-- [ ] GSI1 funciona (query ativos por tenant)
+- [ ] Gatilho criado ao evento de inércia
+- [ ] Não duplica (1 por recurso)
+- [ ] Resolução fecha gatilho
+- [ ] EventBridge rules funcionam
+- [ ] GSI1 permite query por status
+- [ ] Motivo de resolução registrado
 
 ## Prompt Pronto para o Kiro CLI
 
 ```
 Implemente a spec FLW-02: Gatilhos de Inércia.
 
-1. Crie handlers/followup/gatilhos.js: criar + resolver.
-2. Crie services/followupService.js: funções compartilhadas.
-3. Entidade GATILHO_INERCIA no DynamoDB + GSI1.
-4. Idempotência: 1 gatilho ativo por recurso.
-5. Se sem régua: não criar.
-6. Resolver: atualizar status + data_resolucao.
-7. SAM: EventBridge rules para capturar eventos.
+1. Crie handlers/followup/gatilhos.js: CRUD gatilhos.
+2. Crie listeners/followup/criarGatilho.js + resolverGatilho.js.
+3. Entidade GATILHO_INERCIA com GSI1.
+4. EventBridge rules para criar e resolver.
+5. 1 gatilho por recurso (idempotente).
+6. SAM: 2 funções + 2 rules.
 
 Altere SOMENTE os arquivos listados. Não refatore, renomeie ou mexa em mais nada.
 ```

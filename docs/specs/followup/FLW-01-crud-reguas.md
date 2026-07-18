@@ -9,17 +9,18 @@
 - **Dependência:** Nenhuma (fundação)
 
 ## Contexto
-Régua é o template que define QUANDO e COMO disparar follow-ups para cada tipo de inércia (orçamento sem resposta, contrato sem aceite, pagamento atrasado, etc.). Admin cria/edita réguas que o motor (FLW-03) consome.
+Régua é a configuração que define: qual domínio observar, após quantos dias de inércia disparar, quantas tentativas, qual canal, qual template de mensagem. Admin cria/edita réguas. Motor (FLW-03) as consome.
 
 ## Escopo
 - `apps/backend/src/handlers/followup/reguas.js` — NOVO
 - DynamoDB: entidade REGUA_FOLLOWUP
-- API: GET/POST/PUT/DELETE /admin/followup/reguas
+- API: POST, GET, PUT, DELETE /admin/followup/reguas
 
 ## Fora de Escopo (NÃO TOCAR)
 - Motor de varredura (FLW-03)
 - Gatilhos (FLW-02)
-- Frontend (FLW-09)
+- Disparo (FLW-04/05)
+- Frontend da régua (FLW-09)
 
 ## Spec Técnica
 
@@ -27,137 +28,120 @@ Régua é o template que define QUANDO e COMO disparar follow-ups para cada tipo
 ```json
 {
   "PK": "TENANT#t123",
-  "SK": "REGUA#reg_001",
-  "id": "reg_001",
-  "nome": "Orçamento sem resposta",
+  "SK": "REGUA#regua_001",
+  "id": "regua_001",
+  "nome": "Orçamento Pendente",
   "dominio": "orcamento",
-  "gatilho_tipo": "orcamento_enviado_sem_resposta",
+  "gatilho_status": "pendente",
   "ativa": true,
   "tentativas": [
-    { "ordem": 1, "dias_apos_gatilho": 2, "canal": "email", "template": "followup_orc_1" },
-    { "ordem": 2, "dias_apos_gatilho": 5, "canal": "email", "template": "followup_orc_2" },
-    { "ordem": 3, "dias_apos_gatilho": 8, "canal": "whatsapp", "template": "followup_orc_wpp" }
+    { "tentativa": 1, "dias_apos_inercia": 3, "canal": "email", "template_id": "tpl_orc_lembrete_1" },
+    { "tentativa": 2, "dias_apos_inercia": 7, "canal": "email", "template_id": "tpl_orc_lembrete_2" },
+    { "tentativa": 3, "dias_apos_inercia": 14, "canal": "whatsapp", "template_id": "tpl_orc_lembrete_3" }
   ],
-  "resolucao_evento": "orcamento_aceito",
-  "max_tentativas": 3,
+  "prioridade": 1,
   "created_at": "2026-07-17T10:00:00Z",
   "updated_at": "2026-07-17T10:00:00Z"
 }
 ```
 
-### Domínios Suportados
-| Domínio | Gatilho | Resolução |
-|---|---|---|
-| orcamento | Enviado sem resposta | Aceito ou Recusado |
-| contrato | Enviado sem aceite | Assinado |
-| pagamento | Parcela vencida | Pagamento confirmado |
-| album | Entregue sem feedback | Feedback recebido |
-| pesquisa | Enviada sem resposta | Resposta recebida |
+### Réguas Default (seed)
+| Régua | Domínio | Tentativas | Canal Escalonado |
+|---|---|---|---|
+| Orçamento Pendente | orcamento | 3d, 7d, 14d | email → email → whatsapp |
+| Contrato Aguardando | contrato | 2d, 5d, 10d | email → whatsapp → whatsapp |
+| Pagamento Atrasado | pagamento | 1d, 3d, 7d | email → email → whatsapp |
+| Feedback Pós-Evento | feedback | 3d, 7d | email → whatsapp |
+| Álbum Pronto | album | 1d, 5d | email → email |
 
 ### API — POST /admin/followup/reguas
 ```json
 // Input
 {
-  "nome": "Orçamento sem resposta",
+  "nome": "Orçamento Pendente",
   "dominio": "orcamento",
-  "gatilho_tipo": "orcamento_enviado_sem_resposta",
+  "gatilho_status": "pendente",
   "tentativas": [
-    { "dias_apos_gatilho": 2, "canal": "email", "template": "followup_orc_1" },
-    { "dias_apos_gatilho": 5, "canal": "email", "template": "followup_orc_2" },
-    { "dias_apos_gatilho": 8, "canal": "whatsapp", "template": "followup_orc_wpp" }
-  ]
+    { "dias_apos_inercia": 3, "canal": "email", "template_id": "tpl_001" },
+    { "dias_apos_inercia": 7, "canal": "whatsapp", "template_id": "tpl_002" }
+  ],
+  "prioridade": 1
 }
 
 // Response
-{
-  "sucesso": true,
-  "regua": { "id": "reg_001", "nome": "Orçamento sem resposta", ... }
-}
+{ "id": "regua_001", "sucesso": true }
 ```
 
 ### API — GET /admin/followup/reguas
 ```json
 {
-  "reguas": [
-    { "id": "reg_001", "nome": "Orçamento sem resposta", "dominio": "orcamento", "ativa": true, "tentativas": 3 },
-    { "id": "reg_002", "nome": "Contrato sem aceite", "dominio": "contrato", "ativa": true, "tentativas": 2 }
-  ],
-  "total": 2
+  "reguas": [...],
+  "total": 5
 }
 ```
 
 ### API — PUT /admin/followup/reguas/:id
 ```json
-// Mesmo formato do POST (campos a atualizar)
+// Mesma estrutura do POST
+{ "sucesso": true }
 ```
 
 ### API — DELETE /admin/followup/reguas/:id
 ```json
-// Soft delete (ativa: false) — não remove gatilhos em andamento
-{ "sucesso": true, "desativada": true }
+{ "sucesso": true }
 ```
 
 ### Backend
 ```js
 async function criarRegua(tenantId, dados) {
-  const id = `reg_${ulid()}`
-  
-  // Validar
-  if (!dados.tentativas?.length) throw new Error('Mínimo 1 tentativa')
-  if (dados.tentativas.length > 5) throw new Error('Máximo 5 tentativas')
-  
-  // Ordenar tentativas por dias
-  const tentativas = dados.tentativas
-    .sort((a, b) => a.dias_apos_gatilho - b.dias_apos_gatilho)
-    .map((t, i) => ({ ...t, ordem: i + 1 }))
-  
+  const id = `regua_${ulid()}`
   const regua = {
     PK: `TENANT#${tenantId}`,
     SK: `REGUA#${id}`,
     id,
-    nome: dados.nome,
-    dominio: dados.dominio,
-    gatilho_tipo: dados.gatilho_tipo,
+    ...dados,
     ativa: true,
-    tentativas,
-    resolucao_evento: dados.resolucao_evento,
-    max_tentativas: tentativas.length,
+    tentativas: dados.tentativas.map((t, i) => ({ ...t, tentativa: i + 1 })),
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString()
   }
-  
   await dynamo.put({ TableName: TABLE, Item: regua }).promise()
-  return regua
+  return { id, sucesso: true }
 }
 ```
 
+### Validações
+- Nome obrigatório (max 100 chars)
+- Domínio: enum [orcamento, contrato, pagamento, feedback, album]
+- Tentativas: mínimo 1, máximo 5
+- dias_apos_inercia: >= 1
+- Canal: enum [email, whatsapp]
+- template_id: obrigatório
+- Prioridade: 1-10 (1 = mais alta)
+
 ### Regras
-- Mínimo 1, máximo 5 tentativas por régua
-- Tentativas ordenadas por dias_apos_gatilho (crescente)
-- Delete = soft delete (desativa)
-- Apenas 1 régua ativa por gatilho_tipo
-- Canal: 'email' ou 'whatsapp'
-- Template referencia templates existentes (SES/WPP)
+- Régua deletada → gatilhos ativos dessa régua são cancelados (FLW-10)
+- Régua desativada → motor ignora
+- Seed com 5 réguas default na primeira config
 
 ## Critérios de Aceite
-- [ ] CRUD completo (criar, listar, editar, desativar)
-- [ ] Validação: 1-5 tentativas
-- [ ] Ordenação automática por dias
-- [ ] Soft delete
-- [ ] 1 régua ativa por gatilho_tipo
+- [ ] CRUD completo funciona
+- [ ] Validações aplicadas
 - [ ] Entidade no DynamoDB
+- [ ] Seed com 5 réguas default
+- [ ] Desativar régua funciona
+- [ ] Delete cancela gatilhos ativos
 
 ## Prompt Pronto para o Kiro CLI
 
 ```
 Implemente a spec FLW-01: CRUD Réguas de Follow-up.
 
-1. Crie handlers/followup/reguas.js: GET/POST/PUT/DELETE.
+1. Crie handlers/followup/reguas.js: POST, GET, PUT, DELETE.
 2. Entidade REGUA_FOLLOWUP no DynamoDB.
-3. Validar 1-5 tentativas, ordenar por dias.
-4. Soft delete (ativa: false).
-5. 1 régua ativa por gatilho_tipo.
-6. SAM: 4 rotas CRUD.
+3. Validações: nome, domínio (enum), tentativas (1-5), canal (enum).
+4. Seed com 5 réguas default.
+5. SAM: 4 rotas.
 
 Altere SOMENTE os arquivos listados. Não refatore, renomeie ou mexa em mais nada.
 ```
