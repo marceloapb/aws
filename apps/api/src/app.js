@@ -32,6 +32,7 @@ const adminIntegracoesRoutes = require('./routes/admin-integracoes');
 const adminNotificacoesRoutes = require('./routes/admin-notificacoes');
 const adminNovidadesRoutes = require('./routes/admin-novidades');
 const adminSiteRoutes = require('./routes/admin-site');
+const adminMediaRoutes = require('./routes/admin-media');
 
 // Rotas Client
 const clientAuthRoutes = require('./routes/client-auth');
@@ -42,6 +43,7 @@ const clientPagamentosRoutes = require('./routes/client-pagamentos');
 const clientFeedbackRoutes = require('./routes/client-feedback');
 const clientAditivosRoutes = require('./routes/client-aditivos');
 const clientPortalRoutes = require('./routes/client-portal');
+const clientMediaRoutes = require('./routes/client-media');
 
 // Rotas Públicas (sem auth)
 const publicRoutes = require('./routes/public');
@@ -98,6 +100,7 @@ app.use('/admin/followup', adminAuth, adminFollowupRoutes);
 app.use('/admin/notificacoes', adminAuth, adminNotificacoesRoutes);
 app.use('/admin/novidades', adminAuth, adminNovidadesRoutes);
 app.use('/admin/site', adminAuth, adminSiteRoutes);
+app.use('/admin/media', adminAuth, adminMediaRoutes);
 
 // Registrar rotas Client (protegidas por clientAuth)
 app.use('/client/auth', clientAuthRoutes);
@@ -112,6 +115,7 @@ app.use('/client/aditivos', clientAditivosRoutes);
 
 // Rotas Client Portal (consolidadas, com auth)
 app.use('/client/portal', clientAuth, clientPortalRoutes);
+app.use('/client/media', clientAuth, clientMediaRoutes);
 
 // Rotas Públicas (site institucional, sem auth)
 app.use('/public', publicRoutes);

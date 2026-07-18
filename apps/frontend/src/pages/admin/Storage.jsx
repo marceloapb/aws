@@ -1,209 +1,336 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
-import { HardDrive, Settings, AlertTriangle, Image, Archive, Trash2 } from 'lucide-react';
+import {
+  HardDrive, Database, CheckCircle2, AlertTriangle, FileImage,
+  RefreshCw, Clock, Folder, BarChart3, Activity
+} from 'lucide-react';
 
 const ACCENT = '#EA580C';
-const fmtGB = (bytes) => (bytes / (1024 * 1024 * 1024)).toFixed(2);
+
 const fmtSize = (bytes) => {
-  if (bytes >= 1024 * 1024 * 1024) return `${fmtGB(bytes)} GB`;
+  if (!bytes || bytes === 0) return '0 B';
+  if (bytes >= 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`;
   if (bytes >= 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-  return `${(bytes / 1024).toFixed(1)} KB`;
+  if (bytes >= 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${bytes} B`;
+};
+
+const CONTEXTOS = ['album', 'portfolio', 'novidades', 'perfil', 'config'];
+
+const CONTEXTO_LABELS = {
+  album: 'Álbuns',
+  portfolio: 'Portfólio',
+  novidades: 'Novidades',
+  perfil: 'Perfil',
+  config: 'Configurações',
+};
+
+const CONTEXTO_COLORS = {
+  album: '#3b82f6',
+  portfolio: '#8b5cf6',
+  novidades: '#10b981',
+  perfil: '#f59e0b',
+  config: '#6b7280',
+};
+
+const STATUS_BADGE = {
+  processed: { label: 'Processado', bg: 'bg-green-100', text: 'text-green-700' },
+  processing: { label: 'Processando', bg: 'bg-yellow-100', text: 'text-yellow-700' },
+  error: { label: 'Erro', bg: 'bg-red-100', text: 'text-red-700' },
+  pending: { label: 'Pendente', bg: 'bg-gray-100', text: 'text-gray-700' },
+  uploaded: { label: 'Enviado', bg: 'bg-blue-100', text: 'text-blue-700' },
 };
 
 export default function Storage() {
   const { authFetch } = useAuth();
   const [loading, setLoading] = useState(true);
-  const [stats, setStats] = useState(null);
-  const [limite, setLimite] = useState(200); // GB
-  const [editandoLimite, setEditandoLimite] = useState(false);
-  const [novoLimite, setNovoLimite] = useState(200);
+  const [metrics, setMetrics] = useState(null);
+  const [breakdown, setBreakdown] = useState({});
+  const [reprocessing, setReprocessing] = useState(false);
+  const [reprocessResult, setReprocessResult] = useState(null);
 
-  useEffect(() => { loadStats(); }, []);
-
-  const loadStats = async () => {
+  const loadMetrics = useCallback(async () => {
+    setLoading(true);
     try {
-      // Tentar buscar config de storage
-      const configRes = await authFetch('/admin/configuracoes').then(r => r.json()).catch(() => ({}));
-      if (configRes.data?.storageLimitGB) setLimite(configRes.data.storageLimitGB);
-
-      // Buscar stats de uso do S3
-      const statsRes = await authFetch('/admin/storage/stats').then(r => r.json()).catch(() => null);
-      if (statsRes?.success) {
-        setStats(statsRes.data);
-      } else {
-        // Fallback com dados simulados baseados no que sabemos
-        setStats({
-          totalBytes: 79, // 1 arquivo de backup de 79 bytes
-          totalObjects: 1,
-          byPrefix: [
-            { prefix: 'fotos/', bytes: 0, objects: 0 },
-            { prefix: 'backups/', bytes: 79, objects: 1 },
-            { prefix: 'uploads/', bytes: 0, objects: 0 },
-          ]
-        });
+      // Fetch general metrics
+      const metricsRes = await authFetch('/admin/media/metrics');
+      const metricsData = await metricsRes.json();
+      if (metricsData.success) {
+        setMetrics(metricsData.data);
       }
-    } catch {}
+
+      // Fetch per-context breakdown
+      const contextResults = {};
+      const contextPromises = CONTEXTOS.map(async (ctx) => {
+        try {
+          const res = await authFetch(`/admin/media/metrics?contexto=${ctx}`);
+          const data = await res.json();
+          if (data.success) contextResults[ctx] = data.data;
+        } catch {
+          contextResults[ctx] = null;
+        }
+      });
+      await Promise.all(contextPromises);
+      setBreakdown(contextResults);
+    } catch (err) {
+      console.error('Erro ao carregar métricas:', err);
+    }
     setLoading(false);
+  }, [authFetch]);
+
+  useEffect(() => { loadMetrics(); }, [loadMetrics]);
+
+  const handleReprocess = async () => {
+    setReprocessing(true);
+    setReprocessResult(null);
+    try {
+      const res = await authFetch('/admin/media/reprocess-dlq', { method: 'POST' });
+      const data = await res.json();
+      setReprocessResult(data.success
+        ? { type: 'success', message: `${data.data?.reprocessed || 0} mensagens reprocessadas com sucesso.` }
+        : { type: 'error', message: data.error || 'Erro ao reprocessar.' }
+      );
+      // Refresh metrics after reprocess
+      setTimeout(loadMetrics, 2000);
+    } catch {
+      setReprocessResult({ type: 'error', message: 'Erro de conexão ao reprocessar.' });
+    }
+    setReprocessing(false);
   };
 
-  const salvarLimite = async () => {
-    await authFetch('/admin/configuracoes', {
-      method: 'PUT',
-      body: JSON.stringify({ storageLimitGB: Number(novoLimite) }),
-    });
-    setLimite(Number(novoLimite));
-    setEditandoLimite(false);
-  };
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <RefreshCw size={24} className="animate-spin text-gray-400" />
+        <span className="ml-3 text-gray-500">Carregando métricas...</span>
+      </div>
+    );
+  }
 
-  if (loading) return <div className="flex items-center justify-center py-20 text-gray-400">Carregando...</div>;
+  const totalBytes = metrics?.totalBytes || 0;
+  const totalFiles = metrics?.totalFiles || 0;
+  const processedOk = metrics?.processedOk || 0;
+  const errorsDlq = metrics?.errorsDlq || 0;
+  const dlqCount = metrics?.dlqMessages || 0;
+  const lastDlqError = metrics?.lastDlqError || null;
+  const recentUploads = metrics?.recentUploads || [];
 
-  const totalBytes = stats?.totalBytes || 0;
-  const limiteBytes = limite * 1024 * 1024 * 1024;
-  const percentual = limiteBytes > 0 ? (totalBytes / limiteBytes) * 100 : 0;
-  const custoEstimado = (totalBytes / (1024 * 1024 * 1024)) * 0.023; // $0.023/GB
-
-  // Cor da barra baseada no uso
-  const barColor = percentual >= 90 ? '#ef4444' : percentual >= 70 ? '#f59e0b' : ACCENT;
+  // Calculate breakdown totals for progress bars
+  const breakdownTotal = Object.values(breakdown).reduce((sum, ctx) => sum + (ctx?.totalBytes || 0), 0) || totalBytes || 1;
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-6 flex-col sm:flex-row gap-3">
-        <div className="flex items-center gap-3">
-          <HardDrive size={24} style={{ color: ACCENT }} />
-          <h1 className="text-2xl font-bold text-gray-900">Armazenamento</h1>
-        </div>
-        <button onClick={() => { setNovoLimite(limite); setEditandoLimite(true); }}
-          className="inline-flex items-center gap-2 px-4 py-2 border rounded-lg text-sm font-medium hover:bg-gray-50">
-          <Settings size={16} /> Definir Limite
-        </button>
+      {/* Header */}
+      <div className="flex items-center gap-3 mb-2">
+        <HardDrive size={24} style={{ color: ACCENT }} />
+        <h1 className="text-2xl font-bold text-gray-900">Armazenamento & Mídia</h1>
       </div>
+      <p className="text-sm text-gray-500 mb-6">Métricas de armazenamento, processamento de mídia e monitoramento de filas.</p>
 
-      {/* Barra principal de uso */}
-      <div className="bg-white rounded-xl border p-6 mb-6">
-        <div className="flex items-end justify-between mb-3">
-          <div>
-            <p className="text-sm text-gray-500">Uso Total</p>
-            <p className="text-3xl font-bold text-gray-900">{fmtSize(totalBytes)} <span className="text-lg font-normal text-gray-400">/ {limite} GB</span></p>
-          </div>
-          <div className="text-right">
-            <p className="text-sm text-gray-500">Custo Estimado/mês</p>
-            <p className="text-xl font-bold" style={{ color: ACCENT }}>${custoEstimado.toFixed(2)} USD</p>
-            <p className="text-xs text-gray-400">~R$ {(custoEstimado * 5.5).toFixed(2)}</p>
-          </div>
-        </div>
-
-        {/* Barra de progresso */}
-        <div className="w-full bg-gray-100 rounded-full h-6 overflow-hidden">
-          <div className="h-full rounded-full transition-all duration-500 flex items-center justify-end pr-2"
-            style={{ width: `${Math.max(percentual, 1)}%`, background: barColor }}>
-            {percentual >= 5 && <span className="text-xs font-medium text-white">{percentual.toFixed(1)}%</span>}
-          </div>
-        </div>
-
-        {/* Legenda */}
-        <div className="flex items-center justify-between mt-2">
-          <span className="text-xs text-gray-400">0 GB</span>
-          {percentual >= 70 && percentual < 90 && (
-            <span className="text-xs text-yellow-600 flex items-center gap-1">
-              <AlertTriangle size={10} /> Atenção: acima de 70%
-            </span>
-          )}
-          {percentual >= 90 && (
-            <span className="text-xs text-red-600 flex items-center gap-1">
-              <AlertTriangle size={10} /> Crítico: acima de 90%
-            </span>
-          )}
-          <span className="text-xs text-gray-400">{limite} GB</span>
-        </div>
-      </div>
-
-      {/* KPIs */}
+      {/* KPI Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        <div className="bg-white rounded-xl border p-4">
-          <div className="flex items-center gap-2 mb-2">
-            <Image size={16} className="text-blue-500" />
-            <span className="text-xs text-gray-500">Fotos</span>
-          </div>
-          <p className="text-lg font-bold">{fmtSize(stats?.byPrefix?.find(p => p.prefix === 'fotos/')?.bytes || 0)}</p>
-          <p className="text-xs text-gray-400">{stats?.byPrefix?.find(p => p.prefix === 'fotos/')?.objects || 0} arquivos</p>
-        </div>
-        <div className="bg-white rounded-xl border p-4">
-          <div className="flex items-center gap-2 mb-2">
-            <Archive size={16} className="text-green-500" />
-            <span className="text-xs text-gray-500">Backups</span>
-          </div>
-          <p className="text-lg font-bold">{fmtSize(stats?.byPrefix?.find(p => p.prefix === 'backups/')?.bytes || 0)}</p>
-          <p className="text-xs text-gray-400">{stats?.byPrefix?.find(p => p.prefix === 'backups/')?.objects || 0} arquivos</p>
-        </div>
-        <div className="bg-white rounded-xl border p-4">
-          <div className="flex items-center gap-2 mb-2">
-            <HardDrive size={16} className="text-purple-500" />
-            <span className="text-xs text-gray-500">Uploads Temp</span>
-          </div>
-          <p className="text-lg font-bold">{fmtSize(stats?.byPrefix?.find(p => p.prefix === 'uploads/')?.bytes || 0)}</p>
-          <p className="text-xs text-gray-400">{stats?.byPrefix?.find(p => p.prefix === 'uploads/')?.objects || 0} arquivos</p>
-        </div>
-        <div className="bg-white rounded-xl border p-4">
-          <div className="flex items-center gap-2 mb-2">
-            <Trash2 size={16} className="text-gray-400" />
-            <span className="text-xs text-gray-500">Disponível</span>
-          </div>
-          <p className="text-lg font-bold">{fmtGB(limiteBytes - totalBytes)} GB</p>
-          <p className="text-xs text-gray-400">restante do limite</p>
-        </div>
+        <KpiCard
+          icon={<Database size={18} />}
+          iconColor="#3b82f6"
+          label="Total armazenado"
+          value={fmtSize(totalBytes)}
+          sublabel={totalBytes >= 1024 * 1024 * 1024 ? `${(totalBytes / (1024 * 1024 * 1024)).toFixed(3)} GB` : null}
+        />
+        <KpiCard
+          icon={<FileImage size={18} />}
+          iconColor="#8b5cf6"
+          label="Total de arquivos"
+          value={totalFiles.toLocaleString('pt-BR')}
+          sublabel="em todos os contextos"
+        />
+        <KpiCard
+          icon={<CheckCircle2 size={18} />}
+          iconColor="#10b981"
+          label="Processados com sucesso"
+          value={processedOk.toLocaleString('pt-BR')}
+          sublabel={totalFiles > 0 ? `${((processedOk / totalFiles) * 100).toFixed(1)}% do total` : null}
+        />
+        <KpiCard
+          icon={<AlertTriangle size={18} />}
+          iconColor={errorsDlq > 0 ? '#ef4444' : '#6b7280'}
+          label="Erros/DLQ pendentes"
+          value={errorsDlq.toLocaleString('pt-BR')}
+          sublabel={errorsDlq > 0 ? 'requer atenção' : 'nenhum erro'}
+          alert={errorsDlq > 0}
+        />
       </div>
 
-      {/* Detalhamento */}
-      <div className="bg-white rounded-xl border p-6">
-        <h3 className="font-semibold text-gray-900 mb-4">Detalhamento por Categoria</h3>
-        <div className="space-y-4">
-          {(stats?.byPrefix || []).map((item, i) => {
-            const pct = limiteBytes > 0 ? (item.bytes / limiteBytes) * 100 : 0;
-            const colors = ['#3b82f6', '#10b981', '#8b5cf6', '#f59e0b'];
-            return (
-              <div key={item.prefix}>
-                <div className="flex items-center justify-between mb-1">
-                  <span className="text-sm font-medium text-gray-700">{item.prefix || 'Raiz'}</span>
-                  <span className="text-sm text-gray-500">{fmtSize(item.bytes)} ({item.objects} arquivos)</span>
+      {/* Breakdown by Context + DLQ Monitor */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+        {/* Breakdown */}
+        <div className="lg:col-span-2 bg-white rounded-xl border p-6">
+          <div className="flex items-center gap-2 mb-4">
+            <BarChart3 size={18} style={{ color: ACCENT }} />
+            <h3 className="font-semibold text-gray-900">Uso por Contexto</h3>
+          </div>
+          <div className="space-y-4">
+            {CONTEXTOS.map((ctx) => {
+              const ctxData = breakdown[ctx];
+              const ctxBytes = ctxData?.totalBytes || 0;
+              const ctxFiles = ctxData?.totalFiles || 0;
+              const pct = breakdownTotal > 0 ? (ctxBytes / breakdownTotal) * 100 : 0;
+
+              return (
+                <div key={ctx}>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <div className="flex items-center gap-2">
+                      <Folder size={14} style={{ color: CONTEXTO_COLORS[ctx] }} />
+                      <span className="text-sm font-medium text-gray-700">{CONTEXTO_LABELS[ctx]}</span>
+                    </div>
+                    <div className="text-right">
+                      <span className="text-sm font-semibold text-gray-800">{fmtSize(ctxBytes)}</span>
+                      <span className="text-xs text-gray-400 ml-2">({pct.toFixed(1)}%)</span>
+                    </div>
+                  </div>
+                  <div className="w-full bg-gray-100 rounded-full h-3 overflow-hidden">
+                    <div
+                      className="h-full rounded-full transition-all duration-500"
+                      style={{ width: `${Math.max(pct, 0.5)}%`, background: CONTEXTO_COLORS[ctx] }}
+                    />
+                  </div>
+                  <p className="text-xs text-gray-400 mt-0.5">{ctxFiles.toLocaleString('pt-BR')} arquivos</p>
                 </div>
-                <div className="w-full bg-gray-100 rounded-full h-2">
-                  <div className="h-full rounded-full transition-all" style={{ width: `${Math.max(pct, 0.5)}%`, background: colors[i % colors.length] }} />
-                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* DLQ Monitor */}
+        <div className="bg-white rounded-xl border p-6">
+          <div className="flex items-center gap-2 mb-4">
+            <Activity size={18} className="text-red-500" />
+            <h3 className="font-semibold text-gray-900">DLQ Monitor</h3>
+          </div>
+
+          <div className="text-center py-4 mb-4 rounded-lg" style={{ background: dlqCount > 0 ? '#fef2f2' : '#f0fdf4' }}>
+            <p className="text-3xl font-bold" style={{ color: dlqCount > 0 ? '#dc2626' : '#16a34a' }}>
+              {dlqCount}
+            </p>
+            <p className="text-sm text-gray-500 mt-1">mensagens na DLQ</p>
+          </div>
+
+          <button
+            onClick={handleReprocess}
+            disabled={reprocessing || dlqCount === 0}
+            className="w-full flex items-center justify-center gap-2 px-4 py-2.5 text-white rounded-lg text-sm font-medium transition-opacity disabled:opacity-50 disabled:cursor-not-allowed hover:opacity-90"
+            style={{ background: ACCENT }}
+          >
+            <RefreshCw size={16} className={reprocessing ? 'animate-spin' : ''} />
+            {reprocessing ? 'Reprocessando...' : 'Reprocessar'}
+          </button>
+
+          {reprocessResult && (
+            <div className={`mt-3 p-3 rounded-lg text-sm ${reprocessResult.type === 'success' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
+              {reprocessResult.message}
+            </div>
+          )}
+
+          {lastDlqError && (
+            <div className="mt-4 pt-4 border-t">
+              <p className="text-xs font-medium text-gray-500 mb-1">Último erro:</p>
+              <div className="bg-gray-50 rounded-lg p-3">
+                <p className="text-xs text-red-600 font-mono break-all leading-relaxed">
+                  {lastDlqError.message || JSON.stringify(lastDlqError)}
+                </p>
+                {lastDlqError.timestamp && (
+                  <p className="text-xs text-gray-400 mt-2">
+                    {new Date(lastDlqError.timestamp).toLocaleString('pt-BR')}
+                  </p>
+                )}
               </div>
-            );
-          })}
+            </div>
+          )}
         </div>
       </div>
 
-      {/* Dicas de economia */}
-      <div className="mt-6 p-4 rounded-xl bg-blue-50 border border-blue-200">
-        <h4 className="text-sm font-semibold text-blue-900 mb-2">💡 Dicas para economizar</h4>
-        <ul className="text-sm text-blue-700 space-y-1">
-          <li>• Fotos entregues há mais de 180 dias migram automaticamente para S3 IA (50% mais barato)</li>
-          <li>• Uploads temporários são limpos automaticamente após 30 dias</li>
-          <li>• Álbuns expirados podem ter fotos removidas para liberar espaço</li>
-          <li>• Use o CloudFront para servir fotos — reduz transferência do S3</li>
-        </ul>
-      </div>
-
-      {/* Modal Definir Limite */}
-      {editandoLimite && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl w-full max-w-sm p-6">
-            <h2 className="text-lg font-bold mb-4">Definir Limite de Armazenamento</h2>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Limite Máximo (GB)</label>
-              <input type="number" min={1} max={5000} value={novoLimite} onChange={e => setNovoLimite(e.target.value)}
-                className="w-full px-3 py-2.5 border rounded-lg focus:ring-2 focus:ring-orange-200 outline-none" />
-              <p className="text-xs text-gray-400 mt-1">Custo estimado no limite: ~${(novoLimite * 0.023).toFixed(2)}/mês (~R${(novoLimite * 0.023 * 5.5).toFixed(2)})</p>
-            </div>
-            <div className="flex gap-2 justify-end mt-6">
-              <button onClick={() => setEditandoLimite(false)} className="px-4 py-2 border rounded-lg text-sm">Cancelar</button>
-              <button onClick={salvarLimite} style={{ background: ACCENT }} className="px-4 py-2 text-white rounded-lg text-sm hover:opacity-90">Salvar</button>
-            </div>
+      {/* Recent Uploads */}
+      <div className="bg-white rounded-xl border p-6">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <Clock size={18} style={{ color: ACCENT }} />
+            <h3 className="font-semibold text-gray-900">Uploads Recentes</h3>
           </div>
+          <button
+            onClick={loadMetrics}
+            className="text-sm text-gray-500 hover:text-gray-700 flex items-center gap-1"
+          >
+            <RefreshCw size={14} /> Atualizar
+          </button>
         </div>
-      )}
+
+        {recentUploads.length === 0 ? (
+          <div className="text-center py-8 text-gray-400">
+            <FileImage size={32} className="mx-auto mb-2 opacity-50" />
+            <p className="text-sm">Nenhum upload recente encontrado.</p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b">
+                  <th className="text-left py-2.5 px-2 text-xs font-medium text-gray-500 uppercase">ID</th>
+                  <th className="text-left py-2.5 px-2 text-xs font-medium text-gray-500 uppercase">Contexto</th>
+                  <th className="text-left py-2.5 px-2 text-xs font-medium text-gray-500 uppercase">Status</th>
+                  <th className="text-right py-2.5 px-2 text-xs font-medium text-gray-500 uppercase">Tamanho</th>
+                  <th className="text-right py-2.5 px-2 text-xs font-medium text-gray-500 uppercase">Data</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-50">
+                {recentUploads.slice(0, 20).map((item) => {
+                  const badge = STATUS_BADGE[item.status] || STATUS_BADGE.pending;
+                  return (
+                    <tr key={item.media_id} className="hover:bg-gray-50/50">
+                      <td className="py-2.5 px-2 font-mono text-xs text-gray-600 truncate max-w-[120px]" title={item.media_id}>
+                        {item.media_id?.slice(0, 8)}...
+                      </td>
+                      <td className="py-2.5 px-2">
+                        <span className="inline-flex items-center gap-1">
+                          <span
+                            className="w-2 h-2 rounded-full inline-block"
+                            style={{ background: CONTEXTO_COLORS[item.contexto] || '#6b7280' }}
+                          />
+                          <span className="text-gray-700">{CONTEXTO_LABELS[item.contexto] || item.contexto}</span>
+                        </span>
+                      </td>
+                      <td className="py-2.5 px-2">
+                        <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${badge.bg} ${badge.text}`}>
+                          {badge.label}
+                        </span>
+                      </td>
+                      <td className="py-2.5 px-2 text-right text-gray-600">{fmtSize(item.size)}</td>
+                      <td className="py-2.5 px-2 text-right text-gray-500 text-xs whitespace-nowrap">
+                        {item.created_at ? new Date(item.created_at).toLocaleString('pt-BR', {
+                          day: '2-digit', month: '2-digit', year: '2-digit',
+                          hour: '2-digit', minute: '2-digit'
+                        }) : '—'}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* KPI Card Component */
+function KpiCard({ icon, iconColor, label, value, sublabel, alert }) {
+  return (
+    <div className={`bg-white rounded-xl border p-4 ${alert ? 'border-red-200 bg-red-50/30' : ''}`}>
+      <div className="flex items-center gap-2 mb-2">
+        <span style={{ color: iconColor }}>{icon}</span>
+        <span className="text-xs text-gray-500">{label}</span>
+      </div>
+      <p className="text-xl font-bold text-gray-900">{value}</p>
+      {sublabel && <p className="text-xs text-gray-400 mt-0.5">{sublabel}</p>}
     </div>
   );
 }
