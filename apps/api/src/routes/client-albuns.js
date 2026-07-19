@@ -1,11 +1,10 @@
 const { Router } = require('express');
 const { dynamo, TABLE } = require('../config/dynamodb');
 const { QueryCommand } = require('@aws-sdk/lib-dynamodb');
-const { getPresignedReadUrl } = require('../services/mediaUrlService');
+const { getSignedDownloadUrl } = require('../services/s3Service');
 const { ALBUM_STATUS } = require('../config/constants');
 
 const router = Router();
-const BUCKET = process.env.S3_BUCKET_NAME;
 
 async function assinarFotos(fotos) {
   return Promise.all(fotos.map(async (f) => {
@@ -13,8 +12,8 @@ async function assinarFotos(fotos) {
     const thumbKey = f.s3_key_thumb || f.url_thumb || '';
     return {
       ...f,
-      url: key ? await getPresignedReadUrl(key, BUCKET, 900) : null,
-      url_thumb: thumbKey ? await getPresignedReadUrl(thumbKey, BUCKET, 900) : (key ? await getPresignedReadUrl(key, BUCKET, 900) : null),
+      url: key ? await getSignedDownloadUrl(key, 86400) : null,
+      url_thumb: thumbKey ? await getSignedDownloadUrl(thumbKey, 86400) : (key ? await getSignedDownloadUrl(key, 86400) : null),
     };
   }));
 }
