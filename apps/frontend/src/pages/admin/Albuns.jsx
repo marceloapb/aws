@@ -264,19 +264,45 @@ export default function Albuns() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
           <form onSubmit={handleCriar} className="bg-white rounded-xl shadow-2xl w-full max-w-lg p-6 space-y-4 mx-4">
             <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2"><Plus size={18} style={{ color: ACCENT }} />Novo Álbum</h2>
+
+            {/* Tipo: vinculado a cliente ou avulso */}
+            <div>
+              <label className="text-sm font-medium text-gray-700 mb-2 block">Tipo</label>
+              <div className="flex gap-2">
+                <button type="button" onClick={() => setForm(f => ({ ...f, tipo: 'evento', cliente_id: f.cliente_id }))}
+                  className={`flex-1 px-4 py-2 rounded-lg text-sm font-medium border transition-colors ${(!form.tipo || form.tipo === 'evento') ? 'bg-orange-50 border-orange-300 text-orange-700' : 'border-gray-200 text-gray-500 hover:bg-gray-50'}`}>
+                  Vinculado a cliente
+                </button>
+                <button type="button" onClick={() => setForm(f => ({ ...f, tipo: 'avulso', cliente_id: '' }))}
+                  className={`flex-1 px-4 py-2 rounded-lg text-sm font-medium border transition-colors ${form.tipo === 'avulso' ? 'bg-orange-50 border-orange-300 text-orange-700' : 'border-gray-200 text-gray-500 hover:bg-gray-50'}`}>
+                  Avulso
+                </button>
+              </div>
+            </div>
+
             <div>
               <label className="text-sm font-medium text-gray-700">Título *</label>
               <input required value={form.titulo} onChange={e => setForm(f => ({ ...f, titulo: e.target.value }))}
                 className="mt-1 w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-orange-200" />
             </div>
-            <div>
-              <label className="text-sm font-medium text-gray-700">Cliente *</label>
-              <select required value={form.cliente_id} onChange={e => setForm(f => ({ ...f, cliente_id: e.target.value }))}
-                className="mt-1 w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-orange-200">
-                <option value="">Selecione o cliente...</option>
-                {clientes.map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}
-              </select>
-            </div>
+
+            {form.tipo !== 'avulso' && (
+              <div>
+                <label className="text-sm font-medium text-gray-700">Cliente</label>
+                <select value={form.cliente_id} onChange={e => setForm(f => ({ ...f, cliente_id: e.target.value }))}
+                  className="mt-1 w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-orange-200">
+                  <option value="">Selecione o cliente...</option>
+                  {clientes.map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}
+                </select>
+              </div>
+            )}
+
+            {form.tipo === 'avulso' && (
+              <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                <p className="text-xs text-blue-700">💡 Álbum avulso não fica vinculado a nenhum cliente. Ideal para portfólio pessoal, testes ou entregas externas via link.</p>
+              </div>
+            )}
+
             <div>
               <label className="text-sm font-medium text-gray-700">Tipo de Evento</label>
               <select value={form.tipo_evento} onChange={e => setForm(f => ({ ...f, tipo_evento: e.target.value }))}
@@ -287,6 +313,8 @@ export default function Albuns() {
                 <option value="corporativo">Corporativo</option>
                 <option value="ensaio">Ensaio</option>
                 <option value="batizado">Batizado</option>
+                <option value="portfolio">Portfólio</option>
+                <option value="pessoal">Pessoal</option>
                 <option value="outro">Outro</option>
               </select>
             </div>
@@ -297,9 +325,9 @@ export default function Albuns() {
                   className="mt-1 w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-orange-200" />
               </div>
               <div>
-                <label className="text-sm font-medium text-gray-700">Expiração (auto)</label>
-                <input type="date" value={form.data_expiracao} readOnly
-                  className="mt-1 w-full px-3 py-2 rounded-lg border border-gray-100 text-sm bg-gray-50 text-gray-500" />
+                <label className="text-sm font-medium text-gray-700">Expiração</label>
+                <input type="date" value={form.data_expiracao} onChange={e => setForm(f => ({ ...f, data_expiracao: e.target.value }))}
+                  className="mt-1 w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-orange-200" />
               </div>
             </div>
             <div className="flex justify-end gap-3 pt-3 border-t border-gray-100">

@@ -78,16 +78,18 @@ router.post('/', async (req, res) => {
   try {
     const id = crypto.randomUUID();
     const dataExpiracao = new Date();
-    dataExpiracao.setDate(dataExpiracao.getDate() + 30);
-    const clienteId = req.body.cliente_id;
+    dataExpiracao.setDate(dataExpiracao.getDate() + (req.body.dias_expiracao || 30));
+    const clienteId = req.body.cliente_id || null;
 
     const item = {
       ...req.body,
       id,
-      PK: `CLIENTE#${clienteId}`,
+      PK: clienteId ? `CLIENTE#${clienteId}` : `TENANT#1`,
       SK: `ALBUM#${id}`,
       GSI1PK: 'ALBUM',
       GSI1SK: `ALBUM#${id}`,
+      tipo: req.body.tipo || (clienteId ? 'evento' : 'avulso'),
+      cliente_id: clienteId,
       status: ALBUM_STATUS.ATIVO,
       data_expiracao: dataExpiracao.toISOString().split('T')[0],
       created: new Date().toISOString(),
