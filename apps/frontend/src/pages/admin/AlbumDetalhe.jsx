@@ -36,6 +36,7 @@ export default function AlbumDetalhe() {
   const [watermark, setWatermark] = useState(true);
   const [comentario, setComentario] = useState('');
   const [showProrrogar, setShowProrrogar] = useState(false);
+  const [showConfig, setShowConfig] = useState(false);
   const [prorrogarData, setProrrogarData] = useState('');
   const [prorrogarValor, setProrrogarValor] = useState('');
 
@@ -43,14 +44,23 @@ export default function AlbumDetalhe() {
 
   const fetchAlbum = useCallback(async () => {
     try {
-      const res = await authFetch(`/admin/albuns/${id}`);
-      const json = await res.json();
-      if (json.success) {
-        const data = json.data;
+      const [albumRes, galeriasRes] = await Promise.all([
+        authFetch(`/admin/albuns/${id}`),
+        authFetch(`/admin/albuns/${id}/galerias`),
+      ]);
+      const albumJson = await albumRes.json();
+      const galeriasJson = await galeriasRes.json();
+
+      if (albumJson.success) {
+        const data = albumJson.data;
         setAlbum(data);
-        setGalerias(data.galerias || []);
-        if (data.galerias?.length && !galeriaAtiva) setGaleriaAtiva(data.galerias[0].id);
         setFotos(data.fotos || []);
+      }
+      if (galeriasJson.success) {
+        setGalerias(galeriasJson.data || []);
+        if (galeriasJson.data?.length && !galeriaAtiva) {
+          setGaleriaAtiva(galeriasJson.data[0].id);
+        }
       }
     } catch {}
   }, [id, authFetch]);
@@ -78,15 +88,37 @@ export default function AlbumDetalhe() {
     if (!files.length) return;
     setUploading(true);
     setUploadProgress(0);
+
+    // Batch upload URLs
+    const filesData = files.map(f => ({ filename: f.name, content_type: f.type, size_bytes: f.size }));
+    const urlsRes = await authFetch(`/admin/albuns/${id}/upload-urls`, {
+      method: 'POST',
+      body: JSON.stringify({ files: filesData }),
+    });
+    const urlsJson = await urlsRes.json();
+    if (!urlsJson.success) { setUploading(false); alert(urlsJson.message || 'Erro ao gerar URLs'); return; }
+
+    const uploads = urlsJson.data;
+    const confirmList = [];
+
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
-      const res = await authFetch(`/admin/fotos/upload-url`, { method: 'POST',
-        body: JSON.stringify({ album_id: id, galeria_id: galeriaAtiva, nome: file.name, tipo: file.type }),
-      });
-      const { url } = await res.json();
-      await fetch(url, { method: 'PUT', body: file, headers: { 'Content-Type': file.type } });
+      const upload = uploads[i];
+      try {
+        await fetch(upload.upload_url, { method: 'PUT', body: file, headers: { 'Content-Type': file.type } });
+        confirmList.push({ foto_id: upload.foto_id, key: upload.key, content_type: file.type });
+      } catch {}
       setUploadProgress(Math.round(((i + 1) / files.length) * 100));
     }
+
+    // Confirm batch
+    if (confirmList.length > 0) {
+      await authFetch(`/admin/albuns/${id}/fotos/confirmar-batch`, {
+        method: 'POST',
+        body: JSON.stringify({ fotos: confirmList }),
+      });
+    }
+
     setUploading(false);
     fetchAlbum();
   };
@@ -94,19 +126,24 @@ export default function AlbumDetalhe() {
   // ALB-05 Galerias
   const criarGaleria = async () => {
     if (!novaGaleria.trim()) return;
-    await authFetch(`/admin/albuns/${id}`, {
-      method: 'PUT', 
-      body: JSON.stringify({ nova_galeria: novaGaleria.trim() }),
+    const res = await authFetch(`/admin/albuns/${id}/galerias`, {
+      method: 'POST',
+      body: JSON.stringify({ nome: novaGaleria.trim() }),
     });
-    setNovaGaleria('');
-    setShowNovaGaleria(false);
-    fetchAlbum();
+    const json = await res.json();
+    if (json.success) {
+      setNovaGaleria('');
+      setShowNovaGaleria(false);
+      fetchAlbum();
+    } else {
+      alert(json.message || 'Erro ao criar galeria');
+    }
   };
 
   const renomearGaleria = async (gid) => {
-    await authFetch(`/admin/albuns/${id}`, {
-      method: 'PUT', 
-      body: JSON.stringify({ renomear_galeria: { id: gid, nome: renameValue } }),
+    await authFetch(`/admin/albuns/${id}/galerias/${gid}`, {
+      method: 'PUT',
+      body: JSON.stringify({ nome: renameValue }),
     });
     setRenaming(null);
     fetchAlbum();
@@ -116,10 +153,9 @@ export default function AlbumDetalhe() {
     const gFotos = fotos.filter(f => f.galeria_id === gid);
     if (gFotos.length > 0) return alert('Só é possível excluir galerias vazias.');
     if (!confirm('Excluir esta galeria?')) return;
-    await authFetch(`/admin/albuns/${id}`, {
-      method: 'PUT', 
-      body: JSON.stringify({ excluir_galeria: gid }),
-    });
+    const res = await authFetch(`/admin/albuns/${id}/galerias/${gid}`, { method: 'DELETE' });
+    const json = await res.json();
+    if (!json.success) { alert(json.message || 'Erro ao excluir'); return; }
     if (galeriaAtiva === gid) setGaleriaAtiva(galerias[0]?.id || null);
     fetchAlbum();
   };
@@ -130,9 +166,9 @@ export default function AlbumDetalhe() {
     if (swapIdx < 0 || swapIdx >= newArr.length) return;
     [newArr[idx], newArr[swapIdx]] = [newArr[swapIdx], newArr[idx]];
     setGalerias(newArr);
-    await authFetch(`/admin/albuns/${id}`, {
-      method: 'PUT', 
-      body: JSON.stringify({ ordem_galerias: newArr.map(g => g.id) }),
+    await authFetch(`/admin/albuns/${id}/galerias/reorder`, {
+      method: 'PUT',
+      body: JSON.stringify(newArr.map((g, i) => ({ id: g.id, ordem: i }))),
     });
   };
 
@@ -151,10 +187,12 @@ export default function AlbumDetalhe() {
   };
 
   const moverParaGaleria = async (destino) => {
-    await authFetch(`/admin/albuns/${id}`, {
-      method: 'PUT', 
-      body: JSON.stringify({ mover_fotos: { ids: selecionadas, galeria_id: destino } }),
-    });
+    for (const fid of selecionadas) {
+      await authFetch(`/admin/fotos/${fid}`, {
+        method: 'PUT',
+        body: JSON.stringify({ galeria_id: destino }),
+      }).catch(() => {});
+    }
     setSelecionadas([]);
     fetchAlbum();
   };
@@ -307,7 +345,7 @@ export default function AlbumDetalhe() {
             <span className={watermark ? 'font-medium' : 'text-gray-400'}>Watermark {watermark ? 'ativo' : 'inativo'}</span>
           </label>
 
-          <button className="flex items-center gap-1 px-3 py-2 rounded text-sm border border-gray-300 hover:bg-gray-100">
+          <button onClick={() => setShowConfig(true)} className="flex items-center gap-1 px-3 py-2 rounded text-sm border border-gray-300 hover:bg-gray-100">
             <Settings size={15} /> Configurações
           </button>
         </div>
@@ -481,6 +519,73 @@ export default function AlbumDetalhe() {
             <div className="flex justify-end gap-2">
               <button onClick={() => setShowProrrogar(false)} className="px-4 py-2 text-sm rounded border hover:bg-gray-50">Cancelar</button>
               <button onClick={handleProrrogar} className="px-4 py-2 text-sm rounded text-white" style={{ backgroundColor: ACCENT }}>Confirmar</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Configurações do Álbum */}
+      {showConfig && album && (
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center">
+          <div className="bg-white rounded-xl p-6 w-full max-w-md shadow-xl mx-4">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-bold">Configurações do Álbum</h3>
+              <button onClick={() => setShowConfig(false)} className="p-1 rounded hover:bg-gray-100"><X size={18} /></button>
+            </div>
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-900">Permitir download</p>
+                  <p className="text-xs text-gray-500">Cliente pode baixar fotos originais</p>
+                </div>
+                <button onClick={async () => { await authFetch(`/admin/albuns/${id}`, { method: 'PUT', body: JSON.stringify({ permite_download: !album.permite_download }) }); fetchAlbum(); }}
+                  className={`w-12 h-6 rounded-full relative transition-colors ${album.permite_download ? 'bg-green-500' : 'bg-gray-300'}`}>
+                  <div className={`w-5 h-5 bg-white rounded-full shadow absolute top-0.5 transition-transform ${album.permite_download ? 'translate-x-6' : 'translate-x-0.5'}`} />
+                </button>
+              </div>
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-900">Permitir seleção</p>
+                  <p className="text-xs text-gray-500">Cliente pode selecionar fotos favoritas</p>
+                </div>
+                <button onClick={async () => { await authFetch(`/admin/albuns/${id}`, { method: 'PUT', body: JSON.stringify({ permite_selecao: !album.permite_selecao }) }); fetchAlbum(); }}
+                  className={`w-12 h-6 rounded-full relative transition-colors ${album.permite_selecao ? 'bg-green-500' : 'bg-gray-300'}`}>
+                  <div className={`w-5 h-5 bg-white rounded-full shadow absolute top-0.5 transition-transform ${album.permite_selecao ? 'translate-x-6' : 'translate-x-0.5'}`} />
+                </button>
+              </div>
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-900">Permitir comentários</p>
+                  <p className="text-xs text-gray-500">Cliente pode comentar nas fotos</p>
+                </div>
+                <button onClick={async () => { await authFetch(`/admin/albuns/${id}`, { method: 'PUT', body: JSON.stringify({ permite_comentarios: !album.permite_comentarios }) }); fetchAlbum(); }}
+                  className={`w-12 h-6 rounded-full relative transition-colors ${album.permite_comentarios ? 'bg-green-500' : 'bg-gray-300'}`}>
+                  <div className={`w-5 h-5 bg-white rounded-full shadow absolute top-0.5 transition-transform ${album.permite_comentarios ? 'translate-x-6' : 'translate-x-0.5'}`} />
+                </button>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Cota de seleção</label>
+                <input type="number" defaultValue={album.cota_selecao || 0} min="0"
+                  onBlur={async (e) => { await authFetch(`/admin/albuns/${id}`, { method: 'PUT', body: JSON.stringify({ cota_selecao: Number(e.target.value) }) }); fetchAlbum(); }}
+                  className="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-orange-200 outline-none" placeholder="0 = sem limite" />
+                <p className="text-xs text-gray-400 mt-1">Quantas fotos o cliente pode selecionar (0 = ilimitado)</p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Senha de acesso</label>
+                <input type="text" defaultValue={album.senha_acesso || ''}
+                  onBlur={async (e) => { await authFetch(`/admin/albuns/${id}`, { method: 'PUT', body: JSON.stringify({ senha_acesso: e.target.value || null }) }); fetchAlbum(); }}
+                  className="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-orange-200 outline-none" placeholder="Deixe vazio para acesso livre" />
+                <p className="text-xs text-gray-400 mt-1">Senha que o cliente precisa digitar para acessar</p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Data de expiração</label>
+                <input type="date" defaultValue={album.data_expiracao || ''}
+                  onBlur={async (e) => { await authFetch(`/admin/albuns/${id}`, { method: 'PUT', body: JSON.stringify({ data_expiracao: e.target.value || null }) }); fetchAlbum(); }}
+                  className="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-orange-200 outline-none" />
+              </div>
+            </div>
+            <div className="mt-6 pt-4 border-t">
+              <button onClick={() => setShowConfig(false)} className="w-full px-4 py-2.5 rounded-lg text-sm font-medium text-white" style={{ background: ACCENT }}>Fechar</button>
             </div>
           </div>
         </div>
