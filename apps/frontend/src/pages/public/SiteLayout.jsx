@@ -1,6 +1,6 @@
 import React, { useState, useEffect, createContext, useContext } from 'react';
 import { Outlet, Link, NavLink, useLocation } from 'react-router-dom';
-import { Menu, X, Camera, Instagram, Facebook, Youtube, Mail } from 'lucide-react';
+import { Menu, X, Camera, Instagram, Facebook, Youtube, Mail, LogIn } from 'lucide-react';
 import FloatingCTA from '../../components/FloatingCTA';
 
 const API = process.env.REACT_APP_API_URL || '';
@@ -78,6 +78,9 @@ export default function SiteLayout() {
                   {link.label}
                 </NavLink>
               ))}
+              <Link to="/login" className="ml-3 inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium bg-[#EA580C] text-white hover:opacity-90 transition-opacity">
+                <LogIn size={14} /> Entrar
+              </Link>
             </nav>
 
             {/* Mobile hamburger */}
@@ -119,6 +122,9 @@ export default function SiteLayout() {
                     {link.label}
                   </NavLink>
                 ))}
+                <Link to="/login" className="mt-4 flex items-center justify-center gap-2 px-4 py-3 rounded-lg text-sm font-medium bg-[#EA580C] text-white hover:opacity-90 transition-opacity">
+                  <LogIn size={16} /> Entrar
+                </Link>
               </nav>
             </div>
           </div>
