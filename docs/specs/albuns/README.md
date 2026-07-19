@@ -1,32 +1,51 @@
-# Módulo Álbuns / Entrega — Specs
+# §11 — Álbuns e Galerias (Specs de Implementação)
 
-## Dependências entre specs:
+> Specs atômicas para o módulo de álbuns. Cada uma contém prompt pronto para o Kiro CLI.
 
-- **Fase 1 (P0):** ALB-01 → ALB-02 → ALB-03 → ALB-04 (modelo → upload → processamento → trava)
-- **Fase 2 (P1):** ALB-05 → ALB-06 → ALB-07 → ALB-08 → ALB-09 (galerias → organização → publicação → seleção → download)
-- **Fase 3 (P2):** ALB-10 → ALB-11 | ALB-12, ALB-13 (expiração → prorrogação | lightbox, watermark)
-- **Fase 4 (P3):** ALB-14, ALB-15 (independentes)
+## Estrutura
 
-## Lista de Specs
+| Spec | Título | Prioridade | Status |
+|------|--------|------------|--------|
+| ALB-01 | Modelo de dados | P0 | ⚠️ Revisar (alinhar com MODELO-DE-DADOS.md) |
+| ALB-02 | Upload presigned URL | P0 | ✅ OK |
+| ALB-03 | Processamento de versões | P0 | ✅ OK |
+| ALB-04 | Trava 70% | P0 | ✅ OK (arquivo: `ALB-04-trava-70-porcento.md`) |
+| ALB-05 | CRUD de galerias | P1 | ✅ OK |
+| ALB-06 | Organização de fotos | P1 | ✅ OK |
+| ALB-07 | Publicação do álbum | P1 | ✅ OK |
+| ALB-08 | Seleção pelo cliente | P1 | ✅ OK |
+| ALB-09 | Download / controle | P1 | ✅ OK |
+| ALB-10 | Expiração do álbum | P1 | ⚠️ Revisar (usar CONFIG_ALBUM_GLOBAL) |
+| ALB-11 | Prorrogação config ADM | P1 | ⚠️ Revisar (usar CONFIG_ALBUM_GLOBAL) |
+| ALB-12 | Lightbox / visualizador | P2 | ✅ OK |
+| ALB-13 | Watermark automático | P3 | ❌ BACKLOG (sem fonte de verdade) |
+| ALB-14 | Comentários em fotos | P2 | ⚠️ Aguarda PO |
+| ALB-15 | Estatísticas do álbum | P3 | ❌ BACKLOG (sem fonte de verdade) |
+| **ALB-16** | **Lifecycle / Máquina de Estados** | **P0** | 🆕 |
+| **ALB-17** | **Tema e Personalização da Vitrine** | **P1** | 🆕 |
+| **ALB-18** | **Tela Álbum Expirado (cliente)** | **P1** | 🆕 |
 
-| ID | Arquivo | Prioridade | Título |
-|---|---|---|---|
-| ALB-01 | [ALB-01-modelo-dados.md](./ALB-01-modelo-dados.md) | P0 | Modelo de dados DynamoDB |
-| ALB-02 | [ALB-02-upload-presigned.md](./ALB-02-upload-presigned.md) | P0 | Upload via presigned URL |
-| ALB-03 | [ALB-03-processamento-versoes.md](./ALB-03-processamento-versoes.md) | P0 | Processamento 3 versões |
-| ALB-04 | [ALB-04-trava-70-porcento.md](./ALB-04-trava-70-porcento.md) | P0 | Trava dos 70% |
-| ALB-05 | [ALB-05-crud-galerias.md](./ALB-05-crud-galerias.md) | P1 | CRUD de Galerias |
-| ALB-06 | [ALB-06-organizacao-fotos.md](./ALB-06-organizacao-fotos.md) | P1 | Organização de fotos |
-| ALB-07 | [ALB-07-publicacao-album.md](./ALB-07-publicacao-album.md) | P1 | Publicação do álbum |
-| ALB-08 | [ALB-08-selecao-cliente.md](./ALB-08-selecao-cliente.md) | P1 | Seleção de fotos pelo cliente |
-| ALB-09 | [ALB-09-download-controle.md](./ALB-09-download-controle.md) | P1 | Download granular |
-| ALB-10 | [ALB-10-expiracao-album.md](./ALB-10-expiracao-album.md) | P2 | Expiração do álbum |
-| ALB-11 | [ALB-11-prorrogacao-paga.md](./ALB-11-prorrogacao-paga.md) | P2 | Prorrogação paga |
-| ALB-12 | [ALB-12-lightbox-visualizador.md](./ALB-12-lightbox-visualizador.md) | P2 | Lightbox/Visualizador |
-| ALB-13 | [ALB-13-watermark-automatico.md](./ALB-13-watermark-automatico.md) | P2 | Watermark automático |
-| ALB-14 | [ALB-14-comentarios-fotos.md](./ALB-14-comentarios-fotos.md) | P3 | Comentários nas fotos |
-| ALB-15 | [ALB-15-estatisticas-album.md](./ALB-15-estatisticas-album.md) | P3 | Estatísticas do álbum |
+## Correções aplicadas
 
-## Arquivos existentes no frontend:
-- `Albuns.jsx` (17 KB) — listagem
-- `AlbumDetalhe.jsx` (5.5 KB) — detalhe
+- **Removido:** `ALB-04-trava-70.md` (duplicata menor, 3.0KB)
+- **Adicionado:** `ALB-correcao-config-album-global.md` (entidade formal)
+- **BACKLOG:** `BACKLOG-P3-watermark.md`, `BACKLOG-P3-estatisticas.md`
+
+## Dependências entre specs
+
+```
+ALB-16 (Lifecycle) ← base de tudo
+  ├── ALB-04 (Trava 70%) ← pré-requisito de publicação
+  ├── ALB-17 (Tema) ← default na pré-geração
+  └── ALB-18 (Prorrogação) ← transição expirado→entregue
+       └── ALB-10/11 (Config global) ← faixas e preços
+            └── CONFIG_ALBUM_GLOBAL (entidade formal)
+```
+
+## Ordem de Execução
+
+| Fase | Specs | Dependência |
+|------|-------|-------------|
+| 1 — Fundação | ALB-16 (Lifecycle) | Nenhuma |
+| 2 — Paralelo | ALB-17 (Tema), ALB-18 (Prorrogação) | ALB-16 |
+| 3 — Cleanup | Remover duplicata, mover backlog | — |
