@@ -2,12 +2,21 @@ const { dynamo, TABLE } = require('../config/dynamodb');
 const { QueryCommand, UpdateCommand, DeleteCommand } = require('@aws-sdk/lib-dynamodb');
 const { deleteAlbumFolder } = require('../services/s3Service');
 const { ALBUM_STATUS } = require('../config/constants');
+const { enviarAvisosExpiracao } = require('../services/albumExpiracaoService');
 
 const DIAS_GRACA = 7;
 const TENANT = process.env.TENANT_ID || 'default';
 
 async function processarRetencao() {
   const hoje = new Date();
+
+  // ALB-10: Enviar avisos de expiração ANTES das transições de status
+  try {
+    const resultado = await enviarAvisosExpiracao();
+    console.log(`[ALBUM RETENTION] Avisos de expiração: ${resultado.notificados} enviados de ${resultado.total_avaliados} avaliados`);
+  } catch (error) {
+    console.error('[ALBUM RETENTION] Erro ao enviar avisos de expiração:', error.message);
+  }
 
   // Buscar todos os álbuns via GSI1
   const result = await dynamo.send(new QueryCommand({

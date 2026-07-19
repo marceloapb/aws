@@ -34,6 +34,8 @@ const adminNovidadesRoutes = require('./routes/admin-novidades');
 const adminSiteRoutes = require('./routes/admin-site');
 const adminMediaRoutes = require('./routes/admin-media');
 const adminGaleriasRoutes = require('./routes/admin-galerias');
+const adminAlbumComentariosRoutes = require('./routes/admin-album-comentarios');
+const adminAlbumStatsRoutes = require('./routes/admin-album-stats');
 
 // Rotas Client
 const clientAuthRoutes = require('./routes/client-auth');
@@ -47,6 +49,9 @@ const clientPortalRoutes = require('./routes/client-portal');
 const clientMediaRoutes = require('./routes/client-media');
 const clientSelecaoRoutes = require('./routes/client-selecao');
 const clientDownloadRoutes = require('./routes/client-download');
+const clientComentariosRoutes = require('./routes/client-comentarios');
+const clientTrackingRoutes = require('./routes/client-tracking');
+const clientProrrogacaoRoutes = require('./routes/client-prorrogacao');
 
 // Rotas Públicas (sem auth)
 const publicRoutes = require('./routes/public');
@@ -105,12 +110,17 @@ app.use('/admin/novidades', adminAuth, adminNovidadesRoutes);
 app.use('/admin/site', adminAuth, adminSiteRoutes);
 app.use('/admin/media', adminAuth, adminMediaRoutes);
 app.use('/admin/albuns/:albumId/galerias', adminAuth, adminGaleriasRoutes);
+app.use('/admin/albuns/:albumId/comentarios', adminAuth, adminAlbumComentariosRoutes);
+app.use('/admin/albuns/:albumId/estatisticas', adminAuth, adminAlbumStatsRoutes);
 
 // Registrar rotas Client (protegidas por clientAuth)
 app.use('/client/auth', clientAuthRoutes);
+app.use('/client/albuns/prorrogacao', clientAuth, clientProrrogacaoRoutes);
 app.use('/client/albuns', clientAuth, clientAlbunsRoutes);
 app.use('/client/albuns/:slug/selecao', clientAuth, clientSelecaoRoutes);
 app.use('/client/albuns/:slug/download', clientAuth, clientDownloadRoutes);
+app.use('/client/albuns/:slug/comentarios', clientAuth, clientComentariosRoutes);
+app.use('/client/albuns/:slug/track', clientAuth, clientTrackingRoutes);
 app.use('/client/contratos', clientAuth, clientContratosRoutes);
 app.use('/client/orcamentos', clientAuth, clientOrcamentosRoutes);
 app.use('/client/pagamentos', clientAuth, clientPagamentosRoutes);

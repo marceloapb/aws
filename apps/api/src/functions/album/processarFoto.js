@@ -69,6 +69,12 @@ const handler = async (event) => {
             .toBuffer();
         }
 
+        // TODO ALB-13: Apply watermark
+        // if (album.percentual_pago < 100) {
+        //   const watermarkBuffer = await s3.getObject(watermarkKey);
+        //   processed = await sharp(processed).composite([{ input: watermarkBuffer, gravity: 'southeast', blend: 'over' }]).toBuffer();
+        // }
+
         const key = `${basePath}-${version.name}.webp`;
         await s3.send(new PutObjectCommand({
           Bucket: BUCKET,

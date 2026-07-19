@@ -6,6 +6,7 @@ const { generateUploadUrl } = require('../services/mediaUploadService');
 const { ALBUM_STATUS, COBRANCA_STATUS } = require('../config/constants');
 const { slugify } = require('../utils/slugify');
 const { SQSClient, SendMessageCommand } = require('@aws-sdk/client-sqs');
+const { listarProrrogacoes, aprovarProrrogacao } = require('../services/albumProrrogacaoService');
 const crypto = require('crypto');
 
 const sqs = new SQSClient({});
@@ -528,6 +529,27 @@ router.delete('/:id/fotos/batch', async (req, res) => {
     res.json({ success: true, data: { deleted }, message: `${deleted} foto(s) excluída(s)` });
   } catch (error) {
     res.status(400).json({ success: false, message: error.message });
+  }
+});
+
+// GET /:id/prorrogacoes — List extensions for album (ALB-11)
+router.get('/:id/prorrogacoes', async (req, res) => {
+  try {
+    const prorrogacoes = await listarProrrogacoes(req.params.id);
+    res.json({ success: true, data: prorrogacoes });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// POST /:id/prorrogacoes/:prorrogacaoId/aprovar — Approve extension (ALB-11)
+router.post('/:id/prorrogacoes/:prorrogacaoId/aprovar', async (req, res) => {
+  try {
+    const result = await aprovarProrrogacao(req.params.prorrogacaoId, req.params.id);
+    res.json({ success: true, data: result });
+  } catch (error) {
+    const status = error.message.includes('não encontrad') ? 404 : 400;
+    res.status(status).json({ success: false, message: error.message });
   }
 });
 
