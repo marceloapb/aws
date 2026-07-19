@@ -8,7 +8,6 @@ import {
 import { useAuth } from '../../contexts/AuthContext';
 
 const ACCENT = '#EA580C';
-const API = import.meta.env.VITE_API_URL || '';
 
 const statusColors = {
   rascunho: 'bg-gray-200 text-gray-700',
@@ -19,7 +18,7 @@ const statusColors = {
 
 export default function AlbumDetalhe() {
   const { id } = useParams();
-  const { token } = useAuth();
+  const { authFetch, token } = useAuth();
   const fileInputRef = useRef(null);
 
   const [album, setAlbum] = useState(null);
@@ -43,13 +42,18 @@ export default function AlbumDetalhe() {
   const headers = { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' };
 
   const fetchAlbum = useCallback(async () => {
-    const res = await fetch(`${API}/admin/albuns/${id}`, { headers });
-    const data = await res.json();
-    setAlbum(data.album || data);
-    setGalerias(data.galerias || []);
-    if (data.galerias?.length && !galeriaAtiva) setGaleriaAtiva(data.galerias[0].id);
-    setFotos(data.fotos || []);
-  }, [id, token]);
+    try {
+      const res = await authFetch(`/admin/albuns/${id}`);
+      const json = await res.json();
+      if (json.success) {
+        const data = json.data;
+        setAlbum(data);
+        setGalerias(data.galerias || []);
+        if (data.galerias?.length && !galeriaAtiva) setGaleriaAtiva(data.galerias[0].id);
+        setFotos(data.fotos || []);
+      }
+    } catch {}
+  }, [id, authFetch]);
 
   useEffect(() => { fetchAlbum(); }, [fetchAlbum]);
 
@@ -64,7 +68,7 @@ export default function AlbumDetalhe() {
   // ALB-07 Publicar
   const handlePublicar = async () => {
     if (!podePubilcar) return;
-    const res = await fetch(`${API}/admin/albuns/${id}/publicar`, { method: 'POST', headers });
+    const res = await authFetch(`/admin/albuns/${id}/publicar`, { method: 'POST' });
     if (res.ok) fetchAlbum();
   };
 
@@ -76,8 +80,7 @@ export default function AlbumDetalhe() {
     setUploadProgress(0);
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
-      const res = await fetch(`${API}/admin/fotos/upload-url`, {
-        method: 'POST', headers,
+      const res = await authFetch(`/admin/fotos/upload-url`, { method: 'POST',
         body: JSON.stringify({ album_id: id, galeria_id: galeriaAtiva, nome: file.name, tipo: file.type }),
       });
       const { url } = await res.json();
@@ -91,8 +94,8 @@ export default function AlbumDetalhe() {
   // ALB-05 Galerias
   const criarGaleria = async () => {
     if (!novaGaleria.trim()) return;
-    await fetch(`${API}/admin/albuns/${id}`, {
-      method: 'PUT', headers,
+    await authFetch(`/admin/albuns/${id}`, {
+      method: 'PUT', 
       body: JSON.stringify({ nova_galeria: novaGaleria.trim() }),
     });
     setNovaGaleria('');
@@ -101,8 +104,8 @@ export default function AlbumDetalhe() {
   };
 
   const renomearGaleria = async (gid) => {
-    await fetch(`${API}/admin/albuns/${id}`, {
-      method: 'PUT', headers,
+    await authFetch(`/admin/albuns/${id}`, {
+      method: 'PUT', 
       body: JSON.stringify({ renomear_galeria: { id: gid, nome: renameValue } }),
     });
     setRenaming(null);
@@ -113,8 +116,8 @@ export default function AlbumDetalhe() {
     const gFotos = fotos.filter(f => f.galeria_id === gid);
     if (gFotos.length > 0) return alert('Só é possível excluir galerias vazias.');
     if (!confirm('Excluir esta galeria?')) return;
-    await fetch(`${API}/admin/albuns/${id}`, {
-      method: 'PUT', headers,
+    await authFetch(`/admin/albuns/${id}`, {
+      method: 'PUT', 
       body: JSON.stringify({ excluir_galeria: gid }),
     });
     if (galeriaAtiva === gid) setGaleriaAtiva(galerias[0]?.id || null);
@@ -127,8 +130,8 @@ export default function AlbumDetalhe() {
     if (swapIdx < 0 || swapIdx >= newArr.length) return;
     [newArr[idx], newArr[swapIdx]] = [newArr[swapIdx], newArr[idx]];
     setGalerias(newArr);
-    await fetch(`${API}/admin/albuns/${id}`, {
-      method: 'PUT', headers,
+    await authFetch(`/admin/albuns/${id}`, {
+      method: 'PUT', 
       body: JSON.stringify({ ordem_galerias: newArr.map(g => g.id) }),
     });
   };
@@ -141,15 +144,15 @@ export default function AlbumDetalhe() {
   const excluirSelecionadas = async () => {
     if (!confirm(`Excluir ${selecionadas.length} fotos?`)) return;
     await Promise.all(selecionadas.map(fid =>
-      fetch(`${API}/admin/fotos/${fid}`, { method: 'DELETE', headers })
+      authFetch(`/admin/fotos/${fid}`, { method: 'DELETE' })
     ));
     setSelecionadas([]);
     fetchAlbum();
   };
 
   const moverParaGaleria = async (destino) => {
-    await fetch(`${API}/admin/albuns/${id}`, {
-      method: 'PUT', headers,
+    await authFetch(`/admin/albuns/${id}`, {
+      method: 'PUT', 
       body: JSON.stringify({ mover_fotos: { ids: selecionadas, galeria_id: destino } }),
     });
     setSelecionadas([]);
@@ -158,8 +161,7 @@ export default function AlbumDetalhe() {
 
   // ALB-09 Download
   const downloadFoto = async (foto) => {
-    const res = await fetch(`${API}/admin/fotos/upload-url`, {
-      method: 'POST', headers,
+    const res = await authFetch(`/admin/fotos/upload-url`, { method: 'POST',
       body: JSON.stringify({ download: true, foto_id: foto.id }),
     });
     const { url } = await res.json();
@@ -170,8 +172,8 @@ export default function AlbumDetalhe() {
 
   // ALB-11 Prorrogar
   const handleProrrogar = async () => {
-    await fetch(`${API}/admin/albuns/${id}`, {
-      method: 'PUT', headers,
+    await authFetch(`/admin/albuns/${id}`, {
+      method: 'PUT', 
       body: JSON.stringify({ data_expiracao: prorrogarData, valor_prorrogacao: prorrogarValor }),
     });
     setShowProrrogar(false);
@@ -180,8 +182,8 @@ export default function AlbumDetalhe() {
 
   // ALB-14 Comentários
   const enviarComentario = async (fotoId) => {
-    await fetch(`${API}/admin/albuns/${id}`, {
-      method: 'PUT', headers,
+    await authFetch(`/admin/albuns/${id}`, {
+      method: 'PUT', 
       body: JSON.stringify({ comentario: { foto_id: fotoId, texto: comentario } }),
     });
     setComentario('');
@@ -486,3 +488,4 @@ export default function AlbumDetalhe() {
     </div>
   );
 }
+

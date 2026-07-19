@@ -35,6 +35,7 @@ export default function Albuns() {
   const [busca, setBusca] = useState('');
   const [ordenar, setOrdenar] = useState('recentes');
   const [modal, setModal] = useState(false);
+  const [editModal, setEditModal] = useState(null);
   const [clientes, setClientes] = useState([]);
   const [form, setForm] = useState({ titulo: '', cliente_id: '', tipo_evento: '', data_evento: '', data_expiracao: '' });
 
@@ -114,6 +115,19 @@ export default function Albuns() {
     if (json.success) {
       setAlbuns(prev => [json.data, ...prev]);
       setModal(false);
+      setForm({ titulo: '', cliente_id: '', tipo_evento: '', data_evento: '', data_expiracao: '' });
+    }
+  };
+
+  const handleEditar = async (e) => {
+    e.preventDefault();
+    const res = await authFetch(`/admin/albuns/${editModal.id}`, {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(form)
+    });
+    const json = await res.json();
+    if (json.success) {
+      setAlbuns(prev => prev.map(a => a.id === editModal.id ? { ...a, ...form } : a));
+      setEditModal(null);
       setForm({ titulo: '', cliente_id: '', tipo_evento: '', data_evento: '', data_expiracao: '' });
     }
   };
@@ -242,6 +256,7 @@ export default function Albuns() {
                   <div className="flex items-center gap-1 pt-2 border-t border-gray-100">
                     <button onClick={() => navigate(`/admin/albuns/${album.id}`)} title="Ver fotos" className="p-1.5 rounded hover:bg-gray-100 text-gray-500 hover:text-gray-700"><Eye size={16} /></button>
                     <button onClick={() => navigate(`/admin/albuns/${album.id}/upload`)} title="Upload" className="p-1.5 rounded hover:bg-gray-100 text-gray-500 hover:text-gray-700"><Upload size={16} /></button>
+                    <button onClick={() => { setEditModal(album); setForm({ titulo: album.titulo || '', cliente_id: album.cliente_id || '', tipo_evento: album.tipo_evento || '', data_evento: album.data_evento || '', data_expiracao: album.data_expiracao || '', tipo: album.tipo || 'evento' }); }} title="Editar" className="p-1.5 rounded hover:bg-gray-100 text-gray-500 hover:text-gray-700"><Edit size={16} /></button>
                     {(album.status === 'rascunho' || album.status === 'em_edicao') && (
                       <button onClick={() => handlePublicar(album)} title={bloqueado ? 'Pagamento insuficiente' : 'Publicar'} disabled={bloqueado}
                         className={`p-1.5 rounded ${bloqueado ? 'text-gray-300 cursor-not-allowed' : 'hover:bg-green-50 text-gray-500 hover:text-green-600'}`}><Send size={16} /></button>
@@ -333,6 +348,58 @@ export default function Albuns() {
             <div className="flex justify-end gap-3 pt-3 border-t border-gray-100">
               <button type="button" onClick={() => setModal(false)} className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg transition">Cancelar</button>
               <button type="submit" style={{ background: ACCENT }} className="px-5 py-2 text-sm text-white rounded-lg font-medium hover:opacity-90 transition shadow-sm">Criar Álbum</button>
+            </div>
+          </form>
+        </div>
+      )}
+      {/* Modal Editar Álbum */}
+      {editModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+          <form onSubmit={handleEditar} className="bg-white rounded-xl shadow-2xl w-full max-w-lg p-6 space-y-4 mx-4">
+            <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2"><Edit size={18} style={{ color: ACCENT }} />Editar Álbum</h2>
+            <div>
+              <label className="text-sm font-medium text-gray-700">Título *</label>
+              <input required value={form.titulo} onChange={e => setForm(f => ({ ...f, titulo: e.target.value }))}
+                className="mt-1 w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-orange-200" />
+            </div>
+            <div>
+              <label className="text-sm font-medium text-gray-700">Cliente</label>
+              <select value={form.cliente_id} onChange={e => setForm(f => ({ ...f, cliente_id: e.target.value }))}
+                className="mt-1 w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-orange-200">
+                <option value="">Nenhum (avulso)</option>
+                {clientes.map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="text-sm font-medium text-gray-700">Tipo de Evento</label>
+              <select value={form.tipo_evento} onChange={e => setForm(f => ({ ...f, tipo_evento: e.target.value }))}
+                className="mt-1 w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-orange-200">
+                <option value="">Selecione...</option>
+                <option value="casamento">Casamento</option>
+                <option value="aniversario">Aniversário</option>
+                <option value="corporativo">Corporativo</option>
+                <option value="ensaio">Ensaio</option>
+                <option value="batizado">Batizado</option>
+                <option value="portfolio">Portfólio</option>
+                <option value="pessoal">Pessoal</option>
+                <option value="outro">Outro</option>
+              </select>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="text-sm font-medium text-gray-700">Data do Evento</label>
+                <input type="date" value={form.data_evento} onChange={e => setForm(f => ({ ...f, data_evento: e.target.value }))}
+                  className="mt-1 w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-orange-200" />
+              </div>
+              <div>
+                <label className="text-sm font-medium text-gray-700">Expiração</label>
+                <input type="date" value={form.data_expiracao} onChange={e => setForm(f => ({ ...f, data_expiracao: e.target.value }))}
+                  className="mt-1 w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-orange-200" />
+              </div>
+            </div>
+            <div className="flex justify-end gap-3 pt-3 border-t border-gray-100">
+              <button type="button" onClick={() => setEditModal(null)} className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg transition">Cancelar</button>
+              <button type="submit" style={{ background: ACCENT }} className="px-5 py-2 text-sm text-white rounded-lg font-medium hover:opacity-90 transition shadow-sm">Salvar</button>
             </div>
           </form>
         </div>
