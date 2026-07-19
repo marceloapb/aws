@@ -175,7 +175,18 @@ export default function Storage() {
             <HardDrive size={18} style={{ color: ACCENT }} />
             <h3 className="font-semibold text-gray-900">Uso Total do Armazenamento</h3>
           </div>
-          <span className="text-sm text-gray-500">{fmtSize(totalBytes)} / {storageLimit} GB</span>
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-gray-500">{fmtSize(totalBytes)} /</span>
+            <input
+              type="number"
+              value={storageLimit}
+              onChange={(e) => setStorageLimit(Number(e.target.value) || 50)}
+              onBlur={() => { authFetch('/admin/configuracoes', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ storageLimit: String(storageLimit) }) }).catch(() => {}); }}
+              className="w-16 px-2 py-1 border border-gray-200 rounded text-sm text-center focus:ring-2 focus:ring-orange-200 outline-none"
+              min="1"
+            />
+            <span className="text-sm text-gray-500">GB</span>
+          </div>
         </div>
         <div className="w-full bg-gray-100 rounded-full h-5 overflow-hidden">
           <div
