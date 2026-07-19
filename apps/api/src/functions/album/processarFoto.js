@@ -1,7 +1,8 @@
 /**
- * ALB-03: Processamento assíncrono de 3 versões de foto
+ * Processamento assíncrono de fotos de álbum
  * Triggered by SQS queue
- * Gera: thumb (400px), media (2048px), preserva original
+ * Gera: thumb (400px WebP), media/web (2048px WebP), preserva original
+ * Bucket: privado (mbf-backend-v3-fotos)
  */
 
 const { S3Client, GetObjectCommand, PutObjectCommand } = require('@aws-sdk/client-s3');
@@ -14,8 +15,8 @@ const TABLE = process.env.TABLE_NAME;
 const BUCKET = process.env.S3_BUCKET_NAME;
 
 const VERSIONS = [
-  { name: 'thumb', maxWidth: 400, quality: 75 },
-  { name: 'media', maxWidth: 2048, quality: 85 },
+  { name: 'web', maxWidth: 2048, quality: 85, format: 'webp' },
+  { name: 'thumb', maxWidth: 400, quality: 70, format: 'webp' },
 ];
 
 const handler = async (event) => {
@@ -31,17 +32,16 @@ const handler = async (event) => {
       }));
       const buffer = Buffer.from(await getResult.Body.transformToByteArray());
 
-      // 2. Tentar carregar sharp (pode não estar disponível em todas as Lambdas)
+      // 2. Carregar sharp
       let sharp;
       try {
         sharp = require('sharp');
       } catch (e) {
-        console.warn('Sharp not available, skipping image processing:', e.message);
-        // Marcar como completo sem processamento
-        await updateFoto(tenant_id, foto_id, {
-          status_processamento: 'completo_sem_resize',
-          url_media: s3_key_original,
-          url_thumb: s3_key_original,
+        console.warn('Sharp not available, marking as processed without resize:', e.message);
+        await updateFoto(tenant_id, album_id, foto_id, {
+          status_processamento: 'completo',
+          s3_key_media: s3_key_original,
+          s3_key_thumb: s3_key_original,
         });
         continue;
       }
@@ -51,64 +51,68 @@ const handler = async (event) => {
       const { width, height } = metadata;
 
       // 4. Gerar versões
-      const basePath = s3_key_original.replace(/\/original\//, '/').replace(/\.[^.]+$/, '');
-      const ext = s3_key_original.split('.').pop() || 'jpg';
+      const basePath = s3_key_original.replace(/\.[^.]+$/, '');
       const urls = {};
 
       for (const version of VERSIONS) {
-        // Só redimensiona se imagem é maior que o maxWidth
-        if (width > version.maxWidth) {
-          const resized = await sharp(buffer)
-            .resize(version.maxWidth, null, { withoutEnlargement: true })
-            .jpeg({ quality: version.quality })
-            .toBuffer();
+        const needsResize = width > version.maxWidth;
+        let processed;
 
-          const key = `${version.name}/${tenant_id}/${album_id}/${foto_id}.jpg`;
-          await s3.send(new PutObjectCommand({
-            Bucket: BUCKET,
-            Key: key,
-            Body: resized,
-            ContentType: 'image/jpeg',
-          }));
-          urls[`url_${version.name}`] = key;
+        if (needsResize) {
+          processed = await sharp(buffer)
+            .resize(version.maxWidth, null, { withoutEnlargement: true, fit: 'inside' })
+            .webp({ quality: version.quality })
+            .toBuffer();
         } else {
-          // Imagem já é pequena o suficiente
-          urls[`url_${version.name}`] = s3_key_original;
+          processed = await sharp(buffer)
+            .webp({ quality: version.quality })
+            .toBuffer();
         }
+
+        const key = `${basePath}-${version.name}.webp`;
+        await s3.send(new PutObjectCommand({
+          Bucket: BUCKET,
+          Key: key,
+          Body: processed,
+          ContentType: 'image/webp',
+          CacheControl: 'private, max-age=31536000',
+        }));
+        urls[`s3_key_${version.name === 'web' ? 'media' : version.name}`] = key;
       }
 
       // 5. Atualizar DynamoDB
-      await updateFoto(tenant_id, foto_id, {
+      await updateFoto(tenant_id, album_id, foto_id, {
         status_processamento: 'completo',
-        url_media: urls.url_media || s3_key_original,
-        url_thumb: urls.url_thumb || s3_key_original,
+        s3_key_media: urls.s3_key_media || s3_key_original,
+        s3_key_thumb: urls.s3_key_thumb || s3_key_original,
         width,
         height,
+        tamanho_bytes: buffer.length,
         processado_em: new Date().toISOString(),
       });
 
-      console.log(`[FOTO] Processado: ${foto_id} (${width}x${height})`);
+      console.log(`[FOTO] Processado: ${foto_id} (${width}x${height}) → web+thumb WebP`);
     } catch (error) {
       console.error(`[FOTO] Erro processando ${foto_id}:`, error.message);
-      // Marcar como erro no DynamoDB
-      await updateFoto(tenant_id, foto_id, {
+      await updateFoto(tenant_id, album_id, foto_id, {
         status_processamento: 'erro',
         erro_processamento: error.message,
       }).catch(() => {});
-      throw error; // Re-throw para SQS retry
+      throw error; // Re-throw para SQS retry → DLQ
     }
   }
 };
 
-async function updateFoto(tenantId, fotoId, updates) {
+async function updateFoto(tenantId, albumId, fotoId, updates) {
   const keys = Object.keys(updates);
   const expr = 'SET ' + keys.map((k, i) => `#f${i} = :v${i}`).join(', ');
   const names = Object.fromEntries(keys.map((k, i) => [`#f${i}`, k]));
   const values = Object.fromEntries(keys.map((k, i) => [`:v${i}`, updates[k]]));
 
+  // Tenta com PK do álbum (padrão novo)
   await ddb.send(new UpdateCommand({
     TableName: TABLE,
-    Key: { PK: `TENANT#${tenantId}`, SK: `FOTO#${fotoId}` },
+    Key: { PK: `ALBUM#${albumId}`, SK: `FOTO#${fotoId}` },
     UpdateExpression: expr,
     ExpressionAttributeNames: names,
     ExpressionAttributeValues: values,
