@@ -84,6 +84,9 @@ app.get('/health', (req, res) => {
 
 // Registrar rotas Admin (protegidas por adminAuth)
 app.use('/admin/agenda', adminAuth, adminAgendaRoutes);
+app.use('/admin/albuns/:albumId/galerias', adminAuth, adminGaleriasRoutes);
+app.use('/admin/albuns/:albumId/comentarios', adminAuth, adminAlbumComentariosRoutes);
+app.use('/admin/albuns/:albumId/estatisticas', adminAuth, adminAlbumStatsRoutes);
 app.use('/admin/albuns', adminAuth, adminAlbunsRoutes);
 app.use('/admin/clientes', adminAuth, adminClientesRoutes);
 app.use('/admin/cobrancas', adminAuth, adminCobrancasRoutes);
@@ -109,9 +112,6 @@ app.use('/admin/notificacoes', adminAuth, adminNotificacoesRoutes);
 app.use('/admin/novidades', adminAuth, adminNovidadesRoutes);
 app.use('/admin/site', adminAuth, adminSiteRoutes);
 app.use('/admin/media', adminAuth, adminMediaRoutes);
-app.use('/admin/albuns/:albumId/galerias', adminAuth, adminGaleriasRoutes);
-app.use('/admin/albuns/:albumId/comentarios', adminAuth, adminAlbumComentariosRoutes);
-app.use('/admin/albuns/:albumId/estatisticas', adminAuth, adminAlbumStatsRoutes);
 
 // Registrar rotas Client (protegidas por clientAuth)
 app.use('/client/auth', clientAuthRoutes);

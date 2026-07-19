@@ -44,24 +44,24 @@ export default function AlbumDetalhe() {
 
   const fetchAlbum = useCallback(async () => {
     try {
-      const [albumRes, galeriasRes] = await Promise.all([
-        authFetch(`/admin/albuns/${id}`),
-        authFetch(`/admin/albuns/${id}/galerias`),
-      ]);
+      const albumRes = await authFetch(`/admin/albuns/${id}`);
       const albumJson = await albumRes.json();
-      const galeriasJson = await galeriasRes.json();
 
       if (albumJson.success) {
         const data = albumJson.data;
         setAlbum(data);
         setFotos(data.fotos || []);
       }
-      if (galeriasJson.success) {
-        setGalerias(galeriasJson.data || []);
-        if (galeriasJson.data?.length && !galeriaAtiva) {
-          setGaleriaAtiva(galeriasJson.data[0].id);
+
+      // Galerias em separado (não bloqueia se falhar)
+      try {
+        const galeriasRes = await authFetch(`/admin/albuns/${id}/galerias`);
+        const galeriasJson = await galeriasRes.json();
+        if (galeriasJson.success && galeriasJson.data?.length) {
+          setGalerias(galeriasJson.data);
+          if (!galeriaAtiva) setGaleriaAtiva(galeriasJson.data[0].id);
         }
-      }
+      } catch {}
     } catch {}
   }, [id, authFetch]);
 
