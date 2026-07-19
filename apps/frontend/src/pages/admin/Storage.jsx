@@ -160,6 +160,35 @@ export default function Storage() {
         />
       </div>
 
+      {/* Barra de Uso Total */}
+      <div className="bg-white rounded-xl border p-6 mb-6">
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2">
+            <HardDrive size={18} style={{ color: ACCENT }} />
+            <h3 className="font-semibold text-gray-900">Uso Total do Armazenamento</h3>
+          </div>
+          <span className="text-sm text-gray-500">{fmtSize(totalBytes)} / 50 GB</span>
+        </div>
+        <div className="w-full bg-gray-100 rounded-full h-5 overflow-hidden">
+          <div
+            className="h-full rounded-full transition-all duration-700"
+            style={{
+              width: `${Math.min((totalBytes / (50 * 1024 * 1024 * 1024)) * 100, 100)}%`,
+              background: (totalBytes / (50 * 1024 * 1024 * 1024)) > 0.85 ? '#ef4444' : (totalBytes / (50 * 1024 * 1024 * 1024)) > 0.7 ? '#f59e0b' : ACCENT,
+            }}
+          />
+        </div>
+        <div className="flex items-center justify-between mt-2">
+          <span className="text-xs text-gray-400">{((totalBytes / (50 * 1024 * 1024 * 1024)) * 100).toFixed(1)}% utilizado</span>
+          <span className="text-xs text-gray-400">{fmtSize(50 * 1024 * 1024 * 1024 - totalBytes)} disponível</span>
+        </div>
+        {(totalBytes / (50 * 1024 * 1024 * 1024)) > 0.85 && (
+          <div className="mt-3 p-2 bg-red-50 border border-red-200 rounded-lg">
+            <p className="text-xs text-red-700 flex items-center gap-1"><AlertTriangle size={12} /> Atenção: armazenamento próximo do limite. Considere excluir álbuns antigos ou fazer upgrade.</p>
+          </div>
+        )}
+      </div>
+
       {/* Breakdown by Context + DLQ Monitor */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
         {/* Breakdown */}
