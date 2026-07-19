@@ -3,16 +3,12 @@ import { useAuth } from '../../contexts/AuthContext';
 import { Settings, Save } from 'lucide-react';
 import ConfigDadosEmpresa from '../../components/ConfigDadosEmpresa';
 import ConfigPrazos from '../../components/ConfigPrazos';
-import ConfigPagamento from '../../components/ConfigPagamento';
-import ConfigIntegracoes from '../../components/ConfigIntegracoes';
 import ConfigBackup from '../../components/ConfigBackup';
 
 const ACCENT = '#EA580C';
 const TABS = [
   { key: 'empresa', label: 'Dados da Empresa' },
   { key: 'prazos', label: 'Prazos e Políticas' },
-  { key: 'pagamento', label: 'Pagamento' },
-  { key: 'integracoes', label: 'Integrações' },
   { key: 'backup', label: 'Backup e Sistema' },
 ];
 
@@ -130,8 +126,6 @@ export default function ConfigEmpresa() {
       <div className="bg-white rounded-xl border border-gray-200 p-6">
         {tab === 'empresa' && <ConfigDadosEmpresa form={form} setForm={setForm} onUploadLogo={handleUploadLogo} />}
         {tab === 'prazos' && <ConfigPrazos form={form} setForm={setForm} />}
-        {tab === 'pagamento' && <ConfigPagamento form={form} setForm={setForm} />}
-        {tab === 'integracoes' && <ConfigIntegracoes form={form} setForm={setForm} />}
         {tab === 'backup' && <ConfigBackup form={form} setForm={setForm} />}
       </div>
     </div>
