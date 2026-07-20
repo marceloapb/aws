@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import usePendingCounts from '../hooks/usePendingCounts';
@@ -67,10 +67,34 @@ const clienteLinks = [
 ];
 
 export default function Sidebar({ onClose }) {
-  const { user, logout } = useAuth();
+  const { user, logout, authFetch } = useAuth();
   const navigate = useNavigate();
   const isAdmin = user?.role === 'admin';
   const counts = usePendingCounts();
+  const [logoUrl, setLogoUrl] = useState(null);
+  const [empresaNome, setEmpresaNome] = useState('');
+
+  useEffect(() => {
+    // Buscar logo da empresa para exibir no sidebar (fundo escuro → prioriza logoDark)
+    authFetch('/admin/configuracoes')
+      .then(r => r.json())
+      .then(json => {
+        if (json.success && json.data) {
+          const data = json.data;
+          const darkKey = data.logoDarkKey;
+          const lightKey = data.logoKey;
+          const logoKeyToUse = darkKey || lightKey;
+          if (data.tradeName) setEmpresaNome(data.tradeName);
+          if (logoKeyToUse) {
+            authFetch('/admin/fotos/view-url', { method: 'POST', body: JSON.stringify({ key: logoKeyToUse }) })
+              .then(r => r.json())
+              .then(res => { if (res.success) setLogoUrl(res.data.url); })
+              .catch(() => {});
+          }
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   // Map de badges por rota
   const badgeMap = {
@@ -89,8 +113,12 @@ export default function Sidebar({ onClose }) {
       {/* Logo */}
       <div className="h-16 flex items-center justify-between px-4 border-b border-gray-700">
         <div className="flex items-center gap-2">
-          <Camera size={24} style={{ color: ACCENT }} />
-          <span className="font-bold text-lg">MBFoto</span>
+          {logoUrl ? (
+            <img src={logoUrl} alt={empresaNome || 'Logo'} className="h-8 w-auto" />
+          ) : (
+            <Camera size={24} style={{ color: ACCENT }} />
+          )}
+          <span className="font-bold text-lg">{empresaNome || 'MBFoto'}</span>
         </div>
         <button onClick={onClose} className="lg:hidden p-1 rounded hover:bg-sidebar-hover">
           <X size={18} />

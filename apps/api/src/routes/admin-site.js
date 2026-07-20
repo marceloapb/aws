@@ -14,7 +14,7 @@ const VALID_TIPOS = ['home', 'sobre', 'contato'];
 
 router.put('/config', async (req, res) => {
   try {
-    const { logo_url, nome, redes, whatsapp_pessoal } = req.body;
+    const { logo_url, logo_dark_url, nome, redes, whatsapp_pessoal } = req.body;
 
     // Validações
     if (!nome || !nome.trim()) {
@@ -40,6 +40,7 @@ router.put('/config', async (req, res) => {
       PK: TENANT,
       SK: 'CONFIG#SITE',
       logo_url: logo_url || '',
+      logo_dark_url: logo_dark_url || '',
       nome: nome.trim(),
       redes: redes || [],
       whatsapp_pessoal: whatsapp_pessoal || '',
