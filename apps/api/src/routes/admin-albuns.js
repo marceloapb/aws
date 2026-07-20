@@ -49,7 +49,32 @@ router.get('/', async (req, res) => {
     const start = (Number(page) - 1) * Number(limit);
     const data = items.slice(start, start + Number(limit));
 
-    res.json({ success: true, data, pagination: { page: Number(page), totalPages: Math.ceil(total / Number(limit)), totalItems: total } });
+    // G4: Enriquecer com percentual_pago e pode_publicar
+    const dataEnriquecida = await Promise.all(data.map(async (album) => {
+      if (!album.orcamento_id) {
+        return { ...album, percentual_pago: null, pode_publicar: true };
+      }
+      try {
+        const cobrancasResult = await dynamo.send(new QueryCommand({
+          TableName: TABLE,
+          IndexName: 'GSI1',
+          KeyConditionExpression: 'GSI1PK = :pk',
+          FilterExpression: 'orcamento_id = :oid',
+          ExpressionAttributeValues: { ':pk': 'COBRANCA', ':oid': album.orcamento_id },
+        }));
+        const cobrancas = cobrancasResult.Items || [];
+        const totalValor = cobrancas.reduce((sum, c) => sum + (c.valor || 0), 0);
+        const totalPago = cobrancas
+          .filter(c => c.status === COBRANCA_STATUS.PAGO)
+          .reduce((sum, c) => sum + (c.valor || 0), 0);
+        const percentual_pago = totalValor > 0 ? Math.round((totalPago / totalValor) * 100) : 0;
+        return { ...album, percentual_pago, pode_publicar: percentual_pago >= 70 };
+      } catch {
+        return { ...album, percentual_pago: null, pode_publicar: true };
+      }
+    }));
+
+    res.json({ success: true, data: dataEnriquecida, pagination: { page: Number(page), totalPages: Math.ceil(total / Number(limit)), totalItems: total } });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
