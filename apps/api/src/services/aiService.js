@@ -43,29 +43,24 @@ Responda APENAS com a caption pronta, sem explicações.`;
 /**
  * Gera texto para story do Instagram
  */
-async function gerarTextoStory({ tipo_evento, cliente_nome, estilo = 'minimalista' }) {
-  const prompt = `Gere um texto curto (máximo 2 linhas) para um Story de Instagram de um fotógrafo profissional.
+async function gerarTextoStory({ tipo_evento, cliente_nome, estilo = 'minimalista', prompt_livre = '' }) {
+  const promptBase = prompt_livre
+    ? `Você é um fotógrafo profissional brasileiro. O usuário quer um texto para Story do Instagram.\n\nPedido: ${prompt_livre}\n\nResponda APENAS com o texto do overlay (1-2 linhas curtas). Sem hashtags, sem emojis excessivos.`
+    : `Gere um texto curto (máximo 2 linhas) para um Story de Instagram de um fotógrafo profissional.
 Sessão: ${tipo_evento || 'ensaio'}
 Cliente: ${cliente_nome || ''}
 Estilo visual: ${estilo}
 
 Responda APENAS com o texto do overlay (1-2 linhas curtas). Sem hashtags, sem emojis excessivos.`;
 
-  const body = JSON.stringify({
-    anthropic_version: 'bedrock-2023-05-31',
-    max_tokens: 100,
-    messages: [{ role: 'user', content: prompt }],
+  const command = new ConverseCommand({
+    modelId: MODEL_ID,
+    messages: [{ role: 'user', content: [{ text: promptBase }] }],
+    inferenceConfig: { maxTokens: 100, temperature: 0.7, topP: 0.9 },
   });
 
-  const response = await bedrock.send(new InvokeModelCommand({
-    modelId: MODEL_ID,
-    contentType: 'application/json',
-    accept: 'application/json',
-    body,
-  }));
-
-  const result = JSON.parse(new TextDecoder().decode(response.body));
-  return result.content[0].text;
+  const response = await bedrock.send(command);
+  return response.output.message.content[0].text.trim();
 }
 
 module.exports = { gerarCaption, gerarTextoStory };

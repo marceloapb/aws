@@ -232,4 +232,137 @@ router.post('/renew-token', async (req, res) => {
   }
 });
 
+// ===================== STORIES =====================
+
+// GET /api/admin/instagram/stories/templates
+router.get('/stories/templates', async (req, res) => {
+  try {
+    const result = await dynamo.send(new QueryCommand({
+      TableName: TABLE,
+      KeyConditionExpression: 'PK = :pk AND begins_with(SK, :sk)',
+      ExpressionAttributeValues: { ':pk': 'STORY_TEMPLATE', ':sk': 'TPL#' },
+    }));
+    res.json(result.Items || []);
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// POST /api/admin/instagram/stories/templates
+router.post('/stories/templates', async (req, res) => {
+  try {
+    const { nome, prompt_base, estilo_visual, overlay_position } = req.body;
+    if (!nome || !prompt_base) return res.status(400).json({ success: false, message: 'Nome e prompt_base são obrigatórios' });
+
+    const id = crypto.randomUUID();
+    const item = {
+      PK: 'STORY_TEMPLATE', SK: `TPL#${id}`,
+      id, nome, prompt_base, estilo_visual: estilo_visual || 'minimalista', overlay_position: overlay_position || 'bottom',
+      created_at: new Date().toISOString(),
+    };
+    await dynamo.send(new PutCommand({ TableName: TABLE, Item: item }));
+    res.status(201).json(item);
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// PUT /api/admin/instagram/stories/templates/:id
+router.put('/stories/templates/:id', async (req, res) => {
+  try {
+    const { nome, prompt_base, estilo_visual, overlay_position } = req.body;
+    await dynamo.send(new UpdateCommand({
+      TableName: TABLE,
+      Key: { PK: 'STORY_TEMPLATE', SK: `TPL#${req.params.id}` },
+      UpdateExpression: 'SET nome = :n, prompt_base = :p, estilo_visual = :e, overlay_position = :o, updated_at = :u',
+      ExpressionAttributeValues: {
+        ':n': nome, ':p': prompt_base, ':e': estilo_visual || 'minimalista',
+        ':o': overlay_position || 'bottom', ':u': new Date().toISOString(),
+      },
+    }));
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// DELETE /api/admin/instagram/stories/templates/:id
+router.delete('/stories/templates/:id', async (req, res) => {
+  try {
+    await dynamo.send(new DeleteCommand({
+      TableName: TABLE,
+      Key: { PK: 'STORY_TEMPLATE', SK: `TPL#${req.params.id}` },
+    }));
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// POST /api/admin/instagram/stories/template — Gerar story com IA usando template
+router.post('/stories/template', async (req, res) => {
+  try {
+    const { gerarTextoStory } = require('../services/aiService');
+    const { template_id, foto_url } = req.body;
+
+    if (!template_id) return res.status(400).json({ success: false, message: 'template_id é obrigatório' });
+
+    // Buscar template
+    const tplResult = await dynamo.send(new QueryCommand({
+      TableName: TABLE,
+      KeyConditionExpression: 'PK = :pk AND SK = :sk',
+      ExpressionAttributeValues: { ':pk': 'STORY_TEMPLATE', ':sk': `TPL#${template_id}` },
+    }));
+    const template = tplResult.Items?.[0];
+    if (!template) return res.status(404).json({ success: false, message: 'Template não encontrado' });
+
+    // Gerar texto via IA
+    const texto = await gerarTextoStory({
+      tipo_evento: template.prompt_base,
+      estilo: template.estilo_visual,
+    });
+
+    // Registrar uso para controle de custo
+    await dynamo.send(new PutCommand({
+      TableName: TABLE,
+      Item: {
+        PK: 'STORY_IA_LOG', SK: `LOG#${Date.now()}`,
+        tipo: 'template', template_id, texto, foto_url: foto_url || null,
+        created_at: new Date().toISOString(),
+      },
+    }));
+
+    res.json({ success: true, texto, preview_url: foto_url || null, template: template.nome });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// POST /api/admin/instagram/stories/ia-livre — Gerar story com IA livre (prompt customizado)
+router.post('/stories/ia-livre', async (req, res) => {
+  try {
+    const { gerarTextoStory } = require('../services/aiService');
+    const { prompt, foto_url } = req.body;
+
+    if (!prompt || !prompt.trim()) return res.status(400).json({ success: false, message: 'Prompt é obrigatório' });
+
+    // Gerar texto via IA com prompt livre
+    const texto = await gerarTextoStory({ prompt_livre: prompt });
+
+    // Registrar uso para controle de custo
+    await dynamo.send(new PutCommand({
+      TableName: TABLE,
+      Item: {
+        PK: 'STORY_IA_LOG', SK: `LOG#${Date.now()}`,
+        tipo: 'ia_livre', prompt, texto, foto_url: foto_url || null,
+        created_at: new Date().toISOString(),
+      },
+    }));
+
+    res.json({ success: true, texto, preview_url: foto_url || null });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
 module.exports = router;
