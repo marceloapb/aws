@@ -89,6 +89,21 @@ router.post('/desconectar', async (req, res) => {
   }
 });
 
+// POST /api/admin/google-calendar/revoke (alias para desconectar - usado pelo frontend)
+router.post('/revoke', async (req, res) => {
+  try {
+    await dynamo.send(new UpdateCommand({
+      TableName: TABLE,
+      Key: { PK: GC_PK, SK: GC_SK },
+      UpdateExpression: 'SET connected = :c, access_token = :a, refresh_token = :r, sync_token = :s',
+      ExpressionAttributeValues: { ':c': false, ':a': '', ':r': '', ':s': '' },
+    }));
+    res.json({ success: true, message: 'Google Calendar desconectado' });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
 // GET /api/admin/google-calendar/logs
 router.get('/logs', async (req, res) => {
   try {

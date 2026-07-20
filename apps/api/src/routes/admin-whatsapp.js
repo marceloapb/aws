@@ -83,4 +83,78 @@ router.post('/notificar-album', async (req, res) => {
   }
 });
 
+// GET /api/admin/whatsapp/config - Status da configuração do WhatsApp
+router.get('/config', async (req, res) => {
+  try {
+    const { loadParams } = require('../config/env');
+    const params = await loadParams();
+    const connected = !!(params.WHATSAPP_ACCESS_TOKEN && params.WHATSAPP_PHONE_NUMBER_ID);
+
+    let phoneNumber = '';
+    let verifyToken = params.WHATSAPP_VERIFY_TOKEN || '';
+
+    if (connected) {
+      try {
+        const response = await fetch(
+          `https://graph.facebook.com/v18.0/${params.WHATSAPP_PHONE_NUMBER_ID}?access_token=${params.WHATSAPP_ACCESS_TOKEN}`,
+          { signal: AbortSignal.timeout(10000) }
+        );
+        if (response.ok) {
+          const data = await response.json();
+          phoneNumber = data.display_phone_number || '';
+        }
+      } catch {}
+    }
+
+    res.json({
+      success: true,
+      data: {
+        connected,
+        status: connected ? 'connected' : 'disconnected',
+        phoneNumber,
+        phoneNumberId: params.WHATSAPP_PHONE_NUMBER_ID || '',
+        verifyToken,
+      },
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// POST /api/admin/whatsapp/reconnect - Reconectar/verificar conexão WhatsApp
+router.post('/reconnect', async (req, res) => {
+  try {
+    const { loadParams } = require('../config/env');
+    const params = await loadParams();
+
+    if (!params.WHATSAPP_ACCESS_TOKEN || !params.WHATSAPP_PHONE_NUMBER_ID) {
+      return res.json({ success: false, message: 'Token ou Phone Number ID não configurados.' });
+    }
+
+    const response = await fetch(
+      `https://graph.facebook.com/v18.0/${params.WHATSAPP_PHONE_NUMBER_ID}?access_token=${params.WHATSAPP_ACCESS_TOKEN}`,
+      { signal: AbortSignal.timeout(10000) }
+    );
+    const data = await response.json();
+
+    if (response.ok && data.id) {
+      res.json({
+        success: true,
+        message: 'Reconectado com sucesso',
+        data: {
+          connected: true,
+          status: 'connected',
+          phoneNumber: data.display_phone_number || '',
+          qualityRating: data.quality_rating || '',
+        },
+      });
+    } else {
+      const errorMsg = data.error?.message || 'Erro desconhecido';
+      res.json({ success: false, message: `Falha ao reconectar: ${errorMsg}` });
+    }
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
 module.exports = router;
