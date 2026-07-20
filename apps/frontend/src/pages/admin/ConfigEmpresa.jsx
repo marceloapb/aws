@@ -38,6 +38,14 @@ export default function ConfigEmpresa() {
             if (logoJson.success) data.logoUrl = logoJson.data.url;
           } catch {}
         }
+        // Se tem logoDarkKey, buscar presigned URL para exibição
+        if (data.logoDarkKey) {
+          try {
+            const logoDarkRes = await authFetch('/admin/fotos/view-url', { method: 'POST', body: JSON.stringify({ key: data.logoDarkKey }) });
+            const logoDarkJson = await logoDarkRes.json();
+            if (logoDarkJson.success) data.logoDarkUrl = logoDarkJson.data.url;
+          } catch {}
+        }
         setForm(data);
       }
     } catch {}
@@ -86,6 +94,30 @@ export default function ConfigEmpresa() {
     input.click();
   };
 
+  const handleUploadLogoDark = async () => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+    input.onchange = async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      try {
+        const res = await authFetch('/admin/fotos/upload-url', {
+          method: 'POST',
+          body: JSON.stringify({ albumId: 'logos-dark', contentType: file.type }),
+        });
+        const json = await res.json();
+        if (json.success && json.data?.uploadUrl) {
+          await fetch(json.data.uploadUrl, { method: 'PUT', body: file, headers: { 'Content-Type': file.type } });
+          setForm({ ...form, logoDarkKey: json.data.key, logoDarkUrl: json.data.uploadUrl.split('?')[0] });
+        }
+      } catch (err) {
+        console.error('Upload logo dark failed:', err);
+      }
+    };
+    input.click();
+  };
+
   if (loading) return <div className="flex items-center justify-center py-20 text-gray-400">Carregando...</div>;
 
   return (
@@ -124,7 +156,7 @@ export default function ConfigEmpresa() {
 
       {/* Content */}
       <div className="bg-white rounded-xl border border-gray-200 p-6">
-        {tab === 'empresa' && <ConfigDadosEmpresa form={form} setForm={setForm} onUploadLogo={handleUploadLogo} />}
+        {tab === 'empresa' && <ConfigDadosEmpresa form={form} setForm={setForm} onUploadLogo={handleUploadLogo} onUploadLogoDark={handleUploadLogoDark} />}
         {tab === 'prazos' && <ConfigPrazos form={form} setForm={setForm} />}
         {tab === 'backup' && <ConfigBackup form={form} setForm={setForm} />}
       </div>
