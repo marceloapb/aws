@@ -36,6 +36,9 @@ const adminMediaRoutes = require('./routes/admin-media');
 const adminGaleriasRoutes = require('./routes/admin-galerias');
 const adminAlbumComentariosRoutes = require('./routes/admin-album-comentarios');
 const adminAlbumStatsRoutes = require('./routes/admin-album-stats');
+const adminAlbumConfigRoutes = require('./routes/admin-album-config');
+const adminAlbumTemaRoutes = require('./routes/admin-album-tema');
+const adminFotoMetaRoutes = require('./routes/admin-foto-meta');
 
 // Rotas Client
 const clientAuthRoutes = require('./routes/client-auth');
@@ -52,11 +55,13 @@ const clientDownloadRoutes = require('./routes/client-download');
 const clientComentariosRoutes = require('./routes/client-comentarios');
 const clientTrackingRoutes = require('./routes/client-tracking');
 const clientProrrogacaoRoutes = require('./routes/client-prorrogacao');
+const clientExtensaoRoutes = require('./routes/client-extensao');
 
 // Rotas Públicas (sem auth)
 const publicRoutes = require('./routes/public');
 const publicNovidadesRoutes = require('./routes/public-novidades');
 const publicSiteRoutes = require('./routes/public-site');
+const publicAlbumTemaRoutes = require('./routes/public-album-tema');
 
 // Rotas Webhook
 const webhooksRoutes = require('./routes/webhooks');
@@ -87,6 +92,9 @@ app.use('/admin/agenda', adminAuth, adminAgendaRoutes);
 app.use('/admin/albuns/:albumId/galerias', adminAuth, adminGaleriasRoutes);
 app.use('/admin/albuns/:albumId/comentarios', adminAuth, adminAlbumComentariosRoutes);
 app.use('/admin/albuns/:albumId/estatisticas', adminAuth, adminAlbumStatsRoutes);
+app.use('/admin/albuns/:albumId/tema', adminAuth, adminAlbumTemaRoutes);
+app.use('/admin/album/config', adminAuth, adminAlbumConfigRoutes);
+app.use('/admin/album/galeria/:galeriaId/foto/:fotoId', adminAuth, adminFotoMetaRoutes);
 app.use('/admin/albuns', adminAuth, adminAlbunsRoutes);
 app.use('/admin/clientes', adminAuth, adminClientesRoutes);
 app.use('/admin/cobrancas', adminAuth, adminCobrancasRoutes);
@@ -116,6 +124,7 @@ app.use('/admin/media', adminAuth, adminMediaRoutes);
 // Registrar rotas Client (protegidas por clientAuth)
 app.use('/client/auth', clientAuthRoutes);
 app.use('/client/albuns/prorrogacao', clientAuth, clientProrrogacaoRoutes);
+app.use('/client/album/:albumId/extensao', clientAuth, clientExtensaoRoutes);
 app.use('/client/albuns', clientAuth, clientAlbunsRoutes);
 app.use('/client/albuns/:slug/selecao', clientAuth, clientSelecaoRoutes);
 app.use('/client/albuns/:slug/download', clientAuth, clientDownloadRoutes);
@@ -134,6 +143,7 @@ app.use('/client/portal', clientAuth, clientPortalRoutes);
 app.use('/client/media', clientAuth, clientMediaRoutes);
 
 // Rotas Públicas (site institucional, sem auth)
+app.use('/public/album/:slug/tema', publicAlbumTemaRoutes);
 app.use('/public', publicRoutes);
 app.use('/public/novidades', publicNovidadesRoutes);
 app.use('/public/site', publicSiteRoutes);
