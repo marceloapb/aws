@@ -186,4 +186,50 @@ router.delete('/:id', async (req, res) => {
   }
 });
 
+// POST /api/admin/instagram/renew-token - Renovar token de longa duração
+router.post('/renew-token', async (req, res) => {
+  try {
+    const { loadParams, clearParamsCache } = require('../config/env');
+    const params = await loadParams();
+
+    if (!params.INSTAGRAM_ACCESS_TOKEN) {
+      return res.json({ success: false, message: 'Access Token não configurado.' });
+    }
+
+    // Exchange for long-lived token via Meta Graph API
+    const response = await fetch(
+      `https://graph.facebook.com/v18.0/oauth/access_token?grant_type=fb_exchange_token&client_id=${params.INSTAGRAM_APP_ID || params.FACEBOOK_APP_ID}&client_secret=${params.INSTAGRAM_APP_SECRET || params.FACEBOOK_APP_SECRET}&fb_exchange_token=${params.INSTAGRAM_ACCESS_TOKEN}`,
+      { signal: AbortSignal.timeout(15000) }
+    );
+    const data = await response.json();
+
+    if (response.ok && data.access_token) {
+      // Update the token in SSM
+      const { SSMClient, PutParameterCommand } = require('@aws-sdk/client-ssm');
+      const ssm = new SSMClient({ region: 'us-east-1' });
+      const prefix = process.env.SSM_PREFIX || `/mbf/${process.env.STAGE || 'prod'}`;
+
+      await ssm.send(new PutParameterCommand({
+        Name: `${prefix}/INSTAGRAM_ACCESS_TOKEN`,
+        Value: data.access_token,
+        Type: 'SecureString',
+        Overwrite: true,
+      }));
+
+      // Clear cached params to force reload on next request
+      clearParamsCache();
+
+      res.json({
+        success: true,
+        message: `Token renovado com sucesso. Expira em ${data.expires_in ? Math.round(data.expires_in / 86400) + ' dias' : '60 dias'}.`,
+      });
+    } else {
+      const errorMsg = data.error?.message || 'Erro ao renovar token';
+      res.json({ success: false, message: `Falha: ${errorMsg}` });
+    }
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
 module.exports = router;

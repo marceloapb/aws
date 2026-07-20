@@ -23,6 +23,10 @@ async function loadParams() {
   return cachedParams;
 }
 
+function clearParamsCache() {
+  cachedParams = null;
+}
+
 // Compatibilidade: valores não-sensíveis ainda disponíveis de process.env
 const env = {
   PORT: process.env.PORT || 3000,
@@ -49,4 +53,4 @@ async function initFeatures() {
   features.email = !!p.SES_FROM_EMAIL;
 }
 
-module.exports = { loadParams, env, features, initFeatures };
+module.exports = { loadParams, clearParamsCache, env, features, initFeatures };
