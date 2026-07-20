@@ -1,0 +1,11 @@
+{
+  "name": "mbf-auth-functions",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "MBF Systems - Auth Lambda functions",
+  "dependencies": {
+    "@aws-sdk/client-cognito-identity-provider": "^3.600.0",
+    "@aws-sdk/client-dynamodb": "^3.600.0",
+    "@aws-sdk/lib-dynamodb": "^3.600.0"
+  }
+}
