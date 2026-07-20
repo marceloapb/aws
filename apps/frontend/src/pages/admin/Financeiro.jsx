@@ -7,7 +7,6 @@ import {
 import { useAuth } from '../../contexts/AuthContext';
 
 const ACCENT = '#EA580C';
-const API_BASE = '/admin';
 const TABS = ['Visão Geral', 'Cobranças', 'Despesas', 'Fluxo de Caixa', 'Rentabilidade'];
 const STATUS_TABS = ['Todas', 'Em aberto', 'Pagas', 'Atrasadas', 'Canceladas'];
 const MEIOS_PAGAMENTO = ['PIX', 'Boleto', 'Cartão', 'Dinheiro', 'Transferência'];
@@ -22,7 +21,7 @@ const diasAtraso = (venc) => {
 };
 
 export default function Financeiro() {
-  const { token } = useAuth();
+  const { authFetch } = useAuth();
   const [activeTab, setActiveTab] = useState(0);
   const [loading, setLoading] = useState(false);
   const [periodo, setPeriodo] = useState('Este mês');
@@ -56,64 +55,62 @@ export default function Financeiro() {
   const [categorias, setCategorias] = useState(CATEGORIAS_DESPESA.map((c, i) => ({ id: i + 1, nome: c, cor: ['#3B82F6', '#10B981', '#F59E0B', '#8B5CF6', '#EC4899', '#6366F1', '#14B8A6', '#6B7280'][i] })));
   const [novaCat, setNovaCat] = useState({ nome: '', cor: '#3B82F6' });
 
-  const headers = { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' };
-
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
       const params = periodo === 'Custom' ? `?periodo_inicio=${customRange.inicio}&periodo_fim=${customRange.fim}` : `?periodo=${periodo}`;
       if (activeTab === 0) {
-        const r = await fetch(`${API_BASE}/financeiro/resumo${params}`, { headers });
+        const r = await authFetch(`/admin/financeiro/resumo${params}`);
         if (r.ok) setResumo(await r.json());
       } else if (activeTab === 1) {
-        const r = await fetch(`${API_BASE}/cobrancas${params}`, { headers });
+        const r = await authFetch(`/admin/cobrancas${params}`);
         if (r.ok) setCobrancas(await r.json());
       } else if (activeTab === 2) {
-        const r = await fetch(`${API_BASE}/financeiro/despesas${params}`, { headers });
+        const r = await authFetch(`/admin/financeiro/despesas${params}`);
         if (r.ok) setDespesas(await r.json());
       } else if (activeTab === 3) {
         const p = periodo === 'Custom' ? `?periodo_inicio=${customRange.inicio}&periodo_fim=${customRange.fim}` : `?periodo_inicio=&periodo_fim=`;
-        const r = await fetch(`${API_BASE}/financeiro/fluxo-caixa${p}`, { headers });
+        const r = await authFetch(`/admin/financeiro/fluxo-caixa${p}`);
         if (r.ok) setFluxo(await r.json());
       } else if (activeTab === 4) {
-        const r = await fetch(`${API_BASE}/financeiro/rentabilidade${params}`, { headers });
+        const r = await authFetch(`/admin/financeiro/rentabilidade${params}`);
         if (r.ok) setRentabilidade(await r.json());
       }
     } catch (e) { console.error(e); }
     setLoading(false);
-  }, [activeTab, periodo, customRange, token]);
+  }, [activeTab, periodo, customRange]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
   const marcarPago = async () => {
     if (!modalPagar) return;
-    await fetch(`${API_BASE}/cobrancas/${modalPagar.id}/pagar`, { method: 'PUT', headers, body: JSON.stringify(formPagar) });
+    await authFetch(`/admin/cobrancas/${modalPagar.id}/pagar`, { method: 'PUT', body: JSON.stringify(formPagar) });
     setModalPagar(null);
     fetchData();
   };
 
   const cancelarCobranca = async (id) => {
     if (!confirm('Cancelar esta cobrança?')) return;
-    await fetch(`${API_BASE}/cobrancas/${id}/cancelar`, { method: 'PUT', headers });
+    await authFetch(`/admin/cobrancas/${id}/cancelar`, { method: 'PUT' });
     fetchData();
   };
 
   const criarCobranca = async () => {
-    await fetch(`${API_BASE}/cobrancas`, { method: 'POST', headers, body: JSON.stringify(formCobranca) });
+    await authFetch(`/admin/cobrancas`, { method: 'POST', body: JSON.stringify(formCobranca) });
     setModalNovaCobranca(false);
     setFormCobranca({ cliente_id: '', valor: '', vencimento: '', parcela: '1/1', meio: 'PIX' });
     fetchData();
   };
 
   const criarDespesa = async () => {
-    await fetch(`${API_BASE}/financeiro/despesas`, { method: 'POST', headers, body: JSON.stringify(formDespesa) });
+    await authFetch(`/admin/financeiro/despesas`, { method: 'POST', body: JSON.stringify(formDespesa) });
     setModalNovaDespesa(false);
     setFormDespesa({ descricao: '', valor: '', categoria: 'Outros', data: '', evento_id: '', recorrente: false });
     fetchData();
   };
 
   const criarEntrada = async () => {
-    await fetch(`${API_BASE}/financeiro/despesas`, { method: 'POST', headers, body: JSON.stringify({ ...formEntrada, categoria: 'receita_extra', tipo: 'entrada' }) });
+    await authFetch(`/admin/financeiro/despesas`, { method: 'POST', body: JSON.stringify({ ...formEntrada, categoria: 'receita_extra', tipo: 'entrada' }) });
     setModalEntrada(false);
     setFormEntrada({ descricao: '', valor: '', data: '' });
     fetchData();
@@ -121,12 +118,13 @@ export default function Financeiro() {
 
   const deletarDespesa = async (id) => {
     if (!confirm('Excluir esta despesa?')) return;
-    await fetch(`${API_BASE}/financeiro/despesas/${id}`, { method: 'DELETE', headers });
+    await authFetch(`/admin/financeiro/despesas/${id}`, { method: 'DELETE' });
     fetchData();
   };
 
   const exportar = (tipo) => {
-    window.open(`${API_BASE}/financeiro/exportar?tipo=${tipo}&periodo=${periodo}`, '_blank');
+    const apiUrl = process.env.REACT_APP_API_URL || 'https://2fbg55ru9j.execute-api.us-east-1.amazonaws.com/prod';
+    window.open(`${apiUrl}/admin/financeiro/exportar?tipo=${tipo}&periodo=${periodo}`, '_blank');
   };
 
   const cobrancasFiltradas = cobrancas.filter(c => {

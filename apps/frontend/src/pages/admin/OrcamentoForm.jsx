@@ -74,7 +74,7 @@ export default function OrcamentoForm() {
   const handleCadastroRapido = async () => {
     try {
       const res = await authFetch('/admin/clientes', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        method: 'POST',
         body: JSON.stringify(novoCliente),
       });
       const novo = await res.json();
@@ -114,7 +114,7 @@ export default function OrcamentoForm() {
     };
     try {
       await authFetch('/admin/orcamentos', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        method: 'POST',
         body: JSON.stringify(payload),
       });
       navigate('/admin/orcamentos');

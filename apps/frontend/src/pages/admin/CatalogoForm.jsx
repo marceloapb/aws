@@ -8,7 +8,7 @@ const ACCENT = '#EA580C';
 export default function CatalogoForm() {
   const navigate = useNavigate();
   const { id } = useParams();
-  const { token } = useAuth();
+  const { authFetch } = useAuth();
   const isEditing = !!id && id !== 'novo';
 
   const [categorias, setCategorias] = useState([]);
@@ -31,11 +31,9 @@ export default function CatalogoForm() {
 
   const [novaTag, setNovaTag] = useState('');
 
-  const headers = { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` };
-
   useEffect(() => {
     // Carregar categorias
-    fetch('/api/admin/catalogo?tipo=categorias', { headers })
+    authFetch('/admin/catalogo?tipo=categorias')
       .then(r => r.json())
       .then(d => { if (d.success) setCategorias(d.data || []); })
       .catch(console.error);
@@ -43,7 +41,7 @@ export default function CatalogoForm() {
     // Se editando, carregar item
     if (isEditing) {
       setLoading(true);
-      fetch(`/api/admin/catalogo/${id}`, { headers })
+      authFetch(`/admin/catalogo/${id}`)
         .then(r => r.json())
         .then(d => {
           if (d.success && d.data) {
@@ -108,9 +106,9 @@ export default function CatalogoForm() {
     }
 
     try {
-      const url = isEditing ? `/api/admin/catalogo/${id}` : '/api/admin/catalogo';
+      const url = isEditing ? `/admin/catalogo/${id}` : '/admin/catalogo';
       const method = isEditing ? 'PUT' : 'POST';
-      const res = await fetch(url, { method, headers, body: JSON.stringify(payload) });
+      const res = await authFetch(url, { method, body: JSON.stringify(payload) });
       const data = await res.json();
       if (data.success) {
         navigate('/admin/catalogo');

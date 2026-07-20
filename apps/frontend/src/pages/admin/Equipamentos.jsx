@@ -14,7 +14,7 @@ const DEFAULT_CATEGORIES = ['Câmeras','Lentes','Flash','Iluminação','Tripés'
 const EVENT_TYPES = ['Casamento','Ensaio','Corporativo','Aniversário','Formatura','Outros'];
 
 export default function Equipamentos() {
-  const { token } = useAuth();
+  const { authFetch } = useAuth();
   const [tab, setTab] = useState(0);
   const [equipamentos, setEquipamentos] = useState([]);
   const [categorias, setCategorias] = useState([]);
@@ -43,18 +43,16 @@ export default function Equipamentos() {
   const [conferencia, setConferencia] = useState(null);
   const [checked, setChecked] = useState({});
 
-  const headers = { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' };
-
   useEffect(() => { fetchAll(); }, []);
 
   async function fetchAll() {
     setLoading(true);
     try {
       const [eqRes, catRes, chkRes, evRes] = await Promise.all([
-        fetch('/admin/equipamentos', { headers }),
-        fetch('/admin/equipamentos/categorias', { headers }),
-        fetch('/admin/equipamentos/checklists', { headers }),
-        fetch('/admin/agenda', { headers }),
+        authFetch('/admin/equipamentos'),
+        authFetch('/admin/equipamentos/categorias'),
+        authFetch('/admin/equipamentos/checklists'),
+        authFetch('/admin/agenda'),
       ]);
       setEquipamentos(await eqRes.json().catch(() => []));
       setCategorias(await catRes.json().catch(() => DEFAULT_CATEGORIES.map((n, i) => ({ id: i+1, nome: n, cor: PRESET_COLORS[i] }))));
@@ -67,23 +65,23 @@ export default function Equipamentos() {
   async function saveEquip(data) {
     const method = data.id ? 'PUT' : 'POST';
     const url = data.id ? `/admin/equipamentos/${data.id}` : '/admin/equipamentos';
-    await fetch(url, { method, headers, body: JSON.stringify(data) });
+    await authFetch(url, { method, body: JSON.stringify(data) });
     setModalEquip(null); fetchAll();
   }
 
   async function deleteEquip(id) {
     if (!confirm('Excluir equipamento?')) return;
-    await fetch(`/admin/equipamentos/${id}`, { method: 'DELETE', headers });
+    await authFetch(`/admin/equipamentos/${id}`, { method: 'DELETE' });
     fetchAll();
   }
 
   async function togglePadrao(eq) {
-    await fetch(`/admin/equipamentos/${eq.id}`, { method: 'PUT', headers, body: JSON.stringify({ ...eq, padrao: !eq.padrao }) });
+    await authFetch(`/admin/equipamentos/${eq.id}`, { method: 'PUT', body: JSON.stringify({ ...eq, padrao: !eq.padrao }) });
     fetchAll();
   }
 
   async function toggleAtivo(eq) {
-    await fetch(`/admin/equipamentos/${eq.id}`, { method: 'PUT', headers, body: JSON.stringify({ ...eq, ativo: !eq.ativo }) });
+    await authFetch(`/admin/equipamentos/${eq.id}`, { method: 'PUT', body: JSON.stringify({ ...eq, ativo: !eq.ativo }) });
     fetchAll();
   }
 
@@ -147,12 +145,12 @@ export default function Equipamentos() {
   // Category helpers
   async function addCategory() {
     if (!newCatName.trim()) return;
-    await fetch('/admin/equipamentos/categorias', { method: 'POST', headers, body: JSON.stringify({ nome: newCatName, cor: newCatColor }) });
+    await authFetch('/admin/equipamentos/categorias', { method: 'POST', body: JSON.stringify({ nome: newCatName, cor: newCatColor }) });
     setNewCatName(''); fetchAll();
   }
 
   async function renameCategory(cat, nome) {
-    await fetch(`/admin/equipamentos/categorias/${cat.id}`, { method: 'PUT', headers, body: JSON.stringify({ ...cat, nome }) });
+    await authFetch(`/admin/equipamentos/categorias/${cat.id}`, { method: 'PUT', body: JSON.stringify({ ...cat, nome }) });
     setEditingCat(null); fetchAll();
   }
 
@@ -160,7 +158,7 @@ export default function Equipamentos() {
     const count = equipamentos.filter(e => e.categoria === cat.nome).length;
     if (count > 0) return alert('Não é possível excluir categoria com equipamentos vinculados.');
     if (!confirm('Excluir categoria?')) return;
-    await fetch(`/admin/equipamentos/categorias/${cat.id}`, { method: 'DELETE', headers });
+    await authFetch(`/admin/equipamentos/categorias/${cat.id}`, { method: 'DELETE' });
     fetchAll();
   }
 
@@ -168,13 +166,13 @@ export default function Equipamentos() {
   async function saveChecklist(data) {
     const method = data.id ? 'PUT' : 'POST';
     const url = data.id ? `/admin/equipamentos/checklists/${data.id}` : '/admin/equipamentos/checklists';
-    await fetch(url, { method, headers, body: JSON.stringify(data) });
+    await authFetch(url, { method, body: JSON.stringify(data) });
     setModalChecklist(null); fetchAll();
   }
 
   async function deleteChecklist(id) {
     if (!confirm('Excluir modelo de checklist?')) return;
-    await fetch(`/admin/equipamentos/checklists/${id}`, { method: 'DELETE', headers });
+    await authFetch(`/admin/equipamentos/checklists/${id}`, { method: 'DELETE' });
     fetchAll();
   }
 

@@ -16,7 +16,7 @@ const TIPO_BADGES = {
 
 export default function Catalogo() {
   const navigate = useNavigate();
-  const { token } = useAuth();
+  const { authFetch } = useAuth();
   const [abaAtiva, setAbaAtiva] = useState('itens');
 
   // Itens
@@ -38,15 +38,13 @@ export default function Catalogo() {
 
   const [loading, setLoading] = useState(true);
 
-  const headers = { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` };
-
   const fetchDados = async () => {
     setLoading(true);
     try {
       const [resItens, resPacotes, resCat] = await Promise.all([
-        fetch('/api/admin/catalogo?tipo=itens', { headers }),
-        fetch('/api/admin/catalogo?tipo=pacotes', { headers }),
-        fetch('/api/admin/catalogo?tipo=categorias', { headers }),
+        authFetch('/admin/catalogo?tipo=itens'),
+        authFetch('/admin/catalogo?tipo=pacotes'),
+        authFetch('/admin/catalogo?tipo=categorias'),
       ]);
       const dItens = await resItens.json();
       const dPacotes = await resPacotes.json();
@@ -82,51 +80,51 @@ export default function Catalogo() {
 
   // Ações Itens
   const toggleAtivoItem = async (item) => {
-    await fetch(`/api/admin/catalogo/${item.id}`, {
-      method: 'PUT', headers, body: JSON.stringify({ ativo: !item.ativo })
+    await authFetch(`/admin/catalogo/${item.id}`, {
+      method: 'PUT', body: JSON.stringify({ ativo: !item.ativo })
     });
     fetchDados();
   };
 
   const toggleExibirItem = async (item) => {
-    await fetch(`/api/admin/catalogo/${item.id}`, {
-      method: 'PUT', headers, body: JSON.stringify({ exibir_ao_cliente: !item.exibir_ao_cliente })
+    await authFetch(`/admin/catalogo/${item.id}`, {
+      method: 'PUT', body: JSON.stringify({ exibir_ao_cliente: !item.exibir_ao_cliente })
     });
     fetchDados();
   };
 
   const duplicarItem = async (item) => {
     const { id, ...rest } = item;
-    await fetch('/api/admin/catalogo', {
-      method: 'POST', headers, body: JSON.stringify({ ...rest, nome: `${rest.nome} (cópia)` })
+    await authFetch('/admin/catalogo', {
+      method: 'POST', body: JSON.stringify({ ...rest, nome: `${rest.nome} (cópia)` })
     });
     fetchDados();
   };
 
   // Ações Pacotes
   const toggleAtivoPacote = async (pacote) => {
-    await fetch(`/api/admin/catalogo/${pacote.id}?tipo=pacote`, {
-      method: 'PUT', headers, body: JSON.stringify({ ativo: !pacote.ativo })
+    await authFetch(`/admin/catalogo/${pacote.id}?tipo=pacote`, {
+      method: 'PUT', body: JSON.stringify({ ativo: !pacote.ativo })
     });
     fetchDados();
   };
 
   const duplicarPacote = async (pacote) => {
     const { id, ...rest } = pacote;
-    await fetch('/api/admin/catalogo?tipo=pacote', {
-      method: 'POST', headers, body: JSON.stringify({ ...rest, nome: `${rest.nome} (cópia)` })
+    await authFetch('/admin/catalogo?tipo=pacote', {
+      method: 'POST', body: JSON.stringify({ ...rest, nome: `${rest.nome} (cópia)` })
     });
     fetchDados();
   };
 
   const salvarPacote = async (dados) => {
     if (dados.id) {
-      await fetch(`/api/admin/catalogo/${dados.id}?tipo=pacote`, {
-        method: 'PUT', headers, body: JSON.stringify(dados)
+      await authFetch(`/admin/catalogo/${dados.id}?tipo=pacote`, {
+        method: 'PUT', body: JSON.stringify(dados)
       });
     } else {
-      await fetch('/api/admin/catalogo?tipo=pacote', {
-        method: 'POST', headers, body: JSON.stringify(dados)
+      await authFetch('/admin/catalogo?tipo=pacote', {
+        method: 'POST', body: JSON.stringify(dados)
       });
     }
     setModalPacote(null);
@@ -136,16 +134,16 @@ export default function Catalogo() {
   // Ações Categorias
   const criarCategoria = async () => {
     if (!novaCategoria.trim()) return;
-    await fetch('/api/admin/catalogo?tipo=categoria', {
-      method: 'POST', headers, body: JSON.stringify({ nome: novaCategoria, cor: novaCor })
+    await authFetch('/admin/catalogo?tipo=categoria', {
+      method: 'POST', body: JSON.stringify({ nome: novaCategoria, cor: novaCor })
     });
     setNovaCategoria('');
     fetchDados();
   };
 
   const renomearCategoria = async (cat, novoNome) => {
-    await fetch(`/api/admin/catalogo/${cat.id}?tipo=categoria`, {
-      method: 'PUT', headers, body: JSON.stringify({ nome: novoNome })
+    await authFetch(`/admin/catalogo/${cat.id}?tipo=categoria`, {
+      method: 'PUT', body: JSON.stringify({ nome: novoNome })
     });
     setEditandoCategoria(null);
     fetchDados();
@@ -154,7 +152,7 @@ export default function Catalogo() {
   const excluirCategoria = async (cat) => {
     const vinculados = itens.filter(i => i.categoria_id === cat.id).length;
     if (vinculados > 0) return alert('Não é possível excluir categoria com itens vinculados.');
-    await fetch(`/api/admin/catalogo/${cat.id}?tipo=categoria`, { method: 'DELETE', headers });
+    await authFetch(`/admin/catalogo/${cat.id}?tipo=categoria`, { method: 'DELETE' });
     fetchDados();
   };
 
