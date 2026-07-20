@@ -10,7 +10,7 @@ const DAYS = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'];
 
 const REQUIRED_FIELDS = ['businessName', 'tradeName', 'cnpj', 'phone', 'email'];
 
-export default function ConfigDadosEmpresa({ form, setForm, onUploadLogo }) {
+export default function ConfigDadosEmpresa({ form, setForm, onUploadLogo, onUploadLogoDark }) {
   const [touched, setTouched] = useState({});
 
   const handleChange = (e) => setForm({ ...form, [e.target.name]: e.target.value });
@@ -33,17 +33,35 @@ export default function ConfigDadosEmpresa({ form, setForm, onUploadLogo }) {
       <section>
         <SectionHeader icon={Building2} title="Identidade" description="Dados de identificação da empresa" required />
 
-        <div>
-          <FieldLabel>Logo da Empresa</FieldLabel>
-          <div className="flex items-center gap-4 mt-1">
-            {form.logoUrl ? (
-              <img src={form.logoUrl} alt="Logo" className="w-20 h-20 object-contain rounded-lg border" />
-            ) : (
-              <div className="w-20 h-20 bg-gray-100 rounded-lg border flex items-center justify-center text-gray-400 text-xs">Sem logo</div>
-            )}
-            <button type="button" onClick={onUploadLogo} className="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50">
-              Upload Logo
-            </button>
+        <div className="grid md:grid-cols-2 gap-6">
+          {/* Logo para fundo claro */}
+          <div>
+            <FieldLabel hint="Usado em fundos claros (ex: branco, cinza claro)">Logo — Fundo Claro</FieldLabel>
+            <div className="flex items-center gap-4 mt-1">
+              {form.logoUrl ? (
+                <img src={form.logoUrl} alt="Logo fundo claro" className="w-20 h-20 object-contain rounded-lg border bg-white" />
+              ) : (
+                <div className="w-20 h-20 bg-gray-100 rounded-lg border flex items-center justify-center text-gray-400 text-xs">Sem logo</div>
+              )}
+              <button type="button" onClick={onUploadLogo} className="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50">
+                Upload
+              </button>
+            </div>
+          </div>
+
+          {/* Logo para fundo escuro */}
+          <div>
+            <FieldLabel hint="Usado em fundos escuros (ex: preto, cinza escuro)">Logo — Fundo Escuro</FieldLabel>
+            <div className="flex items-center gap-4 mt-1">
+              {form.logoDarkUrl ? (
+                <img src={form.logoDarkUrl} alt="Logo fundo escuro" className="w-20 h-20 object-contain rounded-lg border bg-gray-800" />
+              ) : (
+                <div className="w-20 h-20 bg-gray-800 rounded-lg border border-gray-700 flex items-center justify-center text-gray-400 text-xs">Sem logo</div>
+              )}
+              <button type="button" onClick={onUploadLogoDark} className="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50">
+                Upload
+              </button>
+            </div>
           </div>
         </div>
 

@@ -153,7 +153,8 @@ router.get('/perfil/:photographerId', async (req, res) => {
         estado: profile.estado || '',
         instagram: profile.instagram || '',
         whatsapp: profile.whatsapp || '',
-        logoUrl: profile.logoUrl || null
+        logoUrl: profile.logoUrl || null,
+        logoDarkUrl: profile.logoDarkUrl || null
       }
     });
   } catch (error) {
