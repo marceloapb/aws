@@ -1,119 +1,70 @@
-name: Deploy API (SAM)
+name: Deploy MBFoto Platform
 
 on:
   push:
-    branches:
-      - main
-      - develop
-    paths:
-      - 'apps/api/**'
-      - '.github/workflows/deploy.yml'
-  workflow_dispatch:
-    inputs:
-      environment:
-        description: 'Environment to deploy'
-        required: true
-        default: 'prod'
-        type: choice
-        options:
-          - dev
-          - prod
+    branches: [main]
 
 env:
-  AWS_REGION: us-east-1
-  SAM_CLI_TELEMETRY: 0
+  AWS_REGION: sa-east-1
+  FRONTEND_BUCKET: mbf-prod-frontend
+  CLOUDFRONT_DISTRIBUTION: E38U3W8Y8P36VO
 
 jobs:
-  # ============ TESTES ============
-  test:
+  deploy-api:
+    name: Deploy API (SAM)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - uses: actions/setup-node@v4
         with:
-          node-version: '20'
-          cache: 'npm'
-          cache-dependency-path: apps/api/package-lock.json
+          node-version: 20
 
-      - name: Install dependencies
-        working-directory: apps/api
-        run: npm ci
+      - uses: aws-actions/setup-sam@v2
 
-      - name: Run tests
-        working-directory: apps/api
-        run: npm test -- --passWithNoTests
-
-  # ============ DEPLOY ============
-  deploy:
-    needs: test
-    runs-on: ubuntu-latest
-    environment: ${{ (github.ref == 'refs/heads/main' && 'prod') || 'dev' }}
-    permissions:
-      id-token: write
-      contents: read
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - uses: aws-actions/configure-aws-credentials@v4
         with:
-          node-version: '20'
-          cache: 'npm'
-          cache-dependency-path: apps/api/package-lock.json
-
-      - name: Install dependencies
-        working-directory: apps/api
-        run: npm ci
-
-      - name: Setup SAM CLI
-        uses: aws-actions/setup-sam@v2
-        with:
-          use-installer: true
-
-      - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
-
-      - name: Determine stage
-        id: stage
-        run: |
-          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
-            echo "STAGE=${{ inputs.environment }}" >> $GITHUB_OUTPUT
-          elif [ "${{ github.ref }}" == "refs/heads/main" ]; then
-            echo "STAGE=prod" >> $GITHUB_OUTPUT
-          else
-            echo "STAGE=dev" >> $GITHUB_OUTPUT
-          fi
 
       - name: SAM Build
         working-directory: apps/api
-        run: sam build --use-container
+        run: sam build
 
       - name: SAM Deploy
         working-directory: apps/api
-        run: |
-          sam deploy \
-            --stack-name mbf-${{ steps.stage.outputs.STAGE }}-api \
-            --parameter-overrides \
-              Stage=${{ steps.stage.outputs.STAGE }} \
-              CloudFrontDomain=${{ secrets.CLOUDFRONT_DOMAIN }} \
-              CloudFrontKeyPairId=${{ secrets.CLOUDFRONT_KEY_PAIR_ID }} \
-              FrontendUrl=${{ secrets.FRONTEND_URL }} \
-            --capabilities CAPABILITY_IAM \
-            --no-confirm-changeset \
-            --no-fail-on-empty-changeset \
-            --resolve-s3
+        run: sam deploy --no-confirm-changeset --no-fail-on-empty-changeset
 
-      - name: Output API URL
-        working-directory: apps/api
-        run: |
-          API_URL=$(sam list stack-outputs \
-            --stack-name mbf-${{ steps.stage.outputs.STAGE }}-api \
-            --output json | jq -r '.[] | select(.OutputKey=="ApiUrl") | .OutputValue')
-          echo "🚀 API deployed to: $API_URL"
-          echo "API_URL=$API_URL" >> $GITHUB_STEP_SUMMARY
+  deploy-frontend:
+    name: Deploy Frontend (S3 + CloudFront)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: apps/frontend/package-lock.json
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Install dependencies
+        working-directory: apps/frontend
+        run: npm ci
+
+      - name: Build
+        working-directory: apps/frontend
+        run: npx react-scripts build
+
+      - name: Sync to S3
+        working-directory: apps/frontend
+        run: aws s3 sync build s3://${{ env.FRONTEND_BUCKET }} --delete
+
+      - name: Invalidate CloudFront
+        run: aws cloudfront create-invalidation --distribution-id ${{ env.CLOUDFRONT_DISTRIBUTION }} --paths "/*"
