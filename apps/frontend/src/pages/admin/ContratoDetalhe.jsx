@@ -20,19 +20,17 @@ const TIMELINE_STEPS = ['gerado', 'enviado', 'visualizado', 'assinado'];
 export default function ContratoDetalhe() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { token } = useAuth();
+  const { authFetch } = useAuth();
   const [contrato, setContrato] = useState(null);
   const [loading, setLoading] = useState(true);
   const [copied, setCopied] = useState(false);
-
-  const headers = { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' };
 
   useEffect(() => { fetchContrato(); }, [id]);
 
   async function fetchContrato() {
     try {
       setLoading(true);
-      const res = await fetch(`/api/admin/contratos/${id}`, { headers });
+      const res = await authFetch(`/admin/contratos/${id}`);
       const data = await res.json();
       setContrato(data);
     } catch (err) {
@@ -43,12 +41,12 @@ export default function ContratoDetalhe() {
   }
 
   async function handleEnviar() {
-    await fetch(`/api/admin/contratos/${id}/enviar`, { method: 'POST', headers });
+    await authFetch(`/admin/contratos/${id}/enviar`, { method: 'POST' });
     fetchContrato();
   }
 
   async function handleDownloadPDF() {
-    const res = await fetch(`/api/admin/contratos/${id}/pdf`, { method: 'POST', headers });
+    const res = await authFetch(`/admin/contratos/${id}/pdf`, { method: 'POST' });
     const data = await res.json();
     if (data.url) window.open(data.url, '_blank');
   }

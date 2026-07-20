@@ -40,8 +40,6 @@ export default function AlbumDetalhe() {
   const [prorrogarData, setProrrogarData] = useState('');
   const [prorrogarValor, setProrrogarValor] = useState('');
 
-  const headers = { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' };
-
   const fetchAlbum = useCallback(async () => {
     try {
       const albumRes = await authFetch(`/admin/albuns/${id}`);
