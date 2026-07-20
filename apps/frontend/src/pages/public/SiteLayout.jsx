@@ -41,7 +41,8 @@ export default function SiteLayout() {
   }, [location.pathname]);
 
   const nome = config?.nome || 'MBFoto';
-  const logoUrl = config?.logo_url;
+  // Site tem fundo escuro — prioriza logo para fundo escuro, com fallback para o padrão
+  const logoUrl = config?.logo_dark_url || config?.logo_url;
   const redes = config?.redes || {};
 
   return (

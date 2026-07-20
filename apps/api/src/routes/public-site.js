@@ -25,10 +25,10 @@ router.get('/config', async (req, res) => {
     }
 
     // Retornar apenas campos públicos
-    const { nome, logo_url, redes, whatsapp_pessoal } = result.Item;
+    const { nome, logo_url, logo_dark_url, redes, whatsapp_pessoal } = result.Item;
 
     res.set('Cache-Control', 'public, max-age=300');
-    res.json({ success: true, data: { nome, logo_url, redes, whatsapp_pessoal } });
+    res.json({ success: true, data: { nome, logo_url, logo_dark_url, redes, whatsapp_pessoal } });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
