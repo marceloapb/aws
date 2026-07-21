@@ -16,6 +16,20 @@ export default function Cadastro() {
 
   const handleChange = (e) => setForm({ ...form, [e.target.name]: e.target.value });
 
+  const handlePhoneChange = (e) => {
+    let value = e.target.value.replace(/\D/g, ''); // só dígitos
+    if (value.length > 11) value = value.slice(0, 11); // máx 11 dígitos (DDD + 9 dígitos)
+    // Formatar: (XX) XXXXX-XXXX
+    if (value.length > 7) {
+      value = `(${value.slice(0, 2)}) ${value.slice(2, 7)}-${value.slice(7)}`;
+    } else if (value.length > 2) {
+      value = `(${value.slice(0, 2)}) ${value.slice(2)}`;
+    } else if (value.length > 0) {
+      value = `(${value}`;
+    }
+    setForm({ ...form, phone: value });
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
@@ -72,7 +86,8 @@ export default function Cadastro() {
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">WhatsApp</label>
-            <input name="phone" value={form.phone} onChange={handleChange} placeholder="(11) 99999-9999"
+            <input name="phone" value={form.phone} onChange={handlePhoneChange} placeholder="(11) 99999-9999"
+              inputMode="numeric" maxLength={15}
               className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-accent focus:border-transparent outline-none" />
           </div>
 
