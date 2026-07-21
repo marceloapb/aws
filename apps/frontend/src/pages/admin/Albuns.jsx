@@ -38,6 +38,7 @@ export default function Albuns() {
   const [editModal, setEditModal] = useState(null);
   const [clientes, setClientes] = useState([]);
   const [form, setForm] = useState({ titulo: '', cliente_id: '', tipo_evento: '', data_evento: '', data_expiracao: '' });
+  const [msg, setMsg] = useState('');
 
   useEffect(() => {
     authFetch('/admin/albuns').then(r => r.json()).then(json => {
@@ -129,6 +130,8 @@ export default function Albuns() {
       setAlbuns(prev => prev.map(a => a.id === editModal.id ? { ...a, ...form } : a));
       setEditModal(null);
       setForm({ titulo: '', cliente_id: '', tipo_evento: '', data_evento: '', data_expiracao: '' });
+      setMsg('Álbum salvo com sucesso!');
+      setTimeout(() => setMsg(''), 3000);
     }
   };
 
@@ -140,6 +143,7 @@ export default function Albuns() {
 
   return (
     <div className="space-y-6">
+      {msg && <div className="p-3 rounded-lg bg-green-50 border border-green-200 text-sm text-green-700">{msg}</div>}
       {/* Header */}
       <div className="flex items-center justify-between mb-6 flex-col sm:flex-row gap-3">
         <div className="flex items-center gap-3">
@@ -209,7 +213,11 @@ export default function Albuns() {
               <div key={album.id} className="bg-white rounded-xl border border-gray-200 overflow-hidden hover:shadow-lg transition-all group">
                 {/* Gradient header */}
                 <div className="h-32 bg-gradient-to-br from-orange-100 via-orange-50 to-amber-50 flex items-center justify-center relative">
-                  <Image size={36} className="text-orange-200" />
+                  {album.thumbnail_url ? (
+                    <img src={album.thumbnail_url} alt={album.titulo} className="w-full h-full object-cover" />
+                  ) : (
+                    <Image size={36} className="text-orange-200" />
+                  )}
                   <span className={`absolute top-3 right-3 px-2.5 py-0.5 rounded-full text-xs font-semibold ${BADGE_STYLES[album.status] || BADGE_STYLES.rascunho}`}>
                     {STATUS_LABELS[album.status] || album.status}
                   </span>

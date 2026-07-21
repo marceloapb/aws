@@ -69,11 +69,33 @@ const handler = async (event) => {
             .toBuffer();
         }
 
-        // TODO ALB-13: Apply watermark
-        // if (album.percentual_pago < 100) {
-        //   const watermarkBuffer = await s3.getObject(watermarkKey);
-        //   processed = await sharp(processed).composite([{ input: watermarkBuffer, gravity: 'southeast', blend: 'over' }]).toBuffer();
-        // }
+        // ALB-13: Apply watermark using company logo
+        try {
+          const { GetCommand } = require('@aws-sdk/lib-dynamodb');
+          const configResult = await ddb.send(new GetCommand({
+            TableName: TABLE,
+            Key: { PK: `TENANT#${tenant_id}`, SK: 'CONFIG#logoKey' },
+          }));
+          const logoKey = configResult.Item?.valor;
+          if (logoKey) {
+            const logoResult = await s3.send(new GetObjectCommand({ Bucket: BUCKET, Key: logoKey }));
+            const logoBuffer = Buffer.from(await logoResult.Body.transformToByteArray());
+            // Resize logo to 15% of image width with transparency
+            const logoResized = await sharp(logoBuffer)
+              .resize(Math.round((version.maxWidth || width) * 0.15), null, { fit: 'inside' })
+              .ensureAlpha()
+              .modulate({ brightness: 1 })
+              .composite([{ input: Buffer.from([255, 255, 255, 128]), raw: { width: 1, height: 1, channels: 4 }, tile: true, blend: 'dest-in' }])
+              .png()
+              .toBuffer();
+            processed = await sharp(processed)
+              .composite([{ input: logoResized, gravity: 'southeast', blend: 'over' }])
+              .webp({ quality: version.quality })
+              .toBuffer();
+          }
+        } catch (wmErr) {
+          console.warn(`[FOTO] Watermark skipped for ${foto_id}:`, wmErr.message);
+        }
 
         const key = `${basePath}-${version.name}.webp`;
         await s3.send(new PutObjectCommand({

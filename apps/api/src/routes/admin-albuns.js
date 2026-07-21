@@ -49,10 +49,33 @@ router.get('/', async (req, res) => {
     const start = (Number(page) - 1) * Number(limit);
     const data = items.slice(start, start + Number(limit));
 
-    // G4: Enriquecer com percentual_pago e pode_publicar
+    // G4: Enriquecer com percentual_pago, pode_publicar e thumbnail
+    const { S3Client, GetObjectCommand } = require('@aws-sdk/client-s3');
+    const { getSignedUrl } = require('@aws-sdk/s3-request-presigner');
+    const s3 = new S3Client({});
+    const bucket = process.env.S3_BUCKET_NAME;
+
     const dataEnriquecida = await Promise.all(data.map(async (album) => {
+      // Buscar primeira foto para thumbnail
+      let thumbnail_url = null;
+      try {
+        const fotosResult = await dynamo.send(new QueryCommand({
+          TableName: TABLE,
+          KeyConditionExpression: 'PK = :pk AND begins_with(SK, :sk)',
+          ExpressionAttributeValues: { ':pk': `ALBUM#${album.id}`, ':sk': 'FOTO#' },
+          Limit: 1,
+        }));
+        const primeiraFoto = fotosResult.Items?.[0];
+        if (primeiraFoto) {
+          const key = primeiraFoto.s3_key_thumb || primeiraFoto.s3_key_media || primeiraFoto.s3_key_original;
+          if (key) {
+            thumbnail_url = await getSignedUrl(s3, new GetObjectCommand({ Bucket: bucket, Key: key }), { expiresIn: 3600 });
+          }
+        }
+      } catch {}
+
       if (!album.orcamento_id) {
-        return { ...album, percentual_pago: null, pode_publicar: true };
+        return { ...album, percentual_pago: null, pode_publicar: true, thumbnail_url };
       }
       try {
         const cobrancasResult = await dynamo.send(new QueryCommand({
@@ -68,9 +91,9 @@ router.get('/', async (req, res) => {
           .filter(c => c.status === COBRANCA_STATUS.PAGO)
           .reduce((sum, c) => sum + (c.valor || 0), 0);
         const percentual_pago = totalValor > 0 ? Math.round((totalPago / totalValor) * 100) : 0;
-        return { ...album, percentual_pago, pode_publicar: percentual_pago >= 70 };
+        return { ...album, percentual_pago, pode_publicar: percentual_pago >= 70, thumbnail_url };
       } catch {
-        return { ...album, percentual_pago: null, pode_publicar: true };
+        return { ...album, percentual_pago: null, pode_publicar: true, thumbnail_url };
       }
     }));
 

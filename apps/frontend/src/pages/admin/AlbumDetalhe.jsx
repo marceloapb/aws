@@ -124,7 +124,10 @@ export default function AlbumDetalhe() {
     }
 
     setUploading(false);
-    fetchAlbum();
+    setUploadProgress(100);
+    // Pequeno delay para garantir consistência do S3
+    await new Promise(r => setTimeout(r, 1000));
+    await fetchAlbum();
   };
 
   // ALB-05 Galerias
@@ -377,6 +380,11 @@ export default function AlbumDetalhe() {
           <button onClick={async () => { try { const r = await authFetch(`/admin/albuns/${id}/tema`); const j = await r.json(); if (j.success) setTema(j.data); } catch {} setShowTema(true); }} className="flex items-center gap-1 px-3 py-2 rounded text-sm border border-gray-300 hover:bg-gray-100">
             <Palette size={15} /> Tema
           </button>
+          {album.slug && (
+            <a href={`/album/${album.slug}`} target="_blank" rel="noreferrer" className="flex items-center gap-1 px-3 py-2 rounded text-sm text-white hover:opacity-90" style={{ background: ACCENT }}>
+              <Eye size={15} /> Visualização do Cliente
+            </a>
+          )}
         </div>
 
         {/* Upload progress */}
