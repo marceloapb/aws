@@ -119,7 +119,7 @@ export default function AlbumDetalhe() {
     if (confirmList.length > 0) {
       await authFetch(`/admin/albuns/${id}/fotos/confirmar-batch`, {
         method: 'POST',
-        body: JSON.stringify({ fotos: confirmList }),
+        body: JSON.stringify({ fotos: confirmList, galeria_id: galeriaAtiva }),
       });
     }
 

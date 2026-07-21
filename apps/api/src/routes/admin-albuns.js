@@ -99,7 +99,24 @@ router.get('/:id', async (req, res) => {
     }));
     const fotos = (fotosResult.Items || []).sort((a, b) => (a.ordem || 0) - (b.ordem || 0));
 
-    res.json({ success: true, data: { ...album, fotos } });
+    // Gerar presigned URLs para exibição
+    const { S3Client, GetObjectCommand } = require('@aws-sdk/client-s3');
+    const { getSignedUrl } = require('@aws-sdk/s3-request-presigner');
+    const s3 = new S3Client({});
+    const bucket = process.env.S3_BUCKET_NAME;
+
+    const fotosComUrl = await Promise.all(fotos.map(async (foto) => {
+      const key = foto.s3_key_thumb || foto.s3_key_media || foto.s3_key_original;
+      if (!key) return foto;
+      try {
+        const url = await getSignedUrl(s3, new GetObjectCommand({ Bucket: bucket, Key: key }), { expiresIn: 3600 });
+        return { ...foto, url };
+      } catch {
+        return foto;
+      }
+    }));
+
+    res.json({ success: true, data: { ...album, fotos: fotosComUrl } });
   } catch (error) {
     res.status(404).json({ success: false, message: 'Álbum não encontrado' });
   }
@@ -356,7 +373,7 @@ router.post('/:id/upload-urls', async (req, res) => {
 // POST /api/admin/albuns/:id/fotos/confirmar-batch — Confirm multiple uploads
 router.post('/:id/fotos/confirmar-batch', async (req, res) => {
   try {
-    const { fotos } = req.body;
+    const { fotos, galeria_id } = req.body;
     const albumId = req.params.id;
     const tenant_id = req.tenantId || '1';
 
@@ -384,6 +401,7 @@ router.post('/:id/fotos/confirmar-batch', async (req, res) => {
         GSI1SK: `FOTO#${id}`,
         id,
         album_id: albumId,
+        galeria_id: galeria_id || null,
         tenant_id,
         s3_key: foto.key,
         s3_key_original: foto.key,
