@@ -2,6 +2,7 @@ import React, { useState, useCallback, useRef } from 'react';
 import { Upload, Download, Users, Calendar, Wrench, Package, CreditCard, CheckCircle, AlertTriangle, ChevronDown, ChevronUp, ArrowLeft, ArrowRight, RefreshCw, ExternalLink, Tag, Gift, FileSignature, ClipboardCheck, MessageSquare } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { validateCPF } from '../../utils/formatters';
+import { PageHeader } from '../../components/ui';
 
 const ACCENT = '#EA580C';
 
@@ -202,15 +203,12 @@ export default function ImportCSV() {
 
   // ═══ RENDER ═══
   return (
-    <div className="p-6 max-w-6xl mx-auto space-y-8">
-      <div className="flex items-center justify-between mb-6 flex-col sm:flex-row gap-3">
-        <div className="flex items-center gap-3">
-          <Upload size={24} style={{ color: '#EA580C' }} />
-          <h1 className="text-2xl font-bold text-gray-900">Importar / Exportar Dados</h1>
-        </div>
-        <div className="flex gap-2">
-        </div>
-      </div>
+    <div className="space-y-6">
+      <PageHeader
+        icon={Upload}
+        title="Importar / Exportar Dados"
+        subtitle="Importe dados via CSV ou exporte suas informações"
+      />
 
       {/* Wizard Steps Indicator */}
       <div className="flex items-center gap-2 text-sm mb-4">

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { FileText, RefreshCw, Trash2, CheckCircle, XCircle, ArrowLeft, Filter } from 'lucide-react';
+import { PageHeader } from '../../components/ui';
 
 const ACCENT = '#EA580C';
 
@@ -72,51 +73,53 @@ export default function IntegracoesLogs() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <button onClick={() => navigate('/admin/config')}
-            className="p-2 rounded-lg hover:bg-gray-100 transition-colors">
-            <ArrowLeft size={20} className="text-gray-600" />
-          </button>
-          <div>
-            <h1 className="text-xl font-semibold text-gray-900">Logs de Integrações</h1>
-            <p className="text-sm text-gray-500">Histórico de testes e eventos das integrações</p>
-          </div>
-        </div>
-        <div className="flex items-center gap-2">
-          <button onClick={loadLogs} disabled={loading}
-            className="inline-flex items-center gap-1.5 px-3 py-2 border border-gray-300 rounded-lg text-sm font-medium hover:bg-gray-50 disabled:opacity-50">
-            <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
-            Atualizar
-          </button>
-          <button onClick={handleClear} disabled={clearing || logs.length === 0}
-            className="inline-flex items-center gap-1.5 px-3 py-2 border border-red-300 text-red-600 rounded-lg text-sm font-medium hover:bg-red-50 disabled:opacity-50">
-            <Trash2 size={14} />
-            Limpar
-          </button>
-        </div>
-      </div>
+      <PageHeader
+        icon={FileText}
+        title="Logs de Integrações"
+        subtitle="Histórico de testes e eventos das integrações"
+        actions={
+          <>
+            <button onClick={() => navigate('/admin/config')}
+              className="inline-flex items-center gap-1.5 px-3 py-2 border border-gray-300 rounded-lg text-sm font-medium hover:bg-gray-50">
+              <ArrowLeft size={14} /> Voltar
+            </button>
+            <button onClick={loadLogs} disabled={loading}
+              className="inline-flex items-center gap-1.5 px-3 py-2 border border-gray-300 rounded-lg text-sm font-medium hover:bg-gray-50 disabled:opacity-50">
+              <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
+              Atualizar
+            </button>
+            <button onClick={handleClear} disabled={clearing || logs.length === 0}
+              className="inline-flex items-center gap-1.5 px-3 py-2 border border-red-300 text-red-600 rounded-lg text-sm font-medium hover:bg-red-50 disabled:opacity-50">
+              <Trash2 size={14} />
+              Limpar
+            </button>
+          </>
+        }
+      />
 
       {/* Filtros */}
-      <div className="flex items-center gap-2 flex-wrap">
-        <Filter size={14} className="text-gray-400" />
-        <div className="flex gap-1 bg-gray-100 rounded-lg p-1 flex-wrap">
+      <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+        <div className="flex border-b border-gray-200 overflow-x-auto">
           {[{ value: '', label: 'Todos' }, { value: 'whatsapp', label: 'WhatsApp' }, { value: 'instagram', label: 'Instagram' }, { value: 'google-calendar', label: 'Calendar' }, { value: 'email', label: 'E-mail' }, { value: 'maps', label: 'Maps' }, { value: 'nf', label: 'NF' }].map(f => (
             <button key={f.value} onClick={() => setFiltro(f.value)}
-              className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${filtro === f.value ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-700'}`}>
+              className={`px-4 py-3 text-sm font-medium whitespace-nowrap border-b-2 transition-colors ${filtro === f.value ? 'border-orange-600 text-orange-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
+              style={filtro === f.value ? { borderColor: ACCENT, color: ACCENT } : {}}>
               {f.label}
             </button>
           ))}
         </div>
-        <div className="flex gap-1 bg-gray-100 rounded-lg p-1">
-          {[{ value: '', label: 'Todos' }, { value: 'erro', label: '❌ Erros' }, { value: 'sucesso', label: '✅ Sucesso' }].map(f => (
-            <button key={f.value} onClick={() => setFiltroStatus(f.value)}
-              className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${filtroStatus === f.value ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-700'}`}>
-              {f.label}
-            </button>
-          ))}
+        <div className="flex items-center gap-2 ml-auto">
+          <div className="flex border-b border-gray-200">
+            {[{ value: '', label: 'Todos' }, { value: 'erro', label: 'Erros' }, { value: 'sucesso', label: 'Sucesso' }].map(f => (
+              <button key={f.value} onClick={() => setFiltroStatus(f.value)}
+                className={`px-3 py-2 text-xs font-medium whitespace-nowrap border-b-2 transition-colors ${filtroStatus === f.value ? 'border-orange-600 text-orange-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
+                style={filtroStatus === f.value ? { borderColor: ACCENT, color: ACCENT } : {}}>
+                {f.label}
+              </button>
+            ))}
+          </div>
+          <span className="text-xs text-gray-400">{filteredLogs.length} registro{filteredLogs.length !== 1 ? 's' : ''}</span>
         </div>
-        <span className="text-xs text-gray-400 ml-auto">{filteredLogs.length} registro{filteredLogs.length !== 1 ? 's' : ''}</span>
       </div>
 
       {/* Lista de logs */}

@@ -5,6 +5,7 @@ import {
   BarChart3, PieChart, Calendar, CreditCard, Loader2, Trash2, Edit2
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
+import { PageHeader } from '../../components/ui';
 
 const ACCENT = '#EA580C';
 const TABS = ['Visão Geral', 'Cobranças', 'Despesas', 'Fluxo de Caixa', 'Rentabilidade'];
@@ -143,29 +144,29 @@ export default function Financeiro() {
 
   // ─── RENDER ───────────────────────────────────────────────────────────────────
   return (
-    <div className="p-6 space-y-6">
+    <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between mb-6 flex-col sm:flex-row gap-3">
-        <div className="flex items-center gap-3">
-          <CreditCard size={24} style={{ color: '#EA580C' }} />
-          <h1 className="text-2xl font-bold text-gray-900">Financeiro</h1>
-        </div>
-        <div className="flex gap-2">
-          <button onClick={() => exportar('pdf')} className="flex items-center gap-1 px-3 py-2 border rounded-lg hover:bg-gray-50 text-sm">
-            <FileText size={16} /> Exportar PDF
-          </button>
-          <button onClick={() => exportar('csv')} className="flex items-center gap-1 px-3 py-2 border rounded-lg hover:bg-gray-50 text-sm">
-            <Download size={16} /> Exportar CSV
-          </button>
-        </div>
-      </div>
+      <PageHeader
+        icon={CreditCard}
+        title="Financeiro"
+        actions={
+          <>
+            <button onClick={() => exportar('pdf')} className="flex items-center gap-1 px-3 py-2 border rounded-lg hover:bg-gray-50 text-sm">
+              <FileText size={16} /> Exportar PDF
+            </button>
+            <button onClick={() => exportar('csv')} className="flex items-center gap-1 px-3 py-2 border rounded-lg hover:bg-gray-50 text-sm">
+              <Download size={16} /> Exportar CSV
+            </button>
+          </>
+        }
+      />
 
       {/* Tabs */}
-      <div className="flex gap-1 border-b">
+      <div className="flex border-b border-gray-200 overflow-x-auto">
         {TABS.map((tab, i) => (
           <button key={tab} onClick={() => setActiveTab(i)}
-            className={`px-4 py-2 text-sm font-medium rounded-t-lg transition-colors ${activeTab === i ? 'text-white' : 'text-gray-600 hover:bg-gray-100'}`}
-            style={activeTab === i ? { backgroundColor: ACCENT } : {}}>
+            className={`px-4 py-3 text-sm font-medium whitespace-nowrap border-b-2 transition-colors ${activeTab === i ? 'border-orange-600 text-orange-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
+            style={activeTab === i ? { borderColor: ACCENT, color: ACCENT } : {}}>
             {tab}
           </button>
         ))}
