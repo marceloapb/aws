@@ -10,7 +10,7 @@ const DAYS = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'];
 
 const REQUIRED_FIELDS = ['businessName', 'tradeName', 'cnpj', 'phone', 'email'];
 
-export default function ConfigDadosEmpresa({ form, setForm, onUploadLogo, onUploadLogoDark }) {
+export default function ConfigDadosEmpresa({ form, setForm, onUploadLogo, onUploadLogoDark, onUploadFavicon }) {
   const [touched, setTouched] = useState({});
 
   const handleChange = (e) => setForm({ ...form, [e.target.name]: e.target.value });
@@ -62,6 +62,26 @@ export default function ConfigDadosEmpresa({ form, setForm, onUploadLogo, onUplo
                 Upload
               </button>
             </div>
+          </div>
+        </div>
+
+        {/* Favicon */}
+        <div className="mt-6">
+          <FieldLabel hint="Ícone que aparece na aba do navegador (recomendado: PNG 32×32 ou ICO)">Favicon</FieldLabel>
+          <div className="flex items-center gap-4 mt-1">
+            {form.faviconUrl ? (
+              <img src={form.faviconUrl} alt="Favicon" className="w-10 h-10 object-contain rounded border bg-white" />
+            ) : (
+              <div className="w-10 h-10 bg-gray-100 rounded border flex items-center justify-center text-gray-400 text-[10px]">Sem</div>
+            )}
+            <button type="button" onClick={onUploadFavicon} className="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50">
+              Upload
+            </button>
+            {form.faviconKey && (
+              <button type="button" onClick={() => setForm({ ...form, faviconKey: '', faviconUrl: '' })} className="px-3 py-2 text-xs text-red-600 hover:text-red-800">
+                Remover
+              </button>
+            )}
           </div>
         </div>
 

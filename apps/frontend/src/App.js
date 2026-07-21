@@ -74,6 +74,22 @@ function ClienteGuard({ children }) {
 function App() {
   const { user } = useAuth();
 
+  // Dynamic favicon from admin config
+  React.useEffect(() => {
+    const API = process.env.REACT_APP_API_URL || '';
+    fetch(`${API}/public/site/config`)
+      .then(r => r.json())
+      .then(json => {
+        if (json.success && json.data?.favicon_url) {
+          const link = document.querySelector("link[rel~='icon']") || document.createElement('link');
+          link.rel = 'icon';
+          link.href = json.data.favicon_url;
+          document.head.appendChild(link);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
   return (
     <Routes>
       {/* Público - Site */}

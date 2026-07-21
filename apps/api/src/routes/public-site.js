@@ -15,20 +15,44 @@ const BASE_URL = 'https://www.mbfoto.com.br';
 
 router.get('/config', async (req, res) => {
   try {
-    const result = await dynamo.send(new GetCommand({
-      TableName: TABLE,
-      Key: { PK: TENANT, SK: 'CONFIG#SITE' },
-    }));
+    const [siteResult, faviconResult] = await Promise.all([
+      dynamo.send(new GetCommand({
+        TableName: TABLE,
+        Key: { PK: TENANT, SK: 'CONFIG#SITE' },
+      })),
+      // Try both TENANT patterns (CONFIG#faviconKey saved by admin)
+      dynamo.send(new GetCommand({
+        TableName: TABLE,
+        Key: { PK: TENANT, SK: 'CONFIG#faviconKey' },
+      })).catch(() => ({ Item: null })),
+    ]);
 
-    if (!result.Item) {
-      return res.json({ success: true, data: null });
+    // Fallback: also check TENANT#default if TENANT is different
+    let faviconKey = faviconResult.Item?.valor;
+    if (!faviconKey && TENANT !== 'TENANT#default') {
+      try {
+        const fallback = await dynamo.send(new GetCommand({
+          TableName: TABLE,
+          Key: { PK: 'TENANT#default', SK: 'CONFIG#faviconKey' },
+        }));
+        faviconKey = fallback.Item?.valor;
+      } catch {}
     }
 
-    // Retornar apenas campos públicos
-    const { nome, logo_url, logo_dark_url, redes, whatsapp_pessoal } = result.Item;
+    const data = {};
+    if (siteResult.Item) {
+      const { nome, logo_url, logo_dark_url, redes, whatsapp_pessoal } = siteResult.Item;
+      Object.assign(data, { nome, logo_url, logo_dark_url, redes, whatsapp_pessoal });
+    }
+
+    // Add favicon URL (public S3/CloudFront URL built from key)
+    if (faviconKey) {
+      const bucket = process.env.S3_BUCKET_NAME || 'mbf-backend-v3-fotos';
+      data.favicon_url = `https://${bucket}.s3.us-east-1.amazonaws.com/${faviconKey}`;
+    }
 
     res.set('Cache-Control', 'public, max-age=300');
-    res.json({ success: true, data: { nome, logo_url, logo_dark_url, redes, whatsapp_pessoal } });
+    res.json({ success: true, data: Object.keys(data).length > 0 ? data : null });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }

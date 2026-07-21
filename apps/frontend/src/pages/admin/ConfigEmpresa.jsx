@@ -71,6 +71,13 @@ export default function ConfigEmpresa() {
             if (logoDarkJson.success) data.logoDarkUrl = logoDarkJson.data.url;
           } catch {}
         }
+        if (data.faviconKey) {
+          try {
+            const faviconRes = await authFetch('/admin/fotos/view-url', { method: 'POST', body: JSON.stringify({ key: data.faviconKey }) });
+            const faviconJson = await faviconRes.json();
+            if (faviconJson.success) data.faviconUrl = faviconJson.data.url;
+          } catch {}
+        }
         setForm(data);
       }
     } catch {}
@@ -148,6 +155,33 @@ export default function ConfigEmpresa() {
     input.click();
   };
 
+  const handleUploadFavicon = async () => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/png,image/x-icon,image/svg+xml,image/ico';
+    input.onchange = async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      try {
+        const res = await authFetch('/admin/fotos/upload-url', {
+          method: 'POST',
+          body: JSON.stringify({ albumId: 'favicon', contentType: file.type }),
+        });
+        const json = await res.json();
+        if (json.success && json.data?.uploadUrl) {
+          await fetch(json.data.uploadUrl, { method: 'PUT', body: file, headers: { 'Content-Type': file.type } });
+          const viewRes = await authFetch('/admin/fotos/view-url', { method: 'POST', body: JSON.stringify({ key: json.data.key }) });
+          const viewJson = await viewRes.json();
+          const faviconUrl = viewJson.success ? viewJson.data.url : '';
+          setForm({ ...form, faviconKey: json.data.key, faviconUrl });
+        }
+      } catch (err) {
+        console.error('Upload favicon failed:', err);
+      }
+    };
+    input.click();
+  };
+
   if (loading) return <div className="flex items-center justify-center py-20 text-gray-400">Carregando...</div>;
 
   return (
@@ -201,7 +235,7 @@ export default function ConfigEmpresa() {
             ))}
           </div>
           <div className="bg-white rounded-xl border border-gray-200 p-6">
-            {subTab === 'dados' && <ConfigDadosEmpresa form={form} setForm={setForm} onUploadLogo={handleUploadLogo} onUploadLogoDark={handleUploadLogoDark} />}
+            {subTab === 'dados' && <ConfigDadosEmpresa form={form} setForm={setForm} onUploadLogo={handleUploadLogo} onUploadLogoDark={handleUploadLogoDark} onUploadFavicon={handleUploadFavicon} />}
             {subTab === 'prazos' && <ConfigPrazos form={form} setForm={setForm} />}
             {subTab === 'backup' && <ConfigBackup form={form} setForm={setForm} />}
           </div>
