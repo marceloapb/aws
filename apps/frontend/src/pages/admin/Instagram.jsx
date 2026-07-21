@@ -158,7 +158,9 @@ export default function Instagram() {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ prompt: storyPrompt, foto_url: storyFoto }),
       });
-      setStoryPreview(res.preview_url || res);
+      if (res.success) {
+        setStoryPreview({ preview_url: res.preview_url || storyFoto, texto: res.texto });
+      }
     } catch {}
     setStoryPublishing(false);
   };
@@ -523,9 +525,20 @@ export default function Instagram() {
             {/* Right: Preview */}
             <div className="border rounded-xl p-4 bg-gray-50">
               <h3 className="text-sm font-semibold text-gray-700 mb-3">Preview do Story</h3>
-              <div className="bg-black rounded-2xl max-w-[240px] mx-auto h-[420px] flex items-center justify-center overflow-hidden">
+              <div className="bg-black rounded-2xl max-w-[240px] mx-auto h-[420px] flex items-center justify-center overflow-hidden relative">
                 {storyPreview ? (
-                  <img src={typeof storyPreview === 'string' ? storyPreview : storyPreview.preview_url} alt="Story" className="w-full h-full object-cover" />
+                  <>
+                    {(typeof storyPreview === 'string' ? storyPreview : storyPreview.preview_url) ? (
+                      <img src={typeof storyPreview === 'string' ? storyPreview : storyPreview.preview_url} alt="Story" className="w-full h-full object-cover" />
+                    ) : (
+                      <div className="w-full h-full bg-gradient-to-b from-gray-800 to-gray-900" />
+                    )}
+                    {storyPreview.texto && (
+                      <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/80 to-transparent">
+                        <p className="text-white text-sm font-medium text-center">{storyPreview.texto}</p>
+                      </div>
+                    )}
+                  </>
                 ) : (
                   <p className="text-gray-500 text-sm">Preview aparecerá aqui</p>
                 )}

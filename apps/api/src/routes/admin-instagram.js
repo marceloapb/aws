@@ -359,7 +359,7 @@ router.post('/stories/ia-livre', async (req, res) => {
       },
     }));
 
-    res.json({ success: true, texto, preview_url: foto_url || null });
+    res.json({ success: true, texto, preview_url: foto_url || null, type: 'text_overlay' });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
