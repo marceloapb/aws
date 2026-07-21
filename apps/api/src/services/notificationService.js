@@ -39,9 +39,9 @@ async function notificar({
         TableName: TABLE,
         Item: {
           PK: `TENANT#${destinatario_id || 'default'}`,
-          SK: `NOTIF#${notifId}`,
-          GSI1PK: `NOTIF#${destinatario_id || 'default'}`,
-          GSI1SK: `NOTIF#${now}`,
+          SK: `NTF#${notifId}`,
+          GSI1PK: `TENANT#${destinatario_id || 'default'}`,
+          GSI1SK: `NTF#${now}#${notifId}`,
           id: notifId,
           tipo,
           titulo,

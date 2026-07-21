@@ -1,8 +1,10 @@
 const { Router } = require('express');
 const { dynamo, TABLE } = require('../config/dynamodb');
-const { QueryCommand, UpdateCommand, PutCommand } = require('@aws-sdk/lib-dynamodb');
+const { QueryCommand, UpdateCommand, PutCommand, GetCommand } = require('@aws-sdk/lib-dynamodb');
+const { notificarNovoOrcamento } = require('../services/notificationService');
 
 const router = Router();
+const TENANT = process.env.TENANT_ID || 'default';
 
 router.get('/', async (req, res) => {
   try {
@@ -127,6 +129,27 @@ router.post('/', async (req, res) => {
     };
 
     await dynamo.send(new PutCommand({ TableName: TABLE, Item: item }));
+
+    // Notificar admin sobre novo orçamento
+    try {
+      const configResult = await dynamo.send(new QueryCommand({
+        TableName: TABLE,
+        KeyConditionExpression: 'PK = :pk AND begins_with(SK, :sk)',
+        ExpressionAttributeValues: { ':pk': `TENANT#${TENANT}`, ':sk': 'CONFIG#' },
+      }));
+      const config = {};
+      for (const c of (configResult.Items || [])) {
+        config[c.chave] = c.valor;
+      }
+      const adminEmail = config.email || null;
+      const adminWhatsapp = config.phone || config.whatsappBusiness || null;
+      const clienteNome = nome_completo || email || 'Cliente';
+      await notificarNovoOrcamento(adminEmail, adminWhatsapp, TENANT, clienteNome, nome_evento.trim());
+    } catch (notifErr) {
+      // Notificação falhou mas orçamento já foi salvo - não bloquear
+      console.error('Erro ao notificar:', notifErr.message);
+    }
+
     res.status(201).json({ success: true, data: item });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
