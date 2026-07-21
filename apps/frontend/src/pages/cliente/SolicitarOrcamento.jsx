@@ -92,11 +92,12 @@ export default function SolicitarOrcamento() {
 
   // CEP auto-fill
   const handleCepChange = async (valor) => {
-    updateField('cep', valor);
-    const limpo = valor.replace(/\D/g, '');
-    if (limpo.length === 8) {
+    const nums = valor.replace(/\D/g, '').slice(0, 8);
+    const masked = nums.length > 5 ? `${nums.slice(0, 5)}-${nums.slice(5)}` : nums;
+    updateField('cep', masked);
+    if (nums.length === 8) {
       try {
-        const res = await fetch(`https://viacep.com.br/ws/${limpo}/json/`);
+        const res = await fetch(`https://viacep.com.br/ws/${nums}/json/`);
         const data = await res.json();
         if (!data.erro) {
           setForm(prev => ({
@@ -295,7 +296,7 @@ export default function SolicitarOrcamento() {
           <div className="space-y-4">
             <InputField label="Nome do Local (igreja, salão, sítio...)" value={form.local_nome} onChange={v => updateField('local_nome', v)} placeholder="Ex: Espaço das Flores" />
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <InputField label="CEP" value={form.cep} onChange={v => handleCepChange(v)} placeholder="00000-000" />
+              <InputField label="CEP" value={form.cep} onChange={v => handleCepChange(v)} placeholder="00000-000" maxLength={9} inputMode="numeric" />
               <InputField label="Logradouro" value={form.logradouro} onChange={v => updateField('logradouro', v)} placeholder="" />
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -371,7 +372,7 @@ function SectionTitle({ icon: Icon, title }) {
   );
 }
 
-function InputField({ label, type = 'text', value, onChange, placeholder, required, icon, onBlur }) {
+function InputField({ label, type = 'text', value, onChange, placeholder, required, icon, onBlur, maxLength, inputMode }) {
   return (
     <div>
       <label className="block text-sm font-medium text-gray-700 mb-1.5">{label}</label>
@@ -383,6 +384,8 @@ function InputField({ label, type = 'text', value, onChange, placeholder, requir
           onBlur={onBlur}
           placeholder={placeholder}
           required={required}
+          maxLength={maxLength}
+          inputMode={inputMode}
           className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:ring-2 focus:ring-orange-200 focus:border-orange-400 outline-none"
         />
         {icon && <span className="absolute right-3 top-1/2 -translate-y-1/2">{icon}</span>}
