@@ -753,6 +753,28 @@ export default function AlbumDetalhe() {
 
             {/* Capa */}
             <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Foto de Capa</label>
+              {fotos.length > 0 ? (
+                <div className="grid grid-cols-5 gap-2 max-h-32 overflow-y-auto">
+                  {fotos.map(foto => (
+                    <button key={foto.id || foto.SK} onClick={() => setTema({ ...tema, capa_foto_id: foto.id || foto.SK?.replace('FOTO#', '') })}
+                      className={`relative rounded-lg overflow-hidden border-2 transition-all ${(tema.capa_foto_id === (foto.id || foto.SK?.replace('FOTO#', ''))) ? 'border-orange-500 ring-2 ring-orange-200' : 'border-gray-200 hover:border-gray-300'}`}>
+                      <img src={foto.url || foto.thumbnail_url} alt="" className="w-full h-16 object-cover" />
+                      {(tema.capa_foto_id === (foto.id || foto.SK?.replace('FOTO#', ''))) && (
+                        <div className="absolute inset-0 bg-orange-500/20 flex items-center justify-center">
+                          <CheckCircle2 size={16} className="text-white drop-shadow" />
+                        </div>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-gray-400">Nenhuma foto disponível. Faça upload primeiro.</p>
+              )}
+            </div>
+
+            {/* Modo da Capa */}
+            <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Modo da Capa</label>
               <div className="flex gap-2">
                 {['cover', 'contain', 'fill'].map(m => (
