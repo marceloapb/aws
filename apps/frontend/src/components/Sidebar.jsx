@@ -45,7 +45,7 @@ const adminSections = [
   {
     label: 'Integrações',
     links: [
-      { to: '/admin/integracoes', icon: Plug, label: 'Painel Integrações' },
+      { to: '/admin/integracoes', icon: Plug, label: 'Painel Integrações', end: true },
       { to: '/admin/gateway', icon: CreditCard, label: 'Gateway Pagamento' },
       { to: '/admin/integracoes/logs', icon: ScrollText, label: 'Logs' },
     ],
@@ -133,11 +133,11 @@ export default function Sidebar({ onClose }) {
           adminSections.map(section => (
             <div key={section.label} className="mb-3">
               <p className="px-3 mb-1 text-xs font-semibold text-gray-500 uppercase tracking-wider">{section.label}</p>
-              {section.links.map(({ to, icon: Icon, label }) => (
+              {section.links.map(({ to, icon: Icon, label, end: endProp }) => (
                 <NavLink
                   key={to}
                   to={to}
-                  end={to === '/admin'}
+                  end={to === '/admin' || endProp}
                   onClick={onClose}
                   className={({ isActive }) =>
                     `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors ${

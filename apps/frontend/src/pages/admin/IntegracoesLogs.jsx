@@ -11,6 +11,7 @@ export default function IntegracoesLogs() {
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filtro, setFiltro] = useState('');
+  const [filtroStatus, setFiltroStatus] = useState('');
   const [clearing, setClearing] = useState(false);
 
   const loadLogs = useCallback(async () => {
@@ -66,6 +67,8 @@ export default function IntegracoesLogs() {
     return map[integracao] || 'bg-gray-100 text-gray-700';
   };
 
+  const filteredLogs = filtroStatus ? logs.filter(l => l.resultado === filtroStatus) : logs;
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -95,7 +98,7 @@ export default function IntegracoesLogs() {
       </div>
 
       {/* Filtros */}
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2 flex-wrap">
         <Filter size={14} className="text-gray-400" />
         <div className="flex gap-1 bg-gray-100 rounded-lg p-1 flex-wrap">
           {[{ value: '', label: 'Todos' }, { value: 'whatsapp', label: 'WhatsApp' }, { value: 'instagram', label: 'Instagram' }, { value: 'google-calendar', label: 'Calendar' }, { value: 'email', label: 'E-mail' }, { value: 'maps', label: 'Maps' }, { value: 'nf', label: 'NF' }].map(f => (
@@ -105,7 +108,15 @@ export default function IntegracoesLogs() {
             </button>
           ))}
         </div>
-        <span className="text-xs text-gray-400 ml-auto">{logs.length} registro{logs.length !== 1 ? 's' : ''}</span>
+        <div className="flex gap-1 bg-gray-100 rounded-lg p-1">
+          {[{ value: '', label: 'Todos' }, { value: 'erro', label: '❌ Erros' }, { value: 'sucesso', label: '✅ Sucesso' }].map(f => (
+            <button key={f.value} onClick={() => setFiltroStatus(f.value)}
+              className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${filtroStatus === f.value ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-700'}`}>
+              {f.label}
+            </button>
+          ))}
+        </div>
+        <span className="text-xs text-gray-400 ml-auto">{filteredLogs.length} registro{filteredLogs.length !== 1 ? 's' : ''}</span>
       </div>
 
       {/* Lista de logs */}
@@ -115,7 +126,7 @@ export default function IntegracoesLogs() {
             <div key={i} className="h-16 bg-gray-100 rounded-lg animate-pulse" />
           ))}
         </div>
-      ) : logs.length === 0 ? (
+      ) : filteredLogs.length === 0 ? (
         <div className="text-center py-12">
           <FileText size={40} className="mx-auto text-gray-300 mb-3" />
           <p className="text-sm text-gray-500">Nenhum log registrado</p>
@@ -123,7 +134,7 @@ export default function IntegracoesLogs() {
         </div>
       ) : (
         <div className="space-y-2">
-          {logs.map((log) => (
+          {filteredLogs.map((log) => (
             <div key={log.id} className="flex items-center gap-3 p-4 rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors">
               {/* Ícone de resultado */}
               {log.resultado === 'sucesso' ? (

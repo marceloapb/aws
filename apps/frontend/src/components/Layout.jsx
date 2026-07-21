@@ -29,7 +29,7 @@ export default function Layout() {
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Header */}
         <header className="h-16 bg-white border-b border-gray-200 flex items-center px-4 lg:px-6">
-          <button onClick={() => setOpen(true)} className="hidden md:block lg:hidden p-2 rounded-md hover:bg-gray-100">
+          <button onClick={() => setOpen(true)} className="lg:hidden p-2 rounded-md hover:bg-gray-100">
             <Menu size={20} />
           </button>
 
@@ -57,7 +57,7 @@ export default function Layout() {
                 </span>
               )}
             </button>
-            <span className="hidden sm:inline text-sm text-gray-600">Olá, <strong>{user?.email?.split('@')[0]}</strong></span>
+            <span className="hidden md:inline text-sm text-gray-600">Olá, <strong>{user?.email?.split('@')[0]}</strong></span>
             <div className="relative">
               <button onClick={() => setProfileOpen(!profileOpen)} className="w-8 h-8 rounded-full bg-orange-500 text-white flex items-center justify-center text-sm font-medium hover:ring-2 hover:ring-orange-300 transition-all">
                 {(user?.email || 'U').charAt(0).toUpperCase()}
