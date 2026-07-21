@@ -84,8 +84,11 @@ export default function ConfigEmpresa() {
         const json = await res.json();
         if (json.success && json.data?.uploadUrl) {
           await fetch(json.data.uploadUrl, { method: 'PUT', body: file, headers: { 'Content-Type': file.type } });
-          // Salvar o key do S3, não a URL direta
-          setForm({ ...form, logoKey: json.data.key, logoUrl: json.data.uploadUrl.split('?')[0] });
+          // Buscar presigned URL para exibição
+          const viewRes = await authFetch('/admin/fotos/view-url', { method: 'POST', body: JSON.stringify({ key: json.data.key }) });
+          const viewJson = await viewRes.json();
+          const logoUrl = viewJson.success ? viewJson.data.url : '';
+          setForm({ ...form, logoKey: json.data.key, logoUrl });
         }
       } catch (err) {
         console.error('Upload failed:', err);
@@ -109,7 +112,11 @@ export default function ConfigEmpresa() {
         const json = await res.json();
         if (json.success && json.data?.uploadUrl) {
           await fetch(json.data.uploadUrl, { method: 'PUT', body: file, headers: { 'Content-Type': file.type } });
-          setForm({ ...form, logoDarkKey: json.data.key, logoDarkUrl: json.data.uploadUrl.split('?')[0] });
+          // Buscar presigned URL para exibição
+          const viewRes = await authFetch('/admin/fotos/view-url', { method: 'POST', body: JSON.stringify({ key: json.data.key }) });
+          const viewJson = await viewRes.json();
+          const logoDarkUrl = viewJson.success ? viewJson.data.url : '';
+          setForm({ ...form, logoDarkKey: json.data.key, logoDarkUrl });
         }
       } catch (err) {
         console.error('Upload logo dark failed:', err);
