@@ -54,8 +54,6 @@ export default function SolicitarOrcamento() {
     bairro: '',
     cidade: '',
     uf: '',
-    // CPF
-    cpf: '',
     // Detalhes Finais
     observacoes: '',
   });
@@ -106,23 +104,25 @@ export default function SolicitarOrcamento() {
   };
 
   // CEP auto-fill
-  const handleCepBlur = async () => {
-    const cep = form.cep.replace(/\D/g, '');
-    if (cep.length !== 8) return;
-    try {
-      const res = await fetch(`https://viacep.com.br/ws/${cep}/json/`);
-      const data = await res.json();
-      if (!data.erro) {
-        setForm(prev => ({
-          ...prev,
-          logradouro: data.logradouro || prev.logradouro,
-          bairro: data.bairro || prev.bairro,
-          cidade: data.localidade || prev.cidade,
-          uf: data.uf || prev.uf,
-        }));
+  const handleCepChange = async (valor) => {
+    updateField('cep', valor);
+    const limpo = valor.replace(/\D/g, '');
+    if (limpo.length === 8) {
+      try {
+        const res = await fetch(`https://viacep.com.br/ws/${limpo}/json/`);
+        const data = await res.json();
+        if (!data.erro) {
+          setForm(prev => ({
+            ...prev,
+            logradouro: data.logradouro || prev.logradouro,
+            bairro: data.bairro || prev.bairro,
+            cidade: data.localidade || prev.cidade,
+            uf: data.uf || prev.uf,
+          }));
+        }
+      } catch {
+        // silent
       }
-    } catch {
-      // silent
     }
   };
 
@@ -327,7 +327,7 @@ export default function SolicitarOrcamento() {
           <div className="space-y-4">
             <InputField label="Nome do Local (igreja, salão, sítio...)" value={form.local_nome} onChange={v => updateField('local_nome', v)} placeholder="Ex: Espaço das Flores" />
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <InputField label="CEP" value={form.cep} onChange={v => updateField('cep', v)} onBlur={handleCepBlur} placeholder="00000-000" />
+              <InputField label="CEP" value={form.cep} onChange={v => handleCepChange(v)} placeholder="00000-000" />
               <InputField label="Logradouro" value={form.logradouro} onChange={v => updateField('logradouro', v)} placeholder="" />
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -348,9 +348,6 @@ export default function SolicitarOrcamento() {
                   className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:ring-2 focus:ring-orange-200 focus:border-orange-400 outline-none uppercase"
                 />
               </div>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <InputField label="CPF" value={form.cpf} onChange={v => updateField('cpf', v)} placeholder="000.000.000-00" />
             </div>
           </div>
         </section>

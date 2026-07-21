@@ -1,10 +1,6 @@
 const { Router } = require('express');
-const { DynamoDBClient } = require('@aws-sdk/client-dynamodb');
-const { DynamoDBDocumentClient, QueryCommand } = require('@aws-sdk/lib-dynamodb');
-
-const client = new DynamoDBClient({});
-const docClient = DynamoDBDocumentClient.from(client);
-const TABLE_NAME = process.env.TABLE_NAME;
+const { dynamo, TABLE } = require('../config/dynamodb');
+const { ScanCommand } = require('@aws-sdk/lib-dynamodb');
 
 const router = Router();
 
@@ -14,33 +10,26 @@ const router = Router();
  */
 router.get('/pacotes', async (req, res) => {
   try {
-    const photographerId = req.photographerId || req.user?.photographerId;
-    if (!photographerId) {
-      return res.status(400).json({ success: false, message: 'photographerId não encontrado' });
-    }
-
-    const result = await docClient.send(new QueryCommand({
-      TableName: TABLE_NAME,
-      KeyConditionExpression: 'PK = :pk AND begins_with(SK, :sk)',
+    const result = await dynamo.send(new ScanCommand({
+      TableName: TABLE,
+      IndexName: 'GSI1',
+      FilterExpression: 'GSI1SK = :sk AND ativo = :ativo AND exibir_ao_cliente = :exibir',
       ExpressionAttributeValues: {
-        ':pk': `PHOTOGRAPHER#${photographerId}`,
-        ':sk': 'PACOTE_CATALOGO#',
+        ':sk': 'PACOTE_CATALOGO#ACTIVE',
+        ':ativo': true,
+        ':exibir': true,
       },
     }));
 
-    const pacotes = (result.Items || []).filter(
-      (p) => p.ativo !== false && p.exibir_ao_cliente !== false
-    );
-
-    // Return only public fields
-    const data = pacotes.map((p) => ({
+    const data = (result.Items || []).map(p => ({
       id: p.id,
       nome: p.nome,
       descricao: p.descricao || '',
-      itens: (p.itens || []).map((i) => ({
+      itens: (p.itens || []).map(i => ({
         nome: i.nome,
         descricao: i.descricao || '',
         tipo: i.tipo || '',
+        quantidade: i.quantidade || 1,
       })),
     }));
 
@@ -56,30 +45,24 @@ router.get('/pacotes', async (req, res) => {
  */
 router.get('/servicos', async (req, res) => {
   try {
-    const photographerId = req.photographerId || req.user?.photographerId;
-    if (!photographerId) {
-      return res.status(400).json({ success: false, message: 'photographerId não encontrado' });
-    }
-
-    const result = await docClient.send(new QueryCommand({
-      TableName: TABLE_NAME,
-      KeyConditionExpression: 'PK = :pk AND begins_with(SK, :sk)',
+    const result = await dynamo.send(new ScanCommand({
+      TableName: TABLE,
+      IndexName: 'GSI1',
+      FilterExpression: 'GSI1SK = :sk AND ativo = :ativo AND exibir_ao_cliente = :exibir',
       ExpressionAttributeValues: {
-        ':pk': `PHOTOGRAPHER#${photographerId}`,
-        ':sk': 'ITEM_CATALOGO#',
+        ':sk': 'ITEM_CATALOGO#ACTIVE',
+        ':ativo': true,
+        ':exibir': true,
       },
     }));
 
-    const items = (result.Items || []).filter(
-      (i) => i.ativo !== false && i.exibir_ao_cliente !== false
-    );
+    const items = result.Items || [];
 
-    // Group by type
     const servicos_principais = [];
     const produtos = [];
     const adicionais = [];
 
-    items.forEach((item) => {
+    items.forEach(item => {
       const entry = {
         id: item.id,
         nome: item.nome,
