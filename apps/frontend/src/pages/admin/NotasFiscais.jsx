@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { Receipt, Plus, Download, Ban, Check, AlertTriangle, FileText, Settings } from 'lucide-react';
+import { SortableHeader } from '../../components/ui';
+import useSortable from '../../hooks/useSortable';
 
 const ACCENT = '#EA580C';
 const fmtBRL = (n) => 'R$ ' + Number(n || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 });
@@ -52,6 +54,12 @@ export default function NotasFiscais() {
   const totalEmitidas = notas.filter(n => n.status === 'emitida').length;
   const totalValor = notas.filter(n => n.status === 'emitida').reduce((s, n) => s + (n.valor || 0), 0);
 
+  // Ordenação por coluna
+  const { sortedData: sortedNotas, requestSort, getSortIndicator } = useSortable(filtradas, {
+    defaultField: 'created',
+    defaultDirection: 'desc',
+  });
+
   if (loading) return <div className="flex items-center justify-center py-20 text-gray-400">Carregando...</div>;
 
   return (
@@ -95,23 +103,23 @@ export default function NotasFiscais() {
 
       {/* Lista */}
       <div className="bg-white rounded-xl border overflow-x-auto">
-        {filtradas.length === 0 ? (
+        {sortedNotas.length === 0 ? (
           <div className="p-12 text-center text-gray-400">Nenhuma nota fiscal {aba !== 'todas' ? `com status "${aba}"` : ''}</div>
         ) : (
           <table className="w-full">
             <thead className="bg-gray-50 border-b">
               <tr>
-                <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">Número</th>
-                <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">Cliente</th>
-                <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">Descrição</th>
-                <th className="text-right px-4 py-3 text-xs font-medium text-gray-500 uppercase">Valor</th>
-                <th className="text-center px-4 py-3 text-xs font-medium text-gray-500 uppercase">Status</th>
-                <th className="text-center px-4 py-3 text-xs font-medium text-gray-500 uppercase">Data</th>
+                <SortableHeader label="Número" field="numero_nf" onSort={requestSort} active={getSortIndicator('numero_nf')} />
+                <SortableHeader label="Cliente" field="cliente_nome" onSort={requestSort} active={getSortIndicator('cliente_nome')} />
+                <SortableHeader label="Descrição" field="descricao_servico" onSort={requestSort} active={getSortIndicator('descricao_servico')} />
+                <SortableHeader label="Valor" field="valor" onSort={requestSort} active={getSortIndicator('valor')} align="right" />
+                <SortableHeader label="Status" field="status" onSort={requestSort} active={getSortIndicator('status')} align="center" />
+                <SortableHeader label="Data" field="created" onSort={requestSort} active={getSortIndicator('created')} align="center" />
                 <th className="text-right px-4 py-3 text-xs font-medium text-gray-500 uppercase">Ações</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {filtradas.map(n => {
+              {sortedNotas.map(n => {
                 const st = STATUS_CONFIG[n.status] || STATUS_CONFIG.pendente;
                 return (
                   <tr key={n.id} className="hover:bg-gray-50">

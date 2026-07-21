@@ -6,6 +6,8 @@ import {
   Clock, CheckCircle2, AlertTriangle, PercentIcon, X, Trash2,
   Edit, Layers, ToggleLeft, ToggleRight, CreditCard, ArrowRightLeft
 } from 'lucide-react';
+import { SortableHeader } from '../../components/ui';
+import useSortable from '../../hooks/useSortable';
 
 const ACCENT = '#EA580C';
 const STATUS_TABS = ['Todos', 'Gerado', 'Enviado', 'Assinado', 'Expirado'];
@@ -85,6 +87,15 @@ export default function Contratos() {
     if (periodo) list = list.filter(c => new Date(c.gerado_em) >= new Date(periodo));
     return list;
   }, [contratos, tab, busca, periodo]);
+
+  // Ordenação por coluna - Contratos
+  const { sortedData: sortedContratos, requestSort: requestSortContratos, getSortIndicator: getSortIndicatorContratos } = useSortable(filtered, {
+    defaultField: 'gerado_em',
+    defaultDirection: 'desc',
+  });
+
+  // Ordenação por coluna - Aditivos
+  const { sortedData: sortedAditivos, requestSort: requestSortAditivos, getSortIndicator: getSortIndicatorAditivos } = useSortable(aditivos, {});
 
   // Actions
   const abrirModalGerar = () => {
@@ -187,10 +198,18 @@ export default function Contratos() {
             <div className="bg-white rounded-xl border overflow-x-auto">
               <table className="w-full text-sm">
                 <thead className="bg-gray-50 border-b"><tr>
-                  {['#ID','Cliente','Tipo evento','Valor','Status','Gerado em','Expira','Assinado em','Ações'].map(h => <th key={h} className="px-4 py-3 text-left font-medium text-gray-600 whitespace-nowrap">{h}</th>)}
+                  <SortableHeader label="#ID" field="id" onSort={requestSortContratos} active={getSortIndicatorContratos('id')} />
+                  <SortableHeader label="Cliente" field="cliente_nome" onSort={requestSortContratos} active={getSortIndicatorContratos('cliente_nome')} />
+                  <SortableHeader label="Tipo evento" field="tipo_evento" onSort={requestSortContratos} active={getSortIndicatorContratos('tipo_evento')} />
+                  <SortableHeader label="Valor" field="valor_total" onSort={requestSortContratos} active={getSortIndicatorContratos('valor_total')} />
+                  <SortableHeader label="Status" field="status" onSort={requestSortContratos} active={getSortIndicatorContratos('status')} />
+                  <SortableHeader label="Gerado em" field="gerado_em" onSort={requestSortContratos} active={getSortIndicatorContratos('gerado_em')} />
+                  <SortableHeader label="Expira" field="expira_em" onSort={requestSortContratos} active={getSortIndicatorContratos('expira_em')} />
+                  <SortableHeader label="Assinado em" field="aceite_em" onSort={requestSortContratos} active={getSortIndicatorContratos('aceite_em')} />
+                  <th className="px-4 py-3 text-left font-medium text-gray-600 whitespace-nowrap">Ações</th>
                 </tr></thead>
                 <tbody className="divide-y divide-gray-100">
-                  {filtered.map(c => {
+                  {sortedContratos.map(c => {
                     const st = STATUS_MAP[c.status] || STATUS_MAP.gerado;
                     const dias = diasRestantes(c.expira_em);
                     const expirando = dias !== null && dias > 0 && dias <= 3 && c.status !== 'assinado';
@@ -276,10 +295,16 @@ export default function Contratos() {
           <div className="bg-white rounded-xl border overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="bg-gray-50 border-b"><tr>
-                {['Contrato','Motivo','Tipo','Status','Valor antes','Valor depois','Ações'].map(h => <th key={h} className="px-4 py-3 text-left font-medium text-gray-600">{h}</th>)}
+                <SortableHeader label="Contrato" field="contrato_id" onSort={requestSortAditivos} active={getSortIndicatorAditivos('contrato_id')} />
+                <SortableHeader label="Motivo" field="motivo" onSort={requestSortAditivos} active={getSortIndicatorAditivos('motivo')} />
+                <SortableHeader label="Tipo" field="tipo" onSort={requestSortAditivos} active={getSortIndicatorAditivos('tipo')} />
+                <SortableHeader label="Status" field="status" onSort={requestSortAditivos} active={getSortIndicatorAditivos('status')} />
+                <SortableHeader label="Valor antes" field="valor_antes" onSort={requestSortAditivos} active={getSortIndicatorAditivos('valor_antes')} />
+                <SortableHeader label="Valor depois" field="valor_depois" onSort={requestSortAditivos} active={getSortIndicatorAditivos('valor_depois')} />
+                <th className="px-4 py-3 text-left font-medium text-gray-600">Ações</th>
               </tr></thead>
               <tbody className="divide-y divide-gray-100">
-                {aditivos.map(a => (
+                {sortedAditivos.map(a => (
                   <tr key={a.id} className="hover:bg-gray-50">
                     <td className="px-4 py-3 font-mono text-xs">#{String(a.contrato_id).slice(-6)}</td>
                     <td className="px-4 py-3 text-gray-700">{a.motivo}</td>

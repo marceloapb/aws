@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Package, Tag, ClipboardList, CheckCircle2, Plus, Search, Edit, Trash2, Copy, Star, Power, Filter, ArrowUpDown, AlertTriangle, X, Wrench } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
+import { SortableHeader } from '../../components/ui';
+import useSortable from '../../hooks/useSortable';
 
 const ACCENT = '#EA580C';
 const TABS = ['Inventário', 'Categorias', 'Checklists', 'Conferência'];
@@ -26,7 +28,6 @@ export default function Equipamentos() {
   const [search, setSearch] = useState('');
   const [filterCat, setFilterCat] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
-  const [sortBy, setSortBy] = useState('nome');
   const [modalEquip, setModalEquip] = useState(null);
 
   // Categorias state
@@ -156,14 +157,14 @@ export default function Equipamentos() {
     if (search) list = list.filter(e => `${e.nome} ${e.marca} ${e.modelo}`.toLowerCase().includes(search.toLowerCase()));
     if (filterCat) list = list.filter(e => e.categoria === filterCat);
     if (filterStatus) list = list.filter(e => e.status === filterStatus);
-    list.sort((a, b) => {
-      if (sortBy === 'nome') return (a.nome || '').localeCompare(b.nome || '');
-      if (sortBy === 'categoria') return (a.categoria || '').localeCompare(b.categoria || '');
-      if (sortBy === 'valor') return (b.valor_estimado || 0) - (a.valor_estimado || 0);
-      return 0;
-    });
     return list;
-  }, [equipamentos, search, filterCat, filterStatus, sortBy]);
+  }, [equipamentos, search, filterCat, filterStatus]);
+
+  // Ordenação por coluna
+  const { sortedData: sortedEquip, requestSort, getSortIndicator } = useSortable(filtered, {
+    defaultField: 'nome',
+    defaultDirection: 'asc',
+  });
 
   const kpis = useMemo(() => ({
     total: equipamentos.length,
@@ -349,11 +350,6 @@ export default function Equipamentos() {
               <option value="">Todos status</option>
               {STATUS_OPTIONS.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
             </select>
-            <select value={sortBy} onChange={e => setSortBy(e.target.value)} className="border border-gray-300 rounded-lg px-3 py-2 text-sm">
-              <option value="nome">Ordenar: Nome</option>
-              <option value="categoria">Ordenar: Categoria</option>
-              <option value="valor">Ordenar: Valor</option>
-            </select>
             <button onClick={() => setModalEquip({ ativo: true, padrao: false, status: 'disponivel' })} className="flex items-center gap-1 px-4 py-2 text-white rounded-lg text-sm font-medium" style={{ backgroundColor: ACCENT }}>
               <Plus className="h-4 w-4" /> Novo
             </button>
@@ -368,18 +364,18 @@ export default function Equipamentos() {
             <table className="w-full text-sm">
               <thead className="bg-gray-50 border-b">
                 <tr>
-                  <th className="px-4 py-3 text-left font-medium text-gray-600">Nome</th>
-                  <th className="px-4 py-3 text-left font-medium text-gray-600">Categoria</th>
-                  <th className="px-4 py-3 text-left font-medium text-gray-600">Marca/Modelo</th>
-                  <th className="px-4 py-3 text-left font-medium text-gray-600">Nº Série</th>
-                  <th className="px-4 py-3 text-left font-medium text-gray-600">Status</th>
+                  <SortableHeader label="Nome" field="nome" onSort={requestSort} active={getSortIndicator('nome')} />
+                  <SortableHeader label="Categoria" field="categoria" onSort={requestSort} active={getSortIndicator('categoria')} />
+                  <SortableHeader label="Marca/Modelo" field="marca" onSort={requestSort} active={getSortIndicator('marca')} />
+                  <SortableHeader label="Nº Série" field="num_serie" onSort={requestSort} active={getSortIndicator('num_serie')} />
+                  <SortableHeader label="Status" field="status" onSort={requestSort} active={getSortIndicator('status')} />
                   <th className="px-4 py-3 text-left font-medium text-gray-600">Flags</th>
-                  <th className="px-4 py-3 text-right font-medium text-gray-600">Valor</th>
+                  <SortableHeader label="Valor" field="valor_estimado" onSort={requestSort} active={getSortIndicator('valor_estimado')} align="right" />
                   <th className="px-4 py-3 text-center font-medium text-gray-600">Ações</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {filtered.map(eq => {
+                {sortedEquip.map(eq => {
                   const cat = categorias.find(c => c.nome === eq.categoria);
                   const st = STATUS_OPTIONS.find(s => s.value === eq.status);
                   return (
@@ -408,7 +404,7 @@ export default function Equipamentos() {
                 })}
               </tbody>
             </table>
-            {filtered.length === 0 && <div className="text-center py-8 text-gray-500">Nenhum equipamento encontrado.</div>}
+            {sortedEquip.length === 0 && <div className="text-center py-8 text-gray-500">Nenhum equipamento encontrado.</div>}
           </div>
         </div>
       )}
