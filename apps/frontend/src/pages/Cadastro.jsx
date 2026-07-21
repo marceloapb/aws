@@ -123,9 +123,15 @@ export default function Cadastro() {
     if (form.password !== form.confirm) return setError('Senhas não conferem');
 
     try {
-      await register(form.nome_completo, form.email, form.password, form.telefone, form.tipo_pessoa, form.documento);
-      setSuccess(true);
-      setTimeout(() => navigate('/login'), 2000);
+      const data = await register(form.nome_completo, form.email, form.password, form.telefone, form.tipo_pessoa, form.documento);
+      if (data.auto_login) {
+        // Login automático — redirecionar direto para área do cliente
+        navigate('/cliente', { replace: true });
+      } else {
+        // Precisa confirmar e-mail — mostrar mensagem e ir para login
+        setSuccess(true);
+        setTimeout(() => navigate('/login'), 3000);
+      }
     } catch (err) {
       setError(err.message);
     }
@@ -139,7 +145,7 @@ export default function Cadastro() {
             <span className="text-2xl">✓</span>
           </div>
           <h2 className="text-xl font-bold text-gray-900">Cadastro realizado!</h2>
-          <p className="text-gray-500 mt-2">Redirecionando para login...</p>
+          <p className="text-gray-500 mt-2">Verifique seu e-mail para confirmar. Redirecionando para login...</p>
         </div>
       </div>
     );

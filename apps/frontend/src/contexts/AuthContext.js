@@ -49,6 +49,11 @@ export function AuthProvider({ children }) {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || 'Erro ao cadastrar');
+      // Se auto-login veio na resposta, setar user e token
+      if (data.auto_login && data.token && data.user) {
+        setUser(data.user);
+        setToken(data.token);
+      }
       return data;
     } finally {
       setLoading(false);

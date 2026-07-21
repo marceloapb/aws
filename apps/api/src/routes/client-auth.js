@@ -7,7 +7,7 @@ const {
   ConfirmForgotPasswordCommand,
 } = require('@aws-sdk/client-cognito-identity-provider');
 const { DynamoDBClient } = require('@aws-sdk/client-dynamodb');
-const { DynamoDBDocumentClient, GetCommand, PutCommand } = require('@aws-sdk/lib-dynamodb');
+const { DynamoDBDocumentClient, GetCommand, PutCommand, QueryCommand } = require('@aws-sdk/lib-dynamodb');
 const { env } = require('../config/env');
 
 const router = Router();
@@ -21,6 +21,27 @@ router.post('/signup', async (req, res) => {
     const { nome, email, senha, phone, tipo_pessoa, documento } = req.body;
     if (!nome || !email || !senha) return res.status(400).json({ success: false, message: 'Nome, email e senha são obrigatórios' });
 
+    // Validar documento obrigatório
+    const documentoLimpo = documento ? documento.replace(/\D/g, '') : '';
+    if (!documentoLimpo || (documentoLimpo.length !== 11 && documentoLimpo.length !== 14)) {
+      return res.status(400).json({ success: false, message: 'CPF ou CNPJ é obrigatório' });
+    }
+
+    // Verificar se documento já existe (unicidade)
+    const docCheck = await docClient.send(new QueryCommand({
+      TableName: TABLE_NAME,
+      IndexName: 'GSI1',
+      KeyConditionExpression: 'GSI1PK = :gsi1pk',
+      ExpressionAttributeValues: {
+        ':gsi1pk': `DOC#${documentoLimpo}`
+      },
+      Limit: 1
+    }));
+    if (docCheck.Items && docCheck.Items.length > 0) {
+      return res.status(409).json({ success: false, message: 'Já existe um cadastro com este CPF/CNPJ' });
+    }
+
+    // Criar usuário no Cognito
     const result = await cognito.send(new SignUpCommand({
       ClientId: CLIENT_ID,
       Username: email,
@@ -28,10 +49,22 @@ router.post('/signup', async (req, res) => {
       UserAttributes: [{ Name: 'name', Value: nome }, { Name: 'email', Value: email }],
     }));
 
-    // Salvar perfil do cliente no DynamoDB com dados extras
+    // Confirmar automaticamente (auto-confirm)
+    const { AdminConfirmSignUpCommand } = require('@aws-sdk/client-cognito-identity-provider');
+    const USER_POOL_ID = process.env.COGNITO_USER_POOL_ID || 'us-east-1_ENV0dsEJx';
+    try {
+      await cognito.send(new AdminConfirmSignUpCommand({
+        UserPoolId: USER_POOL_ID,
+        Username: email,
+      }));
+    } catch (confirmErr) {
+      // Se falhar auto-confirm, segue sem — cliente confirma por e-mail
+      console.warn('Auto-confirm failed:', confirmErr.message);
+    }
+
+    // Salvar perfil do cliente no DynamoDB
     const clienteId = result.UserSub;
     const telefoneLimpo = phone ? phone.replace(/\D/g, '') : '';
-    const documentoLimpo = documento ? documento.replace(/\D/g, '') : '';
     const now = new Date().toISOString();
     const temDadosCompletos = nome.trim().length >= 3 && telefoneLimpo.length >= 10 && tipo_pessoa && documentoLimpo.length >= 11;
 
@@ -40,6 +73,8 @@ router.post('/signup', async (req, res) => {
       Item: {
         PK: `CLIENT#${clienteId}`,
         SK: 'PROFILE',
+        GSI1PK: `DOC#${documentoLimpo}`,
+        GSI1SK: `CLIENT#${clienteId}`,
         email,
         nome_completo: nome.trim(),
         telefone: telefoneLimpo,
@@ -51,7 +86,39 @@ router.post('/signup', async (req, res) => {
       }
     }));
 
-    res.status(201).json({ success: true, message: 'Cadastro realizado. Verifique seu e-mail.' });
+    // Tentar auto-login para retornar token diretamente
+    try {
+      const loginResult = await cognito.send(new InitiateAuthCommand({
+        AuthFlow: 'USER_PASSWORD_AUTH',
+        ClientId: CLIENT_ID,
+        AuthParameters: { USERNAME: email, PASSWORD: senha },
+      }));
+      const tokens = loginResult.AuthenticationResult;
+      const payload = JSON.parse(Buffer.from(tokens.IdToken.split('.')[1], 'base64url').toString('utf8'));
+      const groups = payload['cognito:groups'] || [];
+      const role = groups.includes('admin') ? 'admin' : 'client';
+
+      const user = {
+        id: payload.sub,
+        sub: payload.sub,
+        email: payload.email,
+        role,
+        groups,
+        perfil_completo: temDadosCompletos,
+      };
+
+      return res.status(201).json({
+        success: true,
+        message: 'Cadastro realizado com sucesso!',
+        auto_login: true,
+        user,
+        token: tokens.IdToken,
+        data: { idToken: tokens.IdToken, accessToken: tokens.AccessToken, refreshToken: tokens.RefreshToken },
+      });
+    } catch (loginErr) {
+      // Se auto-login falhar (ex: e-mail não confirmado), retorna sucesso sem token
+      return res.status(201).json({ success: true, message: 'Cadastro realizado. Verifique seu e-mail para confirmar.', auto_login: false });
+    }
   } catch (error) {
     res.status(400).json({ success: false, message: error.message });
   }
