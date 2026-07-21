@@ -148,9 +148,16 @@ export default function MeuPerfil() {
       });
 
       // Update profile with new avatar key
+      const payload = {
+        ...form,
+        nome: form.nome || 'Cliente',
+        telefone: form.telefone.replace(/\D/g, ''),
+        cpf_cnpj: form.cpf_cnpj.replace(/\D/g, ''),
+        avatarKey: urlData.data.key,
+      };
       await authFetch('/client/portal/perfil', {
         method: 'PUT',
-        body: JSON.stringify({ ...form, telefone: form.telefone.replace(/\D/g, ''), avatarKey: urlData.data.key }),
+        body: JSON.stringify(payload),
       });
 
       setAvatarUrl(URL.createObjectURL(file));
@@ -171,6 +178,8 @@ export default function MeuPerfil() {
       const payload = {
         ...form,
         telefone: form.telefone.replace(/\D/g, ''),
+        cpf_cnpj: form.cpf_cnpj.replace(/\D/g, ''),
+        endereco_cep: form.endereco_cep.replace(/\D/g, ''),
         instagram: form.instagram.replace('@', ''),
       };
       const res = await authFetch('/client/portal/perfil', {
