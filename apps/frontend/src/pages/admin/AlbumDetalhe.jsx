@@ -709,6 +709,36 @@ export default function AlbumDetalhe() {
               </div>
             </div>
 
+            {/* Fontes */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Fontes</label>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs text-gray-500">Título</label>
+                  <select value={tema.fonte_titulo || 'Inter'} onChange={e => setTema({ ...tema, fonte_titulo: e.target.value })}
+                    className="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-orange-200 outline-none">
+                    <option value="Inter">Inter</option>
+                    <option value="Playfair Display">Playfair Display</option>
+                    <option value="Montserrat">Montserrat</option>
+                    <option value="Lora">Lora</option>
+                    <option value="Poppins">Poppins</option>
+                    <option value="Cormorant Garamond">Cormorant Garamond</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="text-xs text-gray-500">Corpo</label>
+                  <select value={tema.fonte_corpo || 'Inter'} onChange={e => setTema({ ...tema, fonte_corpo: e.target.value })}
+                    className="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-orange-200 outline-none">
+                    <option value="Inter">Inter</option>
+                    <option value="Open Sans">Open Sans</option>
+                    <option value="Lato">Lato</option>
+                    <option value="Roboto">Roboto</option>
+                    <option value="Source Sans Pro">Source Sans Pro</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
             {/* Animação */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Animação</label>
@@ -718,6 +748,33 @@ export default function AlbumDetalhe() {
                 <option value="fade">Fade</option>
                 <option value="slide">Slide</option>
                 <option value="zoom">Zoom</option>
+              </select>
+            </div>
+
+            {/* Capa */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Modo da Capa</label>
+              <div className="flex gap-2">
+                {['cover', 'contain', 'fill'].map(m => (
+                  <button key={m} onClick={() => setTema({ ...tema, capa_modo: m })}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors ${(tema.capa_modo || 'cover') === m ? 'border-orange-300 bg-orange-50 text-orange-700' : 'border-gray-200 text-gray-500 hover:bg-gray-50'}`}>
+                    {m.charAt(0).toUpperCase() + m.slice(1)}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Logo Posição */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Posição do Logo</label>
+              <select value={tema.logo_posicao || 'top-left'} onChange={e => setTema({ ...tema, logo_posicao: e.target.value })}
+                className="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-orange-200 outline-none">
+                <option value="top-left">Topo Esquerda</option>
+                <option value="top-center">Topo Centro</option>
+                <option value="top-right">Topo Direita</option>
+                <option value="bottom-left">Rodapé Esquerda</option>
+                <option value="bottom-center">Rodapé Centro</option>
+                <option value="bottom-right">Rodapé Direita</option>
               </select>
             </div>
 
