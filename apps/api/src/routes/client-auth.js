@@ -7,7 +7,7 @@ const {
   ConfirmForgotPasswordCommand,
 } = require('@aws-sdk/client-cognito-identity-provider');
 const { DynamoDBClient } = require('@aws-sdk/client-dynamodb');
-const { DynamoDBDocumentClient, GetCommand } = require('@aws-sdk/lib-dynamodb');
+const { DynamoDBDocumentClient, GetCommand, PutCommand } = require('@aws-sdk/lib-dynamodb');
 const { env } = require('../config/env');
 
 const router = Router();
@@ -18,14 +18,37 @@ const CLIENT_ID = process.env.COGNITO_CLIENT_ID || process.env.COGNITO_USER_POOL
 
 router.post('/signup', async (req, res) => {
   try {
-    const { nome, email, senha } = req.body;
+    const { nome, email, senha, phone, tipo_pessoa } = req.body;
     if (!nome || !email || !senha) return res.status(400).json({ success: false, message: 'Nome, email e senha são obrigatórios' });
-    await cognito.send(new SignUpCommand({
+
+    const result = await cognito.send(new SignUpCommand({
       ClientId: CLIENT_ID,
       Username: email,
       Password: senha,
       UserAttributes: [{ Name: 'name', Value: nome }, { Name: 'email', Value: email }],
     }));
+
+    // Salvar perfil do cliente no DynamoDB com dados extras
+    const clienteId = result.UserSub;
+    const telefoneLimpo = phone ? phone.replace(/\D/g, '') : '';
+    const now = new Date().toISOString();
+    const temDadosCompletos = nome.trim().length >= 3 && telefoneLimpo.length >= 10 && tipo_pessoa;
+
+    await docClient.send(new PutCommand({
+      TableName: TABLE_NAME,
+      Item: {
+        PK: `CLIENT#${clienteId}`,
+        SK: 'PROFILE',
+        email,
+        nome_completo: nome.trim(),
+        telefone: telefoneLimpo,
+        tipo_pessoa: tipo_pessoa || 'PF',
+        perfil_completo: temDadosCompletos,
+        criadoEm: now,
+        atualizadoEm: now,
+      }
+    }));
+
     res.status(201).json({ success: true, message: 'Cadastro realizado. Verifique seu e-mail.' });
   } catch (error) {
     res.status(400).json({ success: false, message: error.message });

@@ -39,13 +39,13 @@ export function AuthProvider({ children }) {
     }
   };
 
-  const register = async (name, email, password, phone) => {
+  const register = async (name, email, password, phone, tipo_pessoa) => {
     setLoading(true);
     try {
       const res = await fetch(`${API_URL}/auth/signup`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ nome: name, email, senha: password, phone }),
+        body: JSON.stringify({ nome: name, email, senha: password, phone, tipo_pessoa }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || 'Erro ao cadastrar');
