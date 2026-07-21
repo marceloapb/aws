@@ -13,25 +13,26 @@ router.get('/pacotes', async (req, res) => {
     const result = await dynamo.send(new ScanCommand({
       TableName: TABLE,
       IndexName: 'GSI1',
-      FilterExpression: 'GSI1SK = :sk AND ativo = :ativo AND exibir_ao_cliente = :exibir',
+      FilterExpression: 'GSI1SK = :sk AND (ativo = :ativo OR attribute_not_exists(ativo))',
       ExpressionAttributeValues: {
         ':sk': 'PACOTE_CATALOGO#ACTIVE',
         ':ativo': true,
-        ':exibir': true,
       },
     }));
 
-    const data = (result.Items || []).map(p => ({
-      id: p.id,
-      nome: p.nome,
-      descricao: p.descricao || '',
-      itens: (p.itens || []).map(i => ({
-        nome: i.nome,
-        descricao: i.descricao || '',
-        tipo: i.tipo || '',
-        quantidade: i.quantidade || 1,
-      })),
-    }));
+    const data = (result.Items || [])
+      .filter(p => p.exibir_ao_cliente !== false)
+      .map(p => ({
+        id: p.id,
+        nome: p.nome,
+        descricao: p.descricao || '',
+        itens: (p.itens || []).map(i => ({
+          nome: i.nome,
+          descricao: i.descricao || '',
+          tipo: i.tipo || '',
+          quantidade: i.quantidade || 1,
+        })),
+      }));
 
     res.json({ success: true, data });
   } catch (error) {
@@ -48,15 +49,14 @@ router.get('/servicos', async (req, res) => {
     const result = await dynamo.send(new ScanCommand({
       TableName: TABLE,
       IndexName: 'GSI1',
-      FilterExpression: 'GSI1SK = :sk AND ativo = :ativo AND exibir_ao_cliente = :exibir',
+      FilterExpression: 'GSI1SK = :sk AND (ativo = :ativo OR attribute_not_exists(ativo))',
       ExpressionAttributeValues: {
         ':sk': 'ITEM_CATALOGO#ACTIVE',
         ':ativo': true,
-        ':exibir': true,
       },
     }));
 
-    const items = result.Items || [];
+    const items = (result.Items || []).filter(item => item.exibir_ao_cliente !== false);
 
     const servicos_principais = [];
     const produtos = [];

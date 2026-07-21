@@ -32,10 +32,6 @@ export default function SolicitarOrcamento() {
   const [form, setForm] = useState({
     // Pacote
     pacote_id: '',
-    // Seus Dados
-    nome_completo: '',
-    email: '',
-    telefone: '',
     // Como chegou
     origem: '',
     // O Evento
@@ -64,15 +60,6 @@ export default function SolicitarOrcamento() {
   // Load catalog data
   useEffect(() => {
     loadCatalogo();
-    // Pre-fill user data if available
-    if (user) {
-      setForm(prev => ({
-        ...prev,
-        nome_completo: user.name || user.nome || '',
-        email: user.email || '',
-        telefone: user.telefone || '',
-      }));
-    }
   }, []);
 
   const loadCatalogo = async () => {
@@ -173,18 +160,6 @@ export default function SolicitarOrcamento() {
       )}
 
       <form onSubmit={handleSubmit} className="space-y-8">
-
-        {/* ═══════════ Seus Dados ═══════════ */}
-        <section className="bg-white rounded-xl border border-gray-200 p-6">
-          <SectionTitle icon={User} title="Seus Dados" />
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <InputField label="Nome Completo" value={form.nome_completo} onChange={v => updateField('nome_completo', v)} placeholder="Josefa" />
-            <InputField label="Email" type="email" value={form.email} onChange={v => updateField('email', v)} placeholder="contato@studio.com.br" />
-          </div>
-          <div className="mt-4">
-            <InputField label="Telefone" value={form.telefone} onChange={v => updateField('telefone', v)} placeholder="(11) 99421-5161" />
-          </div>
-        </section>
 
         {/* ═══════════ Como você chegou até mim? ═══════════ */}
         <section className="bg-white rounded-xl border border-gray-200 p-6">
