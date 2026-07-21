@@ -1,9 +1,60 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { Camera, Eye, EyeOff, User, Phone, Building2, Mail, Lock } from 'lucide-react';
+import { Camera, Eye, EyeOff, User, Phone, Building2, Mail, Lock, CreditCard } from 'lucide-react';
 
 const ACCENT = '#EA580C';
+
+function validarCPF(cpf) {
+  const nums = cpf.replace(/\D/g, '');
+  if (nums.length !== 11) return false;
+  if (/^(\d)\1{10}$/.test(nums)) return false;
+  let soma = 0;
+  for (let i = 0; i < 9; i++) soma += parseInt(nums[i]) * (10 - i);
+  let resto = (soma * 10) % 11;
+  if (resto === 10) resto = 0;
+  if (resto !== parseInt(nums[9])) return false;
+  soma = 0;
+  for (let i = 0; i < 10; i++) soma += parseInt(nums[i]) * (11 - i);
+  resto = (soma * 10) % 11;
+  if (resto === 10) resto = 0;
+  return resto === parseInt(nums[10]);
+}
+
+function validarCNPJ(cnpj) {
+  const nums = cnpj.replace(/\D/g, '');
+  if (nums.length !== 14) return false;
+  if (/^(\d)\1{13}$/.test(nums)) return false;
+  const pesos1 = [5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2];
+  const pesos2 = [6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2];
+  let soma = 0;
+  for (let i = 0; i < 12; i++) soma += parseInt(nums[i]) * pesos1[i];
+  let resto = soma % 11;
+  const dig1 = resto < 2 ? 0 : 11 - resto;
+  if (parseInt(nums[12]) !== dig1) return false;
+  soma = 0;
+  for (let i = 0; i < 13; i++) soma += parseInt(nums[i]) * pesos2[i];
+  resto = soma % 11;
+  const dig2 = resto < 2 ? 0 : 11 - resto;
+  return parseInt(nums[13]) === dig2;
+}
+
+function mascaraCPF(value) {
+  const nums = value.replace(/\D/g, '').slice(0, 11);
+  if (nums.length > 9) return nums.replace(/(\d{3})(\d{3})(\d{3})(\d{1,2})/, '$1.$2.$3-$4');
+  if (nums.length > 6) return nums.replace(/(\d{3})(\d{3})(\d{1,3})/, '$1.$2.$3');
+  if (nums.length > 3) return nums.replace(/(\d{3})(\d{1,3})/, '$1.$2');
+  return nums;
+}
+
+function mascaraCNPJ(value) {
+  const nums = value.replace(/\D/g, '').slice(0, 14);
+  if (nums.length > 12) return nums.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{1,2})/, '$1.$2.$3/$4-$5');
+  if (nums.length > 8) return nums.replace(/(\d{2})(\d{3})(\d{3})(\d{1,4})/, '$1.$2.$3/$4');
+  if (nums.length > 5) return nums.replace(/(\d{2})(\d{3})(\d{1,3})/, '$1.$2.$3');
+  if (nums.length > 2) return nums.replace(/(\d{2})(\d{1,3})/, '$1.$2');
+  return nums;
+}
 
 export default function Cadastro() {
   const [form, setForm] = useState({
@@ -11,6 +62,7 @@ export default function Cadastro() {
     email: '',
     telefone: '',
     tipo_pessoa: 'PF',
+    documento: '',
     password: '',
     confirm: '',
   });
@@ -36,6 +88,16 @@ export default function Cadastro() {
     setForm(prev => ({ ...prev, telefone: value }));
   };
 
+  const handleDocumentoChange = (e) => {
+    const raw = e.target.value.replace(/\D/g, '');
+    const formatted = form.tipo_pessoa === 'PF' ? mascaraCPF(raw) : mascaraCNPJ(raw);
+    setForm(prev => ({ ...prev, documento: formatted }));
+  };
+
+  const handleTipoPessoa = (tipo) => {
+    setForm(prev => ({ ...prev, tipo_pessoa: tipo, documento: '' }));
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
@@ -48,11 +110,20 @@ export default function Cadastro() {
       return setError('Telefone inválido. Informe DDD + número');
     }
     if (!form.email) return setError('E-mail é obrigatório');
+
+    // Validar documento
+    const docLimpo = form.documento.replace(/\D/g, '');
+    if (form.tipo_pessoa === 'PF') {
+      if (!validarCPF(docLimpo)) return setError('CPF inválido. Verifique os dígitos.');
+    } else {
+      if (!validarCNPJ(docLimpo)) return setError('CNPJ inválido. Verifique os dígitos.');
+    }
+
     if (form.password.length < 6) return setError('Senha deve ter pelo menos 6 caracteres');
     if (form.password !== form.confirm) return setError('Senhas não conferem');
 
     try {
-      await register(form.nome_completo, form.email, form.password, form.telefone, form.tipo_pessoa);
+      await register(form.nome_completo, form.email, form.password, form.telefone, form.tipo_pessoa, form.documento);
       setSuccess(true);
       setTimeout(() => navigate('/login'), 2000);
     } catch (err) {
@@ -124,7 +195,7 @@ export default function Cadastro() {
               <span className="flex items-center gap-1.5"><Building2 size={14} /> Tipo de pessoa *</span>
             </label>
             <div className="flex gap-3">
-              <button type="button" onClick={() => setForm(prev => ({ ...prev, tipo_pessoa: 'PF' }))}
+              <button type="button" onClick={() => handleTipoPessoa('PF')}
                 className={`flex-1 py-2.5 rounded-lg text-sm font-medium border-2 transition-colors ${
                   form.tipo_pessoa === 'PF'
                     ? 'border-orange-500 bg-orange-50 text-orange-700'
@@ -132,7 +203,7 @@ export default function Cadastro() {
                 }`}>
                 Pessoa Física
               </button>
-              <button type="button" onClick={() => setForm(prev => ({ ...prev, tipo_pessoa: 'PJ' }))}
+              <button type="button" onClick={() => handleTipoPessoa('PJ')}
                 className={`flex-1 py-2.5 rounded-lg text-sm font-medium border-2 transition-colors ${
                   form.tipo_pessoa === 'PJ'
                     ? 'border-orange-500 bg-orange-50 text-orange-700'
@@ -141,6 +212,19 @@ export default function Cadastro() {
                 Pessoa Jurídica
               </button>
             </div>
+          </div>
+
+          {/* CPF ou CNPJ */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              <span className="flex items-center gap-1.5">
+                <CreditCard size={14} /> {form.tipo_pessoa === 'PF' ? 'CPF' : 'CNPJ'} *
+              </span>
+            </label>
+            <input value={form.documento} onChange={handleDocumentoChange}
+              placeholder={form.tipo_pessoa === 'PF' ? '000.000.000-00' : '00.000.000/0000-00'}
+              inputMode="numeric" maxLength={form.tipo_pessoa === 'PF' ? 14 : 18} required
+              className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-200 focus:border-orange-500 outline-none" />
           </div>
 
           {/* Senha */}

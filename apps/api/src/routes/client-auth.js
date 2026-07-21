@@ -18,7 +18,7 @@ const CLIENT_ID = process.env.COGNITO_CLIENT_ID || process.env.COGNITO_USER_POOL
 
 router.post('/signup', async (req, res) => {
   try {
-    const { nome, email, senha, phone, tipo_pessoa } = req.body;
+    const { nome, email, senha, phone, tipo_pessoa, documento } = req.body;
     if (!nome || !email || !senha) return res.status(400).json({ success: false, message: 'Nome, email e senha são obrigatórios' });
 
     const result = await cognito.send(new SignUpCommand({
@@ -31,8 +31,9 @@ router.post('/signup', async (req, res) => {
     // Salvar perfil do cliente no DynamoDB com dados extras
     const clienteId = result.UserSub;
     const telefoneLimpo = phone ? phone.replace(/\D/g, '') : '';
+    const documentoLimpo = documento ? documento.replace(/\D/g, '') : '';
     const now = new Date().toISOString();
-    const temDadosCompletos = nome.trim().length >= 3 && telefoneLimpo.length >= 10 && tipo_pessoa;
+    const temDadosCompletos = nome.trim().length >= 3 && telefoneLimpo.length >= 10 && tipo_pessoa && documentoLimpo.length >= 11;
 
     await docClient.send(new PutCommand({
       TableName: TABLE_NAME,
@@ -43,6 +44,7 @@ router.post('/signup', async (req, res) => {
         nome_completo: nome.trim(),
         telefone: telefoneLimpo,
         tipo_pessoa: tipo_pessoa || 'PF',
+        documento: documentoLimpo,
         perfil_completo: temDadosCompletos,
         criadoEm: now,
         atualizadoEm: now,
