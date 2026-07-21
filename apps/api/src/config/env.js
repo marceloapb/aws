@@ -12,14 +12,18 @@ async function loadParams() {
   }
   const ssm = new SSMClient({ region: 'us-east-1' });
   const path = process.env.SSM_PREFIX ? `${process.env.SSM_PREFIX}/` : `/mbf/${process.env.STAGE || 'prod'}/`;
-  const result = await ssm.send(new GetParametersByPathCommand({
-    Path: path, WithDecryption: true, Recursive: true,
-  }));
   cachedParams = {};
-  for (const p of result.Parameters) {
-    const key = p.Name.split('/').pop();
-    cachedParams[key] = p.Value;
-  }
+  let nextToken;
+  do {
+    const result = await ssm.send(new GetParametersByPathCommand({
+      Path: path, WithDecryption: true, Recursive: true, NextToken: nextToken,
+    }));
+    for (const p of (result.Parameters || [])) {
+      const key = p.Name.split('/').pop();
+      cachedParams[key] = p.Value;
+    }
+    nextToken = result.NextToken;
+  } while (nextToken);
   return cachedParams;
 }
 
