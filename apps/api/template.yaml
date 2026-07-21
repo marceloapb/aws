@@ -371,7 +371,7 @@ Resources:
   WebhookQueue:
     Type: AWS::SQS::Queue
     Properties:
-      QueueName: !Sub 'mbf-${Stage}-webhooks'
+      QueueName: !Sub 'horizons-${Stage}-webhooks'
       VisibilityTimeout: 60
       RedrivePolicy:
         deadLetterTargetArn: !GetAtt WebhookDLQ.Arn
@@ -380,7 +380,7 @@ Resources:
   WebhookDLQ:
     Type: AWS::SQS::Queue
     Properties:
-      QueueName: !Sub 'mbf-${Stage}-webhooks-dlq'
+      QueueName: !Sub 'horizons-${Stage}-webhooks-dlq'
       MessageRetentionPeriod: 1209600
 
   WebhookConsumerFunction:

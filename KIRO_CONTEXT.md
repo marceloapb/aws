@@ -21,8 +21,8 @@ Sistema de gestão completo para fotógrafos profissionais (MBF Photography Plat
   - Secrets: SSM Parameter Store (prefix /mbf/prod/)
   - Auth middleware: Cognito JWT
 - **Infra:** CloudFormation via SAM
-  - Stack: horizons-prod (região sa-east-1)
-  - API Gateway: HttpApi (https://8z9ncqnyoc.execute-api.sa-east-1.amazonaws.com/prod)
+  - Stack: horizons-prod (região us-east-1)
+  - API Gateway: HttpApi (https://setvwal0cd.execute-api.us-east-1.amazonaws.com/prod)
   - Frontend: S3 bucket mbf-prod-frontend + CloudFront E38U3W8Y8P36VO
   - Fotos: CloudFront E2MVLLIKOH609F (bucket mbf-arquivos-producao)
 
@@ -36,7 +36,7 @@ sam deploy --no-confirm-changeset --no-fail-on-empty-changeset
 # Frontend (S3 + CloudFront)
 cd D:\OneDrive\.Git\aws\apps\frontend
 node node_modules/react-scripts/bin/react-scripts.js build
-aws s3 sync build s3://mbf-prod-frontend --delete --region sa-east-1
+aws s3 sync build s3://mbf-prod-frontend --delete --region us-east-1
 aws cloudfront create-invalidation --distribution-id E38U3W8Y8P36VO --paths "/*"
 ```
 
@@ -108,7 +108,7 @@ apps/
 ## AWS Account
 - Account: 975877354440
 - User: mbf-deploy
-- Região principal: sa-east-1
+- Região principal: us-east-1 (tudo unificado)
 - Cognito: us-east-1 (User Pool us-east-1_ENV0dsEJx)
 
 ## Padrões de código

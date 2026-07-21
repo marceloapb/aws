@@ -47,7 +47,7 @@ const PROVIDER_CAPS = {
   manual: [true, true, true, true, true, true, true],
 };
 
-const WEBHOOK_BASE = 'https://8z9ncqnyoc.execute-api.sa-east-1.amazonaws.com/prod/webhooks';
+const WEBHOOK_BASE = 'https://setvwal0cd.execute-api.us-east-1.amazonaws.com/prod/webhooks';
 
 export default function GatewayConfig() {
   const { authFetch } = useAuth();

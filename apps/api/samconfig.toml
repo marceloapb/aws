@@ -1,7 +1,7 @@
 version = 0.1
 [default.deploy.parameters]
 stack_name = "horizons-prod"
-region = "sa-east-1"
+region = "us-east-1"
 confirm_changeset = false
 capabilities = "CAPABILITY_IAM"
-s3_bucket = "mbf-sam-deploy-sa-east-1"
+s3_bucket = "mbf-sam-deploy-us-east-1"

@@ -123,7 +123,7 @@ export default function Financeiro() {
   };
 
   const exportar = (tipo) => {
-    const apiUrl = process.env.REACT_APP_API_URL || 'https://8z9ncqnyoc.execute-api.sa-east-1.amazonaws.com/prod';
+    const apiUrl = process.env.REACT_APP_API_URL || 'https://setvwal0cd.execute-api.us-east-1.amazonaws.com/prod';
     window.open(`${apiUrl}/admin/financeiro/exportar?tipo=${tipo}&periodo=${periodo}`, '_blank');
   };
 

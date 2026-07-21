@@ -32,7 +32,7 @@ const env = {
   PORT: process.env.PORT || 3000,
   NODE_ENV: process.env.NODE_ENV || 'development',
   FRONTEND_URL: process.env.FRONTEND_URL || 'http://localhost:5173',
-  AWS_REGION: process.env.AWS_REGION || 'sa-east-1',
+  AWS_REGION: process.env.AWS_REGION || 'us-east-1',
   DYNAMODB_TABLE_NAME: process.env.DYNAMODB_TABLE_NAME || 'horizons',
   S3_BUCKET_NAME: process.env.S3_BUCKET_NAME || '',
   STAGE: process.env.STAGE || 'prod',
