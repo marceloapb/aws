@@ -54,10 +54,14 @@ export default function Equipamentos() {
         authFetch('/admin/equipamentos/checklists'),
         authFetch('/admin/agenda'),
       ]);
-      setEquipamentos(await eqRes.json().catch(() => []));
-      setCategorias(await catRes.json().catch(() => DEFAULT_CATEGORIES.map((n, i) => ({ id: i+1, nome: n, cor: PRESET_COLORS[i] }))));
-      setChecklists(await chkRes.json().catch(() => []));
-      setEventos(await evRes.json().catch(() => []));
+      const eqJson = await eqRes.json().catch(() => ({}));
+      const catJson = await catRes.json().catch(() => ({}));
+      const chkJson = await chkRes.json().catch(() => ({}));
+      const evJson = await evRes.json().catch(() => ({}));
+      setEquipamentos(eqJson.data || eqJson || []);
+      setCategorias(catJson.data || catJson || DEFAULT_CATEGORIES.map((n, i) => ({ id: i+1, nome: n, cor: PRESET_COLORS[i] })));
+      setChecklists(chkJson.data || chkJson || []);
+      setEventos(evJson.data || evJson || []);
     } catch (e) { console.error(e); }
     setLoading(false);
   }
