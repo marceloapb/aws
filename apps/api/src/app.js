@@ -57,6 +57,7 @@ const clientTrackingRoutes = require('./routes/client-tracking');
 const clientProrrogacaoRoutes = require('./routes/client-prorrogacao');
 const clientExtensaoRoutes = require('./routes/client-extensao');
 const clientOnboardingRoutes = require('./routes/client-onboarding');
+const clientCatalogoRoutes = require('./routes/client-catalogo');
 
 // Rotas Públicas (sem auth)
 const publicRoutes = require('./routes/public');
@@ -144,6 +145,7 @@ app.use('/client/aditivos', clientAditivosRoutes);
 app.use('/client/portal', clientAuth, clientPortalRoutes);
 app.use('/client/media', clientAuth, clientMediaRoutes);
 app.use('/client/onboarding', clientAuth, clientOnboardingRoutes);
+app.use('/client/catalogo', clientAuth, clientCatalogoRoutes);
 
 // Rotas Públicas (site institucional, sem auth)
 app.use('/public/album/:slug/tema', publicAlbumTemaRoutes);

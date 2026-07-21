@@ -49,6 +49,7 @@ import Novidades from './pages/admin/Novidades';
 import NovidadesEditor from './pages/admin/NovidadesEditor';
 import CmsEditor from './pages/admin/CmsEditor';
 import MeusOrcamentos from './pages/cliente/MeusOrcamentos';
+import SolicitarOrcamento from './pages/cliente/SolicitarOrcamento';
 import MeusContratos from './pages/cliente/MeusContratos';
 import MeusAlbuns from './pages/cliente/MeusAlbuns';
 // AlbumConfig moved to ConfigEmpresa hub
@@ -156,6 +157,7 @@ function App() {
         <Route path="eventos" element={<MeusEventos />} />
         <Route path="eventos/:id" element={<EventoDetalhe />} />
         <Route path="orcamentos" element={<MeusOrcamentos />} />
+        <Route path="orcamentos/novo" element={<SolicitarOrcamento />} />
         <Route path="contratos" element={<MeusContratos />} />
         <Route path="pagamentos" element={<MeusPagamentos />} />
         <Route path="albuns" element={<MeusAlbuns />} />
