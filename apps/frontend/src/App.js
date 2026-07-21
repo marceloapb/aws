@@ -54,6 +54,12 @@ import MeusAlbuns from './pages/cliente/MeusAlbuns';
 // AlbumConfig moved to ConfigEmpresa hub
 import AlbumView from './pages/cliente/AlbumView';
 import CompletarCadastro from './pages/cliente/CompletarCadastro';
+import ClienteDashboard from './pages/cliente/ClienteDashboard';
+import MeusEventos from './pages/cliente/MeusEventos';
+import EventoDetalhe from './pages/cliente/EventoDetalhe';
+import MeusPagamentos from './pages/cliente/MeusPagamentos';
+import MeuFeedback from './pages/cliente/MeuFeedback';
+import MeuPerfilCliente from './pages/cliente/MeuPerfil';
 
 function ClienteGuard({ children }) {
   const { user } = useAuth();
@@ -79,7 +85,7 @@ function App() {
         <Route path="/contato" element={<ContatoPage />} />
       </Route>
 
-      <Route path="/login" element={user ? <Navigate to={user.role === 'admin' ? '/admin' : '/cliente/orcamentos'} /> : <Login />} />
+      <Route path="/login" element={user ? <Navigate to={user.role === 'admin' ? '/admin' : '/cliente'} /> : <Login />} />
       <Route path="/cadastro" element={<Cadastro />} />
 
       {/* Admin */}
@@ -146,11 +152,16 @@ function App() {
       {/* Cliente */}
       <Route path="/cliente/completar-cadastro" element={<PrivateRoute role="client"><CompletarCadastro /></PrivateRoute>} />
       <Route path="/cliente" element={<PrivateRoute role="client"><ClienteGuard><Layout /></ClienteGuard></PrivateRoute>}>
-        <Route index element={<Navigate to="orcamentos" />} />
+        <Route index element={<ClienteDashboard />} />
+        <Route path="eventos" element={<MeusEventos />} />
+        <Route path="eventos/:id" element={<EventoDetalhe />} />
         <Route path="orcamentos" element={<MeusOrcamentos />} />
         <Route path="contratos" element={<MeusContratos />} />
+        <Route path="pagamentos" element={<MeusPagamentos />} />
         <Route path="albuns" element={<MeusAlbuns />} />
         <Route path="albuns/:slug" element={<AlbumView />} />
+        <Route path="feedback/:id" element={<MeuFeedback />} />
+        <Route path="dados" element={<MeuPerfilCliente />} />
       </Route>
 
       <Route path="*" element={<Navigate to="/" />} />

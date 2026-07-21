@@ -61,9 +61,11 @@ const adminSections = [
 ];
 
 const clienteLinks = [
-  { to: '/cliente/orcamentos', icon: FileText, label: 'Meus Orçamentos' },
-  { to: '/cliente/contratos', icon: FolderOpen, label: 'Meus Contratos' },
+  { to: '/cliente', icon: LayoutDashboard, label: 'Painel', end: true },
+  { to: '/cliente/eventos', icon: Calendar, label: 'Meus Eventos' },
+  { to: '/cliente/pagamentos', icon: CreditCard, label: 'Pagamentos' },
   { to: '/cliente/albuns', icon: Image, label: 'Minhas Fotos' },
+  { to: '/cliente/dados', icon: Users, label: 'Meus Dados' },
 ];
 
 export default function Sidebar({ onClose }) {
@@ -158,10 +160,11 @@ export default function Sidebar({ onClose }) {
           ))
         ) : (
           <div className="space-y-1">
-            {clienteLinks.map(({ to, icon: Icon, label }) => (
+            {clienteLinks.map(({ to, icon: Icon, label, end: endProp }) => (
               <NavLink
                 key={to}
                 to={to}
+                end={endProp}
                 onClick={onClose}
                 className={({ isActive }) =>
                   `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors ${
