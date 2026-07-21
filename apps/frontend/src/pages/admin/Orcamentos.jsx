@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
+import { PageHeader, KPICard } from '../../components/ui';
 import {
   FileText, Plus, Eye, Send, Copy, Trash2, Search,
   CheckCircle, Clock, XCircle, AlertTriangle, TrendingUp, DollarSign, BarChart3
@@ -86,40 +87,30 @@ export default function Orcamentos() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between mb-6 flex-col sm:flex-row gap-3">
-        <div className="flex items-center gap-3">
-          <FileText size={24} style={{ color: '#EA580C' }} />
-          <h1 className="text-2xl font-bold text-gray-900">Orçamentos</h1>
-        </div>
-        <div className="flex gap-2">
+      <PageHeader
+        icon={FileText}
+        title="Orçamentos"
+        actions={
           <button onClick={() => navigate('/admin/orcamentos/novo')} style={{ background: ACCENT }} className="inline-flex items-center gap-2 px-4 py-2.5 text-white rounded-lg text-sm font-medium hover:opacity-90 transition-opacity">
             <Plus size={16} /> Novo Orçamento
           </button>
-        </div>
-      </div>
+        }
+      />
 
       {/* KPIs */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {kpis.map((kpi) => (
-          <div key={kpi.label} className="bg-white rounded-xl border border-gray-200 p-4 flex items-center gap-4">
-            <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${kpi.accent}`}>
-              <kpi.icon size={20} />
-            </div>
-            <div>
-              <p className="text-xs text-gray-500 uppercase tracking-wide">{kpi.label}</p>
-              <p className="text-lg font-bold text-gray-900">{kpi.value}</p>
-            </div>
-          </div>
+          <KPICard key={kpi.label} icon={kpi.icon} label={kpi.label} value={kpi.value} accent={kpi.accent} />
         ))}
       </div>
 
       {/* Filtros */}
       <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-        <div className="flex gap-1 overflow-x-auto pb-1">
+        <div className="flex border-b border-gray-200 overflow-x-auto">
           {TABS.map(t => (
             <button key={t.key} onClick={() => setTab(t.key)}
-              className={`px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-colors ${tab === t.key ? 'text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
-              style={tab === t.key ? { background: ACCENT } : {}}>
+              className={`px-4 py-3 text-sm font-medium whitespace-nowrap border-b-2 transition-colors ${tab === t.key ? 'border-orange-600 text-orange-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
+              style={tab === t.key ? { borderColor: ACCENT, color: ACCENT } : {}}>
               {t.label}
             </button>
           ))}

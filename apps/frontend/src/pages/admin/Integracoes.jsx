@@ -1,4 +1,6 @@
 import React, { useState } from 'react';
+import { Link2 } from 'lucide-react';
+import { PageHeader } from '../../components/ui';
 import ConfigIntegracoes from '../../components/ConfigIntegracoes';
 
 export default function Integracoes() {
@@ -6,10 +8,11 @@ export default function Integracoes() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-xl font-semibold text-gray-900">Integrações</h1>
-        <p className="text-sm text-gray-500">Gerencie suas conexões com serviços externos</p>
-      </div>
+      <PageHeader
+        icon={Link2}
+        title="Integrações"
+        subtitle="Gerencie suas conexões com serviços externos"
+      />
       <ConfigIntegracoes form={form} setForm={setForm} />
     </div>
   );
