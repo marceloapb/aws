@@ -82,7 +82,7 @@ export default function Albuns() {
   }), [albuns]);
 
   const handlePublicar = async (album) => {
-    if ((album.pagamento_pct || 0) < 70) return alert('Pagamento mínimo de 70% necessário para publicar.');
+    if ((album.percentual_pago ?? album.pagamento_pct ?? 0) < 70) return alert('Pagamento mínimo de 70% necessário para publicar.');
     const res = await authFetch(`/admin/albuns/${album.id}/publicar`, { method: 'POST' });
     const json = await res.json();
     if (json.success) setAlbuns(prev => prev.map(a => a.id === album.id ? { ...a, status: 'publicado' } : a));
@@ -203,7 +203,7 @@ export default function Albuns() {
         <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-5">
           {filtrados.map(album => {
             const dias = diasRestantes(album.data_expiracao);
-            const pct = album.pagamento_pct ?? 100;
+            const pct = album.percentual_pago ?? album.pagamento_pct ?? 100;
             const bloqueado = pct < 70;
             return (
               <div key={album.id} className="bg-white rounded-xl border border-gray-200 overflow-hidden hover:shadow-lg transition-all group">

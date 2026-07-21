@@ -3,7 +3,7 @@ import { useParams } from 'react-router-dom';
 import {
   Upload, Send, Link2, Settings, Plus, Trash2, ChevronUp, ChevronDown,
   X, ChevronLeft, ChevronRight, Download, Clock, CalendarPlus, Eye,
-  MessageSquare, Image, CheckCircle2, Shield
+  MessageSquare, Image, CheckCircle2, Shield, Edit, Palette
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 
@@ -37,8 +37,12 @@ export default function AlbumDetalhe() {
   const [comentario, setComentario] = useState('');
   const [showProrrogar, setShowProrrogar] = useState(false);
   const [showConfig, setShowConfig] = useState(false);
+  const [showTema, setShowTema] = useState(false);
+  const [tema, setTema] = useState({ cores: { fundo: '#FFFFFF', texto: '#1A1A1A', acento: '#EA580C' }, layout: 'grade', animacao: 'none' });
   const [prorrogarData, setProrrogarData] = useState('');
   const [prorrogarValor, setProrrogarValor] = useState('');
+  const [editingFoto, setEditingFoto] = useState(null);
+  const [editFotoForm, setEditFotoForm] = useState({ titulo: '', descricao: '' });
 
   const fetchAlbum = useCallback(async () => {
     try {
@@ -228,6 +232,28 @@ export default function AlbumDetalhe() {
     fetchAlbum();
   };
 
+  // G2 - Edit foto titulo/descricao
+  const openEditFoto = (foto) => {
+    const fotoId = foto.id?.startsWith('FOTO#') ? foto.id.replace('FOTO#', '') : foto.id;
+    setEditingFoto({ ...foto, extractedId: fotoId });
+    setEditFotoForm({ titulo: foto.titulo || '', descricao: foto.descricao || '' });
+  };
+
+  const handleSaveFotoEdit = async () => {
+    if (!editingFoto) return;
+    const fotoId = editingFoto.extractedId;
+    const res = await authFetch(`/admin/album/galeria/${galeriaAtiva}/foto/${fotoId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ titulo: editFotoForm.titulo, descricao: editFotoForm.descricao }),
+    });
+    const json = await res.json();
+    if (json.success !== false) {
+      setFotos(prev => prev.map(f => f.id === editingFoto.id ? { ...f, titulo: editFotoForm.titulo, descricao: editFotoForm.descricao } : f));
+    }
+    setEditingFoto(null);
+  };
+
   // ALB-12 Lightbox keyboard
   useEffect(() => {
     const handler = (e) => {
@@ -348,6 +374,9 @@ export default function AlbumDetalhe() {
           <button onClick={() => setShowConfig(true)} className="flex items-center gap-1 px-3 py-2 rounded text-sm border border-gray-300 hover:bg-gray-100">
             <Settings size={15} /> Configurações
           </button>
+          <button onClick={async () => { try { const r = await authFetch(`/admin/albuns/${id}/tema`); const j = await r.json(); if (j.success) setTema(j.data); } catch {} setShowTema(true); }} className="flex items-center gap-1 px-3 py-2 rounded text-sm border border-gray-300 hover:bg-gray-100">
+            <Palette size={15} /> Tema
+          </button>
         </div>
 
         {/* Upload progress */}
@@ -451,6 +480,7 @@ export default function AlbumDetalhe() {
                     #{idx + 1}
                   </label>
                   <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100">
+                    <button onClick={() => openEditFoto(foto)} title="Editar título/descrição"><Edit size={13} /></button>
                     <button onClick={() => downloadFoto(foto)} title="Download"><Download size={13} /></button>
                   </div>
                 </div>
@@ -586,6 +616,114 @@ export default function AlbumDetalhe() {
             </div>
             <div className="mt-6 pt-4 border-t">
               <button onClick={() => setShowConfig(false)} className="w-full px-4 py-2.5 rounded-lg text-sm font-medium text-white" style={{ background: ACCENT }}>Fechar</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* G2 - Modal Editar Foto (titulo/descricao) */}
+      {editingFoto && (
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center" onClick={() => setEditingFoto(null)}>
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm p-5 mx-4 space-y-4" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-bold text-gray-900 flex items-center gap-2">
+                <Edit size={16} style={{ color: ACCENT }} /> Editar Foto
+              </h3>
+              <button onClick={() => setEditingFoto(null)} className="p-1 rounded hover:bg-gray-100"><X size={16} /></button>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-700 mb-1">Título</label>
+              <input
+                value={editFotoForm.titulo}
+                onChange={e => setEditFotoForm(f => ({ ...f, titulo: e.target.value }))}
+                className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-orange-200"
+                placeholder="Título da foto..."
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-700 mb-1">Descrição</label>
+              <textarea
+                value={editFotoForm.descricao}
+                onChange={e => setEditFotoForm(f => ({ ...f, descricao: e.target.value }))}
+                rows={3}
+                className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-orange-200 resize-none"
+                placeholder="Descrição da foto..."
+              />
+            </div>
+            <div className="flex justify-end gap-2 pt-2 border-t border-gray-100">
+              <button onClick={() => setEditingFoto(null)} className="px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-100 rounded-lg transition">Cancelar</button>
+              <button onClick={handleSaveFotoEdit} style={{ background: ACCENT }} className="px-4 py-1.5 text-sm text-white rounded-lg font-medium hover:opacity-90 transition shadow-sm">Salvar</button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* G3 - Modal Tema do Álbum */}
+      {showTema && (
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center" onClick={() => setShowTema(false)}>
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md p-6 mx-4 space-y-5 max-h-[80vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-semibold flex items-center gap-2"><Palette size={18} style={{ color: ACCENT }} /> Tema do Álbum</h3>
+              <button onClick={() => setShowTema(false)} className="text-gray-400 hover:text-gray-600"><X size={18} /></button>
+            </div>
+
+            {/* Layout */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Layout</label>
+              <div className="flex flex-wrap gap-2">
+                {['grade', 'mosaico', 'colagem', 'slider', 'coluna', 'ladrilhos'].map(l => (
+                  <button key={l} onClick={() => setTema({ ...tema, layout: l })}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors ${tema.layout === l ? 'border-orange-300 bg-orange-50 text-orange-700' : 'border-gray-200 text-gray-500 hover:bg-gray-50'}`}>
+                    {l.charAt(0).toUpperCase() + l.slice(1)}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Cores */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Cores</label>
+              <div className="grid grid-cols-3 gap-3">
+                <div>
+                  <label className="text-xs text-gray-500">Fundo</label>
+                  <input type="color" value={tema.cores?.fundo || '#FFFFFF'} onChange={e => setTema({ ...tema, cores: { ...tema.cores, fundo: e.target.value } })}
+                    className="w-full h-9 rounded border cursor-pointer" />
+                </div>
+                <div>
+                  <label className="text-xs text-gray-500">Texto</label>
+                  <input type="color" value={tema.cores?.texto || '#1A1A1A'} onChange={e => setTema({ ...tema, cores: { ...tema.cores, texto: e.target.value } })}
+                    className="w-full h-9 rounded border cursor-pointer" />
+                </div>
+                <div>
+                  <label className="text-xs text-gray-500">Acento</label>
+                  <input type="color" value={tema.cores?.acento || '#EA580C'} onChange={e => setTema({ ...tema, cores: { ...tema.cores, acento: e.target.value } })}
+                    className="w-full h-9 rounded border cursor-pointer" />
+                </div>
+              </div>
+            </div>
+
+            {/* Animação */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Animação</label>
+              <select value={tema.animacao || 'none'} onChange={e => setTema({ ...tema, animacao: e.target.value })}
+                className="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-orange-200 outline-none">
+                <option value="none">Nenhuma</option>
+                <option value="fade">Fade</option>
+                <option value="slide">Slide</option>
+                <option value="zoom">Zoom</option>
+              </select>
+            </div>
+
+            {/* Salvar */}
+            <div className="flex justify-end gap-2 pt-3 border-t">
+              <button onClick={() => setShowTema(false)} className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg">Cancelar</button>
+              <button onClick={async () => {
+                try {
+                  await authFetch(`/admin/albuns/${id}/tema`, { method: 'PUT', body: JSON.stringify(tema) });
+                  setShowTema(false);
+                } catch {}
+              }} style={{ background: ACCENT }} className="px-4 py-2 text-sm text-white rounded-lg font-medium hover:opacity-90">
+                Salvar Tema
+              </button>
             </div>
           </div>
         </div>

@@ -50,6 +50,7 @@ import CmsEditor from './pages/admin/CmsEditor';
 import MeusOrcamentos from './pages/cliente/MeusOrcamentos';
 import MeusContratos from './pages/cliente/MeusContratos';
 import MeusAlbuns from './pages/cliente/MeusAlbuns';
+import AlbumConfig from './pages/admin/AlbumConfig';
 import AlbumView from './pages/cliente/AlbumView';
 
 function App() {
@@ -101,6 +102,7 @@ function App() {
         {/* Álbuns */}
         <Route path="albuns" element={<Albuns />} />
         <Route path="albuns/:id" element={<AlbumDetalhe />} />
+        <Route path="albuns/config" element={<AlbumConfig />} />
 
         {/* Clientes */}
         <Route path="clientes" element={<Clientes />} />
