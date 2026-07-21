@@ -24,10 +24,13 @@ export default function NotasFiscais() {
   useEffect(() => { loadNotas(); }, []);
 
   const loadNotas = async () => {
+    setLoading(true);
     try {
       const res = await authFetch('/admin/notas-fiscais');
-      const json = await res.json();
-      if (json.success) setNotas(json.data || []);
+      if (res.ok) {
+        const json = await res.json();
+        setNotas(Array.isArray(json.data) ? json.data : []);
+      }
     } catch {}
     setLoading(false);
   };
