@@ -261,14 +261,18 @@ export default function AlbumConfig() {
                       {faixa.meses} {faixa.meses === 1 ? 'mês' : 'meses'}
                     </td>
                     <td className="py-3 pr-4">
-                      <input
-                        type="number"
-                        min={0}
-                        step={0.01}
-                        value={faixa.preco}
-                        onChange={e => updateFaixa(idx, 'preco', Number(e.target.value))}
-                        className="w-28 px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-200 focus:border-orange-400"
-                      />
+                      <div className="flex items-center gap-1">
+                        <span className="text-sm text-gray-500">R$</span>
+                        <input
+                          type="number"
+                          min={0}
+                          step={0.01}
+                          value={faixa.preco}
+                          onChange={e => updateFaixa(idx, 'preco', Number(e.target.value))}
+                          placeholder="0,00"
+                          className="w-24 px-2 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-200 focus:border-orange-400 text-right"
+                        />
+                      </div>
                     </td>
                     <td className="py-3 text-center">
                       <input
