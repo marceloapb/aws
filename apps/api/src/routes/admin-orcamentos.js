@@ -46,7 +46,33 @@ router.get('/', async (req, res) => {
 
     const total = items.length;
     const start = (Number(page) - 1) * Number(limit);
-    const data = items.slice(start, start + Number(limit));
+    const pageItems = items.slice(start, start + Number(limit));
+
+    // Resolve client names for items that don't have clientName
+    const clienteIds = [...new Set(pageItems.filter(i => i.cliente_id && !i.clientName && !i.nome_completo && !i.cliente_nome).map(i => i.cliente_id))];
+    const clienteNomes = {};
+    for (const cid of clienteIds.slice(0, 20)) {
+      try {
+        const profileResult = await dynamo.send(new QueryCommand({
+          TableName: TABLE,
+          KeyConditionExpression: 'PK = :pk AND SK = :sk',
+          ExpressionAttributeValues: { ':pk': `CLIENT#${cid}`, ':sk': 'PROFILE' },
+        }));
+        if (profileResult.Items?.[0]?.nome) {
+          clienteNomes[cid] = profileResult.Items[0].nome;
+        }
+      } catch {}
+    }
+
+    const data = pageItems.map(item => ({
+      ...item,
+      clientName: item.clientName || item.nome_completo || item.cliente_nome || clienteNomes[item.cliente_id] || null,
+      eventType: item.eventType || item.tipo_evento || item.nome_evento || null,
+      eventDate: item.eventDate || item.data_evento || null,
+      total: item.total || item.valor_total || 0,
+      status: item.status === 'solicitado' ? 'draft' : (item.status || 'draft'),
+      origem_canal: item.origem_canal || null,
+    }));
 
     res.json({ success: true, data, pagination: { page: Number(page), totalPages: Math.ceil(total / Number(limit)), totalItems: total } });
   } catch (error) {
