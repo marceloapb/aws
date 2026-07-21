@@ -45,7 +45,7 @@ export function AuthProvider({ children }) {
       const res = await fetch(`${API_URL}/auth/signup`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, email, password, phone }),
+        body: JSON.stringify({ nome: name, email, senha: password, phone }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || 'Erro ao cadastrar');
