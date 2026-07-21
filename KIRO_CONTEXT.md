@@ -120,8 +120,9 @@ apps/
 ## Instruções para o Kiro
 - Não fazer perguntas desnecessárias, só executa
 - Repo local: D:\OneDrive\.Git\aws
-- Depois de alterações, fazer commit + push + deploy (SAM + S3/CloudFront) quando pedido
+- Depois de alterações, fazer commit + push (o GitHub Actions faz o deploy automaticamente)
+- NÃO fazer deploy manual — o CI/CD cuida disso a cada push na main
 - PowerShell no Windows (usar Set-Location, não cd &&)
 - git pull --rebase antes de push se rejeitar
-- Quando o Marcelo pedir pra publicar/deploy, faz tudo de uma vez (build + deploy API + deploy frontend + commit + push)
+- Quando o Marcelo pedir pra publicar/deploy, só commit + push é suficiente
 - Não perguntar sobre cache do navegador ou se o deploy está no lugar certo — confia no processo
