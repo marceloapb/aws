@@ -49,19 +49,26 @@ export default function Equipamentos() {
     setLoading(true);
     try {
       const [eqRes, catRes, chkRes, evRes] = await Promise.all([
-        authFetch('/admin/equipamentos'),
-        authFetch('/admin/equipamentos/categorias'),
-        authFetch('/admin/equipamentos/checklists'),
-        authFetch('/admin/agenda'),
+        authFetch('/admin/equipamentos').catch(() => null),
+        authFetch('/admin/equipamentos/categorias').catch(() => null),
+        authFetch('/admin/equipamentos/checklists').catch(() => null),
+        authFetch('/admin/agenda').catch(() => null),
       ]);
-      const eqJson = await eqRes.json().catch(() => ({}));
-      const catJson = await catRes.json().catch(() => ({}));
-      const chkJson = await chkRes.json().catch(() => ({}));
-      const evJson = await evRes.json().catch(() => ({}));
-      setEquipamentos(eqJson.data || eqJson || []);
-      setCategorias(catJson.data || catJson || DEFAULT_CATEGORIES.map((n, i) => ({ id: i+1, nome: n, cor: PRESET_COLORS[i] })));
-      setChecklists(chkJson.data || chkJson || []);
-      setEventos(evJson.data || evJson || []);
+      
+      const eqJson = eqRes?.ok ? await eqRes.json().catch(() => ({})) : {};
+      const catJson = catRes?.ok ? await catRes.json().catch(() => ({})) : {};
+      const chkJson = chkRes?.ok ? await chkRes.json().catch(() => ({})) : {};
+      const evJson = evRes?.ok ? await evRes.json().catch(() => ({})) : {};
+      
+      const eqData = Array.isArray(eqJson.data) ? eqJson.data : (Array.isArray(eqJson) ? eqJson : []);
+      const catData = Array.isArray(catJson.data) ? catJson.data : (Array.isArray(catJson) ? catJson : DEFAULT_CATEGORIES.map((n, i) => ({ id: String(i+1), nome: n, cor: PRESET_COLORS[i] })));
+      const chkData = Array.isArray(chkJson.data) ? chkJson.data : (Array.isArray(chkJson) ? chkJson : []);
+      const evData = Array.isArray(evJson.data) ? evJson.data : (Array.isArray(evJson) ? evJson : []);
+      
+      setEquipamentos(eqData);
+      setCategorias(catData);
+      setChecklists(chkData);
+      setEventos(evData);
     } catch (e) { console.error(e); }
     setLoading(false);
   }
