@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, Save, X, Plus, Package } from 'lucide-react';
+import { ArrowLeft, Save, Package } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 
 const ACCENT = '#EA580C';
@@ -26,10 +26,9 @@ export default function CatalogoForm() {
     quantidade_estoque: '',
     exibir_ao_cliente: true,
     ativo: true,
-    tags: [],
   });
 
-  const [novaTag, setNovaTag] = useState('');
+
 
   useEffect(() => {
     // Carregar categorias
@@ -56,7 +55,6 @@ export default function CatalogoForm() {
               quantidade_estoque: d.data.quantidade_estoque || '',
               exibir_ao_cliente: d.data.exibir_ao_cliente ?? true,
               ativo: d.data.ativo ?? true,
-              tags: d.data.tags || [],
             });
           }
         })
@@ -67,18 +65,6 @@ export default function CatalogoForm() {
 
   const handleChange = (field, value) => {
     setForm(prev => ({ ...prev, [field]: value }));
-  };
-
-  const addTag = () => {
-    const tag = novaTag.trim();
-    if (tag && !form.tags.includes(tag)) {
-      setForm(prev => ({ ...prev, tags: [...prev.tags, tag] }));
-    }
-    setNovaTag('');
-  };
-
-  const removeTag = (tag) => {
-    setForm(prev => ({ ...prev, tags: prev.tags.filter(t => t !== tag) }));
   };
 
   const handleSubmit = async (e) => {
@@ -94,7 +80,6 @@ export default function CatalogoForm() {
       valor_base: Number(form.valor_base),
       exibir_ao_cliente: form.exibir_ao_cliente,
       ativo: form.ativo,
-      tags: form.tags,
     };
 
     if (form.tipo === 'servico_principal') {
@@ -226,29 +211,6 @@ export default function CatalogoForm() {
               <span className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${form.ativo ? 'left-5' : 'left-0.5'}`} />
             </button>
             <span className="text-sm text-gray-700">Ativo</span>
-          </div>
-        </div>
-
-        {/* Tags */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Tags</label>
-          <div className="flex flex-wrap gap-2 mb-2">
-            {form.tags.map(tag => (
-              <span key={tag} className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
-                {tag}
-                <button type="button" onClick={() => removeTag(tag)} className="hover:text-orange-600">
-                  <X size={12} />
-                </button>
-              </span>
-            ))}
-          </div>
-          <div className="flex gap-2">
-            <input type="text" value={novaTag} onChange={e => setNovaTag(e.target.value)}
-              onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addTag(); } }}
-              placeholder="Adicionar tag..." className="border rounded-lg px-3 py-2 text-sm flex-1" />
-            <button type="button" onClick={addTag} className="px-3 py-2 border rounded-lg hover:bg-gray-50">
-              <Plus size={16} />
-            </button>
           </div>
         </div>
 
