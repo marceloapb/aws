@@ -84,11 +84,11 @@ export default function ConfigPrazos({ form, setForm }) {
 
           {/* LGPD toggle for client deletion */}
           {section.title === 'LGPD' && (
-            <div className="mt-5">
+            <div className="mt-5 space-y-4">
               <div className="flex items-center justify-between p-4 rounded-lg bg-gray-50 border">
                 <div>
                   <p className="text-sm font-medium text-gray-700">Permitir exclusão pelo cliente</p>
-                  <p className="text-xs text-gray-400 mt-0.5">O cliente pode solicitar a exclusão dos seus dados pessoais</p>
+                  <p className="text-xs text-gray-400 mt-0.5">O cliente pode solicitar a exclusão dos seus dados pessoais pelo portal</p>
                 </div>
                 <button
                   type="button"
@@ -102,6 +102,13 @@ export default function ConfigPrazos({ form, setForm }) {
                     (form.allowClientDeletion ?? true) ? 'translate-x-6' : 'translate-x-1'
                   }`} />
                 </button>
+              </div>
+
+              <div className="p-4 rounded-lg bg-blue-50 border border-blue-200">
+                <p className="text-sm text-blue-700">
+                  💡 <strong>Como funciona a LGPD no sistema:</strong> Após o prazo de retenção configurado acima, dados de clientes inativos (sem serviço ativo) são marcados para exclusão automática.
+                  Se "Permitir exclusão" estiver ativo, o cliente pode solicitar a remoção dos seus dados a qualquer momento pelo portal.
+                </p>
               </div>
             </div>
           )}

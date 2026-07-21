@@ -114,11 +114,13 @@ export default function Sidebar({ onClose }) {
       <div className="h-16 flex items-center justify-between px-4 border-b border-gray-700">
         <div className="flex items-center gap-2">
           {logoUrl ? (
-            <img src={logoUrl} alt={empresaNome || 'Logo'} className="h-8 w-auto" />
+            <img src={logoUrl} alt={empresaNome || 'Logo'} className="h-8 w-auto max-w-[160px] object-contain" />
           ) : (
-            <Camera size={24} style={{ color: ACCENT }} />
+            <>
+              <Camera size={24} style={{ color: ACCENT }} />
+              <span className="font-bold text-lg">{empresaNome || 'MBFoto'}</span>
+            </>
           )}
-          <span className="font-bold text-lg">{empresaNome || 'MBFoto'}</span>
         </div>
         <button onClick={onClose} className="lg:hidden p-1 rounded hover:bg-sidebar-hover">
           <X size={18} />

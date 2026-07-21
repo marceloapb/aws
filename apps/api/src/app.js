@@ -262,6 +262,28 @@ app.post('/admin/instagram/gerar-caption', adminAuth, async (req, res) => {
   }
 });
 
+// Backup trigger manual
+app.post('/admin/backup/trigger', adminAuth, async (req, res) => {
+  try {
+    const { handler } = require('./jobs/backupJob');
+    await handler();
+    res.json({ success: true, message: 'Backup executado com sucesso' });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// Limpar cache (SSM params)
+app.post('/admin/system/clear-cache', adminAuth, async (req, res) => {
+  try {
+    const { clearParamsCache } = require('./config/env');
+    clearParamsCache();
+    res.json({ success: true, message: 'Cache limpo com sucesso' });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
 // Presigned GET URL para exibir imagens (admin)
 app.post('/admin/fotos/view-url', adminAuth, async (req, res) => {
   try {

@@ -130,6 +130,16 @@ export default function ConfigDadosEmpresa({ form, setForm, onUploadLogo, onUplo
             <input name="facebook" value={form.facebook || ''} onChange={handleChange}
               className={inputClass('facebook')} placeholder="URL da página" />
           </div>
+          <div>
+            <FieldLabel>YouTube</FieldLabel>
+            <input name="youtube" value={form.youtube || ''} onChange={handleChange}
+              className={inputClass('youtube')} placeholder="URL do canal" />
+          </div>
+          <div>
+            <FieldLabel>TikTok</FieldLabel>
+            <input name="tiktok" value={form.tiktok || ''} onChange={handleChange}
+              className={inputClass('tiktok')} placeholder="@seuuser" />
+          </div>
         </div>
       </section>
 
