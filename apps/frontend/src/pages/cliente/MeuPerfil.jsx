@@ -27,7 +27,8 @@ export default function MeuPerfil() {
   useEffect(() => {
     authFetch('/client/portal/perfil')
       .then(r => r.json())
-      .then(d => {
+      .then(json => {
+        const d = json.data || json;
         setForm(prev => ({
           ...prev,
           nome: d.nome || '',
@@ -35,12 +36,12 @@ export default function MeuPerfil() {
           telefone: d.telefone || '',
           cpf_cnpj: d.cpf_cnpj || '',
           endereco_cep: d.endereco_cep || d.endereco?.cep || '',
-          endereco_rua: d.endereco_rua || d.endereco?.rua || '',
+          endereco_rua: d.endereco_rua || d.endereco?.rua || d.endereco?.logradouro || '',
           endereco_numero: d.endereco_numero || d.endereco?.numero || '',
           endereco_complemento: d.endereco_complemento || d.endereco?.complemento || '',
           endereco_bairro: d.endereco_bairro || d.endereco?.bairro || '',
           endereco_cidade: d.endereco_cidade || d.endereco?.cidade || '',
-          endereco_estado: d.endereco_estado || d.endereco?.estado || '',
+          endereco_estado: d.endereco_estado || d.endereco?.estado || d.endereco?.uf || '',
         }));
       })
       .catch(() => {})

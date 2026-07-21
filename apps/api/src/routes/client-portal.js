@@ -304,6 +304,16 @@ router.get('/perfil', async (req, res) => {
       perfil = alt.Items && alt.Items[0];
     }
 
+    // Try CLIENT#/PROFILE pattern (used by signup/onboarding)
+    if (!perfil) {
+      const alt2 = await dynamo.send(new QueryCommand({
+        TableName: TABLE,
+        KeyConditionExpression: 'PK = :pk AND SK = :sk',
+        ExpressionAttributeValues: { ':pk': `CLIENT#${clienteId}`, ':sk': 'PROFILE' },
+      }));
+      perfil = alt2.Items && alt2.Items[0];
+    }
+
     if (!perfil) {
       // Return basic profile from JWT
       return res.json({
@@ -321,10 +331,10 @@ router.get('/perfil', async (req, res) => {
     res.json({
       success: true,
       data: {
-        nome: perfil.nome || perfil.name || '',
+        nome: perfil.nome || perfil.nome_completo || perfil.name || '',
         email: perfil.email || req.user.email || '',
         telefone: perfil.telefone || '',
-        cpf_cnpj: perfil.cpf_cnpj || perfil.cpf || perfil.cnpj || '',
+        cpf_cnpj: perfil.cpf_cnpj || perfil.documento || perfil.cpf || perfil.cnpj || '',
         endereco: perfil.endereco || '',
       },
     });
