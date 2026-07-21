@@ -156,6 +156,13 @@ export default function Catalogo() {
     fetchDados();
   };
 
+  const toggleFornecedorCategoria = async (cat) => {
+    await authFetch(`/admin/catalogo/${cat.id}?tipo=categoria`, {
+      method: 'PUT', body: JSON.stringify({ tem_fornecedor: !cat.tem_fornecedor })
+    });
+    fetchDados();
+  };
+
   const gerarListaPrecos = () => {
     window.print();
   };
@@ -412,6 +419,11 @@ export default function Catalogo() {
                         )}
                       </div>
                       <div className="flex items-center gap-4">
+                        <button onClick={() => toggleFornecedorCategoria(cat)}
+                          title={cat.tem_fornecedor ? 'Tem fornecedor (clique para desativar)' : 'Sem fornecedor (clique para ativar)'}
+                          className={`px-2 py-1 rounded text-xs font-medium transition-colors ${cat.tem_fornecedor ? 'bg-amber-100 text-amber-800 hover:bg-amber-200' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}>
+                          {cat.tem_fornecedor ? '📦 Fornecedor' : 'Sem fornecedor'}
+                        </button>
                         <span className="text-xs text-gray-400">{qtdItens} {qtdItens === 1 ? 'item' : 'itens'}</span>
                         <button onClick={() => excluirCategoria(cat)} className="text-red-400 hover:text-red-600" title="Excluir">
                           <Trash2 size={14} />
