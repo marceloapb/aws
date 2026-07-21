@@ -252,6 +252,28 @@ Resources:
           Properties:
             Schedule: rate(1 hour)
 
+  InstagramTokenRenewalFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub 'mbf-${Stage}-instagram-token-renewal'
+      Handler: src/jobs/instagramTokenRenewalJob.handler
+      CodeUri: .
+      Timeout: 30
+      Policies:
+        - SSMParameterReadPolicy:
+            ParameterName: !Sub 'mbf/${Stage}/*'
+        - Statement:
+            - Effect: Allow
+              Action:
+                - ssm:PutParameter
+              Resource: !Sub 'arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/mbf/${Stage}/*'
+      Events:
+        Schedule:
+          Type: Schedule
+          Properties:
+            Schedule: cron(0 6 * * ? *)
+            Description: Renova token Instagram 15 dias antes de expirar (roda 6h UTC diariamente)
+
   WhatsappReminderFunction:
     Type: AWS::Serverless::Function
     Properties:

@@ -359,7 +359,7 @@ export default function WhatsApp() {
             <label className="text-xs text-gray-500">Cliente</label>
             <select value={sendForm.clienteId} onChange={e => setSendForm({ ...sendForm, clienteId: e.target.value })} className="w-full border rounded px-2 py-1.5 text-sm mt-1">
               <option value="">Selecione</option>
-              {clientes.map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}
+              {clientes.filter(c => c.whatsapp || c.telefone).map(c => <option key={c.id} value={c.id}>{c.nome} ({c.whatsapp || c.telefone})</option>)}
             </select>
           </div>
           <div>
@@ -386,7 +386,7 @@ export default function WhatsApp() {
             <label className="text-xs text-gray-500">Cliente</label>
             <select value={sendForm.clienteId} onChange={e => setSendForm({ ...sendForm, clienteId: e.target.value })} className="w-full border rounded px-2 py-1.5 text-sm mt-1">
               <option value="">Selecione</option>
-              {clientes.filter(c => c.janela24h).map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}
+              {clientes.filter(c => c.whatsapp || c.telefone).map(c => <option key={c.id} value={c.id}>{c.nome} ({c.whatsapp || c.telefone})</option>)}
             </select>
           </div>
           {sendForm.clienteId && !clientes.find(c => c.id === sendForm.clienteId)?.janela24h && (

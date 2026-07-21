@@ -157,4 +157,102 @@ router.post('/reconnect', async (req, res) => {
   }
 });
 
+// GET /api/admin/whatsapp/envios - Histórico de envios
+router.get('/envios', async (req, res) => {
+  try {
+    const result = await dynamo.send(new QueryCommand({
+      TableName: TABLE,
+      IndexName: 'GSI1',
+      KeyConditionExpression: 'GSI1PK = :pk',
+      ExpressionAttributeValues: { ':pk': 'WA_ENVIO' },
+      ScanIndexForward: false,
+      Limit: 100,
+    }));
+    res.json({ success: true, data: result.Items || [] });
+  } catch (error) {
+    res.json({ success: true, data: [] });
+  }
+});
+
+// GET /api/admin/whatsapp/templates - Templates cadastrados
+router.get('/templates', async (req, res) => {
+  try {
+    const result = await dynamo.send(new QueryCommand({
+      TableName: TABLE,
+      IndexName: 'GSI1',
+      KeyConditionExpression: 'GSI1PK = :pk',
+      ExpressionAttributeValues: { ':pk': 'WA_TEMPLATE' },
+      ScanIndexForward: false,
+    }));
+    res.json({ success: true, data: result.Items || [] });
+  } catch (error) {
+    res.json({ success: true, data: [] });
+  }
+});
+
+// GET /api/admin/whatsapp/conversas - Conversas recentes
+router.get('/conversas', async (req, res) => {
+  try {
+    const result = await dynamo.send(new QueryCommand({
+      TableName: TABLE,
+      IndexName: 'GSI1',
+      KeyConditionExpression: 'GSI1PK = :pk',
+      ExpressionAttributeValues: { ':pk': 'WA_CONVERSA' },
+      ScanIndexForward: false,
+      Limit: 50,
+    }));
+    res.json({ success: true, data: result.Items || [] });
+  } catch (error) {
+    res.json({ success: true, data: [] });
+  }
+});
+
+// GET /api/admin/whatsapp/custos - Custos do mês
+router.get('/custos', async (req, res) => {
+  try {
+    const now = new Date();
+    const mesAtual = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+
+    const result = await dynamo.send(new QueryCommand({
+      TableName: TABLE,
+      IndexName: 'GSI1',
+      KeyConditionExpression: 'GSI1PK = :pk AND begins_with(GSI1SK, :mes)',
+      ExpressionAttributeValues: { ':pk': 'WA_ENVIO', ':mes': `WA_ENVIO#${mesAtual}` },
+    }));
+
+    const envios = result.Items || [];
+    const totalMes = envios.length;
+
+    let custoTotal = 0;
+    let templates = 0;
+    let textoLivre = 0;
+    const porTipoMap = {};
+
+    for (const e of envios) {
+      const tipo = e.categoria || e.tipo || 'utility';
+      const custo = tipo === 'marketing' ? 0.0625 : 0.035;
+      custoTotal += custo;
+      if (e.templateNome) templates++; else textoLivre++;
+      if (!porTipoMap[tipo]) porTipoMap[tipo] = { tipo, qtd: 0, custoUnitario: custo, total: 0 };
+      porTipoMap[tipo].qtd++;
+      porTipoMap[tipo].total += custo;
+    }
+
+    const porDia = [];
+    for (let i = 29; i >= 0; i--) {
+      const d = new Date(now); d.setDate(d.getDate() - i);
+      const diaStr = d.toISOString().slice(0, 10);
+      const qtd = envios.filter(e => e.data?.startsWith(diaStr)).length;
+      porDia.push({ dia: diaStr.slice(5), qtd });
+    }
+
+    res.json({
+      success: true,
+      data: { totalMes, custoTotal, mediaDia: totalMes / 30, templates, textoLivre, porDia, porTipo: Object.values(porTipoMap), budget: 50 },
+    });
+  } catch (error) {
+    res.json({ success: true, data: { totalMes: 0, custoTotal: 0, mediaDia: 0, templates: 0, textoLivre: 0, porDia: [], porTipo: [], budget: 50 } });
+  }
+});
+
 module.exports = router;
