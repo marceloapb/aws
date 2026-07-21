@@ -30,6 +30,7 @@ import ClienteForm from './pages/admin/ClienteForm';
 import ClienteDetalhe from './pages/admin/ClienteDetalhe';
 import Feedback from './pages/admin/Feedback';
 import NotasFiscais from './pages/admin/NotasFiscais';
+import NfseConfig from './pages/admin/NfseConfig';
 import Aditivos from './pages/admin/Aditivos';
 import Equipamentos from './pages/admin/Equipamentos';
 import Instagram from './pages/admin/Instagram';
@@ -113,6 +114,7 @@ function App() {
         {/* Outros */}
         <Route path="feedback" element={<Feedback />} />
         <Route path="notas-fiscais" element={<NotasFiscais />} />
+        <Route path="nfse/config" element={<NfseConfig />} />
         <Route path="aditivos" element={<Aditivos />} />
         <Route path="equipamentos" element={<Equipamentos />} />
         <Route path="instagram" element={<Instagram />} />

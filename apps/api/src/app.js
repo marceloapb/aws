@@ -114,6 +114,7 @@ app.use('/admin/import', adminAuth, adminImportRoutes);
 app.use('/admin/feedback', adminAuth, adminFeedbackRoutes);
 app.use('/admin/aditivos', adminAuth, adminAditivosRoutes);
 app.use('/admin/notas-fiscais', adminAuth, adminNotasFiscaisRoutes);
+app.use('/admin/nfse', adminAuth, require('./routes/admin-nfse'));
 app.use('/admin/financeiro', adminAuth, adminFinanceiroRoutes);
 app.use('/admin/followup', adminAuth, adminFollowupRoutes);
 app.use('/admin/notificacoes', adminAuth, adminNotificacoesRoutes);
