@@ -65,7 +65,9 @@ export default function AlbumDetalhe() {
 
   useEffect(() => { fetchAlbum(); }, [fetchAlbum]);
 
-  const fotosGaleria = fotos.filter(f => f.galeria_id === galeriaAtiva);
+  const fotosGaleria = galeriaAtiva
+    ? fotos.filter(f => f.galeria_id === galeriaAtiva || !f.galeria_id)
+    : fotos;
   const totalFotos = fotos.length;
   const selecionadasCliente = fotos.filter(f => f.selecionada_cliente).length;
   const pagamento = album?.pagamento_percentual || 0;
