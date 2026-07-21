@@ -174,44 +174,6 @@ export default function SolicitarOrcamento() {
 
       <form onSubmit={handleSubmit} className="space-y-8">
 
-        {/* ═══════════ Escolha o Pacote ═══════════ */}
-        <section className="bg-white rounded-xl border border-gray-200 p-6">
-          <h2 className="text-center text-lg font-bold text-gray-900 mb-1">Escolha o seu Pacote</h2>
-          <p className="text-center text-sm text-gray-500 mb-6">
-            Selecione o pacote que melhor se adequa ao seu evento. Você poderá adicionar extras depois.
-          </p>
-
-          {loadingCatalogo ? (
-            <div className="text-center py-8 text-gray-400 text-sm">Carregando pacotes...</div>
-          ) : pacotes.length === 0 ? (
-            <div className="flex flex-col items-center py-8 text-center">
-              <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center mb-3">
-                <Package size={24} className="text-gray-400" />
-              </div>
-              <p className="text-sm text-gray-500">Nenhum pacote comercial disponível no momento.</p>
-              <p className="text-xs text-gray-400 mt-1">Prossiga para as próximas etapas.</p>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {pacotes.map(p => (
-                <button
-                  key={p.id}
-                  type="button"
-                  onClick={() => updateField('pacote_id', form.pacote_id === p.id ? '' : p.id)}
-                  className={`text-left p-4 rounded-xl border-2 transition-all ${
-                    form.pacote_id === p.id
-                      ? 'border-orange-500 bg-orange-50'
-                      : 'border-gray-200 hover:border-gray-300'
-                  }`}
-                >
-                  <p className="font-semibold text-gray-900">{p.nome}</p>
-                  {p.descricao && <p className="text-xs text-gray-500 mt-1 line-clamp-2">{p.descricao}</p>}
-                </button>
-              ))}
-            </div>
-          )}
-        </section>
-
         {/* ═══════════ Seus Dados ═══════════ */}
         <section className="bg-white rounded-xl border border-gray-200 p-6">
           <SectionTitle icon={User} title="Seus Dados" />
@@ -260,16 +222,16 @@ export default function SolicitarOrcamento() {
           </div>
         </section>
 
-        {/* ═══════════ Serviços Avaliáveis e Opcionais ═══════════ */}
+        {/* ═══════════ Produtos e Serviços ═══════════ */}
         <section className="bg-white rounded-xl border border-gray-200 p-6">
-          <SectionTitle icon={Briefcase} title="Serviços Avaliáveis e Opcionais" />
-          <p className="text-sm text-gray-500 mb-6">Deseja adicionar algo mais? Marque os serviços extras abaixo.</p>
+          <SectionTitle icon={Briefcase} title="Produtos e Serviços" />
+          <p className="text-sm text-gray-500 mb-6">Selecione os serviços e produtos que deseja incluir no seu orçamento.</p>
 
           {/* Serviços Principais */}
           {servicos.servicos_principais.length > 0 && (
-            <div className="mb-6">
-              <h4 className="text-sm font-semibold text-gray-900 mb-3">Serviços Principais</h4>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="mb-8">
+              <h4 className="text-base font-semibold text-gray-900 mb-4">Serviços Principais</h4>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {servicos.servicos_principais.map(s => (
                   <ServiceCheckbox
                     key={s.id}
@@ -284,9 +246,9 @@ export default function SolicitarOrcamento() {
 
           {/* Produtos */}
           {servicos.produtos.length > 0 && (
-            <div className="mb-6">
-              <h4 className="text-sm font-semibold text-gray-900 mb-3">Produtos</h4>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="mb-8">
+              <h4 className="text-base font-semibold text-gray-900 mb-4">Produtos</h4>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {servicos.produtos.map(s => (
                   <ServiceCheckbox
                     key={s.id}
@@ -302,8 +264,8 @@ export default function SolicitarOrcamento() {
           {/* Serviços Adicionais */}
           {servicos.adicionais.length > 0 && (
             <div>
-              <h4 className="text-sm font-semibold text-gray-900 mb-3">Serviços Adicionais</h4>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <h4 className="text-base font-semibold text-gray-900 mb-4">Serviços Adicionais</h4>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {servicos.adicionais.map(s => (
                   <ServiceCheckbox
                     key={s.id}
@@ -318,6 +280,37 @@ export default function SolicitarOrcamento() {
 
           {servicos.servicos_principais.length === 0 && servicos.produtos.length === 0 && servicos.adicionais.length === 0 && (
             <p className="text-sm text-gray-400 text-center py-4">Nenhum serviço disponível no momento.</p>
+          )}
+        </section>
+
+        {/* ═══════════ Escolha o seu Pacote ═══════════ */}
+        <section className="bg-white rounded-xl border border-gray-200 p-6">
+          <SectionTitle icon={Package} title="Escolha o seu Pacote" />
+          <p className="text-sm text-gray-500 mb-6">
+            Selecione o pacote que melhor se adequa ao seu evento. Você poderá adicionar extras depois.
+          </p>
+
+          {loadingCatalogo ? (
+            <div className="text-center py-8 text-gray-400 text-sm">Carregando pacotes...</div>
+          ) : pacotes.length === 0 ? (
+            <div className="flex flex-col items-center py-8 text-center">
+              <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center mb-3">
+                <Package size={24} className="text-gray-400" />
+              </div>
+              <p className="text-sm text-gray-500">Nenhum pacote comercial disponível no momento.</p>
+              <p className="text-xs text-gray-400 mt-1">Prossiga para as próximas etapas.</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {pacotes.map(p => (
+                <ServiceCheckbox
+                  key={p.id}
+                  item={{ id: p.id, nome: p.nome, descricao: p.descricao }}
+                  checked={form.pacote_id === p.id}
+                  onToggle={() => updateField('pacote_id', form.pacote_id === p.id ? '' : p.id)}
+                />
+              ))}
+            </div>
           )}
         </section>
 
@@ -428,8 +421,8 @@ function ServiceCheckbox({ item, checked, onToggle }) {
     <button
       type="button"
       onClick={onToggle}
-      className={`flex items-start gap-3 p-3 rounded-xl border-2 text-left transition-all ${
-        checked ? 'border-orange-500 bg-orange-50' : 'border-gray-200 hover:border-gray-300'
+      className={`flex items-start gap-3 p-4 rounded-xl border transition-all ${
+        checked ? 'border-orange-500 bg-orange-50 shadow-sm' : 'border-gray-200 hover:border-gray-300 hover:shadow-sm'
       }`}
     >
       <div className={`mt-0.5 w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 transition-colors ${
@@ -438,8 +431,8 @@ function ServiceCheckbox({ item, checked, onToggle }) {
         {checked && <CheckSquare size={12} className="text-white" />}
       </div>
       <div className="min-w-0">
-        <p className="text-sm font-medium text-gray-900">{item.nome}</p>
-        {item.descricao && <p className="text-xs text-gray-500 mt-0.5 line-clamp-2">{item.descricao}</p>}
+        <p className="text-sm font-semibold text-gray-900">{item.nome}</p>
+        {item.descricao && <p className="text-xs text-gray-500 mt-1 line-clamp-2">{item.descricao}</p>}
       </div>
     </button>
   );
