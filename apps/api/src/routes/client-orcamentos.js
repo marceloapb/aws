@@ -1,6 +1,6 @@
 const { Router } = require('express');
 const { dynamo, TABLE } = require('../config/dynamodb');
-const { QueryCommand, UpdateCommand } = require('@aws-sdk/lib-dynamodb');
+const { QueryCommand, UpdateCommand, PutCommand } = require('@aws-sdk/lib-dynamodb');
 
 const router = Router();
 
@@ -29,6 +29,36 @@ router.get('/:token', async (req, res) => {
     }));
     if (!result.Items || result.Items.length === 0) return res.status(404).json({ success: false, message: 'Orçamento não encontrado' });
     res.json({ success: true, data: result.Items[0] });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// POST /client/orcamentos - Solicitar novo orçamento
+router.post('/', async (req, res) => {
+  try {
+    const { tipo_evento, data_evento, local, observacoes } = req.body;
+    if (!tipo_evento) return res.status(400).json({ success: false, message: 'Tipo de evento é obrigatório' });
+
+    const id = require('crypto').randomUUID();
+    const clienteId = req.clienteId;
+    const item = {
+      id,
+      tipo_evento,
+      data_evento: data_evento || null,
+      local: local || null,
+      observacoes: observacoes || null,
+      status: 'solicitado',
+      origem: 'portal_cliente',
+      PK: `CLIENTE#${clienteId}`,
+      SK: `ORCAMENTO#${id}`,
+      GSI1PK: 'ORCAMENTO',
+      GSI1SK: `ORCAMENTO#${id}`,
+      created: new Date().toISOString(),
+      cliente_id: clienteId,
+    };
+    await dynamo.send(new PutCommand({ TableName: TABLE, Item: item }));
+    res.status(201).json({ success: true, data: item });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }

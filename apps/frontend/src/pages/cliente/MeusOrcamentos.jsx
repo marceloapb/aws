@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
-import { Camera, FileText, FolderOpen, Image, CreditCard, Star, Calendar, ChevronRight, ChevronDown } from 'lucide-react';
+import { Camera, FileText, FolderOpen, Image, CreditCard, Star, Calendar, ChevronRight, ChevronDown, Plus, X } from 'lucide-react';
 import StatusTracker from '../../components/cliente/StatusTracker';
 
 const ACCENT = '#EA580C';
@@ -13,6 +13,9 @@ export default function MeusOrcamentos() {
   const [albuns, setAlbuns] = useState([]);
   const [loading, setLoading] = useState(true);
   const [expandedTracker, setExpandedTracker] = useState(null);
+  const [showModal, setShowModal] = useState(false);
+  const [formData, setFormData] = useState({ tipo_evento: '', data_evento: '', local: '', observacoes: '' });
+  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => { loadData(); }, []);
 
@@ -30,10 +33,30 @@ export default function MeusOrcamentos() {
     setLoading(false);
   };
 
+  const handleSolicitar = async (e) => {
+    e.preventDefault();
+    if (!formData.tipo_evento.trim()) return;
+    setSubmitting(true);
+    try {
+      const res = await authFetch('/client/orcamentos', {
+        method: 'POST',
+        body: JSON.stringify(formData),
+      });
+      const json = await res.json();
+      if (json.success) {
+        setShowModal(false);
+        setFormData({ tipo_evento: '', data_evento: '', local: '', observacoes: '' });
+        loadData();
+        setTab('orcamentos');
+      }
+    } catch {}
+    setSubmitting(false);
+  };
+
   if (loading) return <div className="flex items-center justify-center py-20 text-gray-400">Carregando...</div>;
 
   const statusLabel = {
-    rascunho: 'Em análise', enviado: 'Aguardando resposta', confirmado: 'Confirmado', aceito: 'Confirmado',
+    solicitado: 'Solicitado', rascunho: 'Em análise', enviado: 'Aguardando resposta', confirmado: 'Confirmado', aceito: 'Confirmado',
     recusado: 'Recusado', expirado: 'Expirado', gerado: 'Pendente', assinado: 'Assinado',
     publicado: 'Disponível', ativo: 'Disponível',
   };
@@ -123,6 +146,10 @@ export default function MeusOrcamentos() {
       {/* Orçamentos */}
       {tab === 'orcamentos' && (
         <div className="space-y-3">
+          <button onClick={() => setShowModal(true)} style={{ background: ACCENT }}
+            className="w-full flex items-center justify-center gap-2 px-4 py-3 text-white rounded-xl font-medium hover:opacity-90 transition-opacity">
+            <Plus size={18} /> Solicitar Novo Orçamento
+          </button>
           {orcamentos.length === 0 ? (
             <div className="bg-white rounded-xl border p-12 text-center text-gray-400">Nenhum orçamento</div>
           ) : orcamentos.map(o => {
@@ -202,6 +229,47 @@ export default function MeusOrcamentos() {
               <p className="text-sm text-gray-500">{a.total_fotos || '?'} fotos{a.data_expiracao ? ` • Disponível até ${new Date(a.data_expiracao).toLocaleDateString('pt-BR')}` : ''}</p>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* Modal Solicitar Orçamento */}
+      {showModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
+          <div className="bg-white rounded-2xl w-full max-w-md p-6 relative">
+            <button onClick={() => setShowModal(false)} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600">
+              <X size={20} />
+            </button>
+            <h2 className="text-lg font-bold text-gray-900 mb-4">Solicitar Orçamento</h2>
+            <form onSubmit={handleSolicitar} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Tipo de Evento *</label>
+                <input type="text" required placeholder="Ex: Casamento, Aniversário, Ensaio..."
+                  value={formData.tipo_evento} onChange={e => setFormData({ ...formData, tipo_evento: e.target.value })}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-orange-500 focus:border-transparent outline-none" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Data do Evento</label>
+                <input type="date" value={formData.data_evento} onChange={e => setFormData({ ...formData, data_evento: e.target.value })}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-orange-500 focus:border-transparent outline-none" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Local</label>
+                <input type="text" placeholder="Cidade, espaço do evento..." value={formData.local}
+                  onChange={e => setFormData({ ...formData, local: e.target.value })}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-orange-500 focus:border-transparent outline-none" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Observações</label>
+                <textarea rows={3} placeholder="Detalhes adicionais, quantidade de convidados, estilo desejado..."
+                  value={formData.observacoes} onChange={e => setFormData({ ...formData, observacoes: e.target.value })}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-orange-500 focus:border-transparent outline-none resize-none" />
+              </div>
+              <button type="submit" disabled={submitting} style={{ background: ACCENT }}
+                className="w-full py-3 text-white rounded-xl font-medium hover:opacity-90 transition-opacity disabled:opacity-50">
+                {submitting ? 'Enviando...' : 'Enviar Solicitação'}
+              </button>
+            </form>
+          </div>
         </div>
       )}
     </div>
