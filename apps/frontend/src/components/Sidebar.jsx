@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import usePendingCounts from '../hooks/usePendingCounts';
-import { LayoutDashboard, Calendar, Package, FileText, CreditCard, Image, Settings, FolderOpen, LogOut, Camera, X, Users, Star, Receipt, FilePlus, Wrench, Instagram, MessageCircle, Upload, HardDrive, Zap, ScrollText, Plug, Mail, MapPin } from 'lucide-react';
+import { LayoutDashboard, Calendar, Package, FileText, CreditCard, Image, Settings, FolderOpen, LogOut, Camera, X, Users, Star, Receipt, FilePlus, Wrench, Instagram, MessageCircle, Upload, HardDrive, Zap, ScrollText, Plug, Mail, MapPin, PlusCircle } from 'lucide-react';
 
 const ACCENT = '#EA580C';
 
@@ -63,6 +63,7 @@ const adminSections = [
 const clienteLinks = [
   { to: '/cliente', icon: LayoutDashboard, label: 'Painel', end: true },
   { to: '/cliente/eventos', icon: Calendar, label: 'Meus Eventos' },
+  { to: '/cliente/orcamentos', icon: FileText, label: 'Orçamentos' },
   { to: '/cliente/pagamentos', icon: CreditCard, label: 'Pagamentos' },
   { to: '/cliente/albuns', icon: Image, label: 'Minhas Fotos' },
   { to: '/cliente/dados', icon: Users, label: 'Meus Dados' },
@@ -160,6 +161,16 @@ export default function Sidebar({ onClose }) {
           ))
         ) : (
           <div className="space-y-1">
+            <NavLink
+              to="/cliente/orcamentos"
+              state={{ openModal: true }}
+              onClick={onClose}
+              className="flex items-center justify-center gap-2 mx-1 mb-3 px-3 py-2.5 rounded-lg text-sm font-medium text-white transition-colors hover:opacity-90"
+              style={{ background: ACCENT }}
+            >
+              <PlusCircle size={18} />
+              Solicitar Orçamento
+            </NavLink>
             {clienteLinks.map(({ to, icon: Icon, label, end: endProp }) => (
               <NavLink
                 key={to}

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
+import { useLocation } from 'react-router-dom';
 import { Camera, FileText, FolderOpen, Image, CreditCard, Star, Calendar, ChevronRight, ChevronDown, Plus, X } from 'lucide-react';
 import StatusTracker from '../../components/cliente/StatusTracker';
 
@@ -7,7 +8,8 @@ const ACCENT = '#EA580C';
 
 export default function MeusOrcamentos() {
   const { authFetch, user } = useAuth();
-  const [tab, setTab] = useState('resumo');
+  const location = useLocation();
+  const [tab, setTab] = useState('orcamentos');
   const [orcamentos, setOrcamentos] = useState([]);
   const [contratos, setContratos] = useState([]);
   const [albuns, setAlbuns] = useState([]);
@@ -16,6 +18,15 @@ export default function MeusOrcamentos() {
   const [showModal, setShowModal] = useState(false);
   const [formData, setFormData] = useState({ tipo_evento: '', data_evento: '', local: '', observacoes: '' });
   const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (location.state?.openModal) {
+      setShowModal(true);
+      setTab('orcamentos');
+      // Clear the state to avoid reopening on re-render
+      window.history.replaceState({}, document.title);
+    }
+  }, [location.state]);
 
   useEffect(() => { loadData(); }, []);
 
