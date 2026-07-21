@@ -36,7 +36,7 @@ const sections = [
   {
     title: 'LGPD',
     fields: [
-      { name: 'dataRetentionMonths', label: 'Prazo retenção dados', unit: 'meses', default: 60, hint: 'Tempo que os dados do cliente são mantidos após conclusão do serviço', min: 6, max: 120 },
+      { name: 'dataRetentionMonths', label: 'Prazo retenção dados', unit: 'meses', default: 60, hint: 'Tempo que os dados são mantidos após conclusão. Use 0 para retenção permanente.', min: 0, max: 120 },
     ],
   },
 ];
@@ -75,7 +75,9 @@ export default function ConfigPrazos({ form, setForm }) {
                     onChange={handleChange}
                     className="flex-1 px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-200 outline-none"
                   />
-                  <span className="text-sm text-gray-500 whitespace-nowrap min-w-[60px]">{field.unit}</span>
+                  <span className="text-sm text-gray-500 whitespace-nowrap min-w-[60px]">
+                    {field.name === 'dataRetentionMonths' && Number(form[field.name] ?? field.default) === 0 ? 'permanente' : field.unit}
+                  </span>
                 </div>
                 <p className="text-xs text-gray-400 mt-1">{field.hint}</p>
               </div>

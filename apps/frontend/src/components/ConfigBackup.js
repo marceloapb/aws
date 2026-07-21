@@ -19,7 +19,8 @@ export default function ConfigBackup({ form, setForm }) {
       const res = await authFetch('/admin/configuracoes');
       const json = await res.json();
       if (json.success && json.data?.lastBackup) {
-        setBackupStatus(json.data.lastBackup);
+        const backup = typeof json.data.lastBackup === 'string' ? JSON.parse(json.data.lastBackup) : json.data.lastBackup;
+        setBackupStatus(backup);
       }
     } catch {}
   };

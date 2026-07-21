@@ -32,7 +32,7 @@ export default function ConfigIntegracoes({ form, setForm }) {
       ]);
       if (waRes?.success) setWhatsappStatus(waRes.data);
       if (igRes?.success) setInstagramStatus(igRes.data);
-      if (calRes?.success) setCalendarStatus(calRes.data);
+      if (calRes?.success) { setCalendarStatus(calRes.data); if (calRes.data?.autoSync !== undefined) setForm(f => ({ ...f, calendarAutoSync: calRes.data.autoSync })); }
       if (emailRes?.success) setEmailStatus(emailRes.data);
       if (mapsRes?.success) setMapsStatus(mapsRes.data);
     } catch {}
@@ -213,19 +213,13 @@ export default function ConfigIntegracoes({ form, setForm }) {
 
           <div className="p-4 rounded-lg bg-blue-50 border border-blue-200">
             <p className="text-sm text-blue-700">
-              💡 O token do Instagram expira a cada 60 dias. Clique em "Renovar Token" para estender automaticamente por mais 60 dias sem precisar reautenticar.
+              💡 O token do Instagram é renovado automaticamente pelo sistema a cada publicação agendada. Validade: 60 dias.
             </p>
           </div>
 
           {/* Ações */}
           <div className="pt-2 border-t flex items-center gap-3 flex-wrap">
             <TestButton integracao="instagram" />
-            {instagramStatus?.connected && (
-              <button type="button" onClick={handleRenewIgToken}
-                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium border border-gray-300 hover:bg-gray-50 transition-colors">
-                <RefreshCw size={14} /> Renovar Token (+60 dias)
-              </button>
-            )}
           </div>
           {testResult?.integracao === 'instagram' && <TestResultBanner />}
         </div>
@@ -353,7 +347,11 @@ export default function ConfigIntegracoes({ form, setForm }) {
               <p className="text-sm font-medium text-gray-900">Sincronização Automática</p>
               <p className="text-xs text-gray-500">Eventos criados no MBF aparecem automaticamente no Google Calendar</p>
             </div>
-            <button type="button" onClick={() => setForm({ ...form, calendarAutoSync: !form.calendarAutoSync })}
+            <button type="button" onClick={async () => {
+              const newVal = !form.calendarAutoSync;
+              setForm({ ...form, calendarAutoSync: newVal });
+              try { await authFetch('/admin/google-calendar/config', { method: 'PUT', body: JSON.stringify({ autoSync: newVal }) }); } catch {}
+            }}
               className={`w-12 h-6 rounded-full transition-colors relative ${form.calendarAutoSync ? 'bg-green-500' : 'bg-gray-300'}`}>
               <div className={`w-5 h-5 bg-white rounded-full shadow absolute top-0.5 transition-transform ${form.calendarAutoSync ? 'translate-x-6' : 'translate-x-0.5'}`} />
             </button>
@@ -361,7 +359,7 @@ export default function ConfigIntegracoes({ form, setForm }) {
 
           <div className="p-4 rounded-lg bg-blue-50 border border-blue-200">
             <p className="text-sm text-blue-700">
-              💡 A sincronização é MBF → Google (mão única). Eventos criados no MBF aparecem no Google Calendar. Alterações no Google não voltam para o MBF. Clique em "Salvar" na página de configurações para aplicar mudanças.
+              💡 A sincronização é MBF → Google (mão única). Eventos criados no MBF aparecem no Google Calendar. Alterações no Google não voltam para o MBF.
             </p>
           </div>
 

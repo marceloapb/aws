@@ -20,9 +20,31 @@ async function getConfig() {
 // GET /api/admin/google-calendar/status
 router.get('/status', async (req, res) => {
   try {
+    const { loadParams } = require('../config/env');
+    const params = await loadParams();
+
+    // Service Account mode: check SSM params
+    const hasServiceAccount = !!(params.GOOGLE_CLIENT_EMAIL && params.GOOGLE_PRIVATE_KEY);
+    const calendarId = params.GOOGLE_CALENDAR_ID || 'primary';
+
+    if (hasServiceAccount) {
+      const config = await getConfig();
+      return res.json({
+        success: true,
+        data: {
+          connected: true,
+          calendar_id: calendarId,
+          email: params.GOOGLE_CLIENT_EMAIL,
+          last_sync: config?.last_sync || null,
+          autoSync: config?.autoSync ?? false,
+        }
+      });
+    }
+
+    // OAuth mode fallback
     const config = await getConfig();
     if (!config) return res.json({ success: true, data: { connected: false } });
-    res.json({ success: true, data: { connected: config.connected, calendar_id: config.calendar_id, last_sync: config.last_sync, email: config.email || '' } });
+    res.json({ success: true, data: { connected: config.connected, calendar_id: config.calendar_id, last_sync: config.last_sync, email: config.email || '', autoSync: config.autoSync ?? false } });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
@@ -61,6 +83,25 @@ router.post('/callback', async (req, res) => {
     res.json({ success: true, message: 'Google Calendar conectado com sucesso' });
   } catch (error) {
     res.status(400).json({ success: false, message: error.message });
+  }
+});
+
+// PUT /api/admin/google-calendar/config - Salvar configuração (autoSync toggle)
+router.put('/config', async (req, res) => {
+  try {
+    const { autoSync } = req.body;
+    await dynamo.send(new PutCommand({
+      TableName: TABLE,
+      Item: {
+        PK: GC_PK, SK: GC_SK,
+        connected: true,
+        autoSync: !!autoSync,
+        updated: new Date().toISOString(),
+      },
+    }));
+    res.json({ success: true, message: `Sincronização automática ${autoSync ? 'ativada' : 'desativada'}` });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
   }
 });
 
