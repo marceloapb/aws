@@ -62,30 +62,30 @@ export default function Dashboard() {
 
   const now = new Date();
   const todayStr = now.toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
-  const sessionsToday = events.filter(e => new Date(e.date).toDateString() === now.toDateString()).length;
-  const sessionsWeek = events.filter(e => { const d = new Date(e.date); return d >= now && d <= new Date(now.getTime() + 7 * 86400000); }).length;
-  const pendingQuotes = quotes.filter(q => q.status === 'draft' || q.status === 'pending');
-  const overdueCharges = charges.filter(c => c.status === 'overdue' || c.status === 'atrasada');
-  const pendingContracts = contracts.filter(c => c.status === 'pending' || c.status === 'aguardando');
-  const readyAlbums = albums.filter(a => a.status === 'ready' || a.status === 'pronto');
+  const sessionsToday = events.filter(e => new Date(e.date || e.data_evento).toDateString() === now.toDateString()).length;
+  const sessionsWeek = events.filter(e => { const d = new Date(e.date || e.data_evento); return d >= now && d <= new Date(now.getTime() + 7 * 86400000); }).length;
+  const pendingQuotes = quotes.filter(q => ['draft', 'pending', 'rascunho', 'pendente', 'enviado'].includes(q.status));
+  const overdueCharges = charges.filter(c => ['overdue', 'atrasada', 'vencida'].includes(c.status));
+  const pendingContracts = contracts.filter(c => ['pending', 'aguardando', 'enviado'].includes(c.status));
+  const readyAlbums = albums.filter(a => ['ready', 'pronto'].includes(a.status));
   const formatBRL = (v) => Number(v || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
   // Pendências consolidadas
   const pendencies = [
-    ...pendingQuotes.map(q => ({ id: `q-${q.id}`, icon: FileText, title: `Orçamento: ${q.clientName || 'Cliente'}`, date: q.createdAt || q.updatedAt, action: 'Enviar agora', color: 'bg-blue-600', onClick: () => navigate(`/admin/orcamentos/${q.id}`) })),
-    ...pendingContracts.map(c => ({ id: `c-${c.id}`, icon: RefreshCw, title: `Contrato: ${c.clientName || 'Cliente'}`, date: c.createdAt || c.updatedAt, action: 'Reenviar', color: 'bg-purple-600', onClick: () => navigate(`/admin/contratos/${c.id}`) })),
-    ...overdueCharges.map(c => ({ id: `ch-${c.id}`, icon: MessageCircle, title: `Cobrança: ${c.clientName || 'Cliente'}`, date: c.dueDate || c.createdAt, action: 'Cobrar via WhatsApp', color: 'bg-green-600', onClick: () => window.open(`https://wa.me/${c.phone}?text=Olá! Sua cobrança está pendente.`, '_blank') })),
-    ...readyAlbums.map(a => ({ id: `a-${a.id}`, icon: Upload, title: `Álbum: ${a.title || a.clientName || 'Álbum'}`, date: a.updatedAt || a.createdAt, action: 'Publicar', color: 'bg-orange-600', onClick: () => navigate(`/admin/albuns/${a.id}`) })),
+    ...pendingQuotes.map(q => ({ id: `q-${q.id}`, icon: FileText, title: `Orçamento: ${q.clientName || q.cliente_nome || 'Cliente'}`, date: q.createdAt || q.created || q.updatedAt, action: 'Enviar agora', color: 'bg-blue-600', onClick: () => navigate(`/admin/orcamentos/${q.id}`) })),
+    ...pendingContracts.map(c => ({ id: `c-${c.id}`, icon: RefreshCw, title: `Contrato: ${c.clientName || c.cliente_nome || 'Cliente'}`, date: c.createdAt || c.created || c.updatedAt, action: 'Reenviar', color: 'bg-purple-600', onClick: () => navigate(`/admin/contratos/${c.id}`) })),
+    ...overdueCharges.map(c => ({ id: `ch-${c.id}`, icon: MessageCircle, title: `Cobrança: ${c.clientName || c.cliente_nome || 'Cliente'}`, date: c.dueDate || c.data_vencimento || c.createdAt, action: 'Cobrar via WhatsApp', color: 'bg-green-600', onClick: () => window.open(`https://wa.me/${c.phone || c.telefone}?text=Olá! Sua cobrança está pendente.`, '_blank') })),
+    ...readyAlbums.map(a => ({ id: `a-${a.id}`, icon: Upload, title: `Álbum: ${a.title || a.titulo || a.clientName || a.cliente_nome || 'Álbum'}`, date: a.updatedAt || a.updated || a.createdAt || a.created, action: 'Publicar', color: 'bg-orange-600', onClick: () => navigate(`/admin/albuns/${a.id}`) })),
   ];
 
   // Próximas sessões
-  const upcoming = events.filter(e => new Date(e.date) >= now).sort((a, b) => new Date(a.date) - new Date(b.date)).slice(0, 5);
+  const upcoming = events.filter(e => new Date(e.date || e.data_evento) >= now).sort((a, b) => new Date(a.date || a.data_evento) - new Date(b.date || b.data_evento)).slice(0, 5);
 
   // Atividade recente (últimas 5 do sistema)
   const recentActivity = [
-    ...quotes.map(q => ({ date: q.createdAt, text: `Orçamento criado — ${q.clientName || 'Cliente'}`, icon: FileText })),
-    ...contracts.filter(c => c.status === 'signed' || c.status === 'assinado').map(c => ({ date: c.signedAt || c.updatedAt, text: `Contrato assinado — ${c.clientName || 'Cliente'}`, icon: CheckCircle2 })),
-    ...charges.filter(c => c.status === 'paid' || c.status === 'pago').map(c => ({ date: c.paidAt || c.updatedAt, text: `Pagamento recebido — ${formatBRL(c.amount)}`, icon: CreditCard })),
+    ...quotes.map(q => ({ date: q.createdAt || q.created, text: `Orçamento criado — ${q.clientName || q.cliente_nome || 'Cliente'}`, icon: FileText })),
+    ...contracts.filter(c => ['signed', 'assinado'].includes(c.status)).map(c => ({ date: c.signedAt || c.assinado_em || c.updatedAt || c.updated, text: `Contrato assinado — ${c.clientName || c.cliente_nome || 'Cliente'}`, icon: CheckCircle2 })),
+    ...charges.filter(c => ['paid', 'pago'].includes(c.status)).map(c => ({ date: c.paidAt || c.pago_em || c.updatedAt || c.updated, text: `Pagamento recebido — ${formatBRL(c.amount || c.valor)}`, icon: CreditCard })),
   ].filter(a => a.date).sort((a, b) => new Date(b.date) - new Date(a.date)).slice(0, 5);
 
   // Redirect to onboarding if not completed
