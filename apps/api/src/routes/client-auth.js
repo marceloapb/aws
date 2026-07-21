@@ -9,7 +9,7 @@ const {
 const { env } = require('../config/env');
 
 const router = Router();
-const cognito = new CognitoIdentityProviderClient({ region: env.AWS_REGION });
+const cognito = new CognitoIdentityProviderClient({ region: 'us-east-1' });
 const CLIENT_ID = process.env.COGNITO_CLIENT_ID || process.env.COGNITO_USER_POOL_CLIENT_ID;
 
 router.post('/signup', async (req, res) => {
