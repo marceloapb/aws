@@ -323,9 +323,19 @@ router.get('/perfil', async (req, res) => {
           email: req.user.email || '',
           telefone: '',
           cpf_cnpj: '',
+          instagram: '',
           endereco: '',
+          avatarUrl: null,
         },
       });
+    }
+
+    // Build avatar URL
+    const avatarKey = perfil.avatarKey || perfil.avatar_key;
+    let avatarUrl = null;
+    if (avatarKey) {
+      const cdnDomain = process.env.CDN_DOMAIN || process.env.CLOUDFRONT_DOMAIN || '';
+      avatarUrl = cdnDomain ? `https://${cdnDomain}/${avatarKey}` : null;
     }
 
     res.json({
@@ -335,7 +345,11 @@ router.get('/perfil', async (req, res) => {
         email: perfil.email || req.user.email || '',
         telefone: perfil.telefone || '',
         cpf_cnpj: perfil.cpf_cnpj || perfil.documento || perfil.cpf || perfil.cnpj || '',
+        instagram: perfil.instagram || '',
+        comoConheceu: perfil.comoConheceu || perfil.como_conheceu || '',
         endereco: perfil.endereco || '',
+        avatarUrl,
+        tipo_pessoa: perfil.tipo_pessoa || perfil.classificacao || '',
       },
     });
   } catch (error) {
@@ -349,7 +363,7 @@ router.get('/perfil', async (req, res) => {
 router.put('/perfil', async (req, res) => {
   try {
     const clienteId = req.user.sub;
-    const { nome, telefone, cpf_cnpj, endereco } = req.body;
+    const { nome, telefone, cpf_cnpj, endereco, instagram, avatarKey, comoConheceu } = req.body;
 
     // Validations
     if (!nome || nome.trim().length === 0) {
@@ -365,24 +379,57 @@ router.put('/perfil', async (req, res) => {
     }
 
     const now = new Date().toISOString();
-    const updateExpr = 'SET #nome = :nome, telefone = :tel, cpf_cnpj = :doc, endereco = :end, updated_at = :upd';
+    let updateExpr = 'SET #nome = :nome, telefone = :tel, endereco = :end, updated_at = :upd';
     const exprNames = { '#nome': 'nome' };
     const exprValues = {
       ':nome': nome.trim(),
       ':tel': telefone || '',
-      ':doc': cpf_cnpj || '',
       ':end': endereco || '',
       ':upd': now,
     };
 
-    // Try to update existing profile
-    await dynamo.send(new UpdateCommand({
-      TableName: TABLE,
-      Key: { PK: `CLIENTE#${clienteId}`, SK: `PERFIL#${clienteId}` },
-      UpdateExpression: updateExpr,
-      ExpressionAttributeNames: exprNames,
-      ExpressionAttributeValues: exprValues,
-    }));
+    // Instagram (optional)
+    if (instagram !== undefined) {
+      updateExpr += ', instagram = :ig';
+      exprValues[':ig'] = instagram ? instagram.replace('@', '') : '';
+    }
+
+    // AvatarKey (optional)
+    if (avatarKey) {
+      updateExpr += ', avatarKey = :avatar';
+      exprValues[':avatar'] = avatarKey;
+    }
+
+    // comoConheceu (optional)
+    if (comoConheceu !== undefined) {
+      updateExpr += ', comoConheceu = :como';
+      exprValues[':como'] = comoConheceu || '';
+    }
+
+    // Try to update existing profile (try CLIENTE# first, then CLIENT#)
+    try {
+      await dynamo.send(new UpdateCommand({
+        TableName: TABLE,
+        Key: { PK: `CLIENTE#${clienteId}`, SK: `PERFIL#${clienteId}` },
+        UpdateExpression: updateExpr,
+        ExpressionAttributeNames: exprNames,
+        ExpressionAttributeValues: exprValues,
+        ConditionExpression: 'attribute_exists(PK)',
+      }));
+    } catch (e) {
+      if (e.name === 'ConditionalCheckFailedException') {
+        // Try CLIENT#/PROFILE pattern
+        await dynamo.send(new UpdateCommand({
+          TableName: TABLE,
+          Key: { PK: `CLIENT#${clienteId}`, SK: 'PROFILE' },
+          UpdateExpression: updateExpr,
+          ExpressionAttributeNames: exprNames,
+          ExpressionAttributeValues: exprValues,
+        }));
+      } else {
+        throw e;
+      }
+    }
 
     res.json({
       success: true,
@@ -629,6 +676,50 @@ router.patch('/aditivos/:id/recusar', async (req, res) => {
     }));
 
     res.json({ success: true, data: { message: 'Aditivo recusado' } });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// =============================================
+// GET /perfil/avatar-url — Presigned URL for avatar upload (MD-03)
+// =============================================
+router.get('/perfil/avatar-url', async (req, res) => {
+  try {
+    const clienteId = req.user.sub;
+    const contentType = req.query.contentType || 'image/jpeg';
+
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/webp'];
+    if (!allowedTypes.includes(contentType)) {
+      return res.status(400).json({ success: false, message: 'Tipo de arquivo não permitido. Use jpeg, png ou webp.' });
+    }
+
+    const extMap = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp' };
+    const ext = extMap[contentType];
+    const key = `avatars/${clienteId}/${Date.now()}.${ext}`;
+    const bucket = process.env.S3_BUCKET_NAME;
+
+    const { S3Client, PutObjectCommand } = require('@aws-sdk/client-s3');
+    const { getSignedUrl } = require('@aws-sdk/s3-request-presigner');
+    const s3 = new S3Client({});
+
+    const command = new PutObjectCommand({
+      Bucket: bucket,
+      Key: key,
+      ContentType: contentType,
+      Metadata: { 'client-id': clienteId },
+    });
+
+    const uploadUrl = await getSignedUrl(s3, command, { expiresIn: 120 });
+
+    // Build CDN URL (use CloudFront domain if available)
+    const cdnDomain = process.env.CDN_DOMAIN || process.env.CLOUDFRONT_DOMAIN || '';
+    const cdnUrl = cdnDomain ? `https://${cdnDomain}/${key}` : uploadUrl.split('?')[0];
+
+    res.json({
+      success: true,
+      data: { uploadUrl, key, cdnUrl }
+    });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }

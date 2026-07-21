@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
-import { User, Save, Lock } from 'lucide-react';
+import { User, Save, Lock, Camera, Instagram } from 'lucide-react';
 
 const ACCENT = '#EA580C';
 
@@ -48,11 +48,14 @@ export default function MeuPerfil() {
   const [success, setSuccess] = useState('');
   const [error, setError] = useState('');
   const [buscandoCep, setBuscandoCep] = useState(false);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const [avatarUrl, setAvatarUrl] = useState(null);
   const [form, setForm] = useState({
     nome: '',
     email: '',
     telefone: '',
     cpf_cnpj: '',
+    instagram: '',
     endereco_cep: '',
     endereco_rua: '',
     endereco_numero: '',
@@ -67,12 +70,14 @@ export default function MeuPerfil() {
       .then(r => r.json())
       .then(json => {
         const d = json.data || json;
+        setAvatarUrl(d.avatarUrl || null);
         setForm(prev => ({
           ...prev,
           nome: d.nome || '',
           email: d.email || '',
           telefone: formatarTelefone(d.telefone || ''),
           cpf_cnpj: formatarDocumento(d.cpf_cnpj || ''),
+          instagram: d.instagram || '',
           endereco_cep: formatarCEP(d.endereco_cep || d.endereco?.cep || ''),
           endereco_rua: d.endereco_rua || d.endereco?.rua || d.endereco?.logradouro || '',
           endereco_numero: d.endereco_numero || d.endereco?.numero || '',
@@ -120,6 +125,43 @@ export default function MeuPerfil() {
     }
   };
 
+  const handleAvatarUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) {
+      setError('Imagem deve ter no máximo 5MB');
+      return;
+    }
+    setUploadingAvatar(true);
+    setError('');
+    try {
+      // Get presigned URL
+      const urlRes = await authFetch(`/client/portal/perfil/avatar-url?contentType=${encodeURIComponent(file.type)}`);
+      const urlData = await urlRes.json();
+      if (!urlData.success) throw new Error(urlData.message);
+
+      // Upload to S3
+      await fetch(urlData.data.uploadUrl, {
+        method: 'PUT',
+        headers: { 'Content-Type': file.type },
+        body: file,
+      });
+
+      // Update profile with new avatar key
+      await authFetch('/client/portal/perfil', {
+        method: 'PUT',
+        body: JSON.stringify({ ...form, telefone: form.telefone.replace(/\D/g, ''), avatarKey: urlData.data.key }),
+      });
+
+      setAvatarUrl(URL.createObjectURL(file));
+      setSuccess('Foto atualizada!');
+    } catch (err) {
+      setError('Erro ao enviar foto. Tente novamente.');
+    }
+    setUploadingAvatar(false);
+    e.target.value = '';
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
@@ -129,6 +171,7 @@ export default function MeuPerfil() {
       const payload = {
         ...form,
         telefone: form.telefone.replace(/\D/g, ''),
+        instagram: form.instagram.replace('@', ''),
       };
       const res = await authFetch('/client/portal/perfil', {
         method: 'PUT',
@@ -153,6 +196,27 @@ export default function MeuPerfil() {
       </div>
 
       <form onSubmit={handleSubmit} className="bg-white rounded-xl border border-gray-200 p-6">
+        {/* Avatar */}
+        <div className="flex items-center gap-4 mb-6 pb-6 border-b">
+          <div className="relative">
+            {avatarUrl ? (
+              <img src={avatarUrl} alt="Avatar" className="w-20 h-20 rounded-full object-cover border-2 border-gray-200" />
+            ) : (
+              <div className="w-20 h-20 rounded-full bg-gray-100 flex items-center justify-center border-2 border-gray-200">
+                <User size={32} className="text-gray-400" />
+              </div>
+            )}
+            <label className="absolute -bottom-1 -right-1 w-8 h-8 rounded-full bg-white border-2 border-gray-200 flex items-center justify-center cursor-pointer hover:bg-gray-50">
+              <Camera size={14} className="text-gray-600" />
+              <input type="file" accept="image/jpeg,image/png,image/webp" onChange={handleAvatarUpload} className="hidden" disabled={uploadingAvatar} />
+            </label>
+          </div>
+          <div>
+            <p className="text-sm font-medium text-gray-700">{uploadingAvatar ? 'Enviando...' : 'Foto de perfil'}</p>
+            <p className="text-xs text-gray-400">JPG, PNG ou WebP. Máx 5MB.</p>
+          </div>
+        </div>
+
         <div className="grid md:grid-cols-2 gap-4">
           {/* Nome */}
           <div className="md:col-span-2">
@@ -185,6 +249,19 @@ export default function MeuPerfil() {
             </label>
             <input type="text" value={form.cpf_cnpj} readOnly
               className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm bg-gray-50 text-gray-500 cursor-not-allowed" />
+          </div>
+
+          {/* Instagram */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-1">
+              <Instagram size={14} /> Instagram
+            </label>
+            <div className="relative">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">@</span>
+              <input type="text" value={form.instagram} onChange={e => handleChange('instagram', e.target.value.replace(/\s/g, ''))}
+                placeholder="seu_usuario"
+                className="w-full pl-8 pr-3 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-300" />
+            </div>
           </div>
 
           {/* CEP (com máscara + busca ViaCEP) */}
