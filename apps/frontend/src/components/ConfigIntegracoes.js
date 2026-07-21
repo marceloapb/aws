@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import { CheckCircle, XCircle, RefreshCw, Zap, Eye, EyeOff, Copy, ArrowRight, AlertTriangle, Calendar, Instagram, Play, FileText, Mail, MapPin } from 'lucide-react';
+import { CheckCircle, XCircle, RefreshCw, Zap, Eye, EyeOff, Copy, AlertTriangle, Calendar, Instagram, Play, FileText, Mail, MapPin } from 'lucide-react';
 
 const ACCENT = '#EA580C';
 const WEBHOOK_URL = 'https://8z9ncqnyoc.execute-api.sa-east-1.amazonaws.com/prod/whatsapp/webhook';
@@ -153,10 +153,10 @@ export default function ConfigIntegracoes({ form, setForm }) {
     <div className="space-y-6">
       {/* Sub-tabs */}
       <div className="flex gap-1 bg-gray-100 rounded-lg p-1 w-fit overflow-x-auto">
-        {['whatsapp', 'instagram', 'email', 'maps', 'pagamento', 'calendar'].map(t => (
+        {['whatsapp', 'instagram', 'email', 'maps', 'calendar'].map(t => (
           <button key={t} type="button" onClick={() => { setSubTab(t); setTestResult(null); }}
             className={`px-4 py-2 rounded-md text-sm font-medium whitespace-nowrap transition-colors ${subTab === t ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-700'}`}>
-            {t === 'whatsapp' ? 'WhatsApp' : t === 'instagram' ? 'Instagram' : t === 'email' ? 'Email (SES)' : t === 'maps' ? 'Google Maps' : t === 'pagamento' ? 'Pagamento' : 'Google Calendar'}
+            {t === 'whatsapp' ? 'WhatsApp' : t === 'instagram' ? 'Instagram' : t === 'email' ? 'Email (SES)' : t === 'maps' ? 'Google Maps' : 'Google Calendar'}
           </button>
         ))}
       </div>
@@ -430,26 +430,6 @@ export default function ConfigIntegracoes({ form, setForm }) {
             <TestButton integracao="maps" />
           </div>
           {testResult?.integracao === 'maps' && <TestResultBanner />}
-        </div>
-      )}
-
-      {/* Gateway de Pagamento - Link para página dedicada */}
-      {subTab === 'pagamento' && (
-        <div className="space-y-4">
-          <div className="p-6 rounded-xl border border-gray-200 bg-gray-50 text-center">
-            <p className="text-sm text-gray-600 mb-4">
-              As configurações de gateway de pagamento foram movidas para uma página dedicada com mais recursos.
-            </p>
-            <button
-              type="button"
-              onClick={() => navigate('/admin/gateway')}
-              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium text-white hover:opacity-90 transition-opacity"
-              style={{ background: ACCENT }}
-            >
-              Ir para Gateway de Pagamento
-              <ArrowRight size={16} />
-            </button>
-          </div>
         </div>
       )}
 
