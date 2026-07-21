@@ -19,6 +19,15 @@ router.get('/', async (req, res) => {
   try {
     const { status, cliente_id, page = 1, limit = 50 } = req.query;
 
+    // Map frontend status filter to DB values
+    const STATUS_TO_DB = {
+      draft: ['rascunho', 'solicitado', 'em_revisao', 'pronto_enviar'],
+      sent: ['enviado'],
+      accepted: ['aceito', 'aprovado', 'contrato_gerado'],
+      rejected: ['recusado', 'cancelado'],
+      expired: ['expirado'],
+    };
+
     let items = [];
     if (cliente_id) {
       const result = await dynamo.send(new QueryCommand({
@@ -34,15 +43,24 @@ router.get('/', async (req, res) => {
         KeyConditionExpression: 'GSI1PK = :pk',
         ExpressionAttributeValues: { ':pk': 'ORCAMENTO' },
       };
-      if (status) {
+      // Apply status filter directly on DynamoDB if it maps to a single value
+      const dbStatuses = status ? (STATUS_TO_DB[status] || [status]) : null;
+      if (dbStatuses && dbStatuses.length === 1) {
         params.FilterExpression = '#s = :status';
         params.ExpressionAttributeNames = { '#s': 'status' };
-        params.ExpressionAttributeValues[':status'] = status;
+        params.ExpressionAttributeValues[':status'] = dbStatuses[0];
       }
       const result = await dynamo.send(new QueryCommand(params));
       items = result.Items || [];
+      // Filter in-memory if multiple DB statuses map to one frontend status
+      if (dbStatuses && dbStatuses.length > 1) {
+        items = items.filter(o => dbStatuses.includes(o.status));
+      }
     }
-    if (status && cliente_id) items = items.filter(o => o.status === status);
+    if (status && cliente_id) {
+      const dbStatuses = STATUS_TO_DB[status] || [status];
+      items = items.filter(o => dbStatuses.includes(o.status));
+    }
 
     const total = items.length;
     const start = (Number(page) - 1) * Number(limit);
@@ -70,7 +88,18 @@ router.get('/', async (req, res) => {
       eventType: item.eventType || item.tipo_evento || item.nome_evento || null,
       eventDate: item.eventDate || item.data_evento || null,
       total: item.total || item.valor_total || 0,
-      status: item.status === 'solicitado' ? 'draft' : (item.status || 'draft'),
+      status: item.status === 'solicitado' ? 'draft'
+        : item.status === 'rascunho' ? 'draft'
+        : item.status === 'em_revisao' ? 'draft'
+        : item.status === 'pronto_enviar' ? 'draft'
+        : item.status === 'enviado' ? 'sent'
+        : item.status === 'aceito' ? 'accepted'
+        : item.status === 'aprovado' ? 'accepted'
+        : item.status === 'recusado' ? 'rejected'
+        : item.status === 'expirado' ? 'expired'
+        : item.status === 'cancelado' ? 'rejected'
+        : item.status === 'contrato_gerado' ? 'accepted'
+        : (item.status || 'draft'),
       origem_canal: item.origem_canal || null,
     }));
 
@@ -85,6 +114,82 @@ router.get('/:id', async (req, res) => {
   try {
     const orcamento = await findOrcamento(req.params.id);
     if (!orcamento) return res.status(404).json({ success: false, message: 'Orçamento não encontrado' });
+
+    // Normalize: ensure 'cliente' object exists for OrcamentoDetalhe.jsx
+    if (!orcamento.cliente && orcamento.cliente_id) {
+      try {
+        const profileResult = await dynamo.send(new QueryCommand({
+          TableName: TABLE,
+          KeyConditionExpression: 'PK = :pk AND SK = :sk',
+          ExpressionAttributeValues: { ':pk': `CLIENTE#${orcamento.cliente_id}`, ':sk': 'PROFILE' },
+        }));
+        const profile = profileResult.Items?.[0];
+        if (profile) {
+          orcamento.cliente = {
+            nome: profile.nome || profile.nome_completo || null,
+            email: profile.email || null,
+            telefone: profile.telefone || profile.celular || null,
+          };
+        }
+      } catch {}
+    }
+    // Also try from PK pattern (CLIENTE#<id>)
+    if (!orcamento.cliente && orcamento.PK && orcamento.PK.startsWith('CLIENTE#')) {
+      const clienteId = orcamento.PK.replace('CLIENTE#', '');
+      try {
+        const profileResult = await dynamo.send(new QueryCommand({
+          TableName: TABLE,
+          KeyConditionExpression: 'PK = :pk AND SK = :sk',
+          ExpressionAttributeValues: { ':pk': `CLIENTE#${clienteId}`, ':sk': 'PROFILE' },
+        }));
+        const profile = profileResult.Items?.[0];
+        if (profile) {
+          orcamento.cliente = {
+            nome: profile.nome || profile.nome_completo || null,
+            email: profile.email || null,
+            telefone: profile.telefone || profile.celular || null,
+          };
+        }
+      } catch {}
+    }
+    // Fallback: build cliente from flat fields
+    if (!orcamento.cliente) {
+      orcamento.cliente = {
+        nome: orcamento.clientName || orcamento.nome_completo || orcamento.cliente_nome || null,
+        email: orcamento.cliente_email || orcamento.email || null,
+        telefone: orcamento.cliente_telefone || orcamento.telefone || null,
+      };
+    }
+
+    // Normalize status: map legacy values so detail page can match
+    if (orcamento.status === 'solicitado') {
+      orcamento.status = 'rascunho';
+    }
+    if (orcamento.status === 'aprovado') {
+      orcamento.status = 'aceito';
+    }
+
+    // Ensure opcoes is an array (detail page expects it)
+    if (!orcamento.opcoes && orcamento.itens) {
+      orcamento.opcoes = [{
+        id: 'default',
+        nome: 'Proposta',
+        itens_snapshot: Array.isArray(orcamento.itens) ? orcamento.itens : [],
+        desconto_tipo: orcamento.desconto_tipo || null,
+        desconto_valor: orcamento.desconto_valor || 0,
+      }];
+    }
+
+    // Ensure titulo exists
+    if (!orcamento.titulo) {
+      orcamento.titulo = orcamento.title || orcamento.nome_evento || orcamento.tipo_evento || null;
+    }
+
+    // Ensure valor_total exists
+    if (!orcamento.valor_total) {
+      orcamento.valor_total = orcamento.total || orcamento.valor || 0;
+    }
+
     res.json({ success: true, data: orcamento });
   } catch (error) {
     res.status(404).json({ success: false, message: 'Orçamento não encontrado' });
@@ -163,7 +268,7 @@ router.post('/:id/aprovar', async (req, res) => {
       Key: { PK: orc.PK, SK: orc.SK },
       UpdateExpression: 'SET #s = :s, aprovado_em = :a',
       ExpressionAttributeNames: { '#s': 'status' },
-      ExpressionAttributeValues: { ':s': 'aprovado', ':a': new Date().toISOString() },
+      ExpressionAttributeValues: { ':s': 'aceito', ':a': new Date().toISOString() },
       ReturnValues: 'ALL_NEW',
     }));
     res.json({ success: true, data: result.Attributes });

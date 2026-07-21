@@ -83,12 +83,31 @@ export default function Orcamentos() {
     defaultDirection: 'asc',
   });
 
-  const handleAction = (e, action, quote) => {
+  const handleAction = async (e, action, quote) => {
     e.stopPropagation();
     if (action === 'view') navigate(`/admin/orcamentos/${quote.id}`);
-    if (action === 'send') { /* TODO: enviar */ }
-    if (action === 'duplicate') { /* TODO: duplicar */ }
-    if (action === 'delete') { /* TODO: excluir */ }
+    if (action === 'send') {
+      try {
+        await authFetch(`/admin/orcamentos/${quote.id}/enviar`, { method: 'POST' });
+        loadQuotes();
+      } catch {}
+    }
+    if (action === 'duplicate') {
+      try {
+        await authFetch(`/admin/orcamentos/${quote.id}/duplicar`, { method: 'POST' });
+        loadQuotes();
+      } catch {}
+    }
+    if (action === 'delete') {
+      if (!window.confirm('Tem certeza que deseja excluir este orçamento?')) return;
+      try {
+        const res = await authFetch(`/admin/orcamentos/${quote.id}`, { method: 'DELETE' });
+        const json = await res.json();
+        if (json.success) {
+          setQuotes(prev => prev.filter(q => q.id !== quote.id));
+        }
+      } catch {}
+    }
   };
 
   return (
