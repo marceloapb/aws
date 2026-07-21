@@ -45,6 +45,10 @@ export default function IntegracoesLogs() {
       'whatsapp': 'WhatsApp',
       'instagram': 'Instagram',
       'google-calendar': 'Google Calendar',
+      'email': 'E-mail (SES)',
+      'maps': 'Google Maps',
+      'gateway': 'Pagamento',
+      'nf': 'Nota Fiscal',
     };
     return map[integracao] || integracao;
   };
@@ -54,6 +58,10 @@ export default function IntegracoesLogs() {
       'whatsapp': 'bg-green-100 text-green-700',
       'instagram': 'bg-purple-100 text-purple-700',
       'google-calendar': 'bg-blue-100 text-blue-700',
+      'email': 'bg-yellow-100 text-yellow-700',
+      'maps': 'bg-indigo-100 text-indigo-700',
+      'gateway': 'bg-orange-100 text-orange-700',
+      'nf': 'bg-teal-100 text-teal-700',
     };
     return map[integracao] || 'bg-gray-100 text-gray-700';
   };
@@ -89,8 +97,8 @@ export default function IntegracoesLogs() {
       {/* Filtros */}
       <div className="flex items-center gap-2">
         <Filter size={14} className="text-gray-400" />
-        <div className="flex gap-1 bg-gray-100 rounded-lg p-1">
-          {[{ value: '', label: 'Todos' }, { value: 'whatsapp', label: 'WhatsApp' }, { value: 'instagram', label: 'Instagram' }, { value: 'google-calendar', label: 'Calendar' }].map(f => (
+        <div className="flex gap-1 bg-gray-100 rounded-lg p-1 flex-wrap">
+          {[{ value: '', label: 'Todos' }, { value: 'whatsapp', label: 'WhatsApp' }, { value: 'instagram', label: 'Instagram' }, { value: 'google-calendar', label: 'Calendar' }, { value: 'email', label: 'E-mail' }, { value: 'maps', label: 'Maps' }, { value: 'gateway', label: 'Pagamento' }, { value: 'nf', label: 'NF' }].map(f => (
             <button key={f.value} onClick={() => setFiltro(f.value)}
               className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${filtro === f.value ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-700'}`}>
               {f.label}

@@ -266,4 +266,86 @@ router.post('/test/maps', async (req, res) => {
   }
 });
 
+// POST /api/admin/integracoes/test/gateway
+router.post('/test/gateway', async (req, res) => {
+  try {
+    const params = await loadParams();
+    const { gateway } = req.body;
+
+    const gatewayConfigs = {
+      asaas: { key: 'ASAAS_API_KEY', url: 'https://api.asaas.com/v3/finance/balance', header: 'access_token' },
+      stripe: { key: 'STRIPE_SECRET_KEY', url: 'https://api.stripe.com/v1/balance', authType: 'bearer' },
+      mercadopago: { key: 'MERCADOPAGO_ACCESS_TOKEN', url: 'https://api.mercadopago.com/v1/payment_methods', authType: 'bearer' },
+      pagarme: { key: 'PAGARME_API_KEY', url: 'https://api.pagar.me/core/v5/balance', authType: 'basic' },
+      pagbank: { key: 'PAGBANK_TOKEN', url: 'https://api.pagseguro.com/charges', authType: 'bearer' },
+      picpay: { key: 'PICPAY_TOKEN', url: 'https://appws.picpay.com/ecommerce/public/payments/status', authType: 'custom' },
+      sumup: { key: 'SUMUP_API_KEY', url: 'https://api.sumup.com/v0.1/me', authType: 'bearer' },
+      'banco-inter': { key: 'BANCO_INTER_CLIENT_ID', url: null, authType: 'oauth2' },
+      stone: { key: 'STONE_API_KEY', url: 'https://api.openbank.stone.com.br/api/v1/institutions', authType: 'bearer' },
+      infinitepay: { key: 'INFINITEPAY_API_KEY', url: 'https://api.infinitepay.io/v2/merchants', authType: 'bearer' },
+    };
+
+    const config = gatewayConfigs[gateway];
+    if (!config) {
+      await salvarLog('gateway', 'teste', 'erro', `Gateway "${gateway}" não reconhecido`);
+      return res.json({ success: false, message: `Gateway "${gateway}" não reconhecido.` });
+    }
+
+    const apiKey = params[config.key];
+    if (!apiKey) {
+      await salvarLog('gateway', 'teste', 'erro', `${gateway}: ${config.key} não configurado`);
+      return res.json({ success: false, message: `${gateway} não configurado. Chave ${config.key} ausente.` });
+    }
+
+    // Para gateways OAuth2 que não fazem simples request de status
+    if (!config.url) {
+      await salvarLog('gateway', 'teste', 'sucesso', `${gateway}: chave configurada (${config.key})`);
+      return res.json({ success: true, message: `${gateway} configurado. Chave presente.` });
+    }
+
+    let headers = { 'Content-Type': 'application/json' };
+    if (config.authType === 'bearer') headers['Authorization'] = `Bearer ${apiKey}`;
+    else if (config.authType === 'basic') headers['Authorization'] = `Basic ${Buffer.from(apiKey + ':').toString('base64')}`;
+    else if (config.header) headers[config.header] = apiKey;
+
+    const response = await fetch(config.url, { headers, signal: AbortSignal.timeout(10000) });
+
+    if (response.ok || response.status === 401) {
+      // 401 means API is reachable but key may be wrong
+      if (response.ok) {
+        await salvarLog('gateway', 'teste', 'sucesso', `${gateway}: conexão OK (HTTP ${response.status})`);
+        res.json({ success: true, message: `${gateway} conectado com sucesso.` });
+      } else {
+        await salvarLog('gateway', 'teste', 'erro', `${gateway}: autenticação falhou (HTTP 401)`);
+        res.json({ success: false, message: `${gateway}: chave inválida ou expirada (HTTP 401).` });
+      }
+    } else {
+      await salvarLog('gateway', 'teste', 'erro', `${gateway}: HTTP ${response.status}`);
+      res.json({ success: false, message: `${gateway}: erro HTTP ${response.status}` });
+    }
+  } catch (error) {
+    const gateway = req.body?.gateway || 'desconhecido';
+    await salvarLog('gateway', 'teste', 'erro', `${gateway}: ${error.message}`);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// POST /api/admin/integracoes/test/nf
+router.post('/test/nf', async (req, res) => {
+  try {
+    const params = await loadParams();
+    if (!params.NF_API_KEY && !params.NFSE_API_KEY) {
+      await salvarLog('nf', 'teste', 'erro', 'Chave API de NF não configurada');
+      return res.json({ success: false, message: 'Nota Fiscal não configurada. Configure a chave da API.' });
+    }
+
+    await salvarLog('nf', 'teste', 'sucesso', 'Chave de NF configurada');
+    res.json({ success: true, message: 'Nota Fiscal configurada.' });
+  } catch (error) {
+    await salvarLog('nf', 'teste', 'erro', error.message);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
 module.exports = router;
+module.exports.salvarLog = salvarLog;
