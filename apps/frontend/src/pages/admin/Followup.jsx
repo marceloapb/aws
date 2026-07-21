@@ -5,6 +5,8 @@ import {
   Filter, Search, BarChart3, Send, Clock, CheckCircle, XCircle,
   AlertTriangle, ArrowUpRight, RefreshCw, X, ChevronDown, ChevronUp
 } from 'lucide-react';
+import { SortableHeader } from '../../components/ui';
+import useSortable from '../../hooks/useSortable';
 
 const ACCENT = '#EA580C';
 const TABS = ['Réguas', 'Execuções', 'Métricas'];
@@ -79,6 +81,12 @@ export default function Followup() {
 
   // Métricas
   const [metricas, setMetricas] = useState(null);
+
+  // Ordenação por coluna - Disparos
+  const { sortedData: sortedDisparos, requestSort: requestSortDisparos, getSortIndicator: getSortIndicatorDisparos } = useSortable(disparos, {
+    defaultField: 'created_at',
+    defaultDirection: 'desc',
+  });
 
   function getEmptyForm() {
     return {
@@ -358,7 +366,7 @@ function TabExecucoes({ disparos, filtroStatus, setFiltroStatus, filtroCanal, se
       </div>
 
       {/* Tabela */}
-      {disparos.length === 0 ? (
+      {sortedDisparos.length === 0 ? (
         <div className="text-center py-12 text-gray-400">
           <Send size={40} className="mx-auto mb-3 opacity-30" />
           <p className="text-sm">Nenhum disparo encontrado</p>
@@ -369,16 +377,16 @@ function TabExecucoes({ disparos, filtroStatus, setFiltroStatus, filtroCanal, se
             <table className="w-full text-sm">
               <thead className="bg-gray-50 text-xs text-gray-500 uppercase">
                 <tr>
-                  <th className="px-4 py-3 text-left">Régua</th>
-                  <th className="px-4 py-3 text-left">Cliente</th>
-                  <th className="px-4 py-3 text-left">Canal</th>
-                  <th className="px-4 py-3 text-left">Passo</th>
-                  <th className="px-4 py-3 text-left">Status</th>
-                  <th className="px-4 py-3 text-left">Data</th>
+                  <SortableHeader label="Régua" field="regua_nome" onSort={requestSortDisparos} active={getSortIndicatorDisparos('regua_nome')} />
+                  <SortableHeader label="Cliente" field="cliente_nome" onSort={requestSortDisparos} active={getSortIndicatorDisparos('cliente_nome')} />
+                  <SortableHeader label="Canal" field="canal" onSort={requestSortDisparos} active={getSortIndicatorDisparos('canal')} />
+                  <SortableHeader label="Passo" field="passo_atual" onSort={requestSortDisparos} active={getSortIndicatorDisparos('passo_atual')} />
+                  <SortableHeader label="Status" field="status" onSort={requestSortDisparos} active={getSortIndicatorDisparos('status')} />
+                  <SortableHeader label="Data" field="created_at" onSort={requestSortDisparos} active={getSortIndicatorDisparos('created_at')} />
                 </tr>
               </thead>
               <tbody className="divide-y">
-                {disparos.map((d, i) => {
+                {sortedDisparos.map((d, i) => {
                   const st = STATUS_DISPARO[d.status] || STATUS_DISPARO.pendente;
                   const StIcon = st.icon;
                   return (

@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
-import { PageHeader, KPICard } from '../../components/ui';
+import { PageHeader, KPICard, SortableHeader } from '../../components/ui';
+import useSortable from '../../hooks/useSortable';
 import {
   FileText, Plus, Eye, Send, Copy, Trash2, Search,
   CheckCircle, Clock, XCircle, AlertTriangle, TrendingUp, DollarSign, BarChart3
@@ -76,6 +77,12 @@ export default function Orcamentos() {
     return list;
   }, [quotes, tab, search]);
 
+  // Ordenação por coluna
+  const { sortedData: sortedQuotes, requestSort, getSortIndicator } = useSortable(filtered, {
+    defaultField: 'clientName',
+    defaultDirection: 'asc',
+  });
+
   const handleAction = (e, action, quote) => {
     e.stopPropagation();
     if (action === 'view') navigate(`/admin/orcamentos/${quote.id}`);
@@ -125,7 +132,7 @@ export default function Orcamentos() {
       {/* Tabela */}
       {loading ? (
         <div className="text-center py-12 text-gray-400">Carregando...</div>
-      ) : filtered.length === 0 ? (
+      ) : sortedQuotes.length === 0 ? (
         <div className="bg-white rounded-xl border border-gray-200 p-12 text-center">
           <BarChart3 size={48} className="mx-auto text-gray-300 mb-4" />
           <p className="text-gray-500 font-medium">Nenhum orçamento encontrado</p>
@@ -141,17 +148,17 @@ export default function Orcamentos() {
               <thead className="bg-gray-50 border-b border-gray-200">
                 <tr>
                   <th className="text-left px-4 py-3 font-medium text-gray-500">#</th>
-                  <th className="text-left px-4 py-3 font-medium text-gray-500">Cliente</th>
-                  <th className="text-left px-4 py-3 font-medium text-gray-500">Tipo Evento</th>
-                  <th className="text-left px-4 py-3 font-medium text-gray-500">Data Evento</th>
-                  <th className="text-left px-4 py-3 font-medium text-gray-500">Valor</th>
-                  <th className="text-left px-4 py-3 font-medium text-gray-500">Status</th>
-                  <th className="text-left px-4 py-3 font-medium text-gray-500">Validade</th>
+                  <SortableHeader label="Cliente" field="clientName" onSort={requestSort} active={getSortIndicator('clientName')} />
+                  <SortableHeader label="Tipo Evento" field="eventType" onSort={requestSort} active={getSortIndicator('eventType')} />
+                  <SortableHeader label="Data Evento" field="eventDate" onSort={requestSort} active={getSortIndicator('eventDate')} />
+                  <SortableHeader label="Valor" field="total" onSort={requestSort} active={getSortIndicator('total')} />
+                  <SortableHeader label="Status" field="status" onSort={requestSort} active={getSortIndicator('status')} />
+                  <SortableHeader label="Validade" field="validUntil" onSort={requestSort} active={getSortIndicator('validUntil')} />
                   <th className="text-right px-4 py-3 font-medium text-gray-500">Ações</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {filtered.map((q, idx) => {
+                {sortedQuotes.map((q, idx) => {
                   const st = STATUS_MAP[q.status] || STATUS_MAP.draft;
                   const expDays = daysUntil(q.validUntil);
                   const expiring = expDays !== null && expDays <= 5 && q.status === 'sent';

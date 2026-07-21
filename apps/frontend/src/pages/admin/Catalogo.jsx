@@ -5,7 +5,8 @@ import {
   Tag, Layers, ShoppingBag, Clock, Eye, EyeOff, Printer, X, Check
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
-import { PageHeader, KPICard } from '../../components/ui';
+import { PageHeader, KPICard, SortableHeader } from '../../components/ui';
+import useSortable from '../../hooks/useSortable';
 
 const ACCENT = '#EA580C';
 
@@ -69,6 +70,21 @@ export default function Catalogo() {
       return true;
     });
   }, [itens, filtroTipo, filtroCategoria, filtroStatus, buscaNome]);
+
+  // Ordenação por coluna
+  const { sortedData: itensSorted, requestSort, getSortIndicator } = useSortable(itensFiltrados, {
+    defaultField: 'nome',
+    defaultDirection: 'asc',
+    customComparators: {
+      categoria: (a, b) => {
+        const catA = categorias.find(c => c.id === a.categoria_id)?.nome || '';
+        const catB = categorias.find(c => c.id === b.categoria_id)?.nome || '';
+        return catA.localeCompare(catB, 'pt-BR');
+      },
+      duracao_base: (a, b) => (a.duracao_base || 0) - (b.duracao_base || 0),
+      ativo: (a, b) => (a.ativo === b.ativo ? 0 : a.ativo ? -1 : 1),
+    },
+  });
 
   // KPIs
   const kpis = useMemo(() => ({
@@ -254,18 +270,18 @@ export default function Catalogo() {
                 <table className="w-full text-sm">
                   <thead className="bg-gray-50 border-b">
                     <tr>
-                      <th className="text-left px-4 py-3 font-medium text-gray-600">Nome</th>
-                      <th className="text-left px-4 py-3 font-medium text-gray-600">Tipo</th>
-                      <th className="text-left px-4 py-3 font-medium text-gray-600">Categoria</th>
-                      <th className="text-right px-4 py-3 font-medium text-gray-600">Valor Base</th>
-                      <th className="text-center px-4 py-3 font-medium text-gray-600">Duração</th>
-                      <th className="text-center px-4 py-3 font-medium text-gray-600">Status</th>
+                      <SortableHeader label="Nome" field="nome" onSort={requestSort} active={getSortIndicator('nome')} />
+                      <SortableHeader label="Tipo" field="tipo" onSort={requestSort} active={getSortIndicator('tipo')} />
+                      <SortableHeader label="Categoria" field="categoria" onSort={requestSort} active={getSortIndicator('categoria')} />
+                      <SortableHeader label="Valor Base" field="valor_base" onSort={requestSort} active={getSortIndicator('valor_base')} align="right" />
+                      <SortableHeader label="Duração" field="duracao_base" onSort={requestSort} active={getSortIndicator('duracao_base')} align="center" />
+                      <SortableHeader label="Status" field="ativo" onSort={requestSort} active={getSortIndicator('ativo')} align="center" />
                       <th className="text-center px-4 py-3 font-medium text-gray-600">Exibir</th>
                       <th className="text-center px-4 py-3 font-medium text-gray-600">Ações</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {itensFiltrados.map(item => {
+                    {itensSorted.map(item => {
                       const badge = TIPO_BADGES[item.tipo] || TIPO_BADGES.adicional;
                       const cat = categorias.find(c => c.id === item.categoria_id);
                       return (
@@ -309,7 +325,7 @@ export default function Catalogo() {
                     })}
                   </tbody>
                 </table>
-                {itensFiltrados.length === 0 && <p className="text-center py-8 text-gray-400">Nenhum item encontrado</p>}
+                {itensSorted.length === 0 && <p className="text-center py-8 text-gray-400">Nenhum item encontrado</p>}
               </div>
             </div>
           )}

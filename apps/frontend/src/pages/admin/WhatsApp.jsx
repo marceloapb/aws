@@ -5,6 +5,8 @@ import {
   RefreshCw, Copy, Eye, EyeOff, Plus, ChevronDown, ChevronUp, ExternalLink,
   BarChart3, DollarSign, Phone, Shield, Trash2, Edit, Upload, Search, RotateCcw
 } from 'lucide-react';
+import { SortableHeader } from '../../components/ui';
+import useSortable from '../../hooks/useSortable';
 
 const ACCENT = '#EA580C';
 const API = '/admin/whatsapp';
@@ -289,6 +291,12 @@ export default function WhatsApp() {
     return true;
   });
 
+  // Ordenação por coluna - Envios
+  const { sortedData: sortedEnvios, requestSort: requestSortEnvios, getSortIndicator: getSortIndicatorEnvios } = useSortable(filteredEnvios, {
+    defaultField: 'data',
+    defaultDirection: 'desc',
+  });
+
   const selectedTplVars = templates.find(t => t.id === sendForm.templateId)?.variaveis || [];
 
   const renderEnvios = () => (
@@ -315,17 +323,17 @@ export default function WhatsApp() {
         <table className="w-full text-sm">
           <thead className="bg-gray-50 border-b">
             <tr>
-              <th className="text-left px-3 py-2 font-medium">Destinatário</th>
-              <th className="text-left px-3 py-2 font-medium">Template/Tipo</th>
-              <th className="text-left px-3 py-2 font-medium">Status</th>
+              <SortableHeader label="Destinatário" field="destinatario" onSort={requestSortEnvios} active={getSortIndicatorEnvios('destinatario')} />
+              <SortableHeader label="Template/Tipo" field="templateNome" onSort={requestSortEnvios} active={getSortIndicatorEnvios('templateNome')} />
+              <SortableHeader label="Status" field="status" onSort={requestSortEnvios} active={getSortIndicatorEnvios('status')} />
               <th className="text-left px-3 py-2 font-medium">Janela 24h</th>
-              <th className="text-left px-3 py-2 font-medium">Data</th>
-              <th className="text-left px-3 py-2 font-medium">Retries</th>
+              <SortableHeader label="Data" field="data" onSort={requestSortEnvios} active={getSortIndicatorEnvios('data')} />
+              <SortableHeader label="Retries" field="retries" onSort={requestSortEnvios} active={getSortIndicatorEnvios('retries')} />
               <th className="px-3 py-2"></th>
             </tr>
           </thead>
           <tbody>
-            {filteredEnvios.map(e => {
+            {sortedEnvios.map(e => {
               const St = STATUS_ENVIO[e.status];
               const Icon = St?.icon || Check;
               return (
@@ -349,7 +357,7 @@ export default function WhatsApp() {
                 </tr>
               );
             })}
-            {filteredEnvios.length === 0 && <tr><td colSpan={7} className="text-center py-6 text-gray-400">Nenhum envio encontrado</td></tr>}
+            {sortedEnvios.length === 0 && <tr><td colSpan={7} className="text-center py-6 text-gray-400">Nenhum envio encontrado</td></tr>}
           </tbody>
         </table>
       </div>
@@ -535,10 +543,10 @@ export default function WhatsApp() {
           <table className="w-full text-sm">
             <thead className="bg-gray-50 border-b">
               <tr>
-                <th className="text-left px-4 py-2 font-medium">Tipo</th>
-                <th className="text-right px-4 py-2 font-medium">Qtd</th>
-                <th className="text-right px-4 py-2 font-medium">Custo unitário</th>
-                <th className="text-right px-4 py-2 font-medium">Total</th>
+                <th className="text-left px-4 py-2 font-medium cursor-default">Tipo</th>
+                <th className="text-right px-4 py-2 font-medium cursor-default">Qtd</th>
+                <th className="text-right px-4 py-2 font-medium cursor-default">Custo unitário</th>
+                <th className="text-right px-4 py-2 font-medium cursor-default">Total</th>
               </tr>
             </thead>
             <tbody>

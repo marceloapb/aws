@@ -6,6 +6,8 @@ import {
   ChevronRight, AlertTriangle, CheckCircle, XCircle, Hash, Layers,
   Play, Sparkles, Settings, TrendingUp, Users, Heart, Bookmark, Share2, Loader2
 } from 'lucide-react';
+import { SortableHeader } from '../../components/ui';
+import useSortable from '../../hooks/useSortable';
 
 const ACCENT = '#EA580C';
 const TABS = ['Feed', 'Publicar', 'Stories', 'Insights', 'Agendados', 'Custos IA'];
@@ -65,6 +67,16 @@ export default function Instagram() {
 
   // Custos IA state
   const [custosIA, setCustosIA] = useState(null);
+
+  // Ordenação por coluna - Insights Posts
+  const { sortedData: sortedInsightsPosts, requestSort: requestSortInsights, getSortIndicator: getSortIndicatorInsights } = useSortable(insightsPosts, {});
+
+  // Ordenação por coluna - Custos IA
+  const custosDetalhes = custosIA?.detalhes || [];
+  const { sortedData: sortedCustos, requestSort: requestSortCustos, getSortIndicator: getSortIndicatorCustos } = useSortable(custosDetalhes, {
+    defaultField: 'data',
+    defaultDirection: 'desc',
+  });
 
   // Loading
   const [loading, setLoading] = useState(false);
@@ -654,15 +666,15 @@ export default function Instagram() {
                 <thead className="bg-gray-50">
                   <tr>
                     <th className="text-left px-4 py-2 font-medium text-gray-600">Post</th>
-                    <th className="text-right px-4 py-2 font-medium text-gray-600">Impressões</th>
-                    <th className="text-right px-4 py-2 font-medium text-gray-600">Alcance</th>
-                    <th className="text-right px-4 py-2 font-medium text-gray-600">Engajamento</th>
-                    <th className="text-right px-4 py-2 font-medium text-gray-600">Salvos</th>
-                    <th className="text-right px-4 py-2 font-medium text-gray-600">Shares</th>
+                    <SortableHeader label="Impressões" field="impressions" onSort={requestSortInsights} active={getSortIndicatorInsights('impressions')} align="right" />
+                    <SortableHeader label="Alcance" field="reach" onSort={requestSortInsights} active={getSortIndicatorInsights('reach')} align="right" />
+                    <SortableHeader label="Engajamento" field="engagement" onSort={requestSortInsights} active={getSortIndicatorInsights('engagement')} align="right" />
+                    <SortableHeader label="Salvos" field="saves" onSort={requestSortInsights} active={getSortIndicatorInsights('saves')} align="right" />
+                    <SortableHeader label="Shares" field="shares" onSort={requestSortInsights} active={getSortIndicatorInsights('shares')} align="right" />
                   </tr>
                 </thead>
                 <tbody className="divide-y">
-                  {insightsPosts.map(p => (
+                  {sortedInsightsPosts.map(p => (
                     <tr key={p.id} className="hover:bg-gray-50">
                       <td className="px-4 py-2 flex items-center gap-2">
                         {p.thumbnail && <img src={p.thumbnail} alt="" className="w-8 h-8 object-cover rounded" />}
@@ -764,15 +776,15 @@ export default function Instagram() {
               <table className="w-full text-sm">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th className="text-left px-4 py-2 font-medium text-gray-600">Data</th>
-                    <th className="text-left px-4 py-2 font-medium text-gray-600">Tipo</th>
-                    <th className="text-left px-4 py-2 font-medium text-gray-600">Modelo LLM</th>
-                    <th className="text-right px-4 py-2 font-medium text-gray-600">Tokens</th>
-                    <th className="text-right px-4 py-2 font-medium text-gray-600">Custo</th>
+                    <SortableHeader label="Data" field="data" onSort={requestSortCustos} active={getSortIndicatorCustos('data')} />
+                    <SortableHeader label="Tipo" field="tipo" onSort={requestSortCustos} active={getSortIndicatorCustos('tipo')} />
+                    <SortableHeader label="Modelo LLM" field="modelo" onSort={requestSortCustos} active={getSortIndicatorCustos('modelo')} />
+                    <SortableHeader label="Tokens" field="tokens" onSort={requestSortCustos} active={getSortIndicatorCustos('tokens')} align="right" />
+                    <SortableHeader label="Custo" field="custo" onSort={requestSortCustos} active={getSortIndicatorCustos('custo')} align="right" />
                   </tr>
                 </thead>
                 <tbody className="divide-y">
-                  {(custosIA?.detalhes || []).map((item, i) => (
+                  {sortedCustos.map((item, i) => (
                     <tr key={i} className="hover:bg-gray-50">
                       <td className="px-4 py-2">{new Date(item.data).toLocaleDateString('pt-BR')}</td>
                       <td className="px-4 py-2">

@@ -4,6 +4,8 @@ import { FileText, Bell, Mail, MessageCircle, CheckCircle, XCircle, ChevronLeft,
 import Badge from '../../components/ui/Badge';
 import Select from '../../components/ui/Select';
 import KPICard from '../../components/ui/KPICard';
+import SortableHeader from '../../components/ui/SortableHeader';
+import useSortable from '../../hooks/useSortable';
 
 const ACCENT = '#EA580C';
 
@@ -93,6 +95,12 @@ export default function NotificacoesLog() {
   }, [logs, total]);
 
   const totalPages = Math.ceil(total / PAGE_SIZE) || 1;
+
+  // Ordenação por coluna
+  const { sortedData: sortedLogs, requestSort, getSortIndicator } = useSortable(logs, {
+    defaultField: 'created_at',
+    defaultDirection: 'desc',
+  });
 
   const formatDateTime = (dateStr) => {
     if (!dateStr) return '-';
@@ -198,16 +206,16 @@ export default function NotificacoesLog() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b bg-gray-50">
-                  <th className="text-left px-4 py-3 font-medium text-gray-600">Data/Hora</th>
-                  <th className="text-left px-4 py-3 font-medium text-gray-600">Evento</th>
-                  <th className="text-left px-4 py-3 font-medium text-gray-600">Canal</th>
-                  <th className="text-left px-4 py-3 font-medium text-gray-600">Destino</th>
-                  <th className="text-left px-4 py-3 font-medium text-gray-600">Status</th>
+                  <SortableHeader label="Data/Hora" field="created_at" onSort={requestSort} active={getSortIndicator('created_at')} />
+                  <SortableHeader label="Evento" field="tipo_evento" onSort={requestSort} active={getSortIndicator('tipo_evento')} />
+                  <SortableHeader label="Canal" field="canal" onSort={requestSort} active={getSortIndicator('canal')} />
+                  <SortableHeader label="Destino" field="destino" onSort={requestSort} active={getSortIndicator('destino')} />
+                  <SortableHeader label="Status" field="status" onSort={requestSort} active={getSortIndicator('status')} />
                   <th className="text-left px-4 py-3 font-medium text-gray-600">Detalhes</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {logs.map((log) => {
+                {sortedLogs.map((log) => {
                   const canalConfig = CANAL_CONFIG[log.canal] || { label: log.canal, variant: 'gray' };
                   return (
                     <tr key={log.id} className="hover:bg-gray-50 transition-colors">

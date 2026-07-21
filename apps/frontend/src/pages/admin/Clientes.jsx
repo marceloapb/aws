@@ -5,6 +5,8 @@ import {
   Users, Plus, Search, MessageCircle, Eye, Mail,
   TrendingUp, UserCheck, UserPlus, UserX
 } from 'lucide-react';
+import { SortableHeader } from '../../components/ui';
+import useSortable from '../../hooks/useSortable';
 
 const ACCENT = '#EA580C';
 
@@ -15,12 +17,6 @@ const PIPELINE = [
   { key: 'negociacao', label: 'Negociação', color: '#EAB308' },
   { key: 'cliente', label: 'Cliente', color: '#22C55E' },
   { key: 'inativo', label: 'Inativo', color: '#EF4444' },
-];
-
-const SORT_OPTIONS = [
-  { value: 'nome_asc', label: 'Nome A-Z' },
-  { value: 'ultimo_contato', label: 'Último contato' },
-  { value: 'created', label: 'Data cadastro' },
 ];
 
 const TAG_COLORS = [
@@ -77,7 +73,6 @@ export default function Clientes() {
   const [selectedTags, setSelectedTags] = useState([]);
   const [cidadeFilter, setCidadeFilter] = useState('');
   const [origemFilter, setOrigemFilter] = useState('');
-  const [sortBy, setSortBy] = useState('nome_asc');
 
   useEffect(() => { loadData(); }, []);
 
@@ -146,16 +141,14 @@ export default function Clientes() {
       list = list.filter(c => c.como_conheceu === origemFilter);
     }
 
-    // Sort
-    list.sort((a, b) => {
-      if (sortBy === 'nome_asc') return (a.nome || '').localeCompare(b.nome || '');
-      if (sortBy === 'ultimo_contato') return new Date(b.ultimo_contato || 0) - new Date(a.ultimo_contato || 0);
-      if (sortBy === 'created') return new Date(b.created || 0) - new Date(a.created || 0);
-      return 0;
-    });
-
     return list;
-  }, [clientes, activeTab, search, selectedTags, cidadeFilter, origemFilter, sortBy]);
+  }, [clientes, activeTab, search, selectedTags, cidadeFilter, origemFilter]);
+
+  // Ordenação por coluna
+  const { sortedData: sortedClientes, requestSort, getSortIndicator } = useSortable(filtered, {
+    defaultField: 'nome',
+    defaultDirection: 'asc',
+  });
 
   // CLI-07 KPIs
   const kpis = useMemo(() => {
@@ -309,25 +302,16 @@ export default function Clientes() {
               {tag}
             </button>
           ))}
-          <div className="ml-auto">
-            <select
-              value={sortBy}
-              onChange={(e) => setSortBy(e.target.value)}
-              className="px-3 py-1.5 border border-gray-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-orange-200"
-            >
-              {SORT_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-            </select>
-          </div>
         </div>
       </div>
 
       {/* Tabela */}
       <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
         <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
-          <span className="text-sm text-gray-500">{filtered.length} cliente(s)</span>
+          <span className="text-sm text-gray-500">{sortedClientes.length} cliente(s)</span>
         </div>
 
-        {filtered.length === 0 ? (
+        {sortedClientes.length === 0 ? (
           <div className="p-12 text-center text-gray-400">
             {search || activeTab !== 'todos' || selectedTags.length > 0
               ? 'Nenhum cliente encontrado com os filtros aplicados.'
@@ -338,18 +322,18 @@ export default function Clientes() {
             <table className="w-full">
               <thead className="bg-gray-50 border-b border-gray-200">
                 <tr>
-                  <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">Nome</th>
-                  <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">Status</th>
+                  <SortableHeader label="Nome" field="nome" onSort={requestSort} active={getSortIndicator('nome')} />
+                  <SortableHeader label="Status" field="status" onSort={requestSort} active={getSortIndicator('status')} />
                   <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">Tags</th>
-                  <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">Email</th>
-                  <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">Telefone</th>
-                  <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">Cidade</th>
-                  <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">Último Job</th>
+                  <SortableHeader label="Email" field="email" onSort={requestSort} active={getSortIndicator('email')} />
+                  <SortableHeader label="Telefone" field="telefone" onSort={requestSort} active={getSortIndicator('telefone')} />
+                  <SortableHeader label="Cidade" field="cidade" onSort={requestSort} active={getSortIndicator('cidade')} />
+                  <SortableHeader label="Último Job" field="ultimo_job" onSort={requestSort} active={getSortIndicator('ultimo_job')} />
                   <th className="text-center px-4 py-3 text-xs font-medium text-gray-500 uppercase">Ações</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {filtered.map(c => (
+                {sortedClientes.map(c => (
                   <tr
                     key={c.id}
                     onClick={() => navigate(`/admin/clientes/${c.id}`)}

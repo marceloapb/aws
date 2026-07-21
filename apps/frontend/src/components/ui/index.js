@@ -18,3 +18,4 @@ export { default as EmptyState } from './EmptyState';
 export { default as Breadcrumbs } from './Breadcrumbs';
 export { default as Skeleton } from './Skeleton';
 export { default as PageHeader } from './PageHeader';
+export { default as SortableHeader } from './SortableHeader';

@@ -5,7 +5,8 @@ import {
   BarChart3, PieChart, Calendar, CreditCard, Loader2, Trash2, Edit2
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
-import { PageHeader } from '../../components/ui';
+import { PageHeader, SortableHeader } from '../../components/ui';
+import useSortable from '../../hooks/useSortable';
 
 const ACCENT = '#EA580C';
 const TABS = ['Visão Geral', 'Cobranças', 'Despesas', 'Fluxo de Caixa', 'Rentabilidade'];
@@ -139,6 +140,21 @@ export default function Financeiro() {
     if (buscaDespesa && !d.descricao?.toLowerCase().includes(buscaDespesa.toLowerCase())) return false;
     return true;
   });
+
+  // Ordenação por coluna - Cobranças
+  const { sortedData: sortedCobrancas, requestSort: requestSortCob, getSortIndicator: getSortIndicatorCob } = useSortable(cobrancasFiltradas, {
+    defaultField: 'vencimento',
+    defaultDirection: 'desc',
+  });
+
+  // Ordenação por coluna - Despesas
+  const { sortedData: sortedDespesas, requestSort: requestSortDesp, getSortIndicator: getSortIndicatorDesp } = useSortable(despesasFiltradas, {
+    defaultField: 'data',
+    defaultDirection: 'desc',
+  });
+
+  // Ordenação por coluna - Rentabilidade
+  const { sortedData: sortedRentabilidade, requestSort: requestSortRent, getSortIndicator: getSortIndicatorRent } = useSortable(rentabilidade, {});
 
 
 
@@ -310,13 +326,19 @@ export default function Financeiro() {
             <table className="w-full text-sm">
               <thead className="bg-gray-50 border-b">
                 <tr>
-                  {['Cliente', 'Evento', 'Parcela', 'Valor', 'Vencimento', 'Status', 'Meio', 'Pago %', 'Ações'].map(h => (
-                    <th key={h} className="text-left px-4 py-3 text-xs font-semibold text-gray-600">{h}</th>
-                  ))}
+                  <SortableHeader label="Cliente" field="cliente_nome" onSort={requestSortCob} active={getSortIndicatorCob('cliente_nome')} />
+                  <SortableHeader label="Evento" field="evento_nome" onSort={requestSortCob} active={getSortIndicatorCob('evento_nome')} />
+                  <SortableHeader label="Parcela" field="parcela" onSort={requestSortCob} active={getSortIndicatorCob('parcela')} />
+                  <SortableHeader label="Valor" field="valor" onSort={requestSortCob} active={getSortIndicatorCob('valor')} />
+                  <SortableHeader label="Vencimento" field="vencimento" onSort={requestSortCob} active={getSortIndicatorCob('vencimento')} />
+                  <SortableHeader label="Status" field="status" onSort={requestSortCob} active={getSortIndicatorCob('status')} />
+                  <SortableHeader label="Meio" field="meio" onSort={requestSortCob} active={getSortIndicatorCob('meio')} />
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-gray-600">Pago %</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-gray-600">Ações</th>
                 </tr>
               </thead>
               <tbody>
-                {cobrancasFiltradas.map(c => {
+                {sortedCobrancas.map(c => {
                   const atraso = c.status === 'atrasada' ? diasAtraso(c.vencimento) : 0;
                   const pctPago = c.valor_total ? Math.round((c.valor_pago || 0) / c.valor_total * 100) : 0;
                   return (
@@ -360,7 +382,7 @@ export default function Financeiro() {
                     </tr>
                   );
                 })}
-                {cobrancasFiltradas.length === 0 && (
+                {sortedCobrancas.length === 0 && (
                   <tr><td colSpan={9} className="text-center py-8 text-gray-400">Nenhuma cobrança encontrada</td></tr>
                 )}
               </tbody>
@@ -416,13 +438,17 @@ export default function Financeiro() {
             <table className="w-full text-sm">
               <thead className="bg-gray-50 border-b">
                 <tr>
-                  {['Descrição', 'Valor', 'Categoria', 'Data', 'Tipo', 'Evento', 'Ações'].map(h => (
-                    <th key={h} className="text-left px-4 py-3 text-xs font-semibold text-gray-600">{h}</th>
-                  ))}
+                  <SortableHeader label="Descrição" field="descricao" onSort={requestSortDesp} active={getSortIndicatorDesp('descricao')} />
+                  <SortableHeader label="Valor" field="valor" onSort={requestSortDesp} active={getSortIndicatorDesp('valor')} />
+                  <SortableHeader label="Categoria" field="categoria" onSort={requestSortDesp} active={getSortIndicatorDesp('categoria')} />
+                  <SortableHeader label="Data" field="data" onSort={requestSortDesp} active={getSortIndicatorDesp('data')} />
+                  <SortableHeader label="Tipo" field="recorrente" onSort={requestSortDesp} active={getSortIndicatorDesp('recorrente')} />
+                  <SortableHeader label="Evento" field="evento_nome" onSort={requestSortDesp} active={getSortIndicatorDesp('evento_nome')} />
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-gray-600">Ações</th>
                 </tr>
               </thead>
               <tbody>
-                {despesasFiltradas.map(d => {
+                {sortedDespesas.map(d => {
                   const cat = categorias.find(c => c.nome === d.categoria);
                   return (
                     <tr key={d.id} className="border-b hover:bg-gray-50">
@@ -444,7 +470,7 @@ export default function Financeiro() {
                     </tr>
                   );
                 })}
-                {despesasFiltradas.length === 0 && (
+                {sortedDespesas.length === 0 && (
                   <tr><td colSpan={7} className="text-center py-8 text-gray-400">Nenhuma despesa encontrada</td></tr>
                 )}
               </tbody>
@@ -502,7 +528,7 @@ export default function Financeiro() {
               <thead className="bg-gray-50 border-b">
                 <tr>
                   {['Data', 'Descrição', 'Tipo', 'Valor', 'Saldo Acumulado'].map(h => (
-                    <th key={h} className="text-left px-4 py-3 text-xs font-semibold text-gray-600">{h}</th>
+                    <th key={h} className="text-left px-4 py-3 text-xs font-semibold text-gray-600 cursor-default">{h}</th>
                   ))}
                 </tr>
               </thead>
@@ -548,13 +574,16 @@ export default function Financeiro() {
             <table className="w-full text-sm">
               <thead className="bg-gray-50 border-b">
                 <tr>
-                  {['Evento', 'Cliente', 'Receita Bruta', 'Despesas', 'Margem (R$)', 'Margem (%)'].map(h => (
-                    <th key={h} className="text-left px-4 py-3 text-xs font-semibold text-gray-600">{h}</th>
-                  ))}
+                  <SortableHeader label="Evento" field="evento_nome" onSort={requestSortRent} active={getSortIndicatorRent('evento_nome')} />
+                  <SortableHeader label="Cliente" field="cliente_nome" onSort={requestSortRent} active={getSortIndicatorRent('cliente_nome')} />
+                  <SortableHeader label="Receita Bruta" field="receita_bruta" onSort={requestSortRent} active={getSortIndicatorRent('receita_bruta')} />
+                  <SortableHeader label="Despesas" field="despesas" onSort={requestSortRent} active={getSortIndicatorRent('despesas')} />
+                  <SortableHeader label="Margem (R$)" field="margem" onSort={requestSortRent} active={getSortIndicatorRent('margem')} />
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-gray-600">Margem (%)</th>
                 </tr>
               </thead>
               <tbody>
-                {rentabilidade.map((r, i) => {
+                {sortedRentabilidade.map((r, i) => {
                   const margem_pct = r.receita_bruta ? Math.round((r.margem / r.receita_bruta) * 100) : 0;
                   const corMargem = margem_pct > 50 ? 'text-green-600' : margem_pct >= 30 ? 'text-yellow-600' : 'text-red-600';
                   const bgMargem = margem_pct > 50 ? 'bg-green-50' : margem_pct >= 30 ? 'bg-yellow-50' : 'bg-red-50';
@@ -570,13 +599,13 @@ export default function Financeiro() {
                   );
                 })}
               </tbody>
-              {rentabilidade.length > 0 && (
+              {sortedRentabilidade.length > 0 && (
                 <tfoot className="bg-gray-100 border-t">
                   <tr>
                     <td colSpan={4} className="px-4 py-3 font-semibold text-gray-700">Média Geral</td>
-                    <td className="px-4 py-3 font-bold">{fmt(rentabilidade.reduce((s, r) => s + (r.margem || 0), 0) / rentabilidade.length)}</td>
+                    <td className="px-4 py-3 font-bold">{fmt(sortedRentabilidade.reduce((s, r) => s + (r.margem || 0), 0) / sortedRentabilidade.length)}</td>
                     <td className="px-4 py-3 font-bold">
-                      {Math.round(rentabilidade.reduce((s, r) => s + (r.receita_bruta ? (r.margem / r.receita_bruta) * 100 : 0), 0) / rentabilidade.length)}%
+                      {Math.round(sortedRentabilidade.reduce((s, r) => s + (r.receita_bruta ? (r.margem / r.receita_bruta) * 100 : 0), 0) / sortedRentabilidade.length)}%
                     </td>
                   </tr>
                 </tfoot>
