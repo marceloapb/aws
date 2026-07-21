@@ -86,4 +86,56 @@ router.post('/complete', async (req, res) => {
   }
 });
 
+// POST /client/onboarding/complete-address — Dados complementares (endereço, Instagram, etc.)
+router.post('/complete-address', async (req, res) => {
+  try {
+    const clienteId = req.clienteId;
+    const { cep, logradouro, numero, complemento, bairro, cidade, uf, instagram, observacoes } = req.body;
+    const now = new Date().toISOString();
+
+    const updateExpressions = ['perfil_completo = :completo', 'atualizadoEm = :now'];
+    const expressionValues = { ':completo': true, ':now': now };
+    const expressionNames = {};
+
+    // Endereço
+    if (cep || logradouro || cidade) {
+      updateExpressions.push('endereco = :endereco');
+      expressionValues[':endereco'] = {
+        cep: cep || '',
+        logradouro: logradouro || '',
+        numero: numero || '',
+        complemento: complemento || '',
+        bairro: bairro || '',
+        cidade: cidade || '',
+        uf: uf || '',
+      };
+    }
+
+    if (instagram) {
+      updateExpressions.push('#instagram = :instagram');
+      expressionValues[':instagram'] = instagram.replace('@', '');
+      expressionNames['#instagram'] = 'instagram';
+    }
+
+    if (observacoes) {
+      updateExpressions.push('observacoes = :obs');
+      expressionValues[':obs'] = observacoes;
+    }
+
+    await docClient.send(new UpdateCommand({
+      TableName: TABLE_NAME,
+      Key: { PK: `CLIENT#${clienteId}`, SK: 'PROFILE' },
+      UpdateExpression: `SET ${updateExpressions.join(', ')}`,
+      ExpressionAttributeValues: expressionValues,
+      ...(Object.keys(expressionNames).length > 0 && { ExpressionAttributeNames: expressionNames }),
+    }));
+
+    logger.info({ action: 'onboarding_complete_address', clienteId });
+    res.json({ success: true, perfil_completo: true });
+  } catch (error) {
+    logger.error({ action: 'onboarding_complete_address_error', error: error.message });
+    res.status(500).json({ success: false, message: 'Erro ao salvar dados complementares' });
+  }
+});
+
 module.exports = router;

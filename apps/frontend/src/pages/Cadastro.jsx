@@ -125,8 +125,8 @@ export default function Cadastro() {
     try {
       const data = await register(form.nome_completo, form.email, form.password, form.telefone, form.tipo_pessoa, form.documento);
       if (data.auto_login) {
-        // Login automático — redirecionar direto para área do cliente
-        navigate('/cliente', { replace: true });
+        // Login automático — redirecionar para completar dados (endereço, etc.)
+        navigate('/cliente/completar-cadastro', { replace: true });
       } else {
         // Precisa confirmar e-mail — mostrar mensagem e ir para login
         setSuccess(true);
