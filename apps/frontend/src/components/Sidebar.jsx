@@ -22,7 +22,6 @@ const adminSections = [
       { to: '/admin/contratos', icon: FolderOpen, label: 'Contratos' },
       { to: '/admin/financeiro', icon: CreditCard, label: 'Financeiro' },
       { to: '/admin/notas-fiscais', icon: Receipt, label: 'Notas Fiscais', end: true },
-      { to: '/admin/nfse/config', icon: Receipt, label: 'Config NFS-e' },
       { to: '/admin/aditivos', icon: FilePlus, label: 'Aditivos' },
     ],
   },
@@ -30,7 +29,6 @@ const adminSections = [
     label: 'Produção',
     links: [
       { to: '/admin/albuns', icon: Image, label: 'Álbuns', end: true },
-      { to: '/admin/albuns/config', icon: Settings, label: 'Config Álbuns' },
       { to: '/admin/equipamentos', icon: Wrench, label: 'Equipamentos' },
       { to: '/admin/clientes', icon: Users, label: 'Clientes' },
     ],

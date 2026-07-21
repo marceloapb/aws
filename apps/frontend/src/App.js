@@ -30,7 +30,7 @@ import ClienteForm from './pages/admin/ClienteForm';
 import ClienteDetalhe from './pages/admin/ClienteDetalhe';
 import Feedback from './pages/admin/Feedback';
 import NotasFiscais from './pages/admin/NotasFiscais';
-import NfseConfig from './pages/admin/NfseConfig';
+// NfseConfig moved to ConfigEmpresa hub
 import Aditivos from './pages/admin/Aditivos';
 import Equipamentos from './pages/admin/Equipamentos';
 import Instagram from './pages/admin/Instagram';
@@ -51,7 +51,7 @@ import CmsEditor from './pages/admin/CmsEditor';
 import MeusOrcamentos from './pages/cliente/MeusOrcamentos';
 import MeusContratos from './pages/cliente/MeusContratos';
 import MeusAlbuns from './pages/cliente/MeusAlbuns';
-import AlbumConfig from './pages/admin/AlbumConfig';
+// AlbumConfig moved to ConfigEmpresa hub
 import AlbumView from './pages/cliente/AlbumView';
 
 function App() {
@@ -103,7 +103,7 @@ function App() {
         {/* Álbuns */}
         <Route path="albuns" element={<Albuns />} />
         <Route path="albuns/:id" element={<AlbumDetalhe />} />
-        <Route path="albuns/config" element={<AlbumConfig />} />
+        <Route path="albuns/config" element={<Navigate to="/admin/config?tab=albuns" replace />} />
 
         {/* Clientes */}
         <Route path="clientes" element={<Clientes />} />
@@ -114,7 +114,7 @@ function App() {
         {/* Outros */}
         <Route path="feedback" element={<Feedback />} />
         <Route path="notas-fiscais" element={<NotasFiscais />} />
-        <Route path="nfse/config" element={<NfseConfig />} />
+        <Route path="nfse/config" element={<Navigate to="/admin/config?tab=nfse" replace />} />
         <Route path="aditivos" element={<Aditivos />} />
         <Route path="equipamentos" element={<Equipamentos />} />
         <Route path="instagram" element={<Instagram />} />
