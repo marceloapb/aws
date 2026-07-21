@@ -69,9 +69,11 @@ export default function AlbumDetalhe() {
 
   useEffect(() => { fetchAlbum(); }, [fetchAlbum]);
 
-  const fotosGaleria = galeriaAtiva
-    ? fotos.filter(f => f.galeria_id === galeriaAtiva || !f.galeria_id)
-    : fotos;
+  const fotosGaleria = !galeriaAtiva
+    ? fotos
+    : galeriaAtiva === '__sem_galeria__'
+      ? fotos.filter(f => !f.galeria_id)
+      : fotos.filter(f => f.galeria_id === galeriaAtiva);
   const totalFotos = fotos.length;
   const selecionadasCliente = fotos.filter(f => f.selecionada_cliente).length;
   const pagamento = album?.pagamento_percentual || 0;
@@ -411,6 +413,16 @@ export default function AlbumDetalhe() {
         <aside className="w-56 bg-white border-r min-h-[calc(100vh-220px)] p-3">
           <h3 className="text-xs font-semibold text-gray-500 uppercase mb-2">Galerias</h3>
           <ul className="space-y-1">
+            <li className={`flex items-center gap-1 px-2 py-1.5 rounded text-sm cursor-pointer ${!galeriaAtiva ? 'bg-orange-50 font-medium' : 'hover:bg-gray-100'}`}
+              onClick={() => { setGaleriaAtiva(null); setSelecionadas([]); }}>
+              <span className="flex-1">Todas ({fotos.length})</span>
+            </li>
+            {fotos.some(f => !f.galeria_id) && (
+              <li className={`flex items-center gap-1 px-2 py-1.5 rounded text-sm cursor-pointer ${galeriaAtiva === '__sem_galeria__' ? 'bg-orange-50 font-medium' : 'hover:bg-gray-100'}`}
+                onClick={() => { setGaleriaAtiva('__sem_galeria__'); setSelecionadas([]); }}>
+                <span className="flex-1 text-gray-500">Sem galeria ({fotos.filter(f => !f.galeria_id).length})</span>
+              </li>
+            )}
             {galerias.map((g, idx) => (
               <li key={g.id} className={`flex items-center gap-1 px-2 py-1.5 rounded text-sm cursor-pointer group ${galeriaAtiva === g.id ? 'bg-orange-50 font-medium' : 'hover:bg-gray-100'}`}
                 onClick={() => { setGaleriaAtiva(g.id); setSelecionadas([]); }}
@@ -446,6 +458,37 @@ export default function AlbumDetalhe() {
 
         {/* ALB-06 GRID DE FOTOS */}
         <main className="flex-1 p-4">
+          {/* Toolbar */}
+          <div className="flex items-center gap-3 mb-3 flex-wrap">
+            <button onClick={() => {
+              if (selecionadas.length === fotosGaleria.length) setSelecionadas([]);
+              else setSelecionadas(fotosGaleria.map(f => f.id));
+            }} className="text-xs px-2.5 py-1.5 border rounded-lg hover:bg-gray-50">
+              {selecionadas.length === fotosGaleria.length && fotosGaleria.length > 0 ? 'Deselecionar todas' : `Selecionar todas (${fotosGaleria.length})`}
+            </button>
+            <select onChange={e => {
+              const val = e.target.value;
+              if (val === 'nome') setFotos(prev => [...prev].sort((a, b) => (a.titulo || a.nome || '').localeCompare(b.titulo || b.nome || '')));
+              else if (val === 'data') setFotos(prev => [...prev].sort((a, b) => (b.created || '').localeCompare(a.created || '')));
+              else if (val === 'ordem') setFotos(prev => [...prev].sort((a, b) => (a.ordem || 0) - (b.ordem || 0)));
+            }} className="text-xs border rounded-lg px-2.5 py-1.5">
+              <option value="ordem">Ordenar: Padrão</option>
+              <option value="nome">Ordenar: Nome</option>
+              <option value="data">Ordenar: Data (recente)</option>
+            </select>
+            {selecionadas.length === 1 && (
+              <button onClick={async () => {
+                const fotoId = selecionadas[0];
+                setTema(t => ({ ...t, capa_foto_id: fotoId }));
+                try { await authFetch(`/admin/albuns/${id}/tema`, { method: 'PUT', body: JSON.stringify({ ...tema, capa_foto_id: fotoId }) }); } catch {}
+                alert('Foto definida como capa!');
+              }} className="text-xs px-2.5 py-1.5 border rounded-lg hover:bg-orange-50 text-orange-600 border-orange-200">
+                ⭐ Definir como capa
+              </button>
+            )}
+            <span className="text-xs text-gray-400 ml-auto">{fotosGaleria.length} foto{fotosGaleria.length !== 1 ? 's' : ''}</span>
+          </div>
+
           {/* Ações em lote */}
           {selecionadas.length > 0 && (
             <div className="flex items-center gap-2 mb-3 p-2 bg-orange-50 rounded text-sm">
