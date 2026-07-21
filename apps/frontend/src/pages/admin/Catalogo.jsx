@@ -5,6 +5,7 @@ import {
   Tag, Layers, ShoppingBag, Clock, Eye, EyeOff, Printer, X, Check
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
+import { PageHeader, KPICard } from '../../components/ui';
 
 const ACCENT = '#EA580C';
 
@@ -173,32 +174,32 @@ export default function Catalogo() {
 
   // ========== RENDER ==========
   return (
-    <div className="p-6 max-w-7xl mx-auto">
+    <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between mb-6 flex-col sm:flex-row gap-3">
-        <div className="flex items-center gap-3">
-          <Package size={24} style={{ color: '#EA580C' }} />
-          <h1 className="text-2xl font-bold text-gray-900">Produtos e Serviços</h1>
-        </div>
-        <div className="flex gap-2">
-          <button onClick={gerarListaPrecos} className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 text-sm">
-            <Printer size={16} /> Gerar Lista de Preços
-          </button>
-          {abaAtiva === 'itens' && (
-            <button onClick={() => navigate('/admin/catalogo/novo')} style={{ backgroundColor: ACCENT }} className="flex items-center gap-2 px-4 py-2 text-white rounded-lg hover:opacity-90 text-sm">
-              <Plus size={16} /> Novo Item
+      <PageHeader
+        icon={Package}
+        title="Produtos e Serviços"
+        actions={
+          <>
+            <button onClick={gerarListaPrecos} className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 text-sm">
+              <Printer size={16} /> Gerar Lista de Preços
             </button>
-          )}
-          {abaAtiva === 'pacotes' && (
-            <button onClick={() => setModalPacote({})} style={{ backgroundColor: ACCENT }} className="flex items-center gap-2 px-4 py-2 text-white rounded-lg hover:opacity-90 text-sm">
-              <Plus size={16} /> Novo Pacote
-            </button>
-          )}
-        </div>
-      </div>
+            {abaAtiva === 'itens' && (
+              <button onClick={() => navigate('/admin/catalogo/novo')} style={{ backgroundColor: ACCENT }} className="flex items-center gap-2 px-4 py-2 text-white rounded-lg hover:opacity-90 text-sm">
+                <Plus size={16} /> Novo Item
+              </button>
+            )}
+            {abaAtiva === 'pacotes' && (
+              <button onClick={() => setModalPacote({})} style={{ backgroundColor: ACCENT }} className="flex items-center gap-2 px-4 py-2 text-white rounded-lg hover:opacity-90 text-sm">
+                <Plus size={16} /> Novo Pacote
+              </button>
+            )}
+          </>
+        }
+      />
 
       {/* Abas */}
-      <div className="flex border-b mb-6">
+      <div className="flex border-b border-gray-200">
         {[{ key: 'itens', label: 'Itens', icon: ShoppingBag }, { key: 'pacotes', label: 'Pacotes', icon: Layers }, { key: 'categorias', label: 'Categorias', icon: Tag }].map(tab => (
           <button key={tab.key} onClick={() => setAbaAtiva(tab.key)}
             className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors ${abaAtiva === tab.key ? 'border-orange-600 text-orange-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
@@ -216,19 +217,12 @@ export default function Catalogo() {
           {abaAtiva === 'itens' && (
             <div>
               {/* KPIs */}
-              <div className="grid grid-cols-5 gap-4 mb-6">
-                {[
-                  { label: 'Total', value: kpis.total },
-                  { label: 'Ativos', value: kpis.ativos },
-                  { label: 'Serviços', value: kpis.servicos },
-                  { label: 'Produtos', value: kpis.produtos },
-                  { label: 'Adicionais', value: kpis.adicionais },
-                ].map(k => (
-                  <div key={k.label} className="bg-white border rounded-lg p-4 text-center">
-                    <p className="text-2xl font-bold" style={{ color: ACCENT }}>{k.value}</p>
-                    <p className="text-xs text-gray-500 mt-1">{k.label}</p>
-                  </div>
-                ))}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
+                <KPICard icon={Package} label="Total" value={kpis.total} accent="text-orange-600 bg-orange-50" />
+                <KPICard icon={Check} label="Ativos" value={kpis.ativos} accent="text-green-600 bg-green-50" />
+                <KPICard icon={ShoppingBag} label="Serviços" value={kpis.servicos} accent="text-blue-600 bg-blue-50" />
+                <KPICard icon={Tag} label="Produtos" value={kpis.produtos} accent="text-purple-600 bg-purple-50" />
+                <KPICard icon={Layers} label="Adicionais" value={kpis.adicionais} accent="text-amber-600 bg-amber-50" />
               </div>
 
               {/* Filtros */}
