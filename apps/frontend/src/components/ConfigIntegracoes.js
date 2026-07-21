@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { CheckCircle, XCircle, RefreshCw, Zap, Eye, EyeOff, Copy, ArrowRight, AlertTriangle, Calendar, Instagram, Play, FileText, Mail, MapPin } from 'lucide-react';
 
 const ACCENT = '#EA580C';
-const WEBHOOK_URL = 'https://2fbg55ru9j.execute-api.us-east-1.amazonaws.com/prod/whatsapp/webhook';
+const WEBHOOK_URL = 'https://8z9ncqnyoc.execute-api.sa-east-1.amazonaws.com/prod/whatsapp/webhook';
 
 export default function ConfigIntegracoes({ form, setForm }) {
   const { authFetch } = useAuth();

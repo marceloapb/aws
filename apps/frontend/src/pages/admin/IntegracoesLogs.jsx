@@ -98,7 +98,7 @@ export default function IntegracoesLogs() {
       <div className="flex items-center gap-2">
         <Filter size={14} className="text-gray-400" />
         <div className="flex gap-1 bg-gray-100 rounded-lg p-1 flex-wrap">
-          {[{ value: '', label: 'Todos' }, { value: 'whatsapp', label: 'WhatsApp' }, { value: 'instagram', label: 'Instagram' }, { value: 'google-calendar', label: 'Calendar' }, { value: 'email', label: 'E-mail' }, { value: 'maps', label: 'Maps' }, { value: 'gateway', label: 'Pagamento' }, { value: 'nf', label: 'NF' }].map(f => (
+          {[{ value: '', label: 'Todos' }, { value: 'whatsapp', label: 'WhatsApp' }, { value: 'instagram', label: 'Instagram' }, { value: 'google-calendar', label: 'Calendar' }, { value: 'email', label: 'E-mail' }, { value: 'maps', label: 'Maps' }, { value: 'nf', label: 'NF' }].map(f => (
             <button key={f.value} onClick={() => setFiltro(f.value)}
               className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${filtro === f.value ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-700'}`}>
               {f.label}

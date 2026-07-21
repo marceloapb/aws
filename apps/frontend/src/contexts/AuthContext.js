@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 
 const AuthContext = createContext(null);
-const API_URL = process.env.REACT_APP_API_URL || 'https://2fbg55ru9j.execute-api.us-east-1.amazonaws.com/prod';
+const API_URL = process.env.REACT_APP_API_URL || 'https://8z9ncqnyoc.execute-api.sa-east-1.amazonaws.com/prod';
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(() => {
