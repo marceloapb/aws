@@ -26,8 +26,8 @@ export default function Agenda() {
   const [bloqueio, setBloqueio] = useState({ data: '', motivo: '' });
 
   useEffect(() => {
-    authFetch('/admin/agenda').then(r => r.json()).then(d => { if (d.success) setEventos(d.data); });
-    authFetch('/admin/clientes').then(r => r.json()).then(d => { if (d.success) setClientes(d.data || d); });
+    authFetch('/admin/agenda').then(r => r.json()).then(d => { if (d.success) setEventos(d.data || []); }).catch(() => {});
+    authFetch('/admin/clientes').then(r => r.json()).then(d => { setClientes(Array.isArray(d.data) ? d.data : Array.isArray(d) ? d : []); }).catch(() => {});
   }, []);
 
   const eventosFiltrados = useMemo(() => {
@@ -287,9 +287,12 @@ export default function Agenda() {
             {ev.observacoes && <div><p className="text-sm text-gray-500 mb-1">Observações</p><p className="text-sm text-gray-700">{ev.observacoes}</p></div>}
           </div>
           <div className="p-4 border-t flex gap-2">
-            <button className="flex-1 px-4 py-2 rounded-lg text-sm font-medium border hover:bg-gray-50 flex items-center justify-center gap-1"><Edit size={14} />Editar</button>
-            <button className="flex-1 px-4 py-2 rounded-lg text-sm font-medium bg-red-50 text-red-600 hover:bg-red-100">Cancelar</button>
-            <button className="flex-1 px-4 py-2 rounded-lg text-sm font-medium text-white flex items-center justify-center gap-1" style={{ backgroundColor: ACCENT }}><RefreshCw size={14} />Ressincronizar</button>
+            <button onClick={() => { setDrawerEvento(null); setNovaSessao({ tipo_evento: ev.tipo_evento || '', cliente_id: ev.cliente_id || '', data_evento: ev.data_evento || '', horario_inicio: ev.horario_inicio || '', horario_fim: ev.horario_fim || '', local: typeof ev.local === 'object' ? ev.local.nome : (ev.local || ''), id: ev.id }); setModalNovaSessao(true); }}
+              className="flex-1 px-4 py-2 rounded-lg text-sm font-medium border hover:bg-gray-50 flex items-center justify-center gap-1"><Edit size={14} />Editar</button>
+            <button onClick={async () => { if (!confirm('Cancelar este evento?')) return; await authFetch(`/admin/agenda/${ev.id}`, { method: 'DELETE' }); setDrawerEvento(null); authFetch('/admin/agenda').then(r => r.json()).then(d => { if (d.success) setEventos(d.data); }); }}
+              className="flex-1 px-4 py-2 rounded-lg text-sm font-medium bg-red-50 text-red-600 hover:bg-red-100">Cancelar</button>
+            <button onClick={async () => { try { await authFetch('/admin/google-calendar/sync', { method: 'POST' }); alert('Sincronização iniciada!'); } catch {} }}
+              className="flex-1 px-4 py-2 rounded-lg text-sm font-medium text-white flex items-center justify-center gap-1" style={{ backgroundColor: ACCENT }}><RefreshCw size={14} />Ressincronizar</button>
           </div>
         </div>
       </>
@@ -301,7 +304,12 @@ export default function Agenda() {
     if (!modalNovaSessao) return null;
     const handleSubmit = async (e) => {
       e.preventDefault();
-      await authFetch('/admin/agenda', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(novaSessao) });
+      const { id, ...dados } = novaSessao;
+      if (id) {
+        await authFetch(`/admin/agenda/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(dados) });
+      } else {
+        await authFetch('/admin/agenda', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(dados) });
+      }
       setModalNovaSessao(null);
       setNovaSessao({ tipo_evento: '', cliente_id: '', data_evento: '', horario_inicio: '', horario_fim: '', local: '' });
       authFetch('/admin/agenda').then(r => r.json()).then(d => { if (d.success) setEventos(d.data); });
@@ -311,7 +319,7 @@ export default function Agenda() {
         <div className="fixed inset-0 bg-black/40 z-40" onClick={() => setModalNovaSessao(null)} />
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <form onSubmit={handleSubmit} className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6 space-y-4">
-            <div className="flex items-center justify-between"><h3 className="text-lg font-bold">Nova Sessão</h3><button type="button" onClick={() => setModalNovaSessao(null)}><X size={20} /></button></div>
+            <div className="flex items-center justify-between"><h3 className="text-lg font-bold">{novaSessao.id ? 'Editar Sessão' : 'Nova Sessão'}</h3><button type="button" onClick={() => setModalNovaSessao(null)}><X size={20} /></button></div>
             <div>
               <label className="text-sm text-gray-600">Tipo</label>
               <select value={novaSessao.tipo_evento} onChange={e => setNovaSessao({ ...novaSessao, tipo_evento: e.target.value })} className="w-full mt-1 border rounded-lg px-3 py-2 text-sm" required>
@@ -391,9 +399,9 @@ export default function Agenda() {
       <KPICards />
       <Filtros />
       {view === 'calendario' ? <CalendarioView /> : <ListaView />}
-      <Drawer />
-      <ModalNovaSessao />
-      <ModalBloquear />
+      {Drawer()}
+      {ModalNovaSessao()}
+      {ModalBloquear()}
     </div>
   );
 }
