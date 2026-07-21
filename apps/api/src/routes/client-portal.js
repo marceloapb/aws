@@ -348,6 +348,13 @@ router.get('/perfil', async (req, res) => {
         instagram: perfil.instagram || '',
         comoConheceu: perfil.comoConheceu || perfil.como_conheceu || '',
         endereco: perfil.endereco || '',
+        endereco_cep: perfil.endereco_cep || '',
+        endereco_rua: perfil.endereco_rua || '',
+        endereco_numero: perfil.endereco_numero || '',
+        endereco_complemento: perfil.endereco_complemento || '',
+        endereco_bairro: perfil.endereco_bairro || '',
+        endereco_cidade: perfil.endereco_cidade || '',
+        endereco_estado: perfil.endereco_estado || '',
         avatarUrl,
         tipo_pessoa: perfil.tipo_pessoa || perfil.classificacao || '',
       },
@@ -363,7 +370,11 @@ router.get('/perfil', async (req, res) => {
 router.put('/perfil', async (req, res) => {
   try {
     const clienteId = req.user.sub;
-    const { nome, telefone, cpf_cnpj, endereco, instagram, avatarKey, comoConheceu } = req.body;
+    const {
+      nome, telefone, cpf_cnpj, endereco, instagram, avatarKey, comoConheceu,
+      endereco_cep, endereco_rua, endereco_numero, endereco_complemento,
+      endereco_bairro, endereco_cidade, endereco_estado,
+    } = req.body;
 
     // Validations
     if (!nome || nome.trim().length === 0) {
@@ -379,56 +390,76 @@ router.put('/perfil', async (req, res) => {
     }
 
     const now = new Date().toISOString();
-    let updateExpr = 'SET #nome = :nome, telefone = :tel, endereco = :end, updated_at = :upd';
-    const exprNames = { '#nome': 'nome' };
-    const exprValues = {
-      ':nome': nome.trim(),
-      ':tel': telefone || '',
-      ':end': endereco || '',
-      ':upd': now,
+
+    // Build the profile object to save
+    const profileData = {
+      PK: `CLIENT#${clienteId}`,
+      SK: 'PROFILE',
+      nome: nome.trim(),
+      email: req.user.email || '',
+      telefone: telefone || '',
+      cpf_cnpj: cpf_cnpj || '',
+      instagram: instagram ? instagram.replace('@', '') : '',
+      endereco: endereco || '',
+      endereco_cep: endereco_cep || '',
+      endereco_rua: endereco_rua || '',
+      endereco_numero: endereco_numero || '',
+      endereco_complemento: endereco_complemento || '',
+      endereco_bairro: endereco_bairro || '',
+      endereco_cidade: endereco_cidade || '',
+      endereco_estado: endereco_estado || '',
+      comoConheceu: comoConheceu || '',
+      updated_at: now,
+      perfil_completo: true,
     };
 
-    // Instagram (optional)
-    if (instagram !== undefined) {
-      updateExpr += ', instagram = :ig';
-      exprValues[':ig'] = instagram ? instagram.replace('@', '') : '';
-    }
-
-    // AvatarKey (optional)
     if (avatarKey) {
-      updateExpr += ', avatarKey = :avatar';
-      exprValues[':avatar'] = avatarKey;
+      profileData.avatarKey = avatarKey;
     }
 
-    // comoConheceu (optional)
-    if (comoConheceu !== undefined) {
-      updateExpr += ', comoConheceu = :como';
-      exprValues[':como'] = comoConheceu || '';
-    }
+    // Try to update existing record first, fallback to create
+    let updated = false;
 
-    // Try to update existing profile (try CLIENTE# first, then CLIENT#)
+    // Pattern 1: CLIENTE#<id> / PERFIL#<id>
     try {
-      await dynamo.send(new UpdateCommand({
+      const check1 = await dynamo.send(new QueryCommand({
         TableName: TABLE,
-        Key: { PK: `CLIENTE#${clienteId}`, SK: `PERFIL#${clienteId}` },
-        UpdateExpression: updateExpr,
-        ExpressionAttributeNames: exprNames,
-        ExpressionAttributeValues: exprValues,
-        ConditionExpression: 'attribute_exists(PK)',
+        KeyConditionExpression: 'PK = :pk AND SK = :sk',
+        ExpressionAttributeValues: { ':pk': `CLIENTE#${clienteId}`, ':sk': `PERFIL#${clienteId}` },
       }));
-    } catch (e) {
-      if (e.name === 'ConditionalCheckFailedException') {
-        // Try CLIENT#/PROFILE pattern
-        await dynamo.send(new UpdateCommand({
+      if (check1.Items && check1.Items.length > 0) {
+        const existingItem = check1.Items[0];
+        // Preserve avatarKey if not uploading new one
+        if (!avatarKey && existingItem.avatarKey) {
+          profileData.avatarKey = existingItem.avatarKey;
+        }
+        await dynamo.send(new PutCommand({
           TableName: TABLE,
-          Key: { PK: `CLIENT#${clienteId}`, SK: 'PROFILE' },
-          UpdateExpression: updateExpr,
-          ExpressionAttributeNames: exprNames,
-          ExpressionAttributeValues: exprValues,
+          Item: { ...profileData, PK: `CLIENTE#${clienteId}`, SK: `PERFIL#${clienteId}` },
         }));
-      } else {
-        throw e;
+        updated = true;
       }
+    } catch {}
+
+    // Pattern 2: CLIENT#<id> / PROFILE
+    if (!updated) {
+      try {
+        const check2 = await dynamo.send(new QueryCommand({
+          TableName: TABLE,
+          KeyConditionExpression: 'PK = :pk AND SK = :sk',
+          ExpressionAttributeValues: { ':pk': `CLIENT#${clienteId}`, ':sk': 'PROFILE' },
+        }));
+        const existingItem = check2.Items?.[0];
+        if (!avatarKey && existingItem?.avatarKey) {
+          profileData.avatarKey = existingItem.avatarKey;
+        }
+      } catch {}
+
+      // Upsert: always write to CLIENT#<id> / PROFILE
+      await dynamo.send(new PutCommand({
+        TableName: TABLE,
+        Item: profileData,
+      }));
     }
 
     res.json({
@@ -438,7 +469,14 @@ router.put('/perfil', async (req, res) => {
         email: req.user.email,
         telefone: telefone || '',
         cpf_cnpj: cpf_cnpj || '',
-        endereco: endereco || '',
+        instagram: instagram || '',
+        endereco_cep: endereco_cep || '',
+        endereco_rua: endereco_rua || '',
+        endereco_numero: endereco_numero || '',
+        endereco_complemento: endereco_complemento || '',
+        endereco_bairro: endereco_bairro || '',
+        endereco_cidade: endereco_cidade || '',
+        endereco_estado: endereco_estado || '',
       },
     });
   } catch (error) {
