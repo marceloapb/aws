@@ -95,6 +95,16 @@ apps/
 - Portal do cliente (álbuns, contratos, orçamentos, pagamentos)
 - Tela de logs de integrações com botão de teste
 
+## CI/CD (GitHub Actions)
+- Workflow: `.github/workflows/deploy.yml`
+- Trigger: push na `main` ou manual (workflow_dispatch)
+- Jobs paralelos: deploy-api (SAM) + deploy-frontend (S3 + CloudFront)
+- Secrets configurados no GitHub:
+  - `AWS_ACCESS_KEY_ID`: AKIA6GNWSWPECERTFYBE (user mbf-deploy)
+  - `AWS_SECRET_ACCESS_KEY`: configurado no GitHub Secrets
+- Monitorar: https://github.com/marceloapb/aws/actions
+- Disparo manual: Actions > "Deploy MBFoto Platform" > "Run workflow"
+
 ## AWS Account
 - Account: 975877354440
 - User: mbf-deploy
