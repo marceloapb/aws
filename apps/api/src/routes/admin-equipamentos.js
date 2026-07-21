@@ -81,4 +81,18 @@ router.delete('/:id', async (req, res) => {
   }
 });
 
+// POST /api/admin/equipamentos/identificar-foto — IA identifica equipamento por foto
+router.post('/identificar-foto', async (req, res) => {
+  try {
+    const { identificarEquipamento } = require('../services/aiService');
+    const { image, content_type } = req.body;
+    if (!image) return res.status(400).json({ success: false, message: 'image (base64) é obrigatório' });
+
+    const resultado = await identificarEquipamento(image, content_type || 'image/jpeg');
+    res.json({ success: true, data: resultado });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
 module.exports = router;

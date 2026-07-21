@@ -37,6 +37,11 @@ export default function Equipamentos() {
   // Checklists state
   const [modalChecklist, setModalChecklist] = useState(null);
 
+  // IA Identificação state
+  const [iaResults, setIaResults] = useState([]);
+  const [iaProcessing, setIaProcessing] = useState(false);
+  const [iaProgress, setIaProgress] = useState({ current: 0, total: 0 });
+
   // Conferência state
   const [selectedEvento, setSelectedEvento] = useState('');
   const [selectedChecklist, setSelectedChecklist] = useState('');
@@ -72,6 +77,55 @@ export default function Equipamentos() {
     } catch (e) { console.error(e); }
     setLoading(false);
   }
+
+  // IA: processar fotos e identificar equipamentos
+  const handleFotosIA = async (e) => {
+    const files = Array.from(e.target.files);
+    if (!files.length) return;
+    e.target.value = '';
+    setIaProcessing(true);
+    setIaProgress({ current: 0, total: files.length });
+    setIaResults([]);
+
+    const results = [];
+    for (let i = 0; i < files.length; i++) {
+      setIaProgress({ current: i + 1, total: files.length });
+      try {
+        const base64 = await new Promise((resolve) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result.split(',')[1]);
+          reader.readAsDataURL(files[i]);
+        });
+        const res = await authFetch('/admin/equipamentos/identificar-foto', {
+          method: 'POST',
+          body: JSON.stringify({ image: base64, content_type: files[i].type }),
+        });
+        const json = await res.json();
+        if (json.success) {
+          results.push({ ...json.data, _preview: URL.createObjectURL(files[i]), _confirmed: false });
+        }
+      } catch (err) {
+        results.push({ nome: `Erro: ${files[i].name}`, categoria: 'Outros', _preview: URL.createObjectURL(files[i]), _confirmed: false, _error: true });
+      }
+    }
+    setIaResults(results);
+    setIaProcessing(false);
+  };
+
+  const confirmarEquipIA = async (item, idx) => {
+    const data = { nome: item.nome, marca: item.marca, modelo: item.modelo, categoria: item.categoria, numero_serie: item.numero_serie, valor_estimado: item.valor_estimado, descricao: item.descricao, ativo: true, status: 'disponivel' };
+    await authFetch('/admin/equipamentos', { method: 'POST', body: JSON.stringify(data) });
+    setIaResults(prev => prev.map((r, i) => i === idx ? { ...r, _confirmed: true } : r));
+  };
+
+  const confirmarTodosIA = async () => {
+    for (let i = 0; i < iaResults.length; i++) {
+      if (!iaResults[i]._confirmed && !iaResults[i]._error) {
+        await confirmarEquipIA(iaResults[i], i);
+      }
+    }
+    fetchAll();
+  };
 
   async function saveEquip(data) {
     const method = data.id ? 'PUT' : 'POST';
@@ -196,6 +250,55 @@ export default function Equipamentos() {
 
   return (
     <div className="space-y-6">
+      {/* IA Processing / Results */}
+      {iaProcessing && (
+        <div className="bg-orange-50 border border-orange-200 rounded-xl p-4">
+          <div className="flex items-center gap-3">
+            <div className="animate-spin h-5 w-5 border-2 border-orange-500 border-t-transparent rounded-full" />
+            <p className="text-sm font-medium text-orange-700">Identificando equipamentos... ({iaProgress.current}/{iaProgress.total})</p>
+          </div>
+          <div className="mt-2 w-full bg-orange-200 rounded-full h-2">
+            <div className="h-2 rounded-full bg-orange-500 transition-all" style={{ width: `${(iaProgress.current / iaProgress.total) * 100}%` }} />
+          </div>
+        </div>
+      )}
+
+      {iaResults.length > 0 && !iaProcessing && (
+        <div className="bg-white border rounded-xl p-4 space-y-3">
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-semibold text-gray-900">📷 Equipamentos Identificados pela IA ({iaResults.filter(r => !r._error).length})</h3>
+            <div className="flex gap-2">
+              <button onClick={confirmarTodosIA} className="px-3 py-1.5 text-xs font-medium text-white rounded-lg" style={{ backgroundColor: ACCENT }}>Salvar Todos</button>
+              <button onClick={() => setIaResults([])} className="px-3 py-1.5 text-xs font-medium border rounded-lg hover:bg-gray-50">Fechar</button>
+            </div>
+          </div>
+          <div className="grid gap-3">
+            {iaResults.map((item, idx) => (
+              <div key={idx} className={`flex items-center gap-3 p-3 rounded-lg border ${item._confirmed ? 'bg-green-50 border-green-200' : item._error ? 'bg-red-50 border-red-200' : 'border-gray-200'}`}>
+                <img src={item._preview} alt="" className="w-16 h-16 rounded-lg object-cover border" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-gray-900 truncate">{item.nome}</p>
+                  <p className="text-xs text-gray-500">{item.marca} {item.modelo} • {item.categoria}</p>
+                  {item.valor_estimado > 0 && <p className="text-xs text-gray-400">~R$ {Number(item.valor_estimado).toLocaleString('pt-BR')}</p>}
+                </div>
+                {item._confirmed ? (
+                  <span className="text-xs text-green-600 font-medium px-2 py-1 bg-green-100 rounded">✓ Salvo</span>
+                ) : !item._error ? (
+                  <div className="flex gap-1">
+                    <button onClick={() => { setModalEquip({ ...item, ativo: true, status: 'disponivel' }); setIaResults(prev => prev.filter((_, i) => i !== idx)); }}
+                      className="text-xs px-2 py-1 border rounded hover:bg-gray-50">Editar</button>
+                    <button onClick={() => confirmarEquipIA(item, idx)}
+                      className="text-xs px-2 py-1 text-white rounded" style={{ backgroundColor: ACCENT }}>Salvar</button>
+                  </div>
+                ) : (
+                  <span className="text-xs text-red-500">Erro</span>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div className="flex items-center justify-between mb-6 flex-col sm:flex-row gap-3">
         <div className="flex items-center gap-3">
           <Wrench size={24} style={{ color: '#EA580C' }} />
@@ -254,6 +357,10 @@ export default function Equipamentos() {
             <button onClick={() => setModalEquip({ ativo: true, padrao: false, status: 'disponivel' })} className="flex items-center gap-1 px-4 py-2 text-white rounded-lg text-sm font-medium" style={{ backgroundColor: ACCENT }}>
               <Plus className="h-4 w-4" /> Novo
             </button>
+            <button onClick={() => document.getElementById('ia-equip-input').click()} className="flex items-center gap-1 px-4 py-2 border border-orange-300 text-orange-600 rounded-lg text-sm font-medium hover:bg-orange-50">
+              📷 Cadastrar com IA
+            </button>
+            <input id="ia-equip-input" type="file" accept="image/*" multiple className="hidden" onChange={handleFotosIA} />
           </div>
 
           {/* Tabela */}

@@ -7,6 +7,7 @@ const { BedrockRuntimeClient, ConverseCommand } = require('@aws-sdk/client-bedro
 
 const bedrock = new BedrockRuntimeClient({ region: 'us-east-1' });
 const MODEL_ID = 'amazon.nova-micro-v1:0';
+const VISION_MODEL_ID = 'anthropic.claude-3-haiku-20240307-v1:0';
 
 /**
  * Gera caption para Instagram
@@ -63,4 +64,50 @@ Responda APENAS com o texto do overlay (1-2 linhas curtas). Sem hashtags, sem em
   return response.output.message.content[0].text.trim();
 }
 
-module.exports = { gerarCaption, gerarTextoStory };
+/**
+ * Identifica equipamento fotográfico a partir de uma imagem
+ */
+async function identificarEquipamento(imageBase64, contentType = 'image/jpeg') {
+  const prompt = `Você é um especialista em equipamentos fotográficos. Analise esta imagem e identifique o equipamento.
+
+Retorne APENAS um JSON válido (sem markdown, sem \`\`\`) com estes campos:
+{
+  "nome": "Nome completo do equipamento",
+  "marca": "Marca (Canon, Nikon, Sony, etc)",
+  "modelo": "Modelo específico",
+  "categoria": "Uma de: Câmeras, Lentes, Flash, Iluminação, Tripés, Drones, Estabilizadores, Áudio, Acessórios, Outros",
+  "numero_serie": "Se visível na imagem, caso contrário null",
+  "descricao": "Breve descrição do equipamento e suas características",
+  "valor_estimado": número estimado em reais (sem R$, apenas o número)
+}
+
+Se não conseguir identificar com certeza, use seu melhor palpite baseado na aparência.`;
+
+  const mediaType = contentType.includes('png') ? 'image/png' : 'image/jpeg';
+
+  const command = new ConverseCommand({
+    modelId: VISION_MODEL_ID,
+    messages: [{
+      role: 'user',
+      content: [
+        { image: { format: mediaType.split('/')[1], source: { bytes: Buffer.from(imageBase64, 'base64') } } },
+        { text: prompt },
+      ],
+    }],
+    inferenceConfig: { maxTokens: 500, temperature: 0.3 },
+  });
+
+  const response = await bedrock.send(command);
+  const text = response.output.message.content[0].text.trim();
+
+  // Parse JSON response
+  try {
+    // Remove possíveis backticks markdown
+    const clean = text.replace(/```json?\n?/g, '').replace(/```/g, '').trim();
+    return JSON.parse(clean);
+  } catch {
+    return { nome: text, marca: '', modelo: '', categoria: 'Outros', numero_serie: null, descricao: '', valor_estimado: 0 };
+  }
+}
+
+module.exports = { gerarCaption, gerarTextoStory, identificarEquipamento };
