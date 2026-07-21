@@ -6,10 +6,14 @@ const {
   ForgotPasswordCommand,
   ConfirmForgotPasswordCommand,
 } = require('@aws-sdk/client-cognito-identity-provider');
+const { DynamoDBClient } = require('@aws-sdk/client-dynamodb');
+const { DynamoDBDocumentClient, GetCommand } = require('@aws-sdk/lib-dynamodb');
 const { env } = require('../config/env');
 
 const router = Router();
 const cognito = new CognitoIdentityProviderClient({ region: 'us-east-1' });
+const docClient = DynamoDBDocumentClient.from(new DynamoDBClient({}));
+const TABLE_NAME = process.env.TABLE_NAME;
 const CLIENT_ID = process.env.COGNITO_CLIENT_ID || process.env.COGNITO_USER_POOL_CLIENT_ID;
 
 router.post('/signup', async (req, res) => {
@@ -45,12 +49,24 @@ router.post('/login', async (req, res) => {
     const groups = payload['cognito:groups'] || [];
     const role = groups.includes('admin') ? 'admin' : 'client';
 
+    // Buscar perfil_completo do DynamoDB
+    let perfil_completo = false;
+    try {
+      const profileResult = await docClient.send(new GetCommand({
+        TableName: TABLE_NAME,
+        Key: { PK: `CLIENT#${payload.sub}`, SK: 'PROFILE' },
+        ProjectionExpression: 'perfil_completo'
+      }));
+      perfil_completo = profileResult.Item?.perfil_completo === true;
+    } catch {}
+
     const user = {
       id: payload.sub,
       sub: payload.sub,
       email: payload.email,
       role: role,
       groups: groups,
+      perfil_completo,
     };
 
     res.json({

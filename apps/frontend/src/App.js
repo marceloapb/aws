@@ -53,6 +53,16 @@ import MeusContratos from './pages/cliente/MeusContratos';
 import MeusAlbuns from './pages/cliente/MeusAlbuns';
 // AlbumConfig moved to ConfigEmpresa hub
 import AlbumView from './pages/cliente/AlbumView';
+import CompletarCadastro from './pages/cliente/CompletarCadastro';
+
+function ClienteGuard({ children }) {
+  const { user } = useAuth();
+  const currentPath = window.location.pathname;
+  if (user && user.role === 'client' && !user.perfil_completo) {
+    return <Navigate to={`/cliente/completar-cadastro?returnUrl=${encodeURIComponent(currentPath)}`} replace />;
+  }
+  return children;
+}
 
 function App() {
   const { user } = useAuth();
@@ -134,7 +144,8 @@ function App() {
       </Route>
 
       {/* Cliente */}
-      <Route path="/cliente" element={<PrivateRoute role="client"><Layout /></PrivateRoute>}>
+      <Route path="/cliente/completar-cadastro" element={<PrivateRoute role="client"><CompletarCadastro /></PrivateRoute>} />
+      <Route path="/cliente" element={<PrivateRoute role="client"><ClienteGuard><Layout /></ClienteGuard></PrivateRoute>}>
         <Route index element={<Navigate to="orcamentos" />} />
         <Route path="orcamentos" element={<MeusOrcamentos />} />
         <Route path="contratos" element={<MeusContratos />} />
