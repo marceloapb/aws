@@ -113,7 +113,7 @@ export default function Sidebar({ onClose }) {
   return (
     <div className="h-full bg-sidebar text-white hidden lg:flex flex-col">
       {/* Logo */}
-      <div className="h-16 flex items-center justify-between px-4 border-b border-gray-700">
+      <div className="h-16 flex items-center justify-center px-4 border-b border-gray-700 relative">
         <div className="flex items-center gap-2">
           {logoUrl ? (
             <img src={logoUrl} alt={empresaNome || 'Logo'} className="h-8 w-auto max-w-[160px] object-contain" />
@@ -124,7 +124,7 @@ export default function Sidebar({ onClose }) {
             </>
           )}
         </div>
-        <button onClick={onClose} className="lg:hidden p-1 rounded hover:bg-sidebar-hover">
+        <button onClick={onClose} className="lg:hidden absolute right-4 p-1 rounded hover:bg-sidebar-hover">
           <X size={18} />
         </button>
       </div>
