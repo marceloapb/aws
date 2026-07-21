@@ -7,7 +7,7 @@ const { BedrockRuntimeClient, ConverseCommand } = require('@aws-sdk/client-bedro
 
 const bedrock = new BedrockRuntimeClient({ region: 'us-east-1' });
 const MODEL_ID = 'amazon.nova-micro-v1:0';
-const VISION_MODEL_ID = 'anthropic.claude-3-haiku-20240307-v1:0';
+const VISION_MODEL_ID = 'us.anthropic.claude-3-haiku-20240307-v1:0';
 
 /**
  * Gera caption para Instagram
