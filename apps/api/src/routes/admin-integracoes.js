@@ -96,26 +96,14 @@ router.post('/test/instagram', async (req, res) => {
 router.post('/test/google-calendar', async (req, res) => {
   try {
     const params = await loadParams();
-    if (!params.GOOGLE_CLIENT_ID || !params.GOOGLE_CLIENT_SECRET) {
-      await salvarLog('google-calendar', 'teste', 'erro', 'Client ID ou Secret não configurados');
-      return res.json({ success: false, message: 'Google Calendar não configurado.' });
+    if (!params.GOOGLE_CLIENT_EMAIL || !params.GOOGLE_PRIVATE_KEY) {
+      await salvarLog('google-calendar', 'teste', 'erro', 'Service Account não configurada (GOOGLE_CLIENT_EMAIL ou GOOGLE_PRIVATE_KEY ausentes)');
+      return res.json({ success: false, message: 'Google Calendar não configurado. Configure a Service Account no SSM.' });
     }
 
-    // Check if we have a stored config with connected = true
-    const configResult = await dynamo.send(new QueryCommand({
-      TableName: TABLE,
-      KeyConditionExpression: 'PK = :pk AND SK = :sk',
-      ExpressionAttributeValues: { ':pk': 'SYSTEM', ':sk': 'GOOGLE_CALENDAR_CONFIG' },
-    }));
-    const config = configResult.Items?.[0];
-
-    if (!config || !config.connected) {
-      await salvarLog('google-calendar', 'teste', 'erro', 'Conta não conectada');
-      return res.json({ success: false, message: 'Google Calendar não está conectado. Faça a autorização OAuth primeiro.' });
-    }
-
-    await salvarLog('google-calendar', 'teste', 'sucesso', `Calendar: ${config.calendar_id || 'primary'}`);
-    res.json({ success: true, message: `Conexão OK. Calendar: ${config.calendar_id || 'primary'}` });
+    const calendarId = params.GOOGLE_CALENDAR_ID || 'primary';
+    await salvarLog('google-calendar', 'teste', 'sucesso', `Service Account: ${params.GOOGLE_CLIENT_EMAIL} | Calendar: ${calendarId}`);
+    res.json({ success: true, message: `Conexão OK. Calendar: ${calendarId} (${params.GOOGLE_CLIENT_EMAIL})` });
   } catch (error) {
     await salvarLog('google-calendar', 'teste', 'erro', error.message);
     res.status(500).json({ success: false, message: error.message });
