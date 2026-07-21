@@ -49,13 +49,18 @@ router.post('/signup', async (req, res) => {
       UserAttributes: [{ Name: 'name', Value: nome }, { Name: 'email', Value: email }],
     }));
 
-    // Confirmar automaticamente (auto-confirm)
-    const { AdminConfirmSignUpCommand } = require('@aws-sdk/client-cognito-identity-provider');
+    // Confirmar automaticamente e verificar e-mail
+    const { AdminConfirmSignUpCommand, AdminUpdateUserAttributesCommand } = require('@aws-sdk/client-cognito-identity-provider');
     const USER_POOL_ID = process.env.COGNITO_USER_POOL_ID || 'us-east-1_ENV0dsEJx';
     try {
       await cognito.send(new AdminConfirmSignUpCommand({
         UserPoolId: USER_POOL_ID,
         Username: email,
+      }));
+      await cognito.send(new AdminUpdateUserAttributesCommand({
+        UserPoolId: USER_POOL_ID,
+        Username: email,
+        UserAttributes: [{ Name: 'email_verified', Value: 'true' }],
       }));
     } catch (confirmErr) {
       // Se falhar auto-confirm, segue sem — cliente confirma por e-mail

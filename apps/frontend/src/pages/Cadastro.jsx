@@ -119,7 +119,11 @@ export default function Cadastro() {
       if (!validarCNPJ(docLimpo)) return setError('CNPJ inválido. Verifique os dígitos.');
     }
 
-    if (form.password.length < 6) return setError('Senha deve ter pelo menos 6 caracteres');
+    if (form.password.length < 8) return setError('Senha deve ter pelo menos 8 caracteres, com maiúscula, minúscula, número e símbolo');
+    if (!/[A-Z]/.test(form.password)) return setError('Senha deve conter pelo menos uma letra maiúscula');
+    if (!/[a-z]/.test(form.password)) return setError('Senha deve conter pelo menos uma letra minúscula');
+    if (!/[0-9]/.test(form.password)) return setError('Senha deve conter pelo menos um número');
+    if (!/[^A-Za-z0-9]/.test(form.password)) return setError('Senha deve conter pelo menos um símbolo (!@#$%...)');
     if (form.password !== form.confirm) return setError('Senhas não conferem');
 
     try {
@@ -240,7 +244,7 @@ export default function Cadastro() {
             </label>
             <div className="relative">
               <input type={showPassword ? 'text' : 'password'} name="password" value={form.password} onChange={handleChange} required
-                placeholder="Mínimo 6 caracteres"
+                placeholder="Mín 8 chars (A-z, 0-9, símbolo)"
                 className="w-full px-3 py-2.5 pr-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-200 focus:border-orange-500 outline-none" />
               <button type="button" onClick={() => setShowPassword(!showPassword)}
                 className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600" tabIndex={-1}>
