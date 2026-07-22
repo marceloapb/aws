@@ -78,27 +78,29 @@ export default function OrcamentoDetalhe() {
     return { expira, diasRestantes };
   }, [orc]);
 
+  // Calcula o valor total consolidado (maior valor entre as opções ou valor_total do orçamento)
+  const valorTotalConsolidado = useMemo(() => {
+    if (!orc) return 0;
+    if (orc.valor_total) return orc.valor_total;
+    const opcs = orc.opcoes || [];
+    if (opcs.length === 0) return 0;
+    const calcOpcaoTotal = (op) => {
+      const sub = (op.itens_snapshot || []).reduce((s, i) => s + (i.valor_unitario || 0) * (i.quantidade || 1), 0);
+      const desc = op.desconto_tipo === 'pct' ? sub * ((op.desconto_valor || 0) / 100) : (op.desconto_valor || 0);
+      return Math.max(0, sub - desc);
+    };
+    // Se tem opção destacada/recomendada, usa ela; senão usa o maior valor
+    const destaque = opcs.find(op => op.destaque);
+    if (destaque) return calcOpcaoTotal(destaque);
+    return Math.max(...opcs.map(calcOpcaoTotal));
+  }, [orc]);
+
   if (loading) return <div className="flex items-center justify-center py-20 text-gray-400">Carregando...</div>;
   if (!orc) return <div className="text-center py-20 text-gray-400">Orçamento não encontrado</div>;
 
   const st = STATUS_MAP[orc.status] || STATUS_MAP.rascunho;
   const cliente = orc.cliente || {};
   const opcoes = orc.opcoes || [];
-
-  // Calcula o valor total consolidado (maior valor entre as opções ou valor_total do orçamento)
-  const valorTotalConsolidado = useMemo(() => {
-    if (orc.valor_total) return orc.valor_total;
-    if (opcoes.length === 0) return 0;
-    // Se tem opção destacada/recomendada, usa ela; senão usa o maior valor
-    const destaque = opcoes.find(op => op.destaque);
-    const calcOpcaoTotal = (op) => {
-      const sub = (op.itens_snapshot || []).reduce((s, i) => s + (i.valor_unitario || 0) * (i.quantidade || 1), 0);
-      const desc = op.desconto_tipo === 'pct' ? sub * ((op.desconto_valor || 0) / 100) : (op.desconto_valor || 0);
-      return Math.max(0, sub - desc);
-    };
-    if (destaque) return calcOpcaoTotal(destaque);
-    return Math.max(...opcoes.map(calcOpcaoTotal));
-  }, [orc, opcoes]);
 
   return (
     <div className="max-w-7xl mx-auto">
