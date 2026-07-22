@@ -8,7 +8,7 @@ const { SQSClient, SendMessageCommand, ReceiveMessageCommand, DeleteMessageComma
 const { generateUploadUrl } = require('../services/mediaUploadService');
 const { createMediaRecord, listMedia, deleteMedia, getMediaById, updateOrdem } = require('../services/mediaService');
 const { getBatchUrls } = require('../services/mediaUrlService');
-const { getStorageMetrics } = require('../services/mediaMetricsService');
+const { getStorageMetrics, getAllStorageMetrics } = require('../services/mediaMetricsService');
 
 const router = Router();
 const TENANT = process.env.TENANT_ID || 'default';
@@ -65,8 +65,10 @@ router.get('/metrics', async (req, res) => {
   try {
     const { contexto } = req.query;
 
+    // Se não passar contexto, retorna métricas agregadas de todos os contextos
     if (!contexto) {
-      return res.status(400).json({ success: false, message: 'Query param obrigatório: contexto' });
+      const metrics = await getAllStorageMetrics();
+      return res.json({ success: true, data: metrics });
     }
 
     const metrics = await getStorageMetrics(contexto);
