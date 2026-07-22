@@ -404,6 +404,9 @@ router.get('/categorias/:catId/fotos', async (req, res) => {
 
     // Generate presigned/CDN URLs for display (same pattern as album)
     const fotosComUrl = await Promise.all(fotos.map(async (foto) => {
+      // Only generate URLs for photos that are fully processed
+      if (foto.status !== 'pronta') return foto;
+
       // Portfolio uses public bucket — try CDN first, fallback to presigned
       const thumbKey = foto.s3_key_thumb || foto.s3_key_web || foto.s3_key;
       const webKey = foto.s3_key_web || foto.s3_key_thumb || foto.s3_key;

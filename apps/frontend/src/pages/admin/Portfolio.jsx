@@ -1,40 +1,35 @@
-import React, { useState, useEffect, useRef, useCallback, useMemo, memo } from 'react';
+import React, { useState, useEffect, useRef, useCallback, memo } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
-import { GripVertical, Eye, EyeOff, Plus, Trash2, Edit2, Upload, X, Image, AlertTriangle, CheckCircle, Move } from 'lucide-react';
+import { GripVertical, Eye, EyeOff, Plus, Trash2, Edit2, Upload, X, Image, CheckCircle, Move } from 'lucide-react';
 
 const ACCENT = '#EA580C';
 
 // Lazy-loaded image component that only loads when visible in viewport
 const LazyImage = memo(({ src, alt, className }) => {
-  const imgRef = useRef(null);
-  const [isVisible, setIsVisible] = useState(false);
   const [loaded, setLoaded] = useState(false);
-
-  useEffect(() => {
-    const el = imgRef.current;
-    if (!el) return;
-    const observer = new IntersectionObserver(
-      ([entry]) => { if (entry.isIntersecting) { setIsVisible(true); observer.disconnect(); } },
-      { rootMargin: '200px' }
-    );
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, []);
+  const [error, setError] = useState(false);
 
   return (
-    <div ref={imgRef} className={`${className} bg-gray-100`}>
-      {isVisible && (
+    <div className={`${className} relative bg-gray-100`}>
+      {!error && (
         <img
           src={src}
-          alt={alt}
+          alt={alt || ''}
           className={`w-full h-full object-cover transition-opacity duration-300 ${loaded ? 'opacity-100' : 'opacity-0'}`}
           onLoad={() => setLoaded(true)}
+          onError={() => setError(true)}
+          loading="lazy"
           decoding="async"
         />
       )}
-      {isVisible && !loaded && (
+      {!loaded && !error && (
         <div className="absolute inset-0 flex items-center justify-center">
           <div className="w-5 h-5 border-2 border-gray-300 border-t-gray-500 rounded-full animate-spin" />
+        </div>
+      )}
+      {error && (
+        <div className="absolute inset-0 flex items-center justify-center">
+          <Image size={20} className="text-gray-300" />
         </div>
       )}
     </div>
@@ -44,6 +39,8 @@ LazyImage.displayName = 'LazyImage';
 
 // Draggable photo card with touch support for mobile drag-and-drop
 const DraggablePhoto = memo(({ foto, index, onDelete, onDragStart, onDragOver, onDrop, isDragging, isDragOver, isReorderMode }) => {
+  const imageUrl = foto.url_thumb || foto.url_web;
+
   return (
     <div
       draggable={isReorderMode}
@@ -56,8 +53,8 @@ const DraggablePhoto = memo(({ foto, index, onDelete, onDragStart, onDragOver, o
         ${isDragging ? 'opacity-30 scale-95' : ''}
         ${isReorderMode ? 'ring-2 ring-orange-100 cursor-grab active:cursor-grabbing' : ''}`}
     >
-      {foto.url_thumb ? (
-        <LazyImage src={foto.url_thumb} alt={foto.titulo || ''} className="w-full h-full" />
+      {imageUrl ? (
+        <LazyImage src={imageUrl} alt={foto.titulo || ''} className="w-full h-full" />
       ) : foto.status === 'processando' ? (
         <div className="w-full h-full flex flex-col items-center justify-center gap-2 bg-gray-50">
           <div className="w-6 h-6 border-2 border-orange-300 border-t-orange-600 rounded-full animate-spin" />
