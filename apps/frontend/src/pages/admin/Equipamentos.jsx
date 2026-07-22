@@ -79,6 +79,41 @@ export default function Equipamentos() {
     setLoading(false);
   }
 
+  // IA: converter imagem para JPEG via canvas (necessário para HEIC e formatos não suportados)
+  const convertToJpegBase64 = (file) => {
+    return new Promise((resolve) => {
+      // Se já é JPEG/PNG/WEBP/GIF, lê diretamente
+      const supportedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+      if (supportedTypes.includes(file.type)) {
+        const reader = new FileReader();
+        reader.onload = () => resolve({ base64: reader.result.split(',')[1], contentType: file.type });
+        reader.readAsDataURL(file);
+        return;
+      }
+      // Para HEIC ou outros formatos, converte via canvas para JPEG
+      const img = new Image();
+      const url = URL.createObjectURL(file);
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        canvas.width = img.width;
+        canvas.height = img.height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0);
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
+        URL.revokeObjectURL(url);
+        resolve({ base64: dataUrl.split(',')[1], contentType: 'image/jpeg' });
+      };
+      img.onerror = () => {
+        URL.revokeObjectURL(url);
+        // Fallback: lê como está e envia como jpeg
+        const reader = new FileReader();
+        reader.onload = () => resolve({ base64: reader.result.split(',')[1], contentType: 'image/jpeg' });
+        reader.readAsDataURL(file);
+      };
+      img.src = url;
+    });
+  };
+
   // IA: processar fotos e identificar equipamentos
   const handleFotosIA = async (e) => {
     const files = Array.from(e.target.files);
@@ -92,21 +127,19 @@ export default function Equipamentos() {
     for (let i = 0; i < files.length; i++) {
       setIaProgress({ current: i + 1, total: files.length });
       try {
-        const base64 = await new Promise((resolve) => {
-          const reader = new FileReader();
-          reader.onload = () => resolve(reader.result.split(',')[1]);
-          reader.readAsDataURL(files[i]);
-        });
+        const { base64, contentType } = await convertToJpegBase64(files[i]);
         const res = await authFetch('/admin/equipamentos/identificar-foto', {
           method: 'POST',
-          body: JSON.stringify({ image: base64, content_type: files[i].type }),
+          body: JSON.stringify({ image: base64, content_type: contentType }),
         });
         const json = await res.json();
         if (json.success) {
           results.push({ ...json.data, _preview: URL.createObjectURL(files[i]), _confirmed: false });
+        } else {
+          results.push({ nome: `Erro: ${files[i].name}`, categoria: 'Outros', _preview: URL.createObjectURL(files[i]), _confirmed: false, _error: true, _errorMsg: json.message || 'Erro ao identificar' });
         }
       } catch (err) {
-        results.push({ nome: `Erro: ${files[i].name}`, categoria: 'Outros', _preview: URL.createObjectURL(files[i]), _confirmed: false, _error: true });
+        results.push({ nome: `Erro: ${files[i].name}`, categoria: 'Outros', _preview: URL.createObjectURL(files[i]), _confirmed: false, _error: true, _errorMsg: err.message || 'Erro de rede' });
       }
     }
     setIaResults(results);
@@ -292,7 +325,7 @@ export default function Equipamentos() {
                       className="text-xs px-2 py-1 text-white rounded" style={{ backgroundColor: ACCENT }}>Salvar</button>
                   </div>
                 ) : (
-                  <span className="text-xs text-red-500">Erro</span>
+                  <span className="text-xs text-red-500" title={item._errorMsg || 'Erro'}>⚠️ {item._errorMsg || 'Erro'}</span>
                 )}
               </div>
             ))}

@@ -102,6 +102,14 @@ router.post('/identificar-foto', async (req, res) => {
       return res.status(400).json({ success: false, message: 'Imagem muito grande. O limite é ~3.75 MB. Reduza a resolução ou use JPEG.' });
     }
 
+    // Validar que o base64 é válido (sem caracteres inválidos)
+    const base64Regex = /^[A-Za-z0-9+/=]+$/;
+    if (!base64Regex.test(image.substring(0, 100))) {
+      return res.status(400).json({ success: false, message: 'Formato de imagem inválido. Envie apenas o base64 sem o prefixo data:image/...' });
+    }
+
+    console.log(`[identificar-foto] Processando imagem: ${Math.round(estimatedBytes / 1024)}KB, tipo: ${content_type || 'image/jpeg'}`);
+
     const resultado = await identificarEquipamento(image, content_type || 'image/jpeg');
     res.json({ success: true, data: resultado });
   } catch (error) {
