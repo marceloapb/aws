@@ -109,14 +109,41 @@ export default function OrcamentoEditar() {
 
       // Se já tem opções salvas, usa a primeira; senão usa os itens sugeridos
       const opcaoSalva = (orc.opcoes || [])[0];
+      const catalogoItensArr = catalogo?.itens || [];
       if (opcaoSalva && (opcaoSalva.itens_snapshot || []).length > 0) {
-        setItens(opcaoSalva.itens_snapshot.map(i => ({ ...i, _key: Math.random() })));
+        // Re-enriquecer itens do snapshot com dados atuais do catálogo
+        // (para itens salvos antes de duracao_base/valor_hora_adicional existirem)
+        const itensEnriquecidos = opcaoSalva.itens_snapshot.map(i => {
+          const catalogoItem = i.item_id ? catalogoItensArr.find(c => c.id === i.item_id) : null;
+          return {
+            ...i,
+            duracao_base: i.duracao_base || (catalogoItem?.duracao_base ?? 0),
+            valor_hora_adicional: i.valor_hora_adicional || (catalogoItem?.valor_hora_adicional ?? 0),
+            _key: Math.random(),
+          };
+        });
+        setItens(itensEnriquecidos);
         setDescontoTipo(opcaoSalva.desconto_tipo || 'pct');
         setDescontoValor(opcaoSalva.desconto_valor || 0);
-        // Restaurar valor hora extra salvo
+        // Restaurar valor hora extra salvo — só marcar como manual se admin editou
+        // (se o valor derivado dos itens for diferente do salvo, permitir atualização automática)
+        const valorHoraExtraDerived = (() => {
+          const valores = itensEnriquecidos
+            .filter(i => i.valor_hora_adicional && i.valor_hora_adicional > 0)
+            .map(i => Number(i.valor_hora_adicional));
+          return valores.length > 0 ? Math.max(...valores) : 0;
+        })();
         if (opcaoSalva.valor_hora_extra && opcaoSalva.valor_hora_extra > 0) {
-          setValorHoraExtra(opcaoSalva.valor_hora_extra);
-          setValorHoraExtraManual(true);
+          if (valorHoraExtraDerived > 0) {
+            // Itens do catálogo definem valor hora adicional — usar o valor derivado
+            // (mesmo que o salvo seja diferente, pois o catálogo é a fonte de verdade)
+            setValorHoraExtra(valorHoraExtraDerived);
+            setValorHoraExtraManual(false);
+          } else {
+            // Nenhum item tem valor_hora_adicional no catálogo — preservar o valor salvo
+            setValorHoraExtra(opcaoSalva.valor_hora_extra);
+            setValorHoraExtraManual(true);
+          }
         }
       } else if (itens_sugeridos && itens_sugeridos.length > 0) {
         setItens(itens_sugeridos.map(i => ({ ...i, _key: Math.random() })));
@@ -179,9 +206,12 @@ export default function OrcamentoEditar() {
   const [valorHoraExtraManual, setValorHoraExtraManual] = useState(false);
 
   // Atualizar valorHoraExtra automaticamente quando itens mudam (se não editou manualmente)
+  // Prioriza o valor derivado dos itens do catálogo sempre que disponível
   useEffect(() => {
-    if (!valorHoraExtraManual && valorHoraExtraDosItens > 0) {
-      setValorHoraExtra(valorHoraExtraDosItens);
+    if (!valorHoraExtraManual) {
+      if (valorHoraExtraDosItens > 0) {
+        setValorHoraExtra(valorHoraExtraDosItens);
+      }
     }
   }, [valorHoraExtraDosItens, valorHoraExtraManual]);
 
