@@ -19,6 +19,7 @@ import CatalogoForm from './pages/admin/CatalogoForm';
 import Orcamentos from './pages/admin/Orcamentos';
 import OrcamentoForm from './pages/admin/OrcamentoForm';
 import OrcamentoDetalhe from './pages/admin/OrcamentoDetalhe';
+import OrcamentoEditar from './pages/admin/OrcamentoEditar';
 import Agenda from './pages/admin/Agenda';
 import Contratos from './pages/admin/Contratos';
 import ContratoDetalhe from './pages/admin/ContratoDetalhe';
@@ -121,7 +122,7 @@ function App() {
         <Route path="orcamentos" element={<Orcamentos />} />
         <Route path="orcamentos/novo" element={<OrcamentoForm />} />
         <Route path="orcamentos/:id" element={<OrcamentoDetalhe />} />
-        <Route path="orcamentos/:id/editar" element={<OrcamentoForm />} />
+        <Route path="orcamentos/:id/editar" element={<OrcamentoEditar />} />
 
         {/* Agenda */}
         <Route path="agenda" element={<Agenda />} />
