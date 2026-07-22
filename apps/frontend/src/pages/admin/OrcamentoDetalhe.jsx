@@ -119,7 +119,7 @@ export default function OrcamentoDetalhe() {
           {/* Ações contextuais */}
           {(orc.status === 'rascunho' || orc.status === 'em_revisao' || orc.status === 'pronto_enviar') && (
             <>
-              <Btn icon={Edit2} label="Editar" onClick={() => navigate(`/admin/orcamentos/${id}/editar?step=valores`)} />
+              <Btn icon={Edit2} label="Editar" onClick={() => navigate(`/admin/orcamentos/${id}/editar`)} />
               <Btn icon={Send} label="Enviar" accent onClick={() => handleAction('enviar')} loading={actionLoading === 'enviar'} />
               <Btn icon={Trash2} label="Excluir" danger onClick={() => handleAction('excluir')} loading={actionLoading === 'excluir'} />
             </>

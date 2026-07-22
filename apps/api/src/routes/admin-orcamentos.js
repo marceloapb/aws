@@ -1,6 +1,7 @@
 const { Router } = require('express');
 const { dynamo, TABLE } = require('../config/dynamodb');
-const { QueryCommand, PutCommand, UpdateCommand, DeleteCommand } = require('@aws-sdk/lib-dynamodb');
+const { QueryCommand, PutCommand, UpdateCommand, DeleteCommand, GetCommand } = require('@aws-sdk/lib-dynamodb');
+const { resolverValorBase } = require('../services/catalogoPrecificacaoService');
 
 const router = Router();
 
@@ -104,6 +105,180 @@ router.get('/', async (req, res) => {
     }));
 
     res.json({ success: true, data, pagination: { page: Number(page), totalPages: Math.ceil(total / Number(limit)), totalItems: total } });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// GET /api/admin/orcamentos/:id/editar — retorna orçamento com itens resolvidos do catálogo
+router.get('/:id/editar', async (req, res) => {
+  try {
+    const orcamento = await findOrcamento(req.params.id);
+    if (!orcamento) return res.status(404).json({ success: false, message: 'Orçamento não encontrado' });
+
+    // Determinar photographerId a partir do contexto do admin autenticado
+    const photographerId = req.user?.sub || req.user?.id || null;
+
+    // ─── Buscar catálogo completo (itens + pacotes) ───
+    let catalogoItens = [];
+    let catalogoPacotes = [];
+    if (photographerId) {
+      try {
+        const [itensRes, pacotesRes] = await Promise.all([
+          dynamo.send(new QueryCommand({
+            TableName: TABLE,
+            KeyConditionExpression: 'PK = :pk AND begins_with(SK, :sk)',
+            ExpressionAttributeValues: { ':pk': `PHOTOGRAPHER#${photographerId}`, ':sk': 'ITEM_CATALOGO#' },
+          })),
+          dynamo.send(new QueryCommand({
+            TableName: TABLE,
+            KeyConditionExpression: 'PK = :pk AND begins_with(SK, :sk)',
+            ExpressionAttributeValues: { ':pk': `PHOTOGRAPHER#${photographerId}`, ':sk': 'PACOTE_CATALOGO#' },
+          })),
+        ]);
+        catalogoItens = (itensRes.Items || []).filter(i => i.ativo !== false);
+        catalogoPacotes = (pacotesRes.Items || []).filter(p => p.ativo !== false);
+      } catch (catErr) {
+        console.error('Erro ao carregar catálogo:', catErr.message);
+      }
+    }
+
+    // ─── Resolver itens sugeridos pelo cliente ───
+    // O cliente pode ter selecionado: pacote_id e servicos_selecionados (array de IDs)
+    const itensSugeridos = [];
+
+    // 1) Resolver pacote selecionado
+    if (orcamento.pacote_id) {
+      const pacote = catalogoPacotes.find(p => p.id === orcamento.pacote_id);
+      if (pacote) {
+        // Expandir itens do pacote
+        const itensDoPacote = (pacote.itens || []).map(ref => {
+          const catalogoItem = catalogoItens.find(c => c.id === (ref.item_id || ref.id || ref));
+          if (catalogoItem) {
+            const valorBase = resolverValorBase(catalogoItem) || catalogoItem.valor_base || 0;
+            return {
+              item_id: catalogoItem.id,
+              nome: catalogoItem.nome,
+              descricao: catalogoItem.descricao || '',
+              valor_unitario: valorBase,
+              valor_sugerido: valorBase,
+              quantidade: ref.quantidade || 1,
+              tipo: catalogoItem.tipo || 'produto',
+              origem: 'pacote',
+              pacote_nome: pacote.nome,
+              snapshot_at: new Date().toISOString(),
+            };
+          }
+          return null;
+        }).filter(Boolean);
+
+        // Se o pacote tem desconto embutido, adicionar como linha negativa ou campo separado
+        itensSugeridos.push(...itensDoPacote);
+
+        // Adicionar linha do pacote em si se não tiver itens expandidos
+        if (itensDoPacote.length === 0) {
+          const subtotalPacote = (pacote.itens || []).reduce((s, ref) => {
+            const ci = catalogoItens.find(c => c.id === (ref.item_id || ref.id || ref));
+            return s + (ci ? (resolverValorBase(ci) || ci.valor_base || 0) * (ref.quantidade || 1) : 0);
+          }, 0);
+          let valorPacote = subtotalPacote;
+          if (pacote.desconto_tipo === 'percentual' && pacote.desconto_valor > 0) {
+            valorPacote = subtotalPacote * (1 - pacote.desconto_valor / 100);
+          } else if (pacote.desconto_tipo === 'fixo' && pacote.desconto_valor > 0) {
+            valorPacote = Math.max(0, subtotalPacote - pacote.desconto_valor);
+          }
+          itensSugeridos.push({
+            item_id: pacote.id,
+            nome: pacote.nome,
+            descricao: pacote.descricao || '',
+            valor_unitario: valorPacote,
+            valor_sugerido: valorPacote,
+            quantidade: 1,
+            tipo: 'pacote',
+            origem: 'pacote',
+            snapshot_at: new Date().toISOString(),
+          });
+        }
+      }
+    }
+
+    // 2) Resolver serviços/produtos selecionados individualmente
+    const servicosSelecionados = Array.isArray(orcamento.servicos_selecionados) ? orcamento.servicos_selecionados : [];
+    for (const sid of servicosSelecionados) {
+      // Evitar duplicar itens que já vieram do pacote
+      const jaAdicionado = itensSugeridos.some(i => i.item_id === sid);
+      if (jaAdicionado) continue;
+
+      const catalogoItem = catalogoItens.find(c => c.id === sid);
+      if (catalogoItem) {
+        const valorBase = resolverValorBase(catalogoItem) || catalogoItem.valor_base || 0;
+        itensSugeridos.push({
+          item_id: catalogoItem.id,
+          nome: catalogoItem.nome,
+          descricao: catalogoItem.descricao || '',
+          valor_unitario: valorBase,
+          valor_sugerido: valorBase,
+          quantidade: 1,
+          tipo: catalogoItem.tipo || 'servico_principal',
+          origem: 'cliente',
+          snapshot_at: new Date().toISOString(),
+        });
+      }
+    }
+
+    // ─── Normalizar cliente ───
+    if (!orcamento.cliente) {
+      orcamento.cliente = {
+        nome: orcamento.clientName || orcamento.nome_completo || orcamento.cliente_nome || null,
+        email: orcamento.cliente_email || orcamento.email || null,
+        telefone: orcamento.cliente_telefone || orcamento.telefone || null,
+      };
+    }
+
+    // ─── Buscar config do tenant para max_desconto ───
+    let configTenant = { max_desconto: 30, desconto_avista: 5, taxa_juros: 1.99 };
+    if (photographerId) {
+      try {
+        const tenantRes = await dynamo.send(new QueryCommand({
+          TableName: TABLE,
+          KeyConditionExpression: 'PK = :pk AND begins_with(SK, :sk)',
+          ExpressionAttributeValues: { ':pk': `PHOTOGRAPHER#${photographerId}`, ':sk': 'CONFIG#' },
+        }));
+        for (const c of (tenantRes.Items || [])) {
+          if (c.chave === 'max_desconto') configTenant.max_desconto = Number(c.valor) || 30;
+          if (c.chave === 'desconto_avista') configTenant.desconto_avista = Number(c.valor) || 5;
+          if (c.chave === 'taxa_juros') configTenant.taxa_juros = Number(c.valor) || 1.99;
+        }
+      } catch {}
+    }
+
+    // ─── Normalizar status ───
+    if (orcamento.status === 'solicitado' || orcamento.status === 'aprovado') {
+      orcamento.status = orcamento.status === 'aprovado' ? 'aceito' : 'rascunho';
+    }
+
+    res.json({
+      success: true,
+      data: {
+        orcamento,
+        itens_sugeridos: itensSugeridos,
+        catalogo: {
+          itens: catalogoItens.map(i => ({
+            id: i.id,
+            nome: i.nome,
+            descricao: i.descricao || '',
+            tipo: i.tipo || 'servico_principal',
+            valor_base: resolverValorBase(i) || i.valor_base || 0,
+          })),
+          pacotes: catalogoPacotes.map(p => ({
+            id: p.id,
+            nome: p.nome,
+            descricao: p.descricao || '',
+          })),
+        },
+        config: configTenant,
+      },
+    });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
