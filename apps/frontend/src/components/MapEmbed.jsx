@@ -1,4 +1,5 @@
 import React from 'react';
+import { cleanEventAddress } from '../utils/formatters';
 
 /**
  * MAP-04: Mapa embed via iframe clássico (SEM chave de API)
@@ -8,10 +9,10 @@ import React from 'react';
 export default function MapEmbed({ endereco, lat, lng, altura = 200, largura = '100%' }) {
   if (!endereco && !lat) return null;
 
-  // Priorizar coordenadas (mais preciso), fallback para endereço string
+  // Priorizar coordenadas (mais preciso), fallback para endereço limpo (sem prefixos descritivos)
   const query = lat && lng
     ? `${lat},${lng}`
-    : encodeURIComponent(endereco);
+    : encodeURIComponent(cleanEventAddress(endereco));
 
   const src = `https://maps.google.com/maps?q=${query}&t=&z=15&ie=UTF8&iwloc=&output=embed`;
 

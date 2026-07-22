@@ -179,6 +179,59 @@ app.post('/admin/maps/distance', adminAuth, async (req, res) => {
   } catch (error) { res.status(500).json({ success: false, message: error.message }); }
 });
 
+// MAP-09: Calcular distância da empresa até destino (busca origem do config do tenant)
+app.post('/admin/maps/distance-from-company', adminAuth, async (req, res) => {
+  try {
+    const { geocode, distanceMatrix } = require('./services/mapsService');
+    const { DynamoDBClient } = require('@aws-sdk/client-dynamodb');
+    const { DynamoDBDocumentClient, QueryCommand } = require('@aws-sdk/lib-dynamodb');
+    const ddb = DynamoDBDocumentClient.from(new DynamoDBClient({}));
+    const TABLE = process.env.TABLE_NAME;
+    const tenantId = req.user.sub;
+
+    const { destino_lat, destino_lng } = req.body;
+    if (!destino_lat || !destino_lng) {
+      return res.status(400).json({ success: false, message: 'destino_lat e destino_lng são obrigatórios' });
+    }
+
+    // Buscar endereço/coordenadas da empresa no config do tenant
+    const configResult = await ddb.send(new QueryCommand({
+      TableName: TABLE,
+      KeyConditionExpression: 'PK = :pk AND begins_with(SK, :sk)',
+      ExpressionAttributeValues: { ':pk': `TENANT#${tenantId}`, ':sk': 'CONFIG#' },
+    }));
+
+    let empresaEndereco = null;
+    let empresaLat = null;
+    let empresaLng = null;
+    for (const c of (configResult.Items || [])) {
+      if (c.chave === 'endereco' || c.chave === 'endereco_empresa') empresaEndereco = c.valor;
+      if (c.chave === 'latitude') empresaLat = Number(c.valor);
+      if (c.chave === 'longitude') empresaLng = Number(c.valor);
+    }
+
+    // Se não tem coordenadas da empresa, tenta geocodificar o endereço
+    if (!empresaLat || !empresaLng) {
+      if (!empresaEndereco) {
+        return res.status(400).json({ success: false, message: 'Endereço da empresa não configurado. Vá em Configurações > Empresa.' });
+      }
+      const empresaGeo = await geocode(empresaEndereco, null);
+      if (!empresaGeo) {
+        return res.status(400).json({ success: false, message: 'Não foi possível geocodificar o endereço da empresa.' });
+      }
+      empresaLat = empresaGeo.lat;
+      empresaLng = empresaGeo.lng;
+    }
+
+    const result = await distanceMatrix(empresaLat, empresaLng, destino_lat, destino_lng);
+    if (!result) {
+      return res.status(400).json({ success: false, message: 'Não foi possível calcular a distância.' });
+    }
+
+    res.json({ success: true, data: result });
+  } catch (error) { res.status(500).json({ success: false, message: error.message }); }
+});
+
 // MAP-08: Controle de Custo Google Maps
 app.put('/admin/maps/config', adminAuth, async (req, res) => {
   const { salvarApiKey } = require('./services/mapsConfigService');

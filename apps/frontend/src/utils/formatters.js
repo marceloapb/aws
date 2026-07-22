@@ -158,3 +158,26 @@ export function formatDateTime(iso) {
 export function unformat(value) {
   return value.replace(/\D/g, '');
 }
+
+
+// ═══ ENDEREÇO / MAPS ═══
+
+/**
+ * Remove prefixos descritivos de locais de evento para melhorar geocoding.
+ * Ex: "buffert - Rua Engenheiro Mac Lean, 185" → "Rua Engenheiro Mac Lean, 185"
+ * Ex: "Salão de festas - Av. Paulista, 1000" → "Av. Paulista, 1000"
+ */
+export function cleanEventAddress(endereco) {
+  if (!endereco) return '';
+  // Remove prefixo antes de " - " se o que vem depois parecer endereço
+  // (começa com Rua, Av, Alameda, Travessa, Estrada, Rod, número, etc.)
+  const separatorIdx = endereco.indexOf(' - ');
+  if (separatorIdx > 0 && separatorIdx < 40) {
+    const afterSep = endereco.slice(separatorIdx + 3).trim();
+    // Se após o separador começa com indicadores de endereço
+    if (/^(Rua|R\.|Av\.?|Avenida|Al\.?|Alameda|Trav\.?|Travessa|Estr\.?|Estrada|Rod\.?|Rodovia|Pra[çc]a|Lg\.?|Largo|\d)/i.test(afterSep)) {
+      return afterSep;
+    }
+  }
+  return endereco;
+}

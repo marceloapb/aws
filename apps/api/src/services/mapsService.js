@@ -22,6 +22,22 @@ async function getApiKey() {
 }
 
 /**
+ * Remove prefixos descritivos de locais de evento para melhorar geocoding.
+ * Ex: "buffert - Rua Engenheiro Mac Lean, 185" → "Rua Engenheiro Mac Lean, 185"
+ */
+function cleanEventAddress(endereco) {
+  if (!endereco) return '';
+  const separatorIdx = endereco.indexOf(' - ');
+  if (separatorIdx > 0 && separatorIdx < 40) {
+    const afterSep = endereco.slice(separatorIdx + 3).trim();
+    if (/^(Rua|R\.|Av\.?|Avenida|Al\.?|Alameda|Trav\.?|Travessa|Estr\.?|Estrada|Rod\.?|Rodovia|Pra[çc]a|Lg\.?|Largo|\d)/i.test(afterSep)) {
+      return afterSep;
+    }
+  }
+  return endereco;
+}
+
+/**
  * Geocode um endereço (com cache por CEP)
  * @param {string} endereco - endereço completo ou CEP
  * @param {string} cep - CEP para cache key
@@ -38,9 +54,12 @@ async function geocode(endereco, cep) {
     if (cached.Item) return { lat: cached.Item.lat, lng: cached.Item.lng, endereco_formatado: cached.Item.endereco_formatado, cached: true };
   }
 
+  // Limpar prefixos descritivos antes de geocodificar
+  const enderecoLimpo = cleanEventAddress(endereco);
+
   // Chamar Google Geocoding API
   const apiKey = await getApiKey();
-  const query = encodeURIComponent(endereco || cep);
+  const query = encodeURIComponent(enderecoLimpo || cep);
   const response = await fetch(`https://maps.googleapis.com/maps/api/geocode/json?address=${query}&key=${apiKey}&language=pt-BR`);
   const data = await response.json();
 
@@ -106,5 +125,5 @@ function gerarEmbedUrl(endereco) {
   return `https://www.google.com/maps/embed/v1/place?key=&q=${encodeURIComponent(endereco)}`;
 }
 
-module.exports = { geocode, distanceMatrix, gerarLinkMaps, gerarEmbedUrl, getApiKey };
+module.exports = { geocode, distanceMatrix, gerarLinkMaps, gerarEmbedUrl, getApiKey, cleanEventAddress };
 
