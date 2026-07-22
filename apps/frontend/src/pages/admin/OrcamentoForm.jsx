@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import {
   ChevronLeft, ChevronRight, Plus, Trash2, Copy, Star, AlertTriangle,
   User, Package, DollarSign, CreditCard, Send, Check, Calendar, MapPin, FileText
@@ -25,8 +25,11 @@ const emptyOpcao = () => ({
 export default function OrcamentoForm() {
   const { authFetch } = useAuth();
   const navigate = useNavigate();
+  const { id } = useParams();
+  const isEditMode = Boolean(id);
   const [step, setStep] = useState(0);
   const [loading, setLoading] = useState(false);
+  const [loadingData, setLoadingData] = useState(false);
 
   const [clientes, setClientes] = useState([]);
   const [catalogo, setCatalogo] = useState([]);
@@ -53,6 +56,76 @@ export default function OrcamentoForm() {
       setCatalogo(Array.isArray(cat) ? cat : cat.data || []);
     }).catch(console.error);
   }, []);
+
+  // Load existing orcamento data when in edit mode
+  useEffect(() => {
+    if (!isEditMode) return;
+    setLoadingData(true);
+    authFetch(`/admin/orcamentos/${id}`)
+      .then(r => r.json())
+      .then(json => {
+        const data = json.data || json;
+        if (!data) return;
+
+        // Populate cliente
+        if (data.cliente_id) {
+          setClienteId(data.cliente_id);
+        }
+
+        // Populate opcoes
+        if (data.opcoes && Array.isArray(data.opcoes) && data.opcoes.length > 0) {
+          setOpcoes(data.opcoes.map(op => ({
+            id: op.id || Date.now() + Math.random(),
+            nome: op.nome || '',
+            descricao: op.descricao || '',
+            destaque: op.destaque || false,
+            eventos: Array.isArray(op.eventos) ? op.eventos.map(ev => ({
+              tipo: ev.tipo || '',
+              data: ev.data || '',
+              hora_inicio: ev.hora_inicio || '',
+              hora_fim: ev.hora_fim || '',
+              local: ev.local || '',
+            })) : [],
+            itens_snapshot: Array.isArray(op.itens_snapshot) ? op.itens_snapshot.map(it => ({
+              item_id: it.item_id || '',
+              nome: it.nome || '',
+              descricao: it.descricao || '',
+              valor_unitario: it.valor_unitario || 0,
+              quantidade: it.quantidade || 1,
+              snapshot_at: it.snapshot_at || new Date().toISOString(),
+            })) : [],
+            desconto_tipo: op.desconto_tipo || 'pct',
+            desconto_valor: op.desconto_valor || 0,
+          })));
+        }
+
+        // Populate condicoes de pagamento
+        if (data.condicoes_pagamento || data.condicoes) {
+          const cond = data.condicoes_pagamento || data.condicoes;
+          setCondicoes({
+            avista: {
+              ativo: cond.avista?.ativo !== undefined ? cond.avista.ativo : Boolean(cond.avista && Object.keys(cond.avista).length > 0),
+              desconto_pct: cond.avista?.desconto_pct || 5,
+            },
+            sem_juros: {
+              ativo: cond.sem_juros?.ativo !== undefined ? cond.sem_juros.ativo : Boolean(cond.sem_juros && Object.keys(cond.sem_juros).length > 0),
+              max_parcelas: cond.sem_juros?.max_parcelas || 6,
+            },
+            com_juros: {
+              ativo: cond.com_juros?.ativo !== undefined ? cond.com_juros.ativo : Boolean(cond.com_juros && Object.keys(cond.com_juros).length > 0),
+              max_parcelas: cond.com_juros?.max_parcelas || 12,
+              taxa_mensal: cond.com_juros?.taxa_mensal || 1.99,
+            },
+          });
+        }
+
+        // Populate validade and mensagem
+        if (data.validade_dias) setValidadeDias(data.validade_dias);
+        if (data.mensagem) setMensagem(data.mensagem);
+      })
+      .catch(console.error)
+      .finally(() => setLoadingData(false));
+  }, [id, isEditMode]);
 
   const clienteSelecionado = useMemo(() => clientes.find(c => c.id === clienteId), [clientes, clienteId]);
 
@@ -105,18 +178,25 @@ export default function OrcamentoForm() {
         valor_total: calcTotal(op),
       })),
       condicoes_pagamento: {
-        avista: condicoes.avista.ativo ? { desconto_pct: condicoes.avista.desconto_pct } : {},
-        sem_juros: condicoes.sem_juros.ativo ? { max_parcelas: condicoes.sem_juros.max_parcelas } : {},
-        com_juros: condicoes.com_juros.ativo ? { max_parcelas: condicoes.com_juros.max_parcelas, taxa_mensal: condicoes.com_juros.taxa_mensal } : {},
+        avista: condicoes.avista.ativo ? { ativo: true, desconto_pct: condicoes.avista.desconto_pct } : { ativo: false },
+        sem_juros: condicoes.sem_juros.ativo ? { ativo: true, max_parcelas: condicoes.sem_juros.max_parcelas } : { ativo: false },
+        com_juros: condicoes.com_juros.ativo ? { ativo: true, max_parcelas: condicoes.com_juros.max_parcelas, taxa_mensal: condicoes.com_juros.taxa_mensal } : { ativo: false },
       },
       validade_dias: validadeDias,
       mensagem,
     };
     try {
-      await authFetch('/admin/orcamentos', {
-        method: 'POST',
-        body: JSON.stringify(payload),
-      });
+      if (isEditMode) {
+        await authFetch(`/admin/orcamentos/${id}`, {
+          method: 'PUT',
+          body: JSON.stringify(payload),
+        });
+      } else {
+        await authFetch('/admin/orcamentos', {
+          method: 'POST',
+          body: JSON.stringify(payload),
+        });
+      }
       navigate('/admin/orcamentos');
     } catch (e) { console.error(e); }
     setLoading(false);
@@ -416,12 +496,12 @@ export default function OrcamentoForm() {
         <div className="flex items-center gap-3 pt-4 border-t">
           <button type="button" onClick={() => handleSubmit('rascunho')} disabled={loading}
             className="px-5 py-2.5 border rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50">
-            Salvar Rascunho
+            {isEditMode ? 'Salvar Alterações' : 'Salvar Rascunho'}
           </button>
           <button type="button" onClick={() => handleSubmit('enviado')} disabled={loading || !clienteId}
             className="px-5 py-2.5 rounded-lg text-white text-sm font-medium disabled:opacity-50 flex items-center gap-2"
             style={{ backgroundColor: ACCENT }}>
-            <Send size={16} /> Enviar Orçamento
+            <Send size={16} /> {isEditMode ? 'Salvar e Enviar' : 'Enviar Orçamento'}
           </button>
         </div>
       </div>
@@ -434,10 +514,15 @@ export default function OrcamentoForm() {
 
   return (
     <div className="max-w-4xl mx-auto p-6">
+      {loadingData && (
+        <div className="flex items-center justify-center py-20 text-gray-400">Carregando dados do orçamento...</div>
+      )}
+      {!loadingData && (
+        <>
       <div className="flex items-center justify-between mb-6 flex-col sm:flex-row gap-3">
         <div className="flex items-center gap-3">
           <FileText size={24} style={{ color: '#EA580C' }} />
-          <h1 className="text-2xl font-bold text-gray-900">Novo Orçamento</h1>
+          <h1 className="text-2xl font-bold text-gray-900">{isEditMode ? 'Editar Orçamento' : 'Novo Orçamento'}</h1>
         </div>
         <div className="flex gap-2">
           <button onClick={() => navigate('/admin/orcamentos')} className="text-sm text-gray-500 hover:text-gray-700">← Voltar</button>
@@ -466,6 +551,8 @@ export default function OrcamentoForm() {
         )}
         {step === STEPS.length - 1 && <div />}
       </div>
+        </>
+      )}
     </div>
   );
 }
