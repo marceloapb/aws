@@ -15,6 +15,7 @@ export default function Portfolio() {
   const [editingCat, setEditingCat] = useState(null);
   const [form, setForm] = useState({ nome: '', texto: '', visivel: true });
   const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(null); // { total, completed, currentFile, currentPercent, errors }
   const [dragIndex, setDragIndex] = useState(null);
   const [dragOverIndex, setDragOverIndex] = useState(null);
   const [dragType, setDragType] = useState(null);
@@ -112,22 +113,57 @@ export default function Portfolio() {
     } catch { loadFotos(selectedCat); showToast('Erro ao reordenar fotos', 'error'); }
   };
 
-  // Upload
+  // Upload with progress tracking via XMLHttpRequest
+  const uploadFileWithProgress = (url, file, onProgress) => {
+    return new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open('PUT', url);
+      xhr.setRequestHeader('Content-Type', file.type);
+      xhr.upload.addEventListener('progress', (e) => {
+        if (e.lengthComputable) {
+          onProgress(Math.round((e.loaded / e.total) * 100));
+        }
+      });
+      xhr.addEventListener('load', () => {
+        if (xhr.status >= 200 && xhr.status < 300) resolve();
+        else reject(new Error(`Upload failed with status ${xhr.status}`));
+      });
+      xhr.addEventListener('error', () => reject(new Error('Upload network error')));
+      xhr.addEventListener('abort', () => reject(new Error('Upload aborted')));
+      xhr.send(file);
+    });
+  };
+
   const handleUpload = async (files) => {
     if (!selectedCat || !files.length) return;
     setUploading(true);
+    setUploadProgress({ total: files.length, completed: 0, currentFile: '', currentPercent: 0, errors: [] });
+    const errors = [];
     try {
-      for (const file of files) {
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        setUploadProgress(prev => ({ ...prev, completed: i, currentFile: file.name, currentPercent: 0 }));
+
+        // 1. Get presigned URL
         const res = await authFetch('/admin/portfolio/fotos/upload', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ categoria_id: selectedCat, filename: file.name, content_type: file.type, size_bytes: file.size }) });
         const data = await res.json();
-        if (!data.success) { showToast(`Erro: ${data.message}`, 'error'); continue; }
-        await fetch(data.data.upload_url, { method: 'PUT', body: file, headers: { 'Content-Type': file.type } });
+        if (!data.success) { errors.push(file.name); showToast(`Erro: ${data.message}`, 'error'); continue; }
+
+        // 2. Upload to S3 with progress
+        await uploadFileWithProgress(data.data.upload_url, file, (percent) => {
+          setUploadProgress(prev => ({ ...prev, currentPercent: percent }));
+        });
+
+        // 3. Confirm upload
         await authFetch('/admin/portfolio/fotos/confirmar', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ foto_id: data.data.foto_id, categoria_id: selectedCat, key: data.data.key }) });
+
+        setUploadProgress(prev => ({ ...prev, completed: i + 1, currentPercent: 100 }));
       }
-      showToast(`${files.length} foto(s) enviada(s)`);
+      const successCount = files.length - errors.length;
+      if (successCount > 0) showToast(`${successCount} foto(s) enviada(s)`);
       loadFotos(selectedCat);
     } catch { showToast('Erro no upload', 'error'); }
-    finally { setUploading(false); }
+    finally { setUploading(false); setTimeout(() => setUploadProgress(null), 2000); }
   };
 
   const handleDeleteFoto = async (fotoId) => {
@@ -218,6 +254,45 @@ export default function Portfolio() {
             <input ref={fileInputRef} type="file" accept="image/jpeg,image/png,image/webp" multiple hidden
               onChange={(e) => handleUpload(Array.from(e.target.files))} />
           </div>
+
+          {/* Upload Progress Bar */}
+          {uploadProgress && (
+            <div className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Upload size={16} className="text-orange-500 animate-pulse" />
+                  <span className="text-sm font-medium text-gray-700">
+                    {uploadProgress.completed < uploadProgress.total
+                      ? `Enviando foto ${uploadProgress.completed + 1} de ${uploadProgress.total}...`
+                      : `${uploadProgress.total} foto(s) enviada(s)!`}
+                  </span>
+                </div>
+                <span className="text-xs font-medium text-gray-500">
+                  {uploadProgress.completed < uploadProgress.total
+                    ? `${uploadProgress.currentPercent}%`
+                    : <CheckCircle size={16} className="text-green-500" />}
+                </span>
+              </div>
+
+              {/* Overall progress bar */}
+              <div className="w-full bg-gray-100 rounded-full h-2.5 overflow-hidden">
+                <div
+                  className="h-full rounded-full transition-all duration-300 ease-out"
+                  style={{
+                    width: `${Math.round(((uploadProgress.completed + (uploadProgress.currentPercent / 100)) / uploadProgress.total) * 100)}%`,
+                    background: uploadProgress.completed === uploadProgress.total ? '#16a34a' : ACCENT
+                  }}
+                />
+              </div>
+
+              {/* Current file name */}
+              {uploadProgress.completed < uploadProgress.total && uploadProgress.currentFile && (
+                <p className="text-xs text-gray-400 truncate">
+                  Arquivo: {uploadProgress.currentFile}
+                </p>
+              )}
+            </div>
+          )}
 
           {loadingFotos ? (
             <div className="grid grid-cols-2 md:grid-cols-3 gap-3">{[...Array(6)].map((_, i) => <div key={i} className="aspect-square bg-gray-100 rounded-lg animate-pulse" />)}</div>
