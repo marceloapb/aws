@@ -45,9 +45,6 @@ Resources:
     Type: AWS::Serverless::HttpApi
     Properties:
       StageName: !Ref Stage
-      DefaultRouteSettings:
-        ThrottlingBurstLimit: 50
-        ThrottlingRateLimit: 100
       CorsConfiguration:
         AllowOrigins:
           - !Ref FrontendUrl
