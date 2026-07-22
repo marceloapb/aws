@@ -7,7 +7,9 @@ const { BedrockRuntimeClient, ConverseCommand } = require('@aws-sdk/client-bedro
 
 const bedrock = new BedrockRuntimeClient({ region: 'us-east-1' });
 const MODEL_ID = 'amazon.nova-micro-v1:0';
-const VISION_MODEL_ID = 'us.anthropic.claude-haiku-4-5-20251001-v1:0';
+// Cross-region inference profile: modelo com visão para identificar equipamentos
+// Se cross-region não funcionar, trocar para: 'anthropic.claude-3-haiku-20240307-v1:0'
+const VISION_MODEL_ID = process.env.BEDROCK_VISION_MODEL_ID || 'us.anthropic.claude-3-5-haiku-20241022-v1:0';
 
 /**
  * Gera caption para Instagram
@@ -65,6 +67,21 @@ Responda APENAS com o texto do overlay (1-2 linhas curtas). Sem hashtags, sem em
 }
 
 /**
+ * Mapeia content_type para o formato aceito pelo Bedrock Converse API.
+ * Formatos válidos: jpeg, png, gif, webp
+ */
+function resolveImageFormat(contentType) {
+  if (!contentType) return 'jpeg';
+  const ct = contentType.toLowerCase();
+  if (ct.includes('png')) return 'png';
+  if (ct.includes('gif')) return 'gif';
+  if (ct.includes('webp')) return 'webp';
+  // HEIC/HEIF não é suportado pelo Bedrock — fallback para jpeg
+  // (o browser geralmente converte HEIC para jpeg ao usar FileReader)
+  return 'jpeg';
+}
+
+/**
  * Identifica equipamento fotográfico a partir de uma imagem
  */
 async function identificarEquipamento(imageBase64, contentType = 'image/jpeg') {
@@ -83,21 +100,43 @@ Retorne APENAS um JSON válido (sem markdown, sem \`\`\`) com estes campos:
 
 Se não conseguir identificar com certeza, use seu melhor palpite baseado na aparência.`;
 
-  const mediaType = contentType.includes('png') ? 'image/png' : 'image/jpeg';
+  const format = resolveImageFormat(contentType);
+  const imageBytes = Buffer.from(imageBase64, 'base64');
+
+  // Bedrock limita imagens a 3.75 MB
+  if (imageBytes.length > 3.75 * 1024 * 1024) {
+    throw new Error('Imagem muito grande. O limite é 3.75 MB. Tente reduzir a resolução ou usar formato JPEG.');
+  }
 
   const command = new ConverseCommand({
     modelId: VISION_MODEL_ID,
     messages: [{
       role: 'user',
       content: [
-        { image: { format: mediaType.split('/')[1], source: { bytes: Buffer.from(imageBase64, 'base64') } } },
+        { image: { format, source: { bytes: imageBytes } } },
         { text: prompt },
       ],
     }],
     inferenceConfig: { maxTokens: 500, temperature: 0.3 },
   });
 
-  const response = await bedrock.send(command);
+  let response;
+  try {
+    response = await bedrock.send(command);
+  } catch (err) {
+    // Fornecer mensagem de erro mais clara para problemas comuns
+    if (err.name === 'AccessDeniedException' || err.message?.includes('not authorized')) {
+      throw new Error('Modelo de IA (Vision) não está habilitado na conta AWS. Verifique se o modelo Claude Haiku com visão está ativado no Amazon Bedrock.');
+    }
+    if (err.name === 'ValidationException') {
+      throw new Error(`Erro de validação do Bedrock: ${err.message}`);
+    }
+    if (err.name === 'ThrottlingException') {
+      throw new Error('Limite de requisições da IA atingido. Tente novamente em alguns segundos.');
+    }
+    throw new Error(`Erro ao chamar IA: ${err.message || err.name || 'desconhecido'}`);
+  }
+
   const text = response.output.message.content[0].text.trim();
 
   // Parse JSON response

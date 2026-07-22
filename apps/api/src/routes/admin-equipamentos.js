@@ -86,12 +86,28 @@ router.post('/identificar-foto', async (req, res) => {
   try {
     const { identificarEquipamento } = require('../services/aiService');
     const { image, content_type } = req.body;
-    if (!image) return res.status(400).json({ success: false, message: 'image (base64) é obrigatório' });
+
+    if (!image) {
+      return res.status(400).json({ success: false, message: 'image (base64) é obrigatório' });
+    }
+
+    // Validar que o base64 não está vazio e é razoável
+    if (image.length < 100) {
+      return res.status(400).json({ success: false, message: 'Imagem inválida ou muito pequena' });
+    }
+
+    // Verificar tamanho antes de processar (base64 é ~33% maior que o binário)
+    const estimatedBytes = Math.ceil(image.length * 3 / 4);
+    if (estimatedBytes > 4 * 1024 * 1024) {
+      return res.status(400).json({ success: false, message: 'Imagem muito grande. O limite é ~3.75 MB. Reduza a resolução ou use JPEG.' });
+    }
 
     const resultado = await identificarEquipamento(image, content_type || 'image/jpeg');
     res.json({ success: true, data: resultado });
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    console.error('[identificar-foto] Erro:', error.message);
+    const status = error.message?.includes('não está habilitado') ? 503 : 500;
+    res.status(status).json({ success: false, message: error.message || 'Erro ao identificar equipamento' });
   }
 });
 

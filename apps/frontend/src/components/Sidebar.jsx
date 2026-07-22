@@ -112,7 +112,7 @@ export default function Sidebar({ onClose }) {
   };
 
   return (
-    <div className="h-full bg-sidebar text-white hidden lg:flex flex-col">
+    <div className="h-full bg-sidebar text-white flex flex-col">
       {/* Logo */}
       <div className="h-16 flex items-center justify-center px-4 border-b border-gray-700 relative">
         <div className="flex items-center gap-2">
