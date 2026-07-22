@@ -4,8 +4,10 @@ import { useAuth } from '../../contexts/AuthContext';
 import {
   ArrowLeft, Plus, Trash2, Search, ChevronDown, ChevronUp,
   AlertTriangle, Check, Send, Save, Package, Tag,
-  DollarSign, CreditCard, Info, Star, Copy, RefreshCw,
+  DollarSign, CreditCard, Info, Star, Copy, RefreshCw, Clock, MapPin, Navigation,
 } from 'lucide-react';
+import MapEmbed from '../../components/MapEmbed';
+import DistanceBadge from '../../components/DistanceBadge';
 
 const ACCENT = '#EA580C';
 const fmtBRL = (v) => (v || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
@@ -30,8 +32,24 @@ function calcParcela(valor, parcelas, taxaMensal) {
   return valor * (i * Math.pow(1 + i, parcelas)) / (Math.pow(1 + i, parcelas) - 1);
 }
 
-const TIPO_LABEL = { servico_principal: 'Serviço', produto: 'Produto', adicional: 'Adicional', pacote: 'Pacote' };
-const TIPO_COLOR = { servico_principal: 'bg-blue-50 text-blue-700', produto: 'bg-purple-50 text-purple-700', adicional: 'bg-teal-50 text-teal-700', pacote: 'bg-orange-50 text-orange-700' };
+// Calcula horas do evento a partir de horario_inicio e horario_fim
+function calcHorasEvento(horarioInicio, horarioFim) {
+  if (!horarioInicio || !horarioFim) return 0;
+  const [hi, mi] = horarioInicio.split(':').map(Number);
+  const [hf, mf] = horarioFim.split(':').map(Number);
+  const horas = (hf + mf / 60) - (hi + mi / 60);
+  return Math.max(0, horas);
+}
+
+// Calcula horas inclusas nos itens de serviço
+function calcHorasInclusas(itens) {
+  return (itens || []).reduce(
+    (sum, item) => sum + ((item.horas_incluidas || item.duracao || 0) * (item.quantidade || 1)), 0
+  );
+}
+
+const TIPO_LABEL = { servico_principal: 'Serviço', produto: 'Produto', adicional: 'Adicional', pacote: 'Pacote', manual: 'Manual' };
+const TIPO_COLOR = { servico_principal: 'bg-blue-50 text-blue-700', produto: 'bg-purple-50 text-purple-700', adicional: 'bg-teal-50 text-teal-700', pacote: 'bg-orange-50 text-orange-700', manual: 'bg-gray-100 text-gray-700' };
 
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -47,6 +65,7 @@ export default function OrcamentoEditar() {
   const [saving, setSaving] = useState(false);
   const [orcamento, setOrcamento] = useState(null);
   const [catalogoItens, setCatalogoItens] = useState([]);
+  const [catalogoPacotes, setCatalogoPacotes] = useState([]);
   const [config, setConfig] = useState({ max_desconto: 30, desconto_avista: 5, taxa_juros: 1.99 });
   const [toast, setToast] = useState(null);
 
@@ -66,6 +85,7 @@ export default function OrcamentoEditar() {
   // ─── UI state ────────────────────────────────────────────────────────────
   const [searchCatalog, setSearchCatalog] = useState('');
   const [showAddPanel, setShowAddPanel] = useState(false);
+  const [catalogTab, setCatalogTab] = useState('todos'); // 'todos', 'pacotes', 'produtos', 'servicos'
   const [expandedSections, setExpandedSections] = useState({ cliente: false, evento: true, pagamento: false });
 
   // ─── Carregar dados ───────────────────────────────────────────────────────
@@ -81,6 +101,7 @@ export default function OrcamentoEditar() {
       const { orcamento: orc, itens_sugeridos, catalogo, config: cfg } = json.data;
       setOrcamento(orc);
       setCatalogoItens(catalogo?.itens || []);
+      setCatalogoPacotes(catalogo?.pacotes || []);
       setConfig({ max_desconto: cfg?.max_desconto ?? 30, desconto_avista: cfg?.desconto_avista ?? 5, taxa_juros: cfg?.taxa_juros ?? 1.99 });
       setTitulo(orc.titulo || orc.nome_evento || orc.tipo_evento || '');
       setMensagem(orc.mensagem || '');
@@ -132,9 +153,23 @@ export default function OrcamentoEditar() {
     return pct > config.max_desconto;
   }, [descontoValor, descontoTipo, descontoValorCalculado, subtotal, config.max_desconto]);
 
-  const parcelaAvista = useMemo(() => total * (1 - (condicoes.avista.desconto_pct || 0) / 100), [total, condicoes.avista.desconto_pct]);
-  const parcelaSemJuros = useMemo(() => total / Math.max(1, condicoes.sem_juros.max_parcelas), [total, condicoes.sem_juros.max_parcelas]);
-  const parcelaComJuros = useMemo(() => calcParcela(total, condicoes.com_juros.max_parcelas, condicoes.com_juros.taxa_mensal), [total, condicoes.com_juros]);
+  // ─── Horas extras ─────────────────────────────────────────────────────────
+  const horasEvento = useMemo(() => {
+    if (!orcamento) return 0;
+    return calcHorasEvento(orcamento.horario_inicio, orcamento.horario_fim);
+  }, [orcamento]);
+
+  const horasInclusas = useMemo(() => calcHorasInclusas(itens), [itens]);
+  const horasExtras = useMemo(() => Math.max(0, horasEvento - horasInclusas), [horasEvento, horasInclusas]);
+  const [valorHoraExtra, setValorHoraExtra] = useState(350);
+  const subtotalHorasExtras = useMemo(() => horasExtras * valorHoraExtra, [horasExtras, valorHoraExtra]);
+
+  // Total incluindo horas extras
+  const totalComExtras = useMemo(() => total + subtotalHorasExtras, [total, subtotalHorasExtras]);
+
+  const parcelaAvista = useMemo(() => totalComExtras * (1 - (condicoes.avista.desconto_pct || 0) / 100), [totalComExtras, condicoes.avista.desconto_pct]);
+  const parcelaSemJuros = useMemo(() => totalComExtras / Math.max(1, condicoes.sem_juros.max_parcelas), [totalComExtras, condicoes.sem_juros.max_parcelas]);
+  const parcelaComJuros = useMemo(() => calcParcela(totalComExtras, condicoes.com_juros.max_parcelas, condicoes.com_juros.taxa_mensal), [totalComExtras, condicoes.com_juros]);
 
   // ─── Mutações de itens ────────────────────────────────────────────────────
   const updateItem = useCallback((key, field, val) =>
@@ -156,6 +191,7 @@ export default function OrcamentoEditar() {
     }]);
     setShowAddPanel(false);
     setSearchCatalog('');
+    setCatalogTab('todos');
   }, []);
   const addItemManual = useCallback(() => {
     setItens(prev => [...prev, {
@@ -165,7 +201,7 @@ export default function OrcamentoEditar() {
       valor_unitario: 0,
       valor_sugerido: 0,
       quantidade: 1,
-      tipo: 'servico_principal',
+      tipo: 'manual',
       origem: 'admin_manual',
       _key: Math.random(),
       snapshot_at: new Date().toISOString(),
@@ -174,10 +210,25 @@ export default function OrcamentoEditar() {
 
   // ─── Catálogo filtrado para busca ─────────────────────────────────────────
   const catalogoFiltrado = useMemo(() => {
-    if (!searchCatalog.trim()) return catalogoItens;
+    let items = catalogoItens;
+    // Filter by tab
+    if (catalogTab === 'pacotes') {
+      // Return pacotes as items
+      let pacotes = catalogoPacotes.map(p => ({ ...p, tipo: 'pacote', valor_base: p.valor_base || 0 }));
+      if (searchCatalog.trim()) {
+        const q = searchCatalog.toLowerCase();
+        pacotes = pacotes.filter(p => p.nome.toLowerCase().includes(q) || (p.descricao || '').toLowerCase().includes(q));
+      }
+      return pacotes;
+    } else if (catalogTab === 'produtos') {
+      items = catalogoItens.filter(c => c.tipo === 'produto');
+    } else if (catalogTab === 'servicos') {
+      items = catalogoItens.filter(c => c.tipo === 'servico_principal' || c.tipo === 'adicional');
+    }
+    if (!searchCatalog.trim()) return items;
     const q = searchCatalog.toLowerCase();
-    return catalogoItens.filter(c => c.nome.toLowerCase().includes(q) || (c.descricao || '').toLowerCase().includes(q));
-  }, [catalogoItens, searchCatalog]);
+    return items.filter(c => c.nome.toLowerCase().includes(q) || (c.descricao || '').toLowerCase().includes(q));
+  }, [catalogoItens, catalogoPacotes, searchCatalog, catalogTab]);
 
   // ─── Salvar ───────────────────────────────────────────────────────────────
   const handleSave = async (enviar = false) => {
@@ -192,14 +243,19 @@ export default function OrcamentoEditar() {
           itens_snapshot: itens.map(({ _key, ...i }) => ({ ...i, valor_total: (i.valor_unitario || 0) * (i.quantidade || 1) })),
           desconto_tipo: descontoTipo,
           desconto_valor: descontoValor,
-          valor_total: total,
+          valor_total: totalComExtras,
+          horas_evento: horasEvento,
+          horas_inclusas: horasInclusas,
+          horas_extras: horasExtras,
+          valor_hora_extra: valorHoraExtra,
+          subtotal_horas_extras: subtotalHorasExtras,
         }],
         condicoes_pagamento: {
           avista: condicoes.avista.ativo ? { ativo: true, desconto_pct: condicoes.avista.desconto_pct } : { ativo: false },
           sem_juros: condicoes.sem_juros.ativo ? { ativo: true, max_parcelas: condicoes.sem_juros.max_parcelas } : { ativo: false },
           com_juros: condicoes.com_juros.ativo ? { ativo: true, max_parcelas: condicoes.com_juros.max_parcelas, taxa_mensal: condicoes.com_juros.taxa_mensal } : { ativo: false },
         },
-        valor_total: total,
+        valor_total: totalComExtras,
         validade_dias: validadeDias,
         mensagem,
         status: enviar ? 'enviado' : (orcamento?.status === 'solicitado' || orcamento?.status === 'rascunho' ? 'rascunho' : orcamento?.status),
@@ -333,12 +389,27 @@ export default function OrcamentoEditar() {
               <InfoField label="Data" value={fmtDate(orcamento.data_evento)} />
               {orcamento.horario_inicio && <InfoField label="Horário Início" value={orcamento.horario_inicio} />}
               {orcamento.horario_fim && <InfoField label="Horário Fim" value={orcamento.horario_fim} />}
-              {orcamento.local && <InfoField label="Local" value={orcamento.local} className="sm:col-span-2" />}
+              {(orcamento.local || orcamento.local_evento) && <InfoField label="Local" value={orcamento.local || orcamento.local_evento} className="sm:col-span-2" />}
             </div>
             {orcamento.observacoes && (
               <div className="mt-3 p-3 bg-gray-50 rounded-lg text-xs text-gray-600">
                 <span className="font-semibold block mb-1">Observações do cliente:</span>
                 {orcamento.observacoes}
+              </div>
+            )}
+            {/* Google Maps + Distância */}
+            {(orcamento.local || orcamento.local_evento) && (
+              <div className="mt-4 space-y-3">
+                <div className="flex items-center gap-2">
+                  <MapPin size={14} className="text-gray-500" />
+                  <span className="text-xs font-semibold text-gray-500 uppercase">Localização do Evento</span>
+                </div>
+                <MapEmbed endereco={orcamento.local || orcamento.local_evento} lat={orcamento.local_lat} lng={orcamento.local_lng} altura={180} />
+                <DistanceBadge
+                  distancia_km={orcamento.distancia_km}
+                  duracao_minutos={orcamento.duracao_minutos}
+                  endereco={orcamento.local || orcamento.local_evento}
+                />
               </div>
             )}
           </Collapsible>
@@ -363,12 +434,30 @@ export default function OrcamentoEditar() {
             {/* Painel de busca no catálogo */}
             {showAddPanel && (
               <div className="px-5 py-4 border-b bg-orange-50">
+                {/* Tabs: Pacotes, Produtos, Serviços */}
+                <div className="flex gap-1 mb-3 overflow-x-auto">
+                  {[
+                    { key: 'todos', label: 'Todos' },
+                    { key: 'pacotes', label: 'Pacotes' },
+                    { key: 'produtos', label: 'Produtos' },
+                    { key: 'servicos', label: 'Serviços' },
+                  ].map(tab => (
+                    <button key={tab.key} onClick={() => setCatalogTab(tab.key)}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-all ${
+                        catalogTab === tab.key
+                          ? 'bg-orange-600 text-white'
+                          : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'
+                      }`}>
+                      {tab.label}
+                    </button>
+                  ))}
+                </div>
                 <div className="relative mb-3">
                   <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
                   <input
                     autoFocus
                     className="w-full border rounded-lg pl-8 pr-3 py-2 text-sm focus:ring-2 focus:ring-orange-200 focus:border-orange-400 outline-none bg-white"
-                    placeholder="Buscar item do catálogo..."
+                    placeholder={`Buscar ${catalogTab === 'pacotes' ? 'pacote' : catalogTab === 'produtos' ? 'produto' : catalogTab === 'servicos' ? 'serviço' : 'item'} do catálogo...`}
                     value={searchCatalog}
                     onChange={e => setSearchCatalog(e.target.value)}
                   />
@@ -386,7 +475,9 @@ export default function OrcamentoEditar() {
                         </span>
                         <span className="text-sm font-medium text-gray-800 truncate">{item.nome}</span>
                       </div>
-                      <span className="shrink-0 ml-3 text-sm font-bold text-orange-600">{fmtBRL(item.valor_base)}</span>
+                      {item.valor_base > 0 && (
+                        <span className="shrink-0 ml-3 text-sm font-bold text-orange-600">{fmtBRL(item.valor_base)}</span>
+                      )}
                     </button>
                   ))}
                 </div>
@@ -565,9 +656,37 @@ export default function OrcamentoEditar() {
                   <span>-{fmtBRL(descontoValorCalculado)}</span>
                 </div>
               )}
+              {/* Horas extras */}
+              {horasEvento > 0 && (
+                <div className="pt-2 border-t space-y-1.5">
+                  <div className="flex justify-between text-xs text-gray-500">
+                    <span className="flex items-center gap-1"><Clock size={11} /> Horas do evento</span>
+                    <span className="font-medium">{horasEvento.toFixed(1)}h</span>
+                  </div>
+                  <div className="flex justify-between text-xs text-gray-500">
+                    <span>Horas inclusas nos itens</span>
+                    <span className="font-medium">{horasInclusas.toFixed(1)}h</span>
+                  </div>
+                  {horasExtras > 0 && (
+                    <>
+                      <div className="flex justify-between text-xs text-orange-600 font-medium">
+                        <span>Horas extras ({horasExtras.toFixed(1)}h)</span>
+                        <span>+{fmtBRL(subtotalHorasExtras)}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <label className="text-[10px] text-gray-400">R$/hora extra:</label>
+                        <input type="number" min={0} step={10}
+                          className="w-20 border rounded px-2 py-1 text-xs text-center outline-none"
+                          value={valorHoraExtra}
+                          onChange={e => setValorHoraExtra(Math.max(0, Number(e.target.value)))} />
+                      </div>
+                    </>
+                  )}
+                </div>
+              )}
               <div className="pt-2 border-t flex justify-between items-baseline">
                 <span className="text-sm font-semibold text-gray-700">Total</span>
-                <span className="text-2xl font-bold" style={{ color: ACCENT }}>{fmtBRL(total)}</span>
+                <span className="text-2xl font-bold" style={{ color: ACCENT }}>{fmtBRL(totalComExtras)}</span>
               </div>
             </div>
 
@@ -629,70 +748,74 @@ function ItemRow({ item, onUpdate, onRemove }) {
 
   return (
     <div className={`px-5 py-3 ${item.origem === 'pacote' || item.origem === 'cliente' ? 'bg-blue-50/30' : ''}`}>
-      <div className="flex items-start gap-3">
-        {/* Tipo badge */}
-        <span className={`shrink-0 mt-0.5 px-1.5 py-0.5 rounded text-[10px] font-semibold ${TIPO_COLOR[item.tipo] || 'bg-gray-100 text-gray-600'}`}>
-          {TIPO_LABEL[item.tipo] || 'Item'}
-        </span>
-
-        {/* Nome */}
-        <div className="flex-1 min-w-0">
-          {editing ? (
-            <input
-              autoFocus
-              className="w-full border rounded px-2 py-1 text-sm outline-none focus:ring-1 focus:ring-orange-300"
-              value={item.nome}
-              onChange={e => onUpdate('nome', e.target.value)}
-              onBlur={() => setEditing(false)}
-              onKeyDown={e => e.key === 'Enter' && setEditing(false)}
-            />
-          ) : (
-            <button onClick={() => setEditing(true)} className="text-sm font-medium text-gray-800 text-left hover:text-orange-600 truncate max-w-full block">
-              {item.nome || <span className="text-gray-400 italic">Sem nome — clique para editar</span>}
-            </button>
-          )}
-          {item.origem === 'cliente' && (
-            <span className="inline-block mt-0.5 text-[10px] text-blue-500 font-medium">selecionado pelo cliente</span>
-          )}
-          {item.origem === 'pacote' && (
-            <span className="inline-block mt-0.5 text-[10px] text-orange-500 font-medium">incluso no pacote</span>
-          )}
-          {diferencaSugerido && (
-            <button onClick={() => onUpdate('valor_unitario', item.valor_sugerido)}
-              className="inline-flex items-center gap-1 mt-0.5 text-[10px] text-amber-600 hover:underline">
-              <RefreshCw size={9} /> Usar sugerido ({fmtBRL(item.valor_sugerido)})
-            </button>
-          )}
+      {/* Mobile: stack vertically; Desktop: horizontal */}
+      <div className="flex flex-col sm:flex-row sm:items-start gap-2 sm:gap-3">
+        {/* Tipo badge + Nome */}
+        <div className="flex items-start gap-2 flex-1 min-w-0">
+          <span className={`shrink-0 mt-0.5 px-1.5 py-0.5 rounded text-[10px] font-semibold ${TIPO_COLOR[item.tipo] || 'bg-gray-100 text-gray-600'}`}>
+            {TIPO_LABEL[item.tipo] || 'Item'}
+          </span>
+          <div className="flex-1 min-w-0">
+            {editing ? (
+              <input
+                autoFocus
+                className="w-full border rounded px-2 py-1 text-sm outline-none focus:ring-1 focus:ring-orange-300"
+                value={item.nome}
+                onChange={e => onUpdate('nome', e.target.value)}
+                onBlur={() => setEditing(false)}
+                onKeyDown={e => e.key === 'Enter' && setEditing(false)}
+              />
+            ) : (
+              <button onClick={() => setEditing(true)} className="text-sm font-medium text-gray-800 text-left hover:text-orange-600 truncate max-w-full block">
+                {item.nome || <span className="text-gray-400 italic">Sem nome — clique para editar</span>}
+              </button>
+            )}
+            {item.origem === 'cliente' && (
+              <span className="inline-block mt-0.5 text-[10px] text-blue-500 font-medium">selecionado pelo cliente</span>
+            )}
+            {item.origem === 'pacote' && (
+              <span className="inline-block mt-0.5 text-[10px] text-orange-500 font-medium">incluso no pacote</span>
+            )}
+            {diferencaSugerido && (
+              <button onClick={() => onUpdate('valor_unitario', item.valor_sugerido)}
+                className="inline-flex items-center gap-1 mt-0.5 text-[10px] text-amber-600 hover:underline">
+                <RefreshCw size={9} /> Usar sugerido ({fmtBRL(item.valor_sugerido)})
+              </button>
+            )}
+          </div>
         </div>
 
-        {/* Quantidade */}
-        <div className="flex items-center gap-1 shrink-0">
-          <button onClick={() => onUpdate('quantidade', Math.max(1, (Number(item.quantidade) || 1) - 1))}
-            className="w-6 h-6 rounded border text-gray-500 hover:bg-gray-100 text-sm font-bold flex items-center justify-center">−</button>
-          <input type="number" min={1}
-            className="w-10 border rounded px-1 py-1 text-xs text-center outline-none"
-            value={item.quantidade || 1}
-            onChange={e => onUpdate('quantidade', Math.max(1, Number(e.target.value)))} />
-          <button onClick={() => onUpdate('quantidade', (Number(item.quantidade) || 1) + 1)}
-            className="w-6 h-6 rounded border text-gray-500 hover:bg-gray-100 text-sm font-bold flex items-center justify-center">+</button>
+        {/* Quantidade + Valor + Total + Remove */}
+        <div className="flex items-center gap-2 sm:gap-3 ml-6 sm:ml-0 flex-wrap sm:flex-nowrap">
+          {/* Quantidade */}
+          <div className="flex items-center gap-1 shrink-0">
+            <button onClick={() => onUpdate('quantidade', Math.max(1, (Number(item.quantidade) || 1) - 1))}
+              className="w-6 h-6 rounded border text-gray-500 hover:bg-gray-100 text-sm font-bold flex items-center justify-center">−</button>
+            <input type="number" min={1}
+              className="w-10 border rounded px-1 py-1 text-xs text-center outline-none"
+              value={item.quantidade || 1}
+              onChange={e => onUpdate('quantidade', Math.max(1, Number(e.target.value)))} />
+            <button onClick={() => onUpdate('quantidade', (Number(item.quantidade) || 1) + 1)}
+              className="w-6 h-6 rounded border text-gray-500 hover:bg-gray-100 text-sm font-bold flex items-center justify-center">+</button>
+          </div>
+
+          {/* Valor unitário */}
+          <div className="flex items-center border rounded-lg overflow-hidden shrink-0">
+            <span className="px-2 py-1.5 bg-gray-50 text-xs text-gray-400 border-r">R$</span>
+            <input type="number" min={0} step={0.01}
+              className="w-20 sm:w-24 px-2 py-1.5 text-sm text-right outline-none"
+              value={item.valor_unitario || 0}
+              onChange={e => onUpdate('valor_unitario', Number(e.target.value))} />
+          </div>
+
+          {/* Total da linha */}
+          <span className="w-20 sm:w-24 text-right text-sm font-semibold text-gray-800 shrink-0">{fmtBRL(total)}</span>
+
+          {/* Remover */}
+          <button onClick={onRemove} className="p-1 text-gray-300 hover:text-red-500 transition-colors shrink-0">
+            <Trash2 size={15} />
+          </button>
         </div>
-
-        {/* Valor unitário */}
-        <div className="flex items-center border rounded-lg overflow-hidden shrink-0">
-          <span className="px-2 py-1.5 bg-gray-50 text-xs text-gray-400 border-r">R$</span>
-          <input type="number" min={0} step={0.01}
-            className="w-24 px-2 py-1.5 text-sm text-right outline-none"
-            value={item.valor_unitario || 0}
-            onChange={e => onUpdate('valor_unitario', Number(e.target.value))} />
-        </div>
-
-        {/* Total da linha */}
-        <span className="w-24 text-right text-sm font-semibold text-gray-800 shrink-0 pt-1.5">{fmtBRL(total)}</span>
-
-        {/* Remover */}
-        <button onClick={onRemove} className="p-1 text-gray-300 hover:text-red-500 transition-colors shrink-0">
-          <Trash2 size={15} />
-        </button>
       </div>
     </div>
   );

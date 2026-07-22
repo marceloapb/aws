@@ -249,14 +249,14 @@ export default function OrcamentoDetalhe() {
       </div>
 
       {/* ─── LOCAL DO EVENTO (MAP-06) ─── */}
-      {orc.local_evento && (
+      {(orc.local_evento || orc.local) && (
         <div className="bg-white rounded-xl border p-5 mb-6">
           <h3 className="font-semibold text-gray-900 mb-3 flex items-center gap-2"><MapPin size={18} /> Local do Evento</h3>
-          <p className="text-sm text-gray-700 mb-2">{orc.local_evento}</p>
+          <p className="text-sm text-gray-700 mb-2">{orc.local_evento || orc.local}</p>
           <DistanceBadge
             distancia_km={orc.distancia_km}
             duracao_minutos={orc.duracao_minutos}
-            endereco={orc.local_evento}
+            endereco={orc.local_evento || orc.local}
           />
           {orc.distancia_km > 100 && (
             <div className="mt-3 flex items-start gap-2 p-3 bg-red-50 border border-red-200 rounded-lg">
@@ -277,7 +277,7 @@ export default function OrcamentoDetalhe() {
             </div>
           )}
           <div className="mt-3">
-            <MapEmbed endereco={orc.local_evento} lat={orc.local_lat} lng={orc.local_lng} altura={180} />
+            <MapEmbed endereco={orc.local_evento || orc.local} lat={orc.local_lat} lng={orc.local_lng} altura={180} />
           </div>
         </div>
       )}
