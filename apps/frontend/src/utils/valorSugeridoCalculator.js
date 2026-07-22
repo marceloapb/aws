@@ -21,7 +21,7 @@ export function calcValorSugerido(opcao, config = {}) {
 
   // Horas inclusas nos itens
   const horasInclusas = (opcao.itens_snapshot || []).reduce(
-    (sum, item) => sum + (item.horas_incluidas || item.duracao || 0), 0
+    (sum, item) => sum + ((item.duracao_base || item.horas_incluidas || item.duracao || 0) * (item.quantidade || 1)), 0
   );
 
   // Horas totais dos eventos
@@ -29,7 +29,12 @@ export function calcValorSugerido(opcao, config = {}) {
 
   // Horas extras
   const horasExtras = Math.max(0, horasEvento - horasInclusas);
-  const valorHoraExtra = config.valor_hora_extra || 350;
+  // Valor hora extra: prioriza o maior valor_hora_adicional dos itens, senão usa config
+  const valorHoraExtraDosItens = (opcao.itens_snapshot || []).reduce((max, item) => {
+    const v = Number(item.valor_hora_adicional || 0);
+    return v > max ? v : max;
+  }, 0);
+  const valorHoraExtra = valorHoraExtraDosItens > 0 ? valorHoraExtraDosItens : (config.valor_hora_extra || 350);
   const subtotalExtras = horasExtras * valorHoraExtra;
 
   return {
