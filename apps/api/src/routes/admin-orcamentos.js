@@ -177,6 +177,8 @@ router.get('/:id/editar', async (req, res) => {
               tipo: catalogoItem.tipo || 'produto',
               origem: 'pacote',
               pacote_nome: pacote.nome,
+              duracao_base: catalogoItem.duracao_base || 0,
+              valor_hora_adicional: catalogoItem.valor_hora_adicional || 0,
               snapshot_at: new Date().toISOString(),
             };
           }
@@ -232,6 +234,8 @@ router.get('/:id/editar', async (req, res) => {
           quantidade: 1,
           tipo: catalogoItem.tipo || 'servico_principal',
           origem: 'cliente',
+          duracao_base: catalogoItem.duracao_base || 0,
+          valor_hora_adicional: catalogoItem.valor_hora_adicional || 0,
           snapshot_at: new Date().toISOString(),
         });
       }
@@ -374,6 +378,8 @@ router.get('/:id/editar', async (req, res) => {
             descricao: i.descricao || '',
             tipo: i.tipo || 'servico_principal',
             valor_base: resolverValorBase(i) || i.valor_base || 0,
+            duracao_base: i.duracao_base || 0,
+            valor_hora_adicional: i.valor_hora_adicional || 0,
           })),
           pacotes: catalogoPacotes.map(p => ({
             id: p.id,

@@ -44,7 +44,7 @@ function calcHorasEvento(horarioInicio, horarioFim) {
 // Calcula horas inclusas nos itens de serviço
 function calcHorasInclusas(itens) {
   return (itens || []).reduce(
-    (sum, item) => sum + ((item.horas_incluidas || item.duracao || 0) * (item.quantidade || 1)), 0
+    (sum, item) => sum + ((item.duracao_base || item.horas_incluidas || item.duracao || 0) * (item.quantidade || 1)), 0
   );
 }
 
@@ -113,6 +113,11 @@ export default function OrcamentoEditar() {
         setItens(opcaoSalva.itens_snapshot.map(i => ({ ...i, _key: Math.random() })));
         setDescontoTipo(opcaoSalva.desconto_tipo || 'pct');
         setDescontoValor(opcaoSalva.desconto_valor || 0);
+        // Restaurar valor hora extra salvo
+        if (opcaoSalva.valor_hora_extra && opcaoSalva.valor_hora_extra > 0) {
+          setValorHoraExtra(opcaoSalva.valor_hora_extra);
+          setValorHoraExtraManual(true);
+        }
       } else if (itens_sugeridos && itens_sugeridos.length > 0) {
         setItens(itens_sugeridos.map(i => ({ ...i, _key: Math.random() })));
       }
@@ -161,7 +166,25 @@ export default function OrcamentoEditar() {
 
   const horasInclusas = useMemo(() => calcHorasInclusas(itens), [itens]);
   const horasExtras = useMemo(() => Math.max(0, horasEvento - horasInclusas), [horasEvento, horasInclusas]);
+
+  // Valor hora extra: derivado do maior valor_hora_adicional dos itens de serviço, ou 350 como fallback
+  const valorHoraExtraDosItens = useMemo(() => {
+    const valores = (itens || [])
+      .filter(i => i.valor_hora_adicional && i.valor_hora_adicional > 0)
+      .map(i => Number(i.valor_hora_adicional));
+    return valores.length > 0 ? Math.max(...valores) : 0;
+  }, [itens]);
+
   const [valorHoraExtra, setValorHoraExtra] = useState(350);
+  const [valorHoraExtraManual, setValorHoraExtraManual] = useState(false);
+
+  // Atualizar valorHoraExtra automaticamente quando itens mudam (se não editou manualmente)
+  useEffect(() => {
+    if (!valorHoraExtraManual && valorHoraExtraDosItens > 0) {
+      setValorHoraExtra(valorHoraExtraDosItens);
+    }
+  }, [valorHoraExtraDosItens, valorHoraExtraManual]);
+
   const subtotalHorasExtras = useMemo(() => horasExtras * valorHoraExtra, [horasExtras, valorHoraExtra]);
 
   // Total incluindo horas extras
@@ -186,6 +209,8 @@ export default function OrcamentoEditar() {
       quantidade: 1,
       tipo: catalogItem.tipo || 'servico_principal',
       origem: 'admin',
+      duracao_base: catalogItem.duracao_base || 0,
+      valor_hora_adicional: catalogItem.valor_hora_adicional || 0,
       _key: Math.random(),
       snapshot_at: new Date().toISOString(),
     }]);
@@ -232,6 +257,12 @@ export default function OrcamentoEditar() {
 
   // ─── Salvar ───────────────────────────────────────────────────────────────
   const handleSave = async (enviar = false) => {
+    // Bloquear se desconto excede o limite configurado
+    if (maxDescontoExcedido) {
+      showToast(`Desconto excede o limite de ${config.max_desconto}%. Corrija o valor antes de salvar.`, 'error');
+      return;
+    }
+
     setSaving(true);
     try {
       const payload = {
@@ -323,12 +354,12 @@ export default function OrcamentoEditar() {
           </div>
         </div>
         <div className="flex gap-2">
-          <button onClick={() => handleSave(false)} disabled={saving}
+          <button onClick={() => handleSave(false)} disabled={saving || maxDescontoExcedido}
             className="flex items-center gap-1.5 px-4 py-2 rounded-lg border border-gray-300 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50">
             {saving ? <span className="w-3.5 h-3.5 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" /> : <Save size={14} />}
             Salvar Rascunho
           </button>
-          <button onClick={() => handleSave(true)} disabled={saving}
+          <button onClick={() => handleSave(true)} disabled={saving || maxDescontoExcedido}
             className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-white text-sm font-medium disabled:opacity-50 hover:opacity-90"
             style={{ background: ACCENT }}>
             {saving ? <span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <Send size={14} />}
@@ -628,9 +659,9 @@ export default function OrcamentoEditar() {
             </div>
 
             {maxDescontoExcedido && (
-              <div className="flex items-start gap-2 p-2.5 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-800">
+              <div className="flex items-start gap-2 p-2.5 bg-red-50 border border-red-300 rounded-lg text-xs text-red-800">
                 <AlertTriangle size={13} className="mt-0.5 shrink-0" />
-                Desconto excede o limite configurado ({config.max_desconto}%). Você pode prosseguir, mas verifique a política.
+                Desconto excede o limite configurado ({config.max_desconto}%). Não é possível salvar enquanto o desconto não for corrigido.
               </div>
             )}
 
@@ -678,7 +709,7 @@ export default function OrcamentoEditar() {
                         <input type="number" min={0} step={10}
                           className="w-20 border rounded px-2 py-1 text-xs text-center outline-none"
                           value={valorHoraExtra}
-                          onChange={e => setValorHoraExtra(Math.max(0, Number(e.target.value)))} />
+                          onChange={e => { setValorHoraExtra(Math.max(0, Number(e.target.value))); setValorHoraExtraManual(true); }} />
                       </div>
                     </>
                   )}
@@ -718,12 +749,12 @@ export default function OrcamentoEditar() {
 
           {/* Ações rápidas */}
           <div className="flex flex-col gap-2">
-            <button onClick={() => handleSave(false)} disabled={saving}
+            <button onClick={() => handleSave(false)} disabled={saving || maxDescontoExcedido}
               className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border border-gray-300 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50">
               {saving ? <span className="w-4 h-4 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" /> : <Save size={15} />}
               Salvar Rascunho
             </button>
-            <button onClick={() => handleSave(true)} disabled={saving}
+            <button onClick={() => handleSave(true)} disabled={saving || maxDescontoExcedido}
               className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-white text-sm font-medium hover:opacity-90 disabled:opacity-50"
               style={{ background: ACCENT }}>
               {saving ? <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <Send size={15} />}
