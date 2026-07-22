@@ -10,6 +10,7 @@ const AdminAgenda = lazy(() => import('./pages/admin/Agenda'));
 const AdminClientes = lazy(() => import('./pages/admin/Clientes'));
 const AdminContratos = lazy(() => import('./pages/admin/Contratos'));
 const AdminOrcamentos = lazy(() => import('./pages/admin/Orcamentos'));
+const AdminOrcamentoDetalhe = lazy(() => import('./pages/admin/OrcamentoDetalhe'));
 const AdminAlbuns = lazy(() => import('./pages/admin/Albuns'));
 const AdminEquipamentos = lazy(() => import('./pages/admin/Equipamentos'));
 const AdminCobrancas = lazy(() => import('./pages/admin/Cobrancas'));
@@ -51,6 +52,7 @@ function App() {
               <Route path="clientes" element={<AdminClientes />} />
               <Route path="contratos" element={<AdminContratos />} />
               <Route path="orcamentos" element={<AdminOrcamentos />} />
+              <Route path="orcamentos/:id" element={<AdminOrcamentoDetalhe />} />
               <Route path="albuns" element={<AdminAlbuns />} />
               <Route path="equipamentos" element={<AdminEquipamentos />} />
               <Route path="cobrancas" element={<AdminCobrancas />} />
