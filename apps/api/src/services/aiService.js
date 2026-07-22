@@ -1,5 +1,5 @@
 /**
- * Serviço de IA — Amazon Bedrock (Claude 3 Haiku)
+ * Serviço de IA — Amazon Bedrock (Claude Sonnet 4.5)
  * Gera captions para Instagram, textos para contratos, etc.
  */
 
@@ -8,8 +8,8 @@ const { BedrockRuntimeClient, ConverseCommand } = require('@aws-sdk/client-bedro
 const bedrock = new BedrockRuntimeClient({ region: 'us-east-1' });
 const MODEL_ID = 'amazon.nova-micro-v1:0';
 // Modelo com visão para identificar equipamentos
-// Usar modelo direto (sem cross-region inference prefix) para maior compatibilidade
-const VISION_MODEL_ID = process.env.BEDROCK_VISION_MODEL_ID || 'anthropic.claude-3-haiku-20240307-v1:0';
+// Claude Sonnet 4.5 — cross-region inference profile (us-east-1)
+const VISION_MODEL_ID = process.env.BEDROCK_VISION_MODEL_ID || 'us.anthropic.claude-sonnet-4-5-20250929-v1:0';
 
 /**
  * Gera caption para Instagram
@@ -126,7 +126,7 @@ Se não conseguir identificar com certeza, use seu melhor palpite baseado na apa
   } catch (err) {
     // Fornecer mensagem de erro mais clara para problemas comuns
     if (err.name === 'AccessDeniedException' || err.message?.includes('not authorized')) {
-      throw new Error('Modelo de IA (Vision) não está habilitado na conta AWS. Verifique se o modelo Claude Haiku com visão está ativado no Amazon Bedrock.');
+      throw new Error('Modelo de IA (Vision) não está habilitado na conta AWS. Verifique se o modelo Claude Sonnet 4.5 está ativado no Amazon Bedrock (região us-east-1). Acesse o console do Bedrock > Model access e solicite acesso ao modelo Anthropic Claude Sonnet 4.5.');
     }
     if (err.name === 'ValidationException') {
       throw new Error(`Erro de validação do Bedrock: ${err.message}`);
