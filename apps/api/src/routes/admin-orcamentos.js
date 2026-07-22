@@ -3,8 +3,12 @@ const { dynamo, TABLE } = require('../config/dynamodb');
 const { QueryCommand, PutCommand, UpdateCommand, DeleteCommand, GetCommand } = require('@aws-sdk/lib-dynamodb');
 const { resolverValorBase } = require('../services/catalogoPrecificacaoService');
 const { geocode, distanceMatrix } = require('../services/mapsService');
+const { criarEvento, excluirEvento } = require('../services/googleCalendarService');
+const { features } = require('../config/env');
+const { SYNC_STATUS } = require('../config/constants');
 
 const router = Router();
+const TENANT = process.env.TENANT_ID || 'default';
 
 async function findOrcamento(id) {
   const result = await dynamo.send(new QueryCommand({
@@ -576,6 +580,85 @@ router.post('/', async (req, res) => {
       created: new Date().toISOString(),
     };
     await dynamo.send(new PutCommand({ TableName: TABLE, Item: item }));
+
+    // ─── Criar evento na agenda automaticamente ───
+    if (item.data_evento) {
+      try {
+        // Buscar nome do cliente
+        let clienteNome = item.cliente_nome || '';
+        let clienteTelefone = '';
+        if (clienteId && !clienteNome) {
+          const clienteResult = await dynamo.send(new QueryCommand({
+            TableName: TABLE,
+            IndexName: 'GSI1',
+            KeyConditionExpression: 'GSI1PK = :pk AND GSI1SK = :sk',
+            ExpressionAttributeValues: { ':pk': 'CLIENTE', ':sk': `CLIENTE#${clienteId}` },
+          }));
+          const cliente = clienteResult.Items?.[0];
+          if (cliente) {
+            clienteNome = cliente.nome || '';
+            clienteTelefone = cliente.whatsapp_numero || cliente.telefone || '';
+          }
+        }
+
+        const agendaId = crypto.randomUUID();
+        const agendaItem = {
+          id: agendaId,
+          PK: `TENANT#${TENANT}`, SK: `AGENDA#${item.data_evento}#${agendaId}`,
+          GSI1PK: 'AGENDA', GSI1SK: `AGENDA#${agendaId}`,
+          tipo_evento: item.tipo_evento || item.tipo || 'Sessão',
+          cliente_id: clienteId,
+          cliente_nome: clienteNome,
+          data_evento: item.data_evento,
+          horario_inicio: item.horario_inicio || '09:00',
+          horario_fim: item.horario_fim || '18:00',
+          local: item.local_evento || item.local || '',
+          observacoes: `Orçamento #${id} - ${item.titulo || item.descricao || ''}`.trim(),
+          orcamento_id: id,
+          status: 'pendente',
+          sync_status: SYNC_STATUS.PENDENTE,
+          created: new Date().toISOString(),
+        };
+        await dynamo.send(new PutCommand({ TableName: TABLE, Item: agendaItem }));
+
+        // Sincronizar com Google Calendar
+        if (features.googleCalendar) {
+          try {
+            const googleEvent = await criarEvento({
+              tipo_evento: agendaItem.tipo_evento,
+              cliente_nome: clienteNome,
+              data_evento: agendaItem.data_evento,
+              horario_inicio: agendaItem.horario_inicio,
+              horario_fim: agendaItem.horario_fim,
+              local: agendaItem.local,
+              observacoes: agendaItem.observacoes,
+            });
+            await dynamo.send(new UpdateCommand({
+              TableName: TABLE,
+              Key: { PK: agendaItem.PK, SK: agendaItem.SK },
+              UpdateExpression: 'SET google_event_id = :g, sync_status = :s',
+              ExpressionAttributeValues: { ':g': googleEvent.id, ':s': SYNC_STATUS.SINCRONIZADO },
+            }));
+            agendaItem.google_event_id = googleEvent.id;
+            agendaItem.sync_status = SYNC_STATUS.SINCRONIZADO;
+          } catch (syncError) {
+            console.error('[ORCAMENTO] Erro sync Google Calendar:', syncError.message);
+          }
+        }
+
+        // Salvar referência do evento no orçamento
+        await dynamo.send(new UpdateCommand({
+          TableName: TABLE,
+          Key: { PK: item.PK, SK: item.SK },
+          UpdateExpression: 'SET agenda_evento_id = :aid',
+          ExpressionAttributeValues: { ':aid': agendaId },
+        }));
+        item.agenda_evento_id = agendaId;
+      } catch (agendaError) {
+        console.error('[ORCAMENTO] Erro ao criar evento na agenda:', agendaError.message);
+      }
+    }
+
     res.status(201).json({ success: true, data: item });
   } catch (error) {
     res.status(400).json({ success: false, message: error.message });
@@ -639,6 +722,81 @@ router.post('/:id/aprovar', async (req, res) => {
       ExpressionAttributeValues: { ':s': 'aceito', ':a': new Date().toISOString() },
       ReturnValues: 'ALL_NEW',
     }));
+
+    // Atualizar status do evento na agenda para confirmado
+    if (orc.agenda_evento_id) {
+      try {
+        const eventoResult = await dynamo.send(new QueryCommand({
+          TableName: TABLE,
+          IndexName: 'GSI1',
+          KeyConditionExpression: 'GSI1PK = :pk AND GSI1SK = :sk',
+          ExpressionAttributeValues: { ':pk': 'AGENDA', ':sk': `AGENDA#${orc.agenda_evento_id}` },
+        }));
+        const evento = eventoResult.Items?.[0];
+        if (evento) {
+          await dynamo.send(new UpdateCommand({
+            TableName: TABLE,
+            Key: { PK: evento.PK, SK: evento.SK },
+            UpdateExpression: 'SET #s = :s',
+            ExpressionAttributeNames: { '#s': 'status' },
+            ExpressionAttributeValues: { ':s': 'confirmado' },
+          }));
+        }
+      } catch (agendaErr) {
+        console.error('[ORCAMENTO] Erro ao confirmar evento na agenda:', agendaErr.message);
+      }
+    }
+
+    res.json({ success: true, data: result.Attributes });
+  } catch (error) {
+    res.status(400).json({ success: false, message: error.message });
+  }
+});
+
+// POST /api/admin/orcamentos/:id/recusar
+router.post('/:id/recusar', async (req, res) => {
+  try {
+    const orc = await findOrcamento(req.params.id);
+    if (!orc) return res.status(404).json({ success: false, message: 'Orçamento não encontrado' });
+    const result = await dynamo.send(new UpdateCommand({
+      TableName: TABLE,
+      Key: { PK: orc.PK, SK: orc.SK },
+      UpdateExpression: 'SET #s = :s, recusado_em = :r',
+      ExpressionAttributeNames: { '#s': 'status' },
+      ExpressionAttributeValues: { ':s': 'recusado', ':r': new Date().toISOString() },
+      ReturnValues: 'ALL_NEW',
+    }));
+
+    // Excluir evento da agenda e do Google Calendar
+    if (orc.agenda_evento_id) {
+      try {
+        const eventoResult = await dynamo.send(new QueryCommand({
+          TableName: TABLE,
+          IndexName: 'GSI1',
+          KeyConditionExpression: 'GSI1PK = :pk AND GSI1SK = :sk',
+          ExpressionAttributeValues: { ':pk': 'AGENDA', ':sk': `AGENDA#${orc.agenda_evento_id}` },
+        }));
+        const evento = eventoResult.Items?.[0];
+        if (evento) {
+          // Excluir do Google Calendar
+          if (features.googleCalendar && evento.google_event_id) {
+            try {
+              await excluirEvento(evento.google_event_id);
+            } catch (syncErr) {
+              console.error('[ORCAMENTO] Erro ao excluir evento do Google Calendar:', syncErr.message);
+            }
+          }
+          // Excluir da agenda no DynamoDB
+          await dynamo.send(new DeleteCommand({
+            TableName: TABLE,
+            Key: { PK: evento.PK, SK: evento.SK },
+          }));
+        }
+      } catch (agendaErr) {
+        console.error('[ORCAMENTO] Erro ao excluir evento da agenda:', agendaErr.message);
+      }
+    }
+
     res.json({ success: true, data: result.Attributes });
   } catch (error) {
     res.status(400).json({ success: false, message: error.message });
