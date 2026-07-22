@@ -48,6 +48,15 @@ export default function Portfolio() {
   useEffect(() => { loadCategorias(); }, [loadCategorias]);
   useEffect(() => { if (selectedCat) loadFotos(selectedCat); }, [selectedCat, loadFotos]);
 
+  // Auto-refresh fotos while any are still processing (poll every 5s)
+  useEffect(() => {
+    if (!selectedCat || !fotos.length) return;
+    const hasProcessing = fotos.some(f => f.status === 'processando');
+    if (!hasProcessing) return;
+    const timer = setTimeout(() => loadFotos(selectedCat), 5000);
+    return () => clearTimeout(timer);
+  }, [fotos, selectedCat, loadFotos]);
+
   // Category CRUD
   const handleSaveCat = async () => {
     try {
@@ -313,16 +322,21 @@ export default function Portfolio() {
                     ${dragType === 'foto' && dragIndex === idx ? 'opacity-30' : ''}`}
                 >
                   {foto.url_thumb || foto.url_web ? (
-                    <img src={foto.url_thumb || foto.url_web} alt="" className="w-full h-full object-cover" />
+                    <img src={foto.url_thumb || foto.url_web} alt="" className="w-full h-full object-cover" loading="lazy" />
+                  ) : foto.status === 'processando' ? (
+                    <div className="w-full h-full flex flex-col items-center justify-center gap-2">
+                      <div className="w-6 h-6 border-2 border-orange-300 border-t-orange-600 rounded-full animate-spin" />
+                      <span className="text-[10px] text-gray-400">Processando...</span>
+                    </div>
                   ) : (
                     <div className="w-full h-full flex items-center justify-center">
                       <Image size={24} className="text-gray-300" />
                     </div>
                   )}
-                  {/* Status badge */}
-                  {foto.status !== 'pronta' && (
-                    <span className={`absolute top-2 left-2 px-1.5 py-0.5 text-[10px] font-medium rounded ${foto.status === 'processando' ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-700'}`}>
-                      {foto.status === 'processando' ? 'Processando' : 'Erro'}
+                  {/* Status badge - only show if no image loaded yet */}
+                  {foto.status !== 'pronta' && !foto.url_thumb && !foto.url_web && foto.status === 'erro' && (
+                    <span className="absolute top-2 left-2 px-1.5 py-0.5 text-[10px] font-medium rounded bg-red-100 text-red-700">
+                      Erro
                     </span>
                   )}
                   {/* Delete overlay */}
