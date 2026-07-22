@@ -3,12 +3,16 @@ const { dynamo, TABLE } = require('../config/dynamodb');
 const { QueryCommand, PutCommand, UpdateCommand, DeleteCommand, BatchWriteCommand } = require('@aws-sdk/lib-dynamodb');
 const { v4: uuidv4 } = require('uuid');
 const { gerarPresignedUrl, deletarFotosCategoria } = require('../services/portfolioService');
-const { S3Client, DeleteObjectCommand } = require('@aws-sdk/client-s3');
+const { S3Client, DeleteObjectCommand, GetObjectCommand } = require('@aws-sdk/client-s3');
+const { getSignedUrl } = require('@aws-sdk/s3-request-presigner');
 const logger = require('../config/logger');
 
 const router = Router();
 const s3 = new S3Client({});
 const BUCKET = process.env.S3_BUCKET_NAME;
+const PUBLIC_BUCKET = process.env.MEDIA_PUBLIC_BUCKET || process.env.S3_BUCKET_NAME;
+const CDN_DOMAIN = process.env.CDN_DOMAIN || '';
+const TENANT_ID = '1';
 const PK_TENANT = 'TENANT#1';
 
 // ─────────────────────────────────────────────────────────────
@@ -304,8 +308,9 @@ router.post('/fotos/upload', async (req, res) => {
     }
 
     const foto_id = uuidv4();
-    const sanitizedFilename = filename.replace(/[^a-zA-Z0-9._-]/g, '_');
-    const key = `portfolio/${categoria_id}/${foto_id}/original/${sanitizedFilename}`;
+    const ext = filename.split('.').pop().toLowerCase();
+    // Key format matching processMedia.js expected pattern: {tenant}/{contexto}/{entidade}/{mediaId}-original.{ext}
+    const key = `${TENANT_ID}/portfolio/${categoria_id}/${foto_id}-original.${ext}`;
     const expiresIn = 600;
 
     const upload_url = await gerarPresignedUrl(key, content_type, expiresIn);
@@ -338,12 +343,22 @@ router.post('/fotos/confirmar', async (req, res) => {
     const now = new Date().toISOString();
     const ordemVal = ordem !== undefined ? Number(ordem) : 0;
 
+    // Derive expected processed keys from the original key
+    // Original: {tenant}/portfolio/{catId}/{fotoId}-original.{ext}
+    // Thumb:    {tenant}/portfolio/{catId}/{fotoId}-thumb.webp
+    // Web:      {tenant}/portfolio/{catId}/{fotoId}-web.webp
+    const basePath = `${TENANT_ID}/portfolio/${categoria_id}`;
+    const s3_key_thumb = `${basePath}/${foto_id}-thumb.webp`;
+    const s3_key_web = `${basePath}/${foto_id}-web.webp`;
+
     const item = {
       PK: PK_TENANT,
       SK: `FOTOPORT#${categoria_id}#${foto_id}`,
       id: foto_id,
       categoria_id,
       s3_key: key,
+      s3_key_thumb,
+      s3_key_web,
       titulo: titulo ? titulo.trim() : '',
       descricao: descricao ? descricao.trim() : '',
       ordem: ordemVal,
@@ -387,7 +402,37 @@ router.get('/categorias/:catId/fotos', async (req, res) => {
     // Sort by ordem
     fotos.sort((a, b) => (a.ordem || 0) - (b.ordem || 0));
 
-    res.json({ success: true, data: fotos });
+    // Generate presigned/CDN URLs for display (same pattern as album)
+    const fotosComUrl = await Promise.all(fotos.map(async (foto) => {
+      // Portfolio uses public bucket — try CDN first, fallback to presigned
+      const thumbKey = foto.s3_key_thumb || foto.s3_key_web || foto.s3_key;
+      const webKey = foto.s3_key_web || foto.s3_key_thumb || foto.s3_key;
+
+      if (!thumbKey) return foto;
+
+      try {
+        let url_thumb = null;
+        let url_web = null;
+
+        // Portfolio photos go to public bucket — use CDN if available
+        if (CDN_DOMAIN) {
+          url_thumb = `https://${CDN_DOMAIN}/${thumbKey}`;
+          url_web = `https://${CDN_DOMAIN}/${webKey}`;
+        } else {
+          // Fallback to presigned URL from public bucket
+          const bucket = PUBLIC_BUCKET;
+          url_thumb = await getSignedUrl(s3, new GetObjectCommand({ Bucket: bucket, Key: thumbKey }), { expiresIn: 3600 });
+          url_web = await getSignedUrl(s3, new GetObjectCommand({ Bucket: bucket, Key: webKey }), { expiresIn: 3600 });
+        }
+
+        return { ...foto, url_thumb, url_web };
+      } catch (err) {
+        logger.warn({ action: 'portfolio_foto_url_error', fotoId: foto.id, error: err.message });
+        return foto;
+      }
+    }));
+
+    res.json({ success: true, data: fotosComUrl });
   } catch (error) {
     logger.error({ action: 'portfolio_fotos_list_error', error: error.message });
     res.status(500).json({ success: false, message: error.message });
@@ -445,12 +490,18 @@ router.delete('/fotos/:fotoId', async (req, res) => {
       return res.status(404).json({ success: false, message: 'Foto não encontrada' });
     }
 
-    // Delete from S3
-    if (foto.s3_key) {
-      await s3.send(new DeleteObjectCommand({
-        Bucket: BUCKET,
-        Key: foto.s3_key,
-      }));
+    // Delete all S3 versions (original, thumb, web)
+    const keysToDelete = [foto.s3_key, foto.s3_key_thumb, foto.s3_key_web].filter(Boolean);
+    const targetBucket = PUBLIC_BUCKET; // Portfolio uses public bucket for processed versions
+
+    for (const key of keysToDelete) {
+      try {
+        // Original is in private bucket, processed versions in public bucket
+        const bucket = key.includes('-original') ? BUCKET : targetBucket;
+        await s3.send(new DeleteObjectCommand({ Bucket: bucket, Key: key }));
+      } catch (err) {
+        logger.warn({ action: 'portfolio_s3_delete_warn', key, error: err.message });
+      }
     }
 
     // Delete from DynamoDB

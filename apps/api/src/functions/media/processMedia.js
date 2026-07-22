@@ -222,6 +222,29 @@ async function processRecord(s3Record) {
   });
 
   console.log(`DynamoDB record created: MEDIA#${contexto}#${entidade_id}#${media_id}`);
+
+  // 8. For portfolio context, update the FOTOPORT# record status to 'pronta'
+  if (contexto === 'portfolio') {
+    const { UpdateCommand } = require('@aws-sdk/lib-dynamodb');
+    try {
+      await ddb.send(new UpdateCommand({
+        TableName: TABLE_NAME,
+        Key: {
+          PK: `TENANT#${tenant_id}`,
+          SK: `FOTOPORT#${entidade_id}#${media_id}`,
+        },
+        UpdateExpression: 'SET #status = :status, #atualizadoEm = :now',
+        ExpressionAttributeNames: { '#status': 'status', '#atualizadoEm': 'atualizadoEm' },
+        ExpressionAttributeValues: {
+          ':status': 'pronta',
+          ':now': new Date().toISOString(),
+        },
+      }));
+      console.log(`FOTOPORT# record updated to pronta: ${entidade_id}#${media_id}`);
+    } catch (err) {
+      console.warn(`Failed to update FOTOPORT# record: ${err.message}`);
+    }
+  }
 }
 
 /**
