@@ -1,7 +1,9 @@
 const { Router } = require('express');
 const { dynamo, TABLE } = require('../config/dynamodb');
-const { QueryCommand, UpdateCommand, PutCommand, GetCommand } = require('@aws-sdk/lib-dynamodb');
+const { QueryCommand, UpdateCommand, PutCommand, DeleteCommand, GetCommand } = require('@aws-sdk/lib-dynamodb');
 const { notificarNovoOrcamento } = require('../services/notificationService');
+const { excluirEvento } = require('../services/googleCalendarService');
+const { features } = require('../config/env');
 
 const router = Router();
 const TENANT = process.env.TENANT_ID || 'default';
@@ -175,7 +177,89 @@ router.post('/:id/aprovar', async (req, res) => {
       ExpressionAttributeNames: { '#s': 'status' },
       ExpressionAttributeValues: { ':s': 'aprovado', ':a': new Date().toISOString() },
     }));
+
+    // Manter evento na agenda e marcar como confirmado
+    if (orcamento.agenda_evento_id) {
+      try {
+        const eventoResult = await dynamo.send(new QueryCommand({
+          TableName: TABLE,
+          IndexName: 'GSI1',
+          KeyConditionExpression: 'GSI1PK = :pk AND GSI1SK = :sk',
+          ExpressionAttributeValues: { ':pk': 'AGENDA', ':sk': `AGENDA#${orcamento.agenda_evento_id}` },
+        }));
+        const evento = eventoResult.Items?.[0];
+        if (evento) {
+          await dynamo.send(new UpdateCommand({
+            TableName: TABLE,
+            Key: { PK: evento.PK, SK: evento.SK },
+            UpdateExpression: 'SET #s = :s',
+            ExpressionAttributeNames: { '#s': 'status' },
+            ExpressionAttributeValues: { ':s': 'confirmado' },
+          }));
+        }
+      } catch (agendaErr) {
+        console.error('[CLIENT-ORCAMENTO] Erro ao confirmar evento na agenda:', agendaErr.message);
+      }
+    }
+
     res.json({ success: true, message: 'Orçamento aprovado' });
+  } catch (error) {
+    res.status(400).json({ success: false, message: error.message });
+  }
+});
+
+// POST /client/orcamentos/:id/recusar
+router.post('/:id/recusar', async (req, res) => {
+  try {
+    // Verificar ownership
+    const check = await dynamo.send(new QueryCommand({
+      TableName: TABLE,
+      KeyConditionExpression: 'PK = :pk AND SK = :sk',
+      ExpressionAttributeValues: { ':pk': `CLIENTE#${req.clienteId}`, ':sk': `ORCAMENTO#${req.params.id}` },
+    }));
+    if (!check.Items || check.Items.length === 0) return res.status(403).json({ success: false, message: 'Acesso negado' });
+    const orcamento = check.Items[0];
+    if (orcamento.status !== 'enviado') return res.status(400).json({ success: false, message: 'Orçamento não pode ser recusado neste status' });
+
+    await dynamo.send(new UpdateCommand({
+      TableName: TABLE,
+      Key: { PK: orcamento.PK, SK: orcamento.SK },
+      UpdateExpression: 'SET #s = :s, recusado_em = :r',
+      ExpressionAttributeNames: { '#s': 'status' },
+      ExpressionAttributeValues: { ':s': 'recusado', ':r': new Date().toISOString() },
+    }));
+
+    // Excluir evento da agenda e do Google Calendar
+    if (orcamento.agenda_evento_id) {
+      try {
+        const eventoResult = await dynamo.send(new QueryCommand({
+          TableName: TABLE,
+          IndexName: 'GSI1',
+          KeyConditionExpression: 'GSI1PK = :pk AND GSI1SK = :sk',
+          ExpressionAttributeValues: { ':pk': 'AGENDA', ':sk': `AGENDA#${orcamento.agenda_evento_id}` },
+        }));
+        const evento = eventoResult.Items?.[0];
+        if (evento) {
+          // Excluir do Google Calendar
+          if (features.googleCalendar && evento.google_event_id) {
+            try {
+              await excluirEvento(evento.google_event_id);
+            } catch (syncErr) {
+              console.error('[CLIENT-ORCAMENTO] Erro ao excluir evento do Google Calendar:', syncErr.message);
+            }
+          }
+          // Excluir da agenda no DynamoDB
+          await dynamo.send(new DeleteCommand({
+            TableName: TABLE,
+            Key: { PK: evento.PK, SK: evento.SK },
+          }));
+        }
+      } catch (agendaErr) {
+        console.error('[CLIENT-ORCAMENTO] Erro ao excluir evento da agenda:', agendaErr.message);
+      }
+    }
+
+    res.json({ success: true, message: 'Orçamento recusado' });
   } catch (error) {
     res.status(400).json({ success: false, message: error.message });
   }
