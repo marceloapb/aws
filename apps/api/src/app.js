@@ -204,18 +204,25 @@ app.post('/admin/maps/distance-from-company', adminAuth, async (req, res) => {
     let empresaEndereco = null;
     let empresaLat = null;
     let empresaLng = null;
+    let cepDistancia = null;
     for (const c of (configResult.Items || [])) {
       if (c.chave === 'endereco' || c.chave === 'endereco_empresa') empresaEndereco = c.valor;
       if (c.chave === 'latitude') empresaLat = Number(c.valor);
       if (c.chave === 'longitude') empresaLng = Number(c.valor);
+      if (c.chave === 'cepDistancia') cepDistancia = c.valor;
     }
 
-    // Se não tem coordenadas da empresa, tenta geocodificar o endereço
+    // Se não tem coordenadas da empresa, tenta geocodificar pelo CEP de distância ou endereço
     if (!empresaLat || !empresaLng) {
-      if (!empresaEndereco) {
+      // Prioridade: cepDistancia > endereco
+      const enderecoParaGeo = cepDistancia
+        ? cepDistancia.replace(/\D/g, '').replace(/(\d{5})(\d{3})/, '$1-$2')
+        : empresaEndereco;
+
+      if (!enderecoParaGeo) {
         return res.status(400).json({ success: false, message: 'Endereço da empresa não configurado. Vá em Configurações > Empresa.' });
       }
-      const empresaGeo = await geocode(empresaEndereco, null);
+      const empresaGeo = await geocode(enderecoParaGeo, null);
       if (!empresaGeo) {
         return res.status(400).json({ success: false, message: 'Não foi possível geocodificar o endereço da empresa.' });
       }

@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
-import { Building2, Phone, Share2, MapPin, Clock } from 'lucide-react';
+import { Building2, Phone, Share2, MapPin, Clock, Navigation } from 'lucide-react';
 import SectionHeader from './config/SectionHeader';
 import FieldLabel from './config/FieldLabel';
 import MaskedInput from './form/MaskedInput';
 import AddressForm from './form/AddressForm';
+import { maskCEP } from '../utils/formatters';
 
 const ACCENT = '#EA580C';
 const DAYS = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'];
@@ -167,6 +168,25 @@ export default function ConfigDadosEmpresa({ form, setForm, onUploadLogo, onUplo
       <section>
         <SectionHeader icon={MapPin} title="Endereço" description="Localização física — digite o CEP para preencher automaticamente" />
         <AddressForm form={form} setForm={setForm} />
+      </section>
+
+      {/* CEP para cálculo de distância */}
+      <section>
+        <SectionHeader icon={Navigation} title="CEP para Cálculo de Distância" description="CEP de referência usado para calcular a distância até os eventos" />
+        <div className="max-w-sm">
+          <FieldLabel hint="Usado como ponto de partida no cálculo de distância até o local do evento">CEP de referência</FieldLabel>
+          <input
+            name="cepDistancia"
+            value={maskCEP(form.cepDistancia || '')}
+            onChange={(e) => setForm({ ...form, cepDistancia: e.target.value.replace(/\D/g, '').slice(0, 8) })}
+            placeholder="00000-000"
+            maxLength={9}
+            className={inputClass('cepDistancia')}
+          />
+          <p className="text-xs text-gray-500 mt-1">
+            Se não preenchido, será usado o endereço da empresa acima.
+          </p>
+        </div>
       </section>
 
       {/* Descrição */}
