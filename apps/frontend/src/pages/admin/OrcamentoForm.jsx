@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import {
   ChevronLeft, ChevronRight, Plus, Trash2, Copy, Star, AlertTriangle,
   User, Package, DollarSign, CreditCard, Send, Check, Calendar, MapPin, FileText
@@ -26,6 +26,7 @@ export default function OrcamentoForm() {
   const { authFetch } = useAuth();
   const navigate = useNavigate();
   const { id } = useParams();
+  const [searchParams] = useSearchParams();
   const isEditMode = Boolean(id);
   const [step, setStep] = useState(0);
   const [loading, setLoading] = useState(false);
@@ -122,6 +123,16 @@ export default function OrcamentoForm() {
         // Populate validade and mensagem
         if (data.validade_dias) setValidadeDias(data.validade_dias);
         if (data.mensagem) setMensagem(data.mensagem);
+
+        // Navigate to the requested step from query parameter (e.g., ?step=valores for pricing)
+        const stepParam = searchParams.get('step');
+        if (stepParam) {
+          const STEP_MAP = { cliente: 0, opcoes: 1, valores: 2, pagamento: 3, envio: 4 };
+          const targetStep = STEP_MAP[stepParam.toLowerCase()];
+          if (targetStep !== undefined) {
+            setStep(targetStep);
+          }
+        }
       })
       .catch(console.error)
       .finally(() => setLoadingData(false));
@@ -523,9 +534,14 @@ export default function OrcamentoForm() {
         <div className="flex items-center gap-3">
           <FileText size={24} style={{ color: '#EA580C' }} />
           <h1 className="text-2xl font-bold text-gray-900">{isEditMode ? 'Editar Orçamento' : 'Novo Orçamento'}</h1>
+          {isEditMode && (
+            <span className="text-xs bg-orange-100 text-orange-700 px-2 py-1 rounded-full font-medium">
+              Editando
+            </span>
+          )}
         </div>
         <div className="flex gap-2">
-          <button onClick={() => navigate('/admin/orcamentos')} className="text-sm text-gray-500 hover:text-gray-700">← Voltar</button>
+          <button onClick={() => navigate(isEditMode ? `/admin/orcamentos/${id}` : '/admin/orcamentos')} className="text-sm text-gray-500 hover:text-gray-700">← Voltar</button>
         </div>
       </div>
 

@@ -3,7 +3,8 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import {
   ArrowLeft, Send, CheckCircle, Copy, FileText, Edit2, Download,
-  Trash2, RefreshCw, RotateCcw, Phone, Mail, Star, Clock, XCircle, MapPin, AlertTriangle
+  Trash2, RefreshCw, RotateCcw, Phone, Mail, Star, Clock, XCircle, MapPin, AlertTriangle,
+  DollarSign, Calendar, Hash, Tag, Info
 } from 'lucide-react';
 import DistanceBadge from '../../components/DistanceBadge';
 import MapEmbed from '../../components/MapEmbed';
@@ -84,6 +85,21 @@ export default function OrcamentoDetalhe() {
   const cliente = orc.cliente || {};
   const opcoes = orc.opcoes || [];
 
+  // Calcula o valor total consolidado (maior valor entre as opções ou valor_total do orçamento)
+  const valorTotalConsolidado = useMemo(() => {
+    if (orc.valor_total) return orc.valor_total;
+    if (opcoes.length === 0) return 0;
+    // Se tem opção destacada/recomendada, usa ela; senão usa o maior valor
+    const destaque = opcoes.find(op => op.destaque);
+    const calcOpcaoTotal = (op) => {
+      const sub = (op.itens_snapshot || []).reduce((s, i) => s + (i.valor_unitario || 0) * (i.quantidade || 1), 0);
+      const desc = op.desconto_tipo === 'pct' ? sub * ((op.desconto_valor || 0) / 100) : (op.desconto_valor || 0);
+      return Math.max(0, sub - desc);
+    };
+    if (destaque) return calcOpcaoTotal(destaque);
+    return Math.max(...opcoes.map(calcOpcaoTotal));
+  }, [orc, opcoes]);
+
   return (
     <div className="max-w-7xl mx-auto">
       <button onClick={() => navigate('/admin/orcamentos')} className="flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700 mb-4">
@@ -101,7 +117,7 @@ export default function OrcamentoDetalhe() {
           {/* Ações contextuais */}
           {(orc.status === 'rascunho' || orc.status === 'em_revisao' || orc.status === 'pronto_enviar') && (
             <>
-              <Btn icon={Edit2} label="Editar" onClick={() => navigate(`/admin/orcamentos/${id}/editar`)} />
+              <Btn icon={Edit2} label="Editar" onClick={() => navigate(`/admin/orcamentos/${id}/editar?step=valores`)} />
               <Btn icon={Send} label="Enviar" accent onClick={() => handleAction('enviar')} loading={actionLoading === 'enviar'} />
               <Btn icon={Trash2} label="Excluir" danger onClick={() => handleAction('excluir')} loading={actionLoading === 'excluir'} />
             </>
@@ -138,6 +154,76 @@ export default function OrcamentoDetalhe() {
             : 'Expirado'}
         </div>
       )}
+
+      {/* ─── RESUMO DO ORÇAMENTO ─── */}
+      <div className="bg-white rounded-xl border p-5 mb-6">
+        <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2"><Info size={18} /> Resumo do Orçamento</h3>
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+          {/* Valor Total */}
+          <div className="flex flex-col">
+            <span className="text-xs text-gray-500 uppercase font-medium mb-1">Valor Total</span>
+            <span className="text-lg font-bold" style={{ color: ACCENT }}>
+              {fmtBRL(valorTotalConsolidado)}
+            </span>
+          </div>
+          {/* Data de Criação */}
+          <div className="flex flex-col">
+            <span className="text-xs text-gray-500 uppercase font-medium mb-1">Criado em</span>
+            <span className="text-sm font-medium text-gray-800">{fmtDate(orc.created)}</span>
+          </div>
+          {/* Validade */}
+          <div className="flex flex-col">
+            <span className="text-xs text-gray-500 uppercase font-medium mb-1">Validade</span>
+            <span className="text-sm font-medium text-gray-800">
+              {orc.validade_dias ? `${orc.validade_dias} dias` : '-'}
+              {validadeInfo && validadeInfo.diasRestantes > 0 && (
+                <span className={`ml-1 text-xs ${validadeInfo.diasRestantes <= 3 ? 'text-red-600' : 'text-amber-600'}`}>
+                  ({validadeInfo.diasRestantes}d restantes)
+                </span>
+              )}
+              {validadeInfo && validadeInfo.diasRestantes <= 0 && (
+                <span className="ml-1 text-xs text-red-600">(expirado)</span>
+              )}
+            </span>
+          </div>
+          {/* Quantidade de Opções */}
+          <div className="flex flex-col">
+            <span className="text-xs text-gray-500 uppercase font-medium mb-1">Opções</span>
+            <span className="text-sm font-medium text-gray-800">{opcoes.length} opç{opcoes.length === 1 ? 'ão' : 'ões'}</span>
+          </div>
+          {/* Canal de Origem */}
+          <div className="flex flex-col">
+            <span className="text-xs text-gray-500 uppercase font-medium mb-1">Origem</span>
+            <span className="text-sm font-medium text-gray-800">
+              {orc.origem_canal === 'whatsapp' ? '📱 WhatsApp'
+                : orc.origem_canal === 'instagram' ? '📷 Instagram'
+                : orc.origem_canal === 'site' ? '🌐 Site'
+                : orc.origem_canal === 'indicacao' ? '🤝 Indicação'
+                : orc.origem_canal === 'telefone' ? '📞 Telefone'
+                : orc.origem_canal || 'Manual'}
+            </span>
+          </div>
+        </div>
+
+        {/* Informações adicionais em linha */}
+        <div className="mt-4 pt-4 border-t flex flex-wrap gap-x-6 gap-y-2 text-xs text-gray-500">
+          {orc.id && (
+            <span className="flex items-center gap-1"><Hash size={12} /> ID: {orc.id.slice(0, 8)}...</span>
+          )}
+          {orc.tipo_evento && (
+            <span className="flex items-center gap-1"><Tag size={12} /> {orc.tipo_evento}</span>
+          )}
+          {orc.data_evento && (
+            <span className="flex items-center gap-1"><Calendar size={12} /> Evento: {fmtDate(orc.data_evento)}</span>
+          )}
+          {orc.nome_evento && (
+            <span className="flex items-center gap-1"><FileText size={12} /> {orc.nome_evento}</span>
+          )}
+          {orc.updatedAt && orc.updatedAt !== orc.created && (
+            <span className="flex items-center gap-1"><RefreshCw size={12} /> Atualizado: {fmtDateTime(orc.updatedAt)}</span>
+          )}
+        </div>
+      </div>
 
       {/* ─── DADOS DO CLIENTE ─── */}
       <div className="bg-white rounded-xl border p-5 mb-6">
@@ -284,7 +370,7 @@ export default function OrcamentoDetalhe() {
           <h3 className="font-semibold text-gray-900 mb-3">Condições de Pagamento</h3>
           <div className="grid sm:grid-cols-3 gap-4">
             {orc.condicoes.avista?.ativo && (() => {
-              const base = orc.valor_total || 0;
+              const base = orc.valor_total || valorTotalConsolidado || 0;
               const desc = base * ((orc.condicoes.avista.desconto_pct || 0) / 100);
               return (
                 <div className="p-4 bg-green-50 rounded-lg border border-green-200">
@@ -295,7 +381,7 @@ export default function OrcamentoDetalhe() {
               );
             })()}
             {orc.condicoes.sem_juros?.ativo && (() => {
-              const base = orc.valor_total || 0;
+              const base = orc.valor_total || valorTotalConsolidado || 0;
               const parc = orc.condicoes.sem_juros.max_parcelas || 6;
               return (
                 <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
@@ -306,7 +392,7 @@ export default function OrcamentoDetalhe() {
               );
             })()}
             {orc.condicoes.com_juros?.ativo && (() => {
-              const base = orc.valor_total || 0;
+              const base = orc.valor_total || valorTotalConsolidado || 0;
               const parc = orc.condicoes.com_juros.max_parcelas || 12;
               const taxa = (orc.condicoes.com_juros.taxa_mensal || 1.99) / 100;
               const parcela = taxa > 0 ? base * (taxa * Math.pow(1 + taxa, parc)) / (Math.pow(1 + taxa, parc) - 1) : base / parc;
