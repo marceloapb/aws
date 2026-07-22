@@ -29,6 +29,7 @@ const adminSections = [
     label: 'Produção',
     links: [
       { to: '/admin/albuns', icon: Image, label: 'Álbuns', end: true },
+      { to: '/admin/portfolio', icon: Camera, label: 'Portfólio' },
       { to: '/admin/equipamentos', icon: Wrench, label: 'Equipamentos' },
       { to: '/admin/clientes', icon: Users, label: 'Clientes' },
     ],
