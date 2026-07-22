@@ -19,28 +19,28 @@ const CONTEXT_CONFIG = {
   album: {
     bucket: 'private',
     versions: {
-      web: { maxWidth: 2048, quality: 85, format: 'webp' },
-      thumb: { maxWidth: 400, quality: 70, format: 'webp' },
+      web: { maxDimension: 2048, quality: 85, format: 'webp' },
+      thumb: { maxDimension: 400, quality: 70, format: 'webp' },
     },
   },
   portfolio: {
     bucket: 'public',
     versions: {
-      web: { maxWidth: 2048, quality: 85, format: 'webp' },
-      thumb: { maxWidth: 600, quality: 70, format: 'webp' },
+      web: { maxDimension: 2048, quality: 85, format: 'webp' },
+      thumb: { maxDimension: 600, quality: 70, format: 'webp' },
     },
   },
   novidades: {
     bucket: 'public',
     versions: {
-      web: { maxWidth: 1200, quality: 85, format: 'webp' },
-      thumb: { maxWidth: 400, quality: 70, format: 'webp' },
+      web: { maxDimension: 1200, quality: 85, format: 'webp' },
+      thumb: { maxDimension: 400, quality: 70, format: 'webp' },
     },
   },
   perfil: {
     bucket: 'public',
     versions: {
-      thumb: { maxWidth: 200, quality: 80, format: 'webp' },
+      thumb: { maxDimension: 200, quality: 80, format: 'webp' },
     },
   },
 };
@@ -84,10 +84,18 @@ async function downloadOriginal(bucket, key) {
 
 /**
  * Process the image buffer into a derived version using Sharp.
+ * Uses 'fit: inside' to constrain the longest edge (aresta maior) to maxDimension,
+ * preserving aspect ratio without enlarging.
  */
 async function processVersion(buffer, config) {
+  const maxDim = config.maxDimension || config.maxWidth;
   return sharp(buffer)
-    .resize({ width: config.maxWidth, withoutEnlargement: true })
+    .resize({
+      width: maxDim,
+      height: maxDim,
+      fit: 'inside',
+      withoutEnlargement: true,
+    })
     .webp({ quality: config.quality })
     .toBuffer();
 }
