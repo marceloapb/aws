@@ -48,10 +48,6 @@ Resources:
       DefaultRouteSettings:
         ThrottlingBurstLimit: 50
         ThrottlingRateLimit: 100
-      RouteSettings:
-        "POST /admin/equipamentos/identificar-foto":
-          ThrottlingBurstLimit: 5
-          ThrottlingRateLimit: 2
       CorsConfiguration:
         AllowOrigins:
           - !Ref FrontendUrl
