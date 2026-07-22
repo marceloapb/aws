@@ -304,13 +304,20 @@ router.get('/:id/editar', async (req, res) => {
         let empresaEndereco = null;
         let empresaLat = null;
         let empresaLng = null;
+        let cepDistancia = null;
         for (const c of (configResult2.Items || [])) {
           if (c.chave === 'endereco' || c.chave === 'endereco_empresa') empresaEndereco = c.valor;
           if (c.chave === 'latitude') empresaLat = Number(c.valor);
           if (c.chave === 'longitude') empresaLng = Number(c.valor);
+          if (c.chave === 'cepDistancia') cepDistancia = c.valor;
         }
 
-        if (empresaEndereco || (empresaLat && empresaLng)) {
+        // Prioridade: cepDistancia > endereco
+        const enderecoEmpresa = cepDistancia
+          ? cepDistancia.replace(/\D/g, '').replace(/(\d{5})(\d{3})/, '$1-$2')
+          : empresaEndereco;
+
+        if (enderecoEmpresa || (empresaLat && empresaLng)) {
           const eventoEndereco = orcamento.local_evento || orcamento.local;
           const eventoCep = orcamento.endereco?.cep || null;
           const eventoGeo = await geocode(eventoEndereco, eventoCep);
@@ -322,7 +329,7 @@ router.get('/:id/editar', async (req, res) => {
             let origemLat = empresaLat;
             let origemLng = empresaLng;
             if (!origemLat || !origemLng) {
-              const empresaGeo = await geocode(empresaEndereco, null);
+              const empresaGeo = await geocode(enderecoEmpresa, null);
               if (empresaGeo) { origemLat = empresaGeo.lat; origemLng = empresaGeo.lng; }
             }
 
@@ -463,13 +470,20 @@ router.get('/:id', async (req, res) => {
         let empresaEndereco = null;
         let empresaLat = null;
         let empresaLng = null;
+        let cepDistancia = null;
         for (const c of (configResult.Items || [])) {
           if (c.chave === 'endereco' || c.chave === 'endereco_empresa') empresaEndereco = c.valor;
           if (c.chave === 'latitude') empresaLat = Number(c.valor);
           if (c.chave === 'longitude') empresaLng = Number(c.valor);
+          if (c.chave === 'cepDistancia') cepDistancia = c.valor;
         }
 
-        if (empresaEndereco || (empresaLat && empresaLng)) {
+        // Prioridade: cepDistancia > endereco
+        const enderecoEmpresa = cepDistancia
+          ? cepDistancia.replace(/\D/g, '').replace(/(\d{5})(\d{3})/, '$1-$2')
+          : empresaEndereco;
+
+        if (enderecoEmpresa || (empresaLat && empresaLng)) {
           const eventoEndereco = orcamento.local_evento || orcamento.local;
 
           // Geocode the event location
@@ -484,7 +498,7 @@ router.get('/:id', async (req, res) => {
             let origemLat = empresaLat;
             let origemLng = empresaLng;
             if (!origemLat || !origemLng) {
-              const empresaGeo = await geocode(empresaEndereco, null);
+              const empresaGeo = await geocode(enderecoEmpresa, null);
               if (empresaGeo) {
                 origemLat = empresaGeo.lat;
                 origemLng = empresaGeo.lng;
