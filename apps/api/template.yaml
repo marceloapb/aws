@@ -48,6 +48,10 @@ Resources:
       DefaultRouteSettings:
         ThrottlingBurstLimit: 50
         ThrottlingRateLimit: 100
+      RouteSettings:
+        "POST /admin/equipamentos/identificar-foto":
+          ThrottlingBurstLimit: 5
+          ThrottlingRateLimit: 2
       CorsConfiguration:
         AllowOrigins:
           - !Ref FrontendUrl
@@ -86,7 +90,7 @@ Resources:
       Handler: src/handler.handler
       CodeUri: .
       MemorySize: 512
-      Timeout: 30
+      Timeout: 60
       Policies:
         - DynamoDBCrudPolicy:
             TableName: !Ref TableName
