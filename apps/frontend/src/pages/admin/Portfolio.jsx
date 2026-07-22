@@ -1,8 +1,107 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo, memo } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
-import { GripVertical, Eye, EyeOff, Plus, Trash2, Edit2, Upload, X, Image, AlertTriangle, CheckCircle } from 'lucide-react';
+import { GripVertical, Eye, EyeOff, Plus, Trash2, Edit2, Upload, X, Image, AlertTriangle, CheckCircle, Move } from 'lucide-react';
 
 const ACCENT = '#EA580C';
+
+// Lazy-loaded image component that only loads when visible in viewport
+const LazyImage = memo(({ src, alt, className }) => {
+  const imgRef = useRef(null);
+  const [isVisible, setIsVisible] = useState(false);
+  const [loaded, setLoaded] = useState(false);
+
+  useEffect(() => {
+    const el = imgRef.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => { if (entry.isIntersecting) { setIsVisible(true); observer.disconnect(); } },
+      { rootMargin: '200px' }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
+  return (
+    <div ref={imgRef} className={`${className} bg-gray-100`}>
+      {isVisible && (
+        <img
+          src={src}
+          alt={alt}
+          className={`w-full h-full object-cover transition-opacity duration-300 ${loaded ? 'opacity-100' : 'opacity-0'}`}
+          onLoad={() => setLoaded(true)}
+          decoding="async"
+        />
+      )}
+      {isVisible && !loaded && (
+        <div className="absolute inset-0 flex items-center justify-center">
+          <div className="w-5 h-5 border-2 border-gray-300 border-t-gray-500 rounded-full animate-spin" />
+        </div>
+      )}
+    </div>
+  );
+});
+LazyImage.displayName = 'LazyImage';
+
+// Draggable photo card with touch support for mobile drag-and-drop
+const DraggablePhoto = memo(({ foto, index, onDelete, onDragStart, onDragOver, onDrop, isDragging, isDragOver, isReorderMode }) => {
+  return (
+    <div
+      draggable={isReorderMode}
+      onDragStart={(e) => onDragStart(e, index)}
+      onDragOver={(e) => onDragOver(e, index)}
+      onDrop={(e) => onDrop(e, index)}
+      onDragEnd={(e) => onDragStart(e, null)}
+      className={`relative aspect-square rounded-lg overflow-hidden border group transition-all
+        ${isDragOver ? 'border-dashed border-2 border-orange-400 scale-105' : 'border-gray-200'}
+        ${isDragging ? 'opacity-30 scale-95' : ''}
+        ${isReorderMode ? 'ring-2 ring-orange-100 cursor-grab active:cursor-grabbing' : ''}`}
+    >
+      {foto.url_thumb ? (
+        <LazyImage src={foto.url_thumb} alt={foto.titulo || ''} className="w-full h-full" />
+      ) : foto.status === 'processando' ? (
+        <div className="w-full h-full flex flex-col items-center justify-center gap-2 bg-gray-50">
+          <div className="w-6 h-6 border-2 border-orange-300 border-t-orange-600 rounded-full animate-spin" />
+          <span className="text-[10px] text-gray-400">Processando...</span>
+        </div>
+      ) : (
+        <div className="w-full h-full flex items-center justify-center bg-gray-50">
+          <Image size={24} className="text-gray-300" />
+        </div>
+      )}
+
+      {/* Status badge for error */}
+      {foto.status === 'erro' && (
+        <span className="absolute top-2 left-2 px-1.5 py-0.5 text-[10px] font-medium rounded bg-red-100 text-red-700">
+          Erro
+        </span>
+      )}
+
+      {/* Order number badge in reorder mode */}
+      {isReorderMode && (
+        <span className="absolute top-2 left-2 w-6 h-6 flex items-center justify-center text-[11px] font-bold rounded-full bg-orange-500 text-white shadow-sm">
+          {index + 1}
+        </span>
+      )}
+
+      {/* Hover overlay with actions */}
+      {!isReorderMode && (
+        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+          <button onClick={() => onDelete(foto.id)} className="p-2 bg-white/90 rounded-full hover:bg-white">
+            <Trash2 size={14} className="text-red-600" />
+          </button>
+        </div>
+      )}
+
+      {/* Drag handle indicator in reorder mode */}
+      {isReorderMode && (
+        <div className="absolute inset-0 bg-black/10 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+          <Move size={24} className="text-white drop-shadow-lg" />
+        </div>
+      )}
+    </div>
+  );
+});
+DraggablePhoto.displayName = 'DraggablePhoto';
 
 export default function Portfolio() {
   const { authFetch } = useAuth();
@@ -20,7 +119,9 @@ export default function Portfolio() {
   const [dragOverIndex, setDragOverIndex] = useState(null);
   const [dragType, setDragType] = useState(null);
   const [toast, setToast] = useState(null);
+  const [isReorderMode, setIsReorderMode] = useState(false);
   const fileInputRef = useRef(null);
+  const touchDragRef = useRef({ startIndex: null, currentIndex: null, element: null });
 
   const showToast = (msg, type = 'success') => {
     setToast({ msg, type });
@@ -102,12 +203,16 @@ export default function Portfolio() {
     setCategorias(items);
     setDragIndex(null); setDragOverIndex(null); setDragType(null);
     try {
-      await authFetch('/admin/portfolio/categorias/ordem', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(items.map((c, i) => ({ id: c.id, ordem: i }))) });
+      await authFetch('/admin/portfolio/categorias/ordem', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ categorias: items.map((c, i) => ({ id: c.id, ordem: i })) }) });
     } catch { loadCategorias(); showToast('Erro ao reordenar', 'error'); }
   };
 
   // Drag & Drop Fotos
-  const handleFotoDragStart = (e, idx) => { setDragIndex(idx); setDragType('foto'); e.dataTransfer.effectAllowed = 'move'; };
+  const handleFotoDragStart = (e, idx) => {
+    if (idx === null) { setDragIndex(null); setDragOverIndex(null); setDragType(null); return; }
+    setDragIndex(idx); setDragType('foto');
+    if (e.dataTransfer) e.dataTransfer.effectAllowed = 'move';
+  };
   const handleFotoDragOver = (e, idx) => { e.preventDefault(); setDragOverIndex(idx); };
   const handleFotoDrop = async (e, idx) => {
     e.preventDefault();
@@ -118,9 +223,60 @@ export default function Portfolio() {
     setFotos(items);
     setDragIndex(null); setDragOverIndex(null); setDragType(null);
     try {
-      await authFetch(`/admin/portfolio/categorias/${selectedCat}/fotos/ordem`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(items.map((f, i) => ({ id: f.id, ordem: i }))) });
+      await authFetch(`/admin/portfolio/categorias/${selectedCat}/fotos/ordem`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fotos: items.map((f, i) => ({ id: f.id, ordem: i })) }),
+      });
+      showToast('Ordem salva');
     } catch { loadFotos(selectedCat); showToast('Erro ao reordenar fotos', 'error'); }
   };
+
+  // Touch drag support for mobile reordering
+  const handleTouchStart = useCallback((e, idx) => {
+    if (!isReorderMode) return;
+    touchDragRef.current.startIndex = idx;
+    touchDragRef.current.element = e.currentTarget;
+    e.currentTarget.style.opacity = '0.5';
+    e.currentTarget.style.transform = 'scale(0.95)';
+  }, [isReorderMode]);
+
+  const handleTouchMove = useCallback((e) => {
+    if (!isReorderMode || touchDragRef.current.startIndex === null) return;
+    e.preventDefault();
+    const touch = e.touches[0];
+    const elementBelow = document.elementFromPoint(touch.clientX, touch.clientY);
+    if (elementBelow) {
+      const card = elementBelow.closest('[data-foto-index]');
+      if (card) {
+        const overIdx = parseInt(card.dataset.fotoIndex, 10);
+        setDragOverIndex(overIdx);
+      }
+    }
+  }, [isReorderMode]);
+
+  const handleTouchEnd = useCallback(async () => {
+    if (!isReorderMode) return;
+    const { startIndex, element } = touchDragRef.current;
+    if (element) { element.style.opacity = '1'; element.style.transform = ''; }
+    const endIndex = dragOverIndex;
+    touchDragRef.current = { startIndex: null, currentIndex: null, element: null };
+    setDragOverIndex(null);
+
+    if (startIndex === null || endIndex === null || startIndex === endIndex) return;
+    const items = [...fotos];
+    const [moved] = items.splice(startIndex, 1);
+    items.splice(endIndex, 0, moved);
+    setFotos(items);
+    try {
+      await authFetch(`/admin/portfolio/categorias/${selectedCat}/fotos/ordem`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fotos: items.map((f, i) => ({ id: f.id, ordem: i })) }),
+      });
+      showToast('Ordem salva');
+    } catch { loadFotos(selectedCat); showToast('Erro ao reordenar fotos', 'error'); }
+  }, [isReorderMode, dragOverIndex, fotos, selectedCat, authFetch, loadFotos]);
 
   // Upload with progress tracking via XMLHttpRequest
   const uploadFileWithProgress = (url, file, onProgress) => {
@@ -256,13 +412,32 @@ export default function Portfolio() {
         <div className="space-y-4 pt-4 border-t">
           <div className="flex items-center justify-between">
             <h2 className="text-sm font-semibold text-gray-700">Fotos — {categorias.find(c => c.id === selectedCat)?.nome}</h2>
-            <button onClick={() => fileInputRef.current?.click()} disabled={uploading}
-              className="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50">
-              <Upload size={14} /> {uploading ? 'Enviando...' : 'Upload'}
-            </button>
+            <div className="flex items-center gap-2">
+              {fotos.length > 1 && (
+                <button
+                  onClick={() => setIsReorderMode(!isReorderMode)}
+                  className={`inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium border rounded-lg transition-colors
+                    ${isReorderMode ? 'border-orange-400 bg-orange-50 text-orange-700' : 'border-gray-300 hover:bg-gray-50'}`}
+                >
+                  <Move size={14} /> {isReorderMode ? 'Concluir' : 'Reordenar'}
+                </button>
+              )}
+              <button onClick={() => fileInputRef.current?.click()} disabled={uploading || isReorderMode}
+                className="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50">
+                <Upload size={14} /> {uploading ? 'Enviando...' : 'Upload'}
+              </button>
+            </div>
             <input ref={fileInputRef} type="file" accept="image/jpeg,image/png,image/webp" multiple hidden
               onChange={(e) => handleUpload(Array.from(e.target.files))} />
           </div>
+
+          {/* Reorder mode tip */}
+          {isReorderMode && (
+            <div className="flex items-center gap-2 px-3 py-2 bg-orange-50 border border-orange-200 rounded-lg text-xs text-orange-700">
+              <Move size={14} />
+              <span>Arraste as fotos para alterar a ordem de exibição. Clique em "Concluir" quando terminar.</span>
+            </div>
+          )}
 
           {/* Upload Progress Bar */}
           {uploadProgress && (
@@ -304,7 +479,7 @@ export default function Portfolio() {
           )}
 
           {loadingFotos ? (
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">{[...Array(6)].map((_, i) => <div key={i} className="aspect-square bg-gray-100 rounded-lg animate-pulse" />)}</div>
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">{[...Array(6)].map((_, i) => <div key={i} className="aspect-square bg-gray-100 rounded-lg animate-pulse" />)}</div>
           ) : fotos.length === 0 ? (
             <div className="text-center py-12 bg-gray-50 rounded-xl border-2 border-dashed border-gray-200">
               <Upload size={32} className="mx-auto text-gray-300 mb-2" />
@@ -314,41 +489,22 @@ export default function Portfolio() {
           ) : (
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
               {fotos.map((foto, idx) => (
-                <div key={foto.id} draggable
-                  onDragStart={(e) => handleFotoDragStart(e, idx)} onDragOver={(e) => handleFotoDragOver(e, idx)}
-                  onDrop={(e) => handleFotoDrop(e, idx)} onDragEnd={() => { setDragIndex(null); setDragOverIndex(null); }}
-                  className={`relative aspect-square rounded-lg overflow-hidden border bg-gray-100 group
-                    ${dragType === 'foto' && dragOverIndex === idx ? 'border-dashed border-2 border-orange-400' : 'border-gray-200'}
-                    ${dragType === 'foto' && dragIndex === idx ? 'opacity-30' : ''}`}
+                <div key={foto.id} data-foto-index={idx}
+                  onTouchStart={(e) => handleTouchStart(e, idx)}
+                  onTouchMove={handleTouchMove}
+                  onTouchEnd={handleTouchEnd}
                 >
-                  {foto.url_thumb || foto.url_web ? (
-                    <img src={foto.url_thumb || foto.url_web} alt="" className="w-full h-full object-cover" loading="lazy" />
-                  ) : foto.status === 'processando' ? (
-                    <div className="w-full h-full flex flex-col items-center justify-center gap-2">
-                      <div className="w-6 h-6 border-2 border-orange-300 border-t-orange-600 rounded-full animate-spin" />
-                      <span className="text-[10px] text-gray-400">Processando...</span>
-                    </div>
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center">
-                      <Image size={24} className="text-gray-300" />
-                    </div>
-                  )}
-                  {/* Status badge - only show if no image loaded yet */}
-                  {foto.status !== 'pronta' && !foto.url_thumb && !foto.url_web && foto.status === 'erro' && (
-                    <span className="absolute top-2 left-2 px-1.5 py-0.5 text-[10px] font-medium rounded bg-red-100 text-red-700">
-                      Erro
-                    </span>
-                  )}
-                  {/* Delete overlay */}
-                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                    <button onClick={() => handleDeleteFoto(foto.id)} className="p-2 bg-white/90 rounded-full hover:bg-white">
-                      <Trash2 size={14} className="text-red-600" />
-                    </button>
-                  </div>
-                  {/* Drag handle */}
-                  <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <GripVertical size={14} className="text-white drop-shadow cursor-grab" />
-                  </div>
+                  <DraggablePhoto
+                    foto={foto}
+                    index={idx}
+                    onDelete={handleDeleteFoto}
+                    onDragStart={handleFotoDragStart}
+                    onDragOver={handleFotoDragOver}
+                    onDrop={handleFotoDrop}
+                    isDragging={dragType === 'foto' && dragIndex === idx}
+                    isDragOver={dragType === 'foto' && dragOverIndex === idx}
+                    isReorderMode={isReorderMode}
+                  />
                 </div>
               ))}
             </div>
