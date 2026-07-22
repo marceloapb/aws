@@ -187,7 +187,7 @@ app.post('/admin/maps/distance-from-company', adminAuth, async (req, res) => {
     const { DynamoDBDocumentClient, QueryCommand } = require('@aws-sdk/lib-dynamodb');
     const ddb = DynamoDBDocumentClient.from(new DynamoDBClient({}));
     const TABLE = process.env.TABLE_NAME;
-    const tenantId = req.user.sub;
+    const tenantId = process.env.TENANT_ID || 'default';
 
     const { destino_lat, destino_lng } = req.body;
     if (!destino_lat || !destino_lng) {
