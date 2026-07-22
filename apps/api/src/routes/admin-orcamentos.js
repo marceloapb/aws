@@ -2,6 +2,7 @@ const { Router } = require('express');
 const { dynamo, TABLE } = require('../config/dynamodb');
 const { QueryCommand, PutCommand, UpdateCommand, DeleteCommand, GetCommand } = require('@aws-sdk/lib-dynamodb');
 const { resolverValorBase } = require('../services/catalogoPrecificacaoService');
+const { geocode, distanceMatrix } = require('../services/mapsService');
 
 const router = Router();
 
@@ -70,15 +71,25 @@ router.get('/', async (req, res) => {
     // Resolve client names for items that don't have clientName
     const clienteIds = [...new Set(pageItems.filter(i => i.cliente_id && !i.clientName && !i.nome_completo && !i.cliente_nome).map(i => i.cliente_id))];
     const clienteNomes = {};
+    const TENANT = process.env.TENANT_ID || 'default';
     for (const cid of clienteIds.slice(0, 20)) {
       try {
-        const profileResult = await dynamo.send(new QueryCommand({
+        // Try TENANT#<tenant> / CLIENTE#<id> (admin-clientes pattern)
+        const clienteResult = await dynamo.send(new GetCommand({
           TableName: TABLE,
-          KeyConditionExpression: 'PK = :pk AND SK = :sk',
-          ExpressionAttributeValues: { ':pk': `CLIENT#${cid}`, ':sk': 'PROFILE' },
+          Key: { PK: `TENANT#${TENANT}`, SK: `CLIENTE#${cid}` },
         }));
-        if (profileResult.Items?.[0]?.nome) {
-          clienteNomes[cid] = profileResult.Items[0].nome;
+        if (clienteResult.Item?.nome || clienteResult.Item?.nome_completo) {
+          clienteNomes[cid] = clienteResult.Item.nome || clienteResult.Item.nome_completo;
+        } else {
+          // Fallback: CLIENT#<id> / PROFILE (client-auth pattern)
+          const profileResult = await dynamo.send(new GetCommand({
+            TableName: TABLE,
+            Key: { PK: `CLIENT#${cid}`, SK: 'PROFILE' },
+          }));
+          if (profileResult.Item?.nome || profileResult.Item?.nome_completo) {
+            clienteNomes[cid] = profileResult.Item.nome || profileResult.Item.nome_completo;
+          }
         }
       } catch {}
     }
@@ -227,12 +238,106 @@ router.get('/:id/editar', async (req, res) => {
     }
 
     // ─── Normalizar cliente ───
+    const TENANT = process.env.TENANT_ID || 'default';
+    const clienteIdFromPK = orcamento.PK && orcamento.PK.startsWith('CLIENTE#') ? orcamento.PK.replace('CLIENTE#', '') : null;
+    const resolvedClienteId = orcamento.cliente_id || clienteIdFromPK;
+
+    if (!orcamento.cliente && resolvedClienteId) {
+      // Try TENANT#<tenant> / CLIENTE#<id> pattern (admin-clientes)
+      try {
+        const clienteResult = await dynamo.send(new GetCommand({
+          TableName: TABLE,
+          Key: { PK: `TENANT#${TENANT}`, SK: `CLIENTE#${resolvedClienteId}` },
+        }));
+        const profile = clienteResult.Item;
+        if (profile) {
+          orcamento.cliente = {
+            id: profile.id || resolvedClienteId,
+            nome: profile.nome || profile.nome_completo || null,
+            email: profile.email || null,
+            telefone: profile.telefone || profile.whatsapp_numero || profile.celular || null,
+          };
+        }
+      } catch {}
+    }
+    // Fallback: try CLIENT#<id> / PROFILE pattern (client-auth)
+    if (!orcamento.cliente && resolvedClienteId) {
+      try {
+        const profileResult = await dynamo.send(new GetCommand({
+          TableName: TABLE,
+          Key: { PK: `CLIENT#${resolvedClienteId}`, SK: 'PROFILE' },
+        }));
+        const profile = profileResult.Item;
+        if (profile) {
+          orcamento.cliente = {
+            id: resolvedClienteId,
+            nome: profile.nome || profile.nome_completo || null,
+            email: profile.email || null,
+            telefone: profile.telefone || profile.celular || null,
+          };
+        }
+      } catch {}
+    }
+    // Fallback: build cliente from flat fields on the orçamento itself
     if (!orcamento.cliente) {
       orcamento.cliente = {
         nome: orcamento.clientName || orcamento.nome_completo || orcamento.cliente_nome || null,
         email: orcamento.cliente_email || orcamento.email || null,
         telefone: orcamento.cliente_telefone || orcamento.telefone || null,
       };
+    }
+
+    // Normalize local_evento for frontend
+    if (!orcamento.local_evento && orcamento.local) {
+      orcamento.local_evento = orcamento.local;
+    }
+
+    // Calculate distance for edit page too
+    if ((orcamento.local_evento || orcamento.local) && !orcamento.distancia_km) {
+      try {
+        const tenantCfg = process.env.TENANT_ID || 'default';
+        const configResult2 = await dynamo.send(new QueryCommand({
+          TableName: TABLE,
+          KeyConditionExpression: 'PK = :pk AND begins_with(SK, :sk)',
+          ExpressionAttributeValues: { ':pk': `TENANT#${tenantCfg}`, ':sk': 'CONFIG#' },
+        }));
+        let empresaEndereco = null;
+        let empresaLat = null;
+        let empresaLng = null;
+        for (const c of (configResult2.Items || [])) {
+          if (c.chave === 'endereco' || c.chave === 'endereco_empresa') empresaEndereco = c.valor;
+          if (c.chave === 'latitude') empresaLat = Number(c.valor);
+          if (c.chave === 'longitude') empresaLng = Number(c.valor);
+        }
+
+        if (empresaEndereco || (empresaLat && empresaLng)) {
+          const eventoEndereco = orcamento.local_evento || orcamento.local;
+          const eventoCep = orcamento.endereco?.cep || null;
+          const eventoGeo = await geocode(eventoEndereco, eventoCep);
+
+          if (eventoGeo) {
+            orcamento.local_lat = eventoGeo.lat;
+            orcamento.local_lng = eventoGeo.lng;
+
+            let origemLat = empresaLat;
+            let origemLng = empresaLng;
+            if (!origemLat || !origemLng) {
+              const empresaGeo = await geocode(empresaEndereco, null);
+              if (empresaGeo) { origemLat = empresaGeo.lat; origemLng = empresaGeo.lng; }
+            }
+
+            if (origemLat && origemLng) {
+              const dist = await distanceMatrix(origemLat, origemLng, eventoGeo.lat, eventoGeo.lng);
+              if (dist) {
+                orcamento.distancia_km = dist.distancia_km;
+                orcamento.duracao_minutos = dist.duracao_minutos;
+              }
+            }
+          }
+        }
+      } catch (mapErr) {
+        console.error('Erro ao calcular distância (editar):', mapErr.message);
+      }
     }
 
     // ─── Buscar config do tenant para max_desconto ───
@@ -291,16 +396,39 @@ router.get('/:id', async (req, res) => {
     if (!orcamento) return res.status(404).json({ success: false, message: 'Orçamento não encontrado' });
 
     // Normalize: ensure 'cliente' object exists for OrcamentoDetalhe.jsx
-    if (!orcamento.cliente && orcamento.cliente_id) {
+    const TENANT = process.env.TENANT_ID || 'default';
+    const clienteIdFromPK = orcamento.PK && orcamento.PK.startsWith('CLIENTE#') ? orcamento.PK.replace('CLIENTE#', '') : null;
+    const resolvedClienteId = orcamento.cliente_id || clienteIdFromPK;
+
+    if (!orcamento.cliente && resolvedClienteId) {
+      // Try TENANT#<tenant> / CLIENTE#<id> pattern (admin-clientes)
       try {
-        const profileResult = await dynamo.send(new QueryCommand({
+        const clienteResult = await dynamo.send(new GetCommand({
           TableName: TABLE,
-          KeyConditionExpression: 'PK = :pk AND SK = :sk',
-          ExpressionAttributeValues: { ':pk': `CLIENTE#${orcamento.cliente_id}`, ':sk': 'PROFILE' },
+          Key: { PK: `TENANT#${TENANT}`, SK: `CLIENTE#${resolvedClienteId}` },
         }));
-        const profile = profileResult.Items?.[0];
+        const profile = clienteResult.Item;
         if (profile) {
           orcamento.cliente = {
+            id: profile.id || resolvedClienteId,
+            nome: profile.nome || profile.nome_completo || null,
+            email: profile.email || null,
+            telefone: profile.telefone || profile.whatsapp_numero || profile.celular || null,
+          };
+        }
+      } catch {}
+    }
+    // Fallback: try CLIENT#<id> / PROFILE pattern (client-auth)
+    if (!orcamento.cliente && resolvedClienteId) {
+      try {
+        const profileResult = await dynamo.send(new GetCommand({
+          TableName: TABLE,
+          Key: { PK: `CLIENT#${resolvedClienteId}`, SK: 'PROFILE' },
+        }));
+        const profile = profileResult.Item;
+        if (profile) {
+          orcamento.cliente = {
+            id: resolvedClienteId,
             nome: profile.nome || profile.nome_completo || null,
             email: profile.email || null,
             telefone: profile.telefone || profile.celular || null,
@@ -308,32 +436,77 @@ router.get('/:id', async (req, res) => {
         }
       } catch {}
     }
-    // Also try from PK pattern (CLIENTE#<id>)
-    if (!orcamento.cliente && orcamento.PK && orcamento.PK.startsWith('CLIENTE#')) {
-      const clienteId = orcamento.PK.replace('CLIENTE#', '');
-      try {
-        const profileResult = await dynamo.send(new QueryCommand({
-          TableName: TABLE,
-          KeyConditionExpression: 'PK = :pk AND SK = :sk',
-          ExpressionAttributeValues: { ':pk': `CLIENTE#${clienteId}`, ':sk': 'PROFILE' },
-        }));
-        const profile = profileResult.Items?.[0];
-        if (profile) {
-          orcamento.cliente = {
-            nome: profile.nome || profile.nome_completo || null,
-            email: profile.email || null,
-            telefone: profile.telefone || profile.celular || null,
-          };
-        }
-      } catch {}
-    }
-    // Fallback: build cliente from flat fields
+    // Fallback: build cliente from flat fields on the orçamento itself
     if (!orcamento.cliente) {
       orcamento.cliente = {
         nome: orcamento.clientName || orcamento.nome_completo || orcamento.cliente_nome || null,
         email: orcamento.cliente_email || orcamento.email || null,
         telefone: orcamento.cliente_telefone || orcamento.telefone || null,
       };
+    }
+
+    // Normalize local_evento for MapEmbed (field is stored as 'local' from client form)
+    if (!orcamento.local_evento && orcamento.local) {
+      orcamento.local_evento = orcamento.local;
+    }
+
+    // Calculate distance from company address to event location if not already cached
+    if ((orcamento.local_evento || orcamento.local) && !orcamento.distancia_km) {
+      try {
+        // Get company address from config
+        const tenantCfg = process.env.TENANT_ID || 'default';
+        const configResult = await dynamo.send(new QueryCommand({
+          TableName: TABLE,
+          KeyConditionExpression: 'PK = :pk AND begins_with(SK, :sk)',
+          ExpressionAttributeValues: { ':pk': `TENANT#${tenantCfg}`, ':sk': 'CONFIG#' },
+        }));
+        let empresaEndereco = null;
+        let empresaLat = null;
+        let empresaLng = null;
+        for (const c of (configResult.Items || [])) {
+          if (c.chave === 'endereco' || c.chave === 'endereco_empresa') empresaEndereco = c.valor;
+          if (c.chave === 'latitude') empresaLat = Number(c.valor);
+          if (c.chave === 'longitude') empresaLng = Number(c.valor);
+        }
+
+        if (empresaEndereco || (empresaLat && empresaLng)) {
+          const eventoEndereco = orcamento.local_evento || orcamento.local;
+
+          // Geocode the event location
+          const eventoCep = orcamento.endereco?.cep || null;
+          const eventoGeo = await geocode(eventoEndereco, eventoCep);
+
+          if (eventoGeo) {
+            orcamento.local_lat = eventoGeo.lat;
+            orcamento.local_lng = eventoGeo.lng;
+
+            // Get company coordinates
+            let origemLat = empresaLat;
+            let origemLng = empresaLng;
+            if (!origemLat || !origemLng) {
+              const empresaGeo = await geocode(empresaEndereco, null);
+              if (empresaGeo) {
+                origemLat = empresaGeo.lat;
+                origemLng = empresaGeo.lng;
+              }
+            }
+
+            // Calculate distance
+            if (origemLat && origemLng) {
+              const dist = await distanceMatrix(origemLat, origemLng, eventoGeo.lat, eventoGeo.lng);
+              if (dist) {
+                orcamento.distancia_km = dist.distancia_km;
+                orcamento.duracao_minutos = dist.duracao_minutos;
+                orcamento.distancia_texto = dist.distancia_texto;
+                orcamento.duracao_texto = dist.duracao_texto;
+              }
+            }
+          }
+        }
+      } catch (mapErr) {
+        // Distance calculation is non-critical, don't block the response
+        console.error('Erro ao calcular distância:', mapErr.message);
+      }
     }
 
     // Normalize status: map legacy values so detail page can match
