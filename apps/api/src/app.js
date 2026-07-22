@@ -33,6 +33,7 @@ const adminNotificacoesRoutes = require('./routes/admin-notificacoes');
 const adminNovidadesRoutes = require('./routes/admin-novidades');
 const adminSiteRoutes = require('./routes/admin-site');
 const adminMediaRoutes = require('./routes/admin-media');
+const adminPortfolioRoutes = require('./routes/admin-portfolio');
 const adminGaleriasRoutes = require('./routes/admin-galerias');
 const adminAlbumComentariosRoutes = require('./routes/admin-album-comentarios');
 const adminAlbumStatsRoutes = require('./routes/admin-album-stats');
@@ -123,6 +124,7 @@ app.use('/admin/notificacoes', adminAuth, adminNotificacoesRoutes);
 app.use('/admin/novidades', adminAuth, adminNovidadesRoutes);
 app.use('/admin/site', adminAuth, adminSiteRoutes);
 app.use('/admin/media', adminAuth, adminMediaRoutes);
+app.use('/admin/portfolio', adminAuth, adminPortfolioRoutes);
 
 // Registrar rotas Client (protegidas por clientAuth)
 app.use('/client/auth', clientAuthRoutes);

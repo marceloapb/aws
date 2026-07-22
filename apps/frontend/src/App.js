@@ -33,6 +33,7 @@ import NotasFiscais from './pages/admin/NotasFiscais';
 // NfseConfig moved to ConfigEmpresa hub
 import Aditivos from './pages/admin/Aditivos';
 import Equipamentos from './pages/admin/Equipamentos';
+import Portfolio from './pages/admin/Portfolio';
 import Instagram from './pages/admin/Instagram';
 import WhatsApp from './pages/admin/WhatsApp';
 import Followup from './pages/admin/Followup';
@@ -137,6 +138,9 @@ function App() {
         <Route path="albuns" element={<Albuns />} />
         <Route path="albuns/:id" element={<AlbumDetalhe />} />
         <Route path="albuns/config" element={<Navigate to="/admin/config?tab=albuns" replace />} />
+
+        {/* Portfólio */}
+        <Route path="portfolio" element={<Portfolio />} />
 
         {/* Clientes */}
         <Route path="clientes" element={<Clientes />} />
