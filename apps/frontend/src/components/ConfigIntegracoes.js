@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import { CheckCircle, XCircle, RefreshCw, Play, FileText } from 'lucide-react';
+import { CheckCircle, XCircle, RefreshCw, Play, FileText, Save } from 'lucide-react';
 
 const ACCENT = '#EA580C';
 const WEBHOOK_URL = 'https://setvwal0cd.execute-api.us-east-1.amazonaws.com/prod/whatsapp/webhook';
@@ -16,6 +16,8 @@ export default function ConfigIntegracoes({ form, setForm }) {
   const [mapsStatus, setMapsStatus] = useState(null);
   const [subTab, setSubTab] = useState('whatsapp');
   const [syncing, setSyncing] = useState(false);
+  const [savingCalendar, setSavingCalendar] = useState(false);
+  const [calendarDirty, setCalendarDirty] = useState(false);
   const [testing, setTesting] = useState('');
   const [testResult, setTestResult] = useState(null);
 
@@ -347,10 +349,10 @@ export default function ConfigIntegracoes({ form, setForm }) {
               <p className="text-sm font-medium text-gray-900">Sincronização Automática</p>
               <p className="text-xs text-gray-500">Eventos criados no MBF aparecem automaticamente no Google Calendar</p>
             </div>
-            <button type="button" onClick={async () => {
+            <button type="button" onClick={() => {
               const newVal = !form.calendarAutoSync;
               setForm({ ...form, calendarAutoSync: newVal });
-              try { await authFetch('/admin/google-calendar/config', { method: 'PUT', body: JSON.stringify({ autoSync: newVal }) }); } catch {}
+              setCalendarDirty(true);
             }}
               className={`w-12 h-6 rounded-full transition-colors relative ${form.calendarAutoSync ? 'bg-green-500' : 'bg-gray-300'}`}>
               <div className={`w-5 h-5 bg-white rounded-full shadow absolute top-0.5 transition-transform ${form.calendarAutoSync ? 'translate-x-6' : 'translate-x-0.5'}`} />
@@ -362,6 +364,26 @@ export default function ConfigIntegracoes({ form, setForm }) {
               💡 A sincronização é MBF → Google (mão única). Eventos criados no MBF aparecem no Google Calendar. Alterações no Google não voltam para o MBF.
             </p>
           </div>
+
+          {/* Botão Salvar Configuração */}
+          {calendarDirty && (
+            <div className="flex items-center gap-3">
+              <button type="button" onClick={async () => {
+                setSavingCalendar(true);
+                try {
+                  await authFetch('/admin/google-calendar/config', { method: 'PUT', body: JSON.stringify({ autoSync: form.calendarAutoSync }) });
+                  setCalendarDirty(false);
+                } catch {} finally { setSavingCalendar(false); }
+              }}
+                disabled={savingCalendar}
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium text-white hover:opacity-90 transition-opacity disabled:opacity-50"
+                style={{ background: ACCENT }}>
+                <Save size={16} className={savingCalendar ? 'animate-pulse' : ''} />
+                {savingCalendar ? 'Salvando...' : 'Salvar'}
+              </button>
+              <span className="text-xs text-amber-600">Alterações não salvas</span>
+            </div>
+          )}
 
           {/* Botões de ação */}
           <div className="flex items-center gap-3 flex-wrap pt-2 border-t">
