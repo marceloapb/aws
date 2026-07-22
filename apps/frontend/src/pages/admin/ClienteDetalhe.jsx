@@ -150,15 +150,40 @@ export default function ClienteDetalhe() {
           {[
             ['Telefone', cliente.telefone || cliente.phone],
             ['WhatsApp', cliente.whatsapp],
-            ['Instagram', cliente.instagram],
+            ['Instagram', cliente.instagram ? `@${cliente.instagram.replace('@', '')}` : null],
             ['CPF', cliente.cpf],
             ['Data Nasc.', cliente.data_nascimento ? new Date(cliente.data_nascimento).toLocaleDateString('pt-BR') : null],
-            ['Cidade/UF', cliente.cidade ? `${cliente.cidade}/${cliente.estado}` : null],
             ['Como conheceu', cliente.como_conheceu],
           ].filter(([, v]) => v).map(([label, value]) => (
             <div key={label}><span className="text-gray-500">{label}:</span> <span className="font-medium text-gray-900">{value}</span></div>
           ))}
         </div>
+
+        {/* Endereço */}
+        {(() => {
+          const end = cliente.endereco || {};
+          const cidade = end.cidade || cliente.cidade;
+          const estado = end.estado || cliente.estado;
+          const hasEndereco = end.cep || end.logradouro || end.bairro || cidade;
+          if (!hasEndereco) return null;
+          return (
+            <div className="mt-4 pt-4 border-t">
+              <h3 className="text-sm font-medium text-gray-700 mb-2">Endereço</h3>
+              <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 text-sm">
+                {[
+                  ['CEP', end.cep],
+                  ['Logradouro', [end.logradouro, end.numero].filter(Boolean).join(', ')],
+                  ['Complemento', end.complemento],
+                  ['Bairro', end.bairro],
+                  ['Cidade/UF', cidade ? `${cidade}${estado ? '/' + estado : ''}` : null],
+                ].filter(([, v]) => v).map(([label, value]) => (
+                  <div key={label}><span className="text-gray-500">{label}:</span> <span className="font-medium text-gray-900">{value}</span></div>
+                ))}
+              </div>
+            </div>
+          );
+        })()}
+
         {cliente.tags?.length > 0 && (
           <div className="flex flex-wrap gap-2 mt-4 pt-4 border-t">
             {cliente.tags.map((tag, i) => (
