@@ -150,6 +150,7 @@ export default function Equipamentos() {
     const data = { nome: item.nome, marca: item.marca, modelo: item.modelo, categoria: item.categoria, numero_serie: item.numero_serie, valor_estimado: item.valor_estimado, descricao: item.descricao, ativo: true, status: 'disponivel' };
     await authFetch('/admin/equipamentos', { method: 'POST', body: JSON.stringify(data) });
     setIaResults(prev => prev.map((r, i) => i === idx ? { ...r, _confirmed: true } : r));
+    fetchAll();
   };
 
   const confirmarTodosIA = async () => {
