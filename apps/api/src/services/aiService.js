@@ -8,8 +8,8 @@ const { BedrockRuntimeClient, ConverseCommand } = require('@aws-sdk/client-bedro
 const bedrock = new BedrockRuntimeClient({ region: 'us-east-1' });
 const MODEL_ID = 'amazon.nova-micro-v1:0';
 // Modelo com visão para identificar equipamentos
-// Claude Sonnet 4.5 — cross-region inference profile (us-east-1)
-const VISION_MODEL_ID = process.env.BEDROCK_VISION_MODEL_ID || 'us.anthropic.claude-sonnet-4-5-20250929-v1:0';
+// Amazon Nova Lite — suporta visão (IMAGE input), ON_DEMAND, sem marketplace agreement
+const VISION_MODEL_ID = process.env.BEDROCK_VISION_MODEL_ID || 'amazon.nova-lite-v1:0';
 const VISION_FALLBACK_MODEL_ID = 'us.anthropic.claude-haiku-4-5-20251001-v1:0';
 
 /**
