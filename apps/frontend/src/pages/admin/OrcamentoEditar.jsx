@@ -736,10 +736,19 @@ export default function OrcamentoEditar() {
                       </div>
                       <div className="flex items-center gap-2">
                         <label className="text-[10px] text-gray-400">R$/hora extra:</label>
-                        <input type="number" min={0} step={10}
-                          className="w-20 border rounded px-2 py-1 text-xs text-center outline-none"
-                          value={valorHoraExtra}
-                          onChange={e => { setValorHoraExtra(Math.max(0, Number(e.target.value))); setValorHoraExtraManual(true); }} />
+                        {valorHoraExtraDosItens > 0 ? (
+                          <span className="w-20 border border-gray-200 bg-gray-50 rounded px-2 py-1 text-xs text-center font-medium text-gray-700">
+                            {valorHoraExtra.toLocaleString('pt-BR', { minimumFractionDigits: 0 })}
+                          </span>
+                        ) : (
+                          <input type="number" min={0} step={10}
+                            className="w-20 border rounded px-2 py-1 text-xs text-center outline-none"
+                            value={valorHoraExtra}
+                            onChange={e => { setValorHoraExtra(Math.max(0, Number(e.target.value))); setValorHoraExtraManual(true); }} />
+                        )}
+                        {valorHoraExtraDosItens > 0 && (
+                          <span className="text-[9px] text-gray-400">(do catálogo)</span>
+                        )}
                       </div>
                     </>
                   )}
