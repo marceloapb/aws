@@ -75,6 +75,7 @@ export default function OrcamentoEditar() {
   const [itens, setItens] = useState([]);
   const [descontoTipo, setDescontoTipo] = useState('pct');
   const [descontoValor, setDescontoValor] = useState(0);
+  const [descontoAplicarEm, setDescontoAplicarEm] = useState('tudo'); // 'tudo', 'avista', 'parcelado'
   const [condicoes, setCondicoes] = useState({
     avista: { ativo: true, desconto_pct: 5 },
     sem_juros: { ativo: true, max_parcelas: 6 },
@@ -128,6 +129,7 @@ export default function OrcamentoEditar() {
         setItens(itensEnriquecidos);
         setDescontoTipo(opcaoSalva.desconto_tipo || 'pct');
         setDescontoValor(opcaoSalva.desconto_valor || 0);
+        setDescontoAplicarEm(opcaoSalva.desconto_aplicar_em || 'tudo');
         // Valor hora adicional agora é sempre automático (do catálogo)
       } else if (itens_sugeridos && itens_sugeridos.length > 0) {
         setItens(itens_sugeridos.map(i => ({ ...i, _key: Math.random() })));
@@ -161,7 +163,11 @@ export default function OrcamentoEditar() {
   // ─── Cálculos derivados ───────────────────────────────────────────────────
   const subtotal = useMemo(() => calcSubtotal(itens), [itens]);
   const descontoValorCalculado = useMemo(() => calcDesconto(subtotal, descontoTipo, descontoValor), [subtotal, descontoTipo, descontoValor]);
-  const total = useMemo(() => Math.max(0, subtotal - descontoValorCalculado), [subtotal, descontoValorCalculado]);
+  // Desconto aplicado no total geral só quando é "tudo"
+  const total = useMemo(() => {
+    if (descontoAplicarEm === 'tudo') return Math.max(0, subtotal - descontoValorCalculado);
+    return subtotal;
+  }, [subtotal, descontoValorCalculado, descontoAplicarEm]);
 
   const maxDescontoExcedido = useMemo(() => {
     if (!descontoValor || descontoValor <= 0) return false;
@@ -195,9 +201,21 @@ export default function OrcamentoEditar() {
   // Total incluindo horas extras
   const totalComExtras = useMemo(() => total + subtotalHorasExtras, [total, subtotalHorasExtras]);
 
-  const parcelaAvista = useMemo(() => totalComExtras * (1 - (condicoes.avista.desconto_pct || 0) / 100), [totalComExtras, condicoes.avista.desconto_pct]);
-  const parcelaSemJuros = useMemo(() => totalComExtras / Math.max(1, condicoes.sem_juros.max_parcelas), [totalComExtras, condicoes.sem_juros.max_parcelas]);
-  const parcelaComJuros = useMemo(() => calcParcela(totalComExtras, condicoes.com_juros.max_parcelas, condicoes.com_juros.taxa_mensal), [totalComExtras, condicoes.com_juros]);
+  const parcelaAvista = useMemo(() => {
+    let base = totalComExtras;
+    if (descontoAplicarEm === 'avista') base = Math.max(0, base - descontoValorCalculado);
+    return base * (1 - (condicoes.avista.desconto_pct || 0) / 100);
+  }, [totalComExtras, condicoes.avista.desconto_pct, descontoAplicarEm, descontoValorCalculado]);
+  const parcelaSemJuros = useMemo(() => {
+    let base = totalComExtras;
+    if (descontoAplicarEm === 'parcelado') base = Math.max(0, base - descontoValorCalculado);
+    return base / Math.max(1, condicoes.sem_juros.max_parcelas);
+  }, [totalComExtras, condicoes.sem_juros.max_parcelas, descontoAplicarEm, descontoValorCalculado]);
+  const parcelaComJuros = useMemo(() => {
+    let base = totalComExtras;
+    if (descontoAplicarEm === 'parcelado') base = Math.max(0, base - descontoValorCalculado);
+    return calcParcela(base, condicoes.com_juros.max_parcelas, condicoes.com_juros.taxa_mensal);
+  }, [totalComExtras, condicoes.com_juros, descontoAplicarEm, descontoValorCalculado]);
 
   // ─── Mutações de itens ────────────────────────────────────────────────────
   const updateItem = useCallback((key, field, val) =>
@@ -277,6 +295,7 @@ export default function OrcamentoEditar() {
           itens_snapshot: itens.map(({ _key, ...i }) => ({ ...i, valor_total: (i.valor_unitario || 0) * (i.quantidade || 1) })),
           desconto_tipo: descontoTipo,
           desconto_valor: descontoValor,
+          desconto_aplicar_em: descontoAplicarEm,
           valor_total: totalComExtras,
           horas_evento: horasEvento,
           horas_inclusas: horasInclusas,
@@ -666,6 +685,27 @@ export default function OrcamentoEditar() {
                   onChange={e => setDescontoValor(Math.max(0, Number(e.target.value)))}
                 />
                 <span className="px-2 bg-gray-50 text-xs text-gray-500 border-l">{descontoTipo === 'pct' ? '%' : 'R$'}</span>
+              </div>
+            </div>
+            {/* Aplicar em */}
+            <div>
+              <label className="text-xs text-gray-500 mb-1.5 block">Aplicar desconto em:</label>
+              <div className="flex gap-2">
+                {[
+                  { key: 'tudo', label: 'Tudo' },
+                  { key: 'avista', label: 'Somente à vista' },
+                  { key: 'parcelado', label: 'Somente parcelado' },
+                ].map(opt => (
+                  <button key={opt.key} type="button"
+                    onClick={() => setDescontoAplicarEm(opt.key)}
+                    className={`px-3 py-1.5 text-xs font-medium rounded-lg border transition-colors ${
+                      descontoAplicarEm === opt.key
+                        ? 'border-orange-400 bg-orange-50 text-orange-700'
+                        : 'border-gray-200 text-gray-600 hover:bg-gray-50'
+                    }`}>
+                    {opt.label}
+                  </button>
+                ))}
               </div>
             </div>
 
