@@ -57,6 +57,7 @@ export default function Contratos() {
   const [textoImportar, setTextoImportar] = useState('');
   const [nomeImportar, setNomeImportar] = useState('');
   const [arquivoImportar, setArquivoImportar] = useState(null);
+  const [modalPreview, setModalPreview] = useState(null);
 
   // --- Aba Aditivos state ---
   const [aditivos, setAditivos] = useState([]);
@@ -357,6 +358,7 @@ export default function Contratos() {
                   {(m.variaveis || VARIAVEIS.slice(0, 4)).map(v => <span key={v} className="text-[10px] bg-orange-50 text-orange-700 px-1.5 py-0.5 rounded">{v}</span>)}
                 </div>
                 <div className="flex gap-2 pt-2 border-t border-gray-100">
+                  <button onClick={() => setModalPreview(m)} className="text-xs text-gray-600 hover:text-gray-900 flex items-center gap-1"><Eye size={12} />Visualizar</button>
                   <button onClick={() => { setEditModelo(m); setFormModelo({ nome: m.nome, tipo_evento: Array.isArray(m.tipo_evento) ? m.tipo_evento : (m.tipo_evento ? [m.tipo_evento] : []), corpo_html: m.corpo_html || '', ativo: m.ativo }); setModalModelo(true); }} className="text-xs text-gray-600 hover:text-gray-900 flex items-center gap-1"><Edit size={12} />Editar</button>
                   <button onClick={() => duplicarModelo(m)} className="text-xs text-gray-600 hover:text-gray-900 flex items-center gap-1"><Layers size={12} />Duplicar</button>
                   <button onClick={() => excluirModelo(m.id)} className="text-xs text-red-500 hover:text-red-700 flex items-center gap-1"><Trash2 size={12} />Excluir</button>
@@ -499,6 +501,36 @@ export default function Contratos() {
             <button onClick={salvarModelo} disabled={!formModelo.nome || formModelo.tipo_evento.length === 0} style={{ background: ACCENT }} className="w-full py-2.5 text-white rounded-lg text-sm font-medium hover:opacity-90 disabled:opacity-50">
               {editModelo ? 'Salvar Alterações' : 'Criar Modelo'}
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* ===== MODAL PREVIEW MODELO ===== */}
+      {modalPreview && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-3xl p-6 space-y-4 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-lg font-bold text-gray-900">{modalPreview.nome}</h2>
+                <p className="text-xs text-gray-500">{Array.isArray(modalPreview.tipo_evento) ? modalPreview.tipo_evento.join(', ') : modalPreview.tipo_evento}</p>
+              </div>
+              <button onClick={() => setModalPreview(null)}><X size={20} className="text-gray-400 hover:text-gray-600" /></button>
+            </div>
+            <div className="border border-gray-200 rounded-lg p-4 bg-gray-50 overflow-auto max-h-[60vh]">
+              {modalPreview.corpo_html ? (
+                <div dangerouslySetInnerHTML={{ __html: modalPreview.corpo_html }} />
+              ) : (
+                <p className="text-sm text-gray-400 text-center py-8">Nenhum conteúdo HTML cadastrado neste modelo.</p>
+              )}
+            </div>
+            <div className="flex gap-2 justify-end">
+              <button onClick={() => { setEditModelo(modalPreview); setFormModelo({ nome: modalPreview.nome, tipo_evento: Array.isArray(modalPreview.tipo_evento) ? modalPreview.tipo_evento : (modalPreview.tipo_evento ? [modalPreview.tipo_evento] : []), corpo_html: modalPreview.corpo_html || '', ativo: modalPreview.ativo }); setModalPreview(null); setModalModelo(true); }} style={{ background: ACCENT }} className="inline-flex items-center gap-2 px-4 py-2 text-white rounded-lg text-sm font-medium hover:opacity-90">
+                <Edit size={14} /> Editar Modelo
+              </button>
+              <button onClick={() => setModalPreview(null)} className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50">
+                Fechar
+              </button>
+            </div>
           </div>
         </div>
       )}
