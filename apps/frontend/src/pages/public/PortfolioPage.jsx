@@ -15,17 +15,20 @@ export default function PortfolioPage() {
       .then(r => r.json())
       .then(data => {
         const portfolio = data.data || data;
-        if (Array.isArray(portfolio)) {
-          // Flat array of photos with category info
+        if (portfolio?.categorias) {
+          setCategorias(portfolio.categorias.map(c => c.nome));
+          const allFotos = portfolio.categorias.flatMap(c =>
+            (c.fotos || []).map(f => ({ ...f, categoria: c.nome }))
+          );
+          setFotos(allFotos);
+        } else if (portfolio?.fotos) {
+          setFotos(portfolio.fotos);
+          const cats = [...new Set(portfolio.fotos.map(f => f.categoria).filter(Boolean))];
+          setCategorias(cats);
+        } else if (Array.isArray(portfolio)) {
           setFotos(portfolio);
           const cats = [...new Set(portfolio.map(f => f.categoria).filter(Boolean))];
           setCategorias(cats);
-        } else if (portfolio?.categorias) {
-          setCategorias(portfolio.categorias.map(c => c.nome || c));
-          const allFotos = portfolio.categorias.flatMap(c =>
-            (c.fotos || []).map(f => ({ ...f, categoria: c.nome || c.categoria }))
-          );
-          setFotos(allFotos);
         }
       })
       .catch(() => {})

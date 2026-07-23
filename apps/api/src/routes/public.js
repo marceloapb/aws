@@ -236,7 +236,10 @@ router.post('/contato', async (req, res) => {
 // GET /public/portfolio — Categorias visíveis com fotos prontas (portfolio público)
 router.get('/portfolio', async (req, res) => {
   try {
-    const CDN_BASE_URL = process.env.CDN_BASE_URL || '';
+    const { S3Client, GetObjectCommand } = require('@aws-sdk/client-s3');
+    const { getSignedUrl } = require('@aws-sdk/s3-request-presigner');
+    const s3 = new S3Client({});
+    const BUCKET = process.env.S3_BUCKET_NAME || 'mbf-backend-v3-fotos';
 
     // Fetch all visible categories
     const catResult = await docClient.send(new QueryCommand({
@@ -249,7 +252,7 @@ router.get('/portfolio', async (req, res) => {
     }));
 
     const categorias = (catResult.Items || [])
-      .filter(cat => cat.visivel === true)
+      .filter(cat => cat.visivel !== false)
       .sort((a, b) => (a.ordem || 0) - (b.ordem || 0));
 
     // Fetch photos for each visible category
@@ -264,16 +267,31 @@ router.get('/portfolio', async (req, res) => {
           },
         }));
 
-        const fotos = (fotosResult.Items || [])
-          .filter(f => f.status === 'pronta')
-          .sort((a, b) => (a.ordem || 0) - (b.ordem || 0))
-          .map(f => ({
+        const fotosRaw = (fotosResult.Items || [])
+          .filter(f => f.status === 'ativo' || f.status === 'processando')
+          .sort((a, b) => (a.ordem || 0) - (b.ordem || 0));
+
+        // Generate presigned URLs for each photo
+        const fotos = await Promise.all(fotosRaw.map(async (f) => {
+          const thumbKey = (f.status === 'ativo' && f.s3_key_thumb) ? f.s3_key_thumb : f.s3_key;
+          const webKey = (f.status === 'ativo' && f.s3_key_web) ? f.s3_key_web : f.s3_key;
+          let url = null;
+          let url_full = null;
+          try {
+            url = await getSignedUrl(s3, new GetObjectCommand({ Bucket: BUCKET, Key: thumbKey || f.s3_key }), { expiresIn: 3600 });
+            url_full = await getSignedUrl(s3, new GetObjectCommand({ Bucket: BUCKET, Key: webKey || f.s3_key }), { expiresIn: 3600 });
+          } catch {}
+          return {
             id: f.id,
             titulo: f.titulo || '',
             descricao: f.descricao || '',
             ordem: f.ordem || 0,
-            url: f.s3_key ? `${CDN_BASE_URL}/${f.s3_key}` : null,
-          }));
+            categoria: cat.nome,
+            url,
+            thumb_url: url,
+            url_full,
+          };
+        }));
 
         return {
           id: cat.id,
@@ -285,8 +303,11 @@ router.get('/portfolio', async (req, res) => {
       })
     );
 
-    res.set('Cache-Control', 'public, max-age=300');
-    res.json({ success: true, data: categoriasComFotos });
+    // Flatten for the frontend format
+    const allFotos = categoriasComFotos.flatMap(c => c.fotos);
+
+    res.set('Cache-Control', 'public, max-age=60');
+    res.json({ success: true, data: { categorias: categoriasComFotos, fotos: allFotos } });
   } catch (error) {
     logger.error({ action: 'public_portfolio_categorias_error', error: error.message });
     res.status(500).json({ success: false, error: 'Erro ao buscar portfólio' });
