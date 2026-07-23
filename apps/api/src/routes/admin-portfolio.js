@@ -362,7 +362,7 @@ router.post('/fotos/confirmar', async (req, res) => {
       titulo: titulo ? titulo.trim() : '',
       descricao: descricao ? descricao.trim() : '',
       ordem: ordemVal,
-      status: 'processando',
+      status: 'ativo',
       criadoEm: now,
       atualizadoEm: now,
     };
@@ -404,9 +404,10 @@ router.get('/categorias/:catId/fotos', async (req, res) => {
 
     // Generate presigned/CDN URLs for display (same pattern as album)
     const fotosComUrl = await Promise.all(fotos.map(async (foto) => {
-      // Portfolio uses public bucket — try CDN first, fallback to presigned
-      const thumbKey = foto.s3_key_thumb || foto.s3_key_web || foto.s3_key;
-      const webKey = foto.s3_key_web || foto.s3_key_thumb || foto.s3_key;
+      // If status is 'processando', thumbs don't exist yet — use original
+      const useOriginal = foto.status === 'processando' || !foto.s3_key_thumb;
+      const thumbKey = useOriginal ? foto.s3_key : (foto.s3_key_thumb || foto.s3_key);
+      const webKey = useOriginal ? foto.s3_key : (foto.s3_key_web || foto.s3_key);
 
       if (!thumbKey) return foto;
 
