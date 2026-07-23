@@ -272,15 +272,40 @@ router.get('/portfolio', async (req, res) => {
           .sort((a, b) => (a.ordem || 0) - (b.ordem || 0));
 
         // Generate presigned URLs for each photo
+        // Prefer web/thumb versions (lighter), fallback to original if they don't exist
         const fotos = await Promise.all(fotosRaw.map(async (f) => {
-          // Use original file as source - thumbs don't exist for legacy photos
-          const displayKey = f.s3_key;
           let url = null;
           let url_full = null;
           try {
-            url = await getSignedUrl(s3, new GetObjectCommand({ Bucket: BUCKET, Key: displayKey }), { expiresIn: 3600 });
-            url_full = url;
-          } catch {}
+            // Check if web version exists
+            const webKey = f.s3_key_web;
+            const thumbKey = f.s3_key_thumb;
+            if (webKey) {
+              try {
+                await s3.send(new GetObjectCommand({ Bucket: BUCKET, Key: webKey, Range: 'bytes=0-0' }));
+                url_full = await getSignedUrl(s3, new GetObjectCommand({ Bucket: BUCKET, Key: webKey }), { expiresIn: 3600 });
+              } catch {
+                url_full = await getSignedUrl(s3, new GetObjectCommand({ Bucket: BUCKET, Key: f.s3_key }), { expiresIn: 3600 });
+              }
+            } else {
+              url_full = await getSignedUrl(s3, new GetObjectCommand({ Bucket: BUCKET, Key: f.s3_key }), { expiresIn: 3600 });
+            }
+            if (thumbKey) {
+              try {
+                await s3.send(new GetObjectCommand({ Bucket: BUCKET, Key: thumbKey, Range: 'bytes=0-0' }));
+                url = await getSignedUrl(s3, new GetObjectCommand({ Bucket: BUCKET, Key: thumbKey }), { expiresIn: 3600 });
+              } catch {
+                url = url_full;
+              }
+            } else {
+              url = url_full;
+            }
+          } catch {
+            try {
+              url = await getSignedUrl(s3, new GetObjectCommand({ Bucket: BUCKET, Key: f.s3_key }), { expiresIn: 3600 });
+              url_full = url;
+            } catch {}
+          }
           return {
             id: f.id,
             titulo: f.titulo || '',
