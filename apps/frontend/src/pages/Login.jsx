@@ -1,17 +1,34 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { Camera, Eye, EyeOff } from 'lucide-react';
 
 const ACCENT = '#EA580C';
+const API_URL = process.env.REACT_APP_API_URL || 'https://setvwal0cd.execute-api.us-east-1.amazonaws.com/prod';
 
 export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPw, setShowPw] = useState(false);
   const [error, setError] = useState('');
+  const [logoUrl, setLogoUrl] = useState('');
+  const [nomeSite, setNomeSite] = useState('MBFoto');
   const { login, loading } = useAuth();
   const navigate = useNavigate();
+
+  useEffect(() => {
+    const loadSiteConfig = async () => {
+      try {
+        const res = await fetch(`${API_URL}/public/site/config`);
+        const json = await res.json();
+        if (json.success && json.data) {
+          if (json.data.logo_url) setLogoUrl(json.data.logo_url);
+          if (json.data.nome) setNomeSite(json.data.nome);
+        }
+      } catch {}
+    };
+    loadSiteConfig();
+  }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -28,10 +45,14 @@ export default function Login() {
     <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
-          <div className="inline-flex items-center gap-2 mb-2">
-            <Camera size={32} style={{ color: ACCENT }} />
-            <span className="text-2xl font-bold text-gray-900">MBFoto</span>
-          </div>
+          {logoUrl ? (
+            <img src={logoUrl} alt={nomeSite} className="h-16 mx-auto mb-2 object-contain" />
+          ) : (
+            <div className="inline-flex items-center gap-2 mb-2">
+              <Camera size={32} style={{ color: ACCENT }} />
+              <span className="text-2xl font-bold text-gray-900">{nomeSite}</span>
+            </div>
+          )}
           <p className="text-gray-500 text-sm">Acesse sua conta</p>
         </div>
 
