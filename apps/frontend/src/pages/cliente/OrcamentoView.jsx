@@ -104,11 +104,14 @@ export default function OrcamentoView() {
 
                 {/* Itens */}
                 {(op.itens_snapshot || []).length > 0 && (
-                  <div className="space-y-1 mb-3">
+                  <div className="space-y-2 mb-3">
                     {op.itens_snapshot.map((item, i) => (
-                      <div key={i} className="flex justify-between text-sm text-gray-600">
-                        <span>{item.nome} {item.quantidade > 1 && `×${item.quantidade}`}</span>
-                        <span>{fmtBRL((item.valor_unitario || 0) * (item.quantidade || 1))}</span>
+                      <div key={i} className="flex justify-between text-sm">
+                        <div className="flex-1 mr-3">
+                          <span className="text-gray-800 font-medium">{item.nome} {item.quantidade > 1 && `×${item.quantidade}`}</span>
+                          {item.descricao && <p className="text-xs text-gray-500 mt-0.5">{item.descricao}</p>}
+                        </div>
+                        <span className="text-gray-600 shrink-0">{fmtBRL((item.valor_unitario || 0) * (item.quantidade || 1))}</span>
                       </div>
                     ))}
                   </div>
