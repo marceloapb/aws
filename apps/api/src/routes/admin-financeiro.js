@@ -41,17 +41,18 @@ router.get('/resumo', async (req, res) => {
       if (c.status === 'pago') {
         receitaTotal += valor;
         contratosUnicos.add(c.contratoId);
-        if (c.pagoEm && c.pagoEm.startsWith(mesAtual)) {
+        const dataPago = c.pago_em || c.pagoEm || '';
+        if (dataPago.startsWith(mesAtual)) {
           receitaMesAtual += valor;
         }
         // Agrupar por método
-        const metodo = c.metodoPagamento || 'outros';
+        const metodo = c.metodoPagamento || c.meio_pagamento || 'outros';
         porMetodo[metodo] = (porMetodo[metodo] || 0) + valor;
       } else if (c.status === 'cancelado' || c.status === 'cancelada') {
         totalCancelado += valor;
       } else if (c.vencimento && c.vencimento < hoje && c.status !== 'pago') {
         inadimplencia += valor;
-      } else if (c.vencimento && c.vencimento >= hoje && c.status === 'pendente') {
+      } else if ((c.vencimento || c.data_vencimento) && (c.vencimento || c.data_vencimento) >= hoje && c.status === 'pendente') {
         aReceber += valor;
       }
     });
@@ -107,7 +108,7 @@ router.get('/mensal', async (req, res) => {
     const hoje = new Date().toISOString().slice(0, 10);
 
     cobrancas.forEach(c => {
-      const dataPagamento = c.pagoEm || c.vencimento || '';
+      const dataPagamento = c.pago_em || c.pagoEm || c.data_vencimento || c.vencimento || '';
       if (!dataPagamento.startsWith(ano)) return;
 
       const mesKey = dataPagamento.slice(0, 7);
@@ -118,7 +119,7 @@ router.get('/mensal', async (req, res) => {
       if (c.status === 'pago') {
         meses[mesKey].receita += valor;
         meses[mesKey].quantidade++;
-      } else if (c.vencimento && c.vencimento < hoje) {
+      } else if ((c.vencimento || c.data_vencimento) && (c.vencimento || c.data_vencimento) < hoje) {
         meses[mesKey].inadimplencia += valor;
       } else {
         meses[mesKey].aReceber += valor;

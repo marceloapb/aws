@@ -62,11 +62,21 @@ export default function Dashboard() {
 
   const now = new Date();
   const todayStr = now.toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
-  const sessionsToday = events.filter(e => new Date(e.date || e.data_evento).toDateString() === now.toDateString()).length;
-  const sessionsWeek = events.filter(e => { const d = new Date(e.date || e.data_evento); return d >= now && d <= new Date(now.getTime() + 7 * 86400000); }).length;
-  const pendingQuotes = quotes.filter(q => ['draft', 'pending', 'rascunho', 'pendente', 'enviado'].includes(q.status));
-  const overdueCharges = charges.filter(c => ['overdue', 'atrasada', 'vencida'].includes(c.status));
-  const pendingContracts = contracts.filter(c => ['pending', 'aguardando', 'enviado'].includes(c.status));
+  const getEventDate = (e) => new Date(e.data_evento || e.date);
+  const sessionsToday = events.filter(e => getEventDate(e).toDateString() === now.toDateString()).length;
+  const sessionsWeek = events.filter(e => { const d = getEventDate(e); return d >= now && d <= new Date(now.getTime() + 7 * 86400000); }).length;
+  const pendingQuotes = quotes.filter(q => ['draft', 'sent', 'pending', 'rascunho', 'pendente', 'enviado'].includes(q.status));
+  const overdueCharges = charges.filter(c => {
+    // Status explicitamente marcado como atrasado
+    if (['overdue', 'atrasada', 'vencida'].includes(c.status)) return true;
+    // Cobrança pendente cuja data de vencimento já passou
+    const vencimento = c.data_vencimento || c.dueDate;
+    if (vencimento && ['pendente', 'pending'].includes(c.status)) {
+      return new Date(vencimento) < now;
+    }
+    return false;
+  });
+  const pendingContracts = contracts.filter(c => ['pending', 'aguardando', 'enviado', 'rascunho'].includes(c.status));
   const readyAlbums = albums.filter(a => ['ready', 'pronto'].includes(a.status));
   const formatBRL = (v) => Number(v || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
@@ -74,18 +84,18 @@ export default function Dashboard() {
   const pendencies = [
     ...pendingQuotes.map(q => ({ id: `q-${q.id}`, icon: FileText, title: `Orçamento: ${q.clientName || q.cliente_nome || 'Cliente'}`, date: q.createdAt || q.created || q.updatedAt, action: 'Enviar agora', color: 'bg-blue-600', onClick: () => navigate(`/admin/orcamentos/${q.id}`) })),
     ...pendingContracts.map(c => ({ id: `c-${c.id}`, icon: RefreshCw, title: `Contrato: ${c.clientName || c.cliente_nome || 'Cliente'}`, date: c.createdAt || c.created || c.updatedAt, action: 'Reenviar', color: 'bg-purple-600', onClick: () => navigate(`/admin/contratos/${c.id}`) })),
-    ...overdueCharges.map(c => ({ id: `ch-${c.id}`, icon: MessageCircle, title: `Cobrança: ${c.clientName || c.cliente_nome || 'Cliente'}`, date: c.dueDate || c.data_vencimento || c.createdAt, action: 'Cobrar via WhatsApp', color: 'bg-green-600', onClick: () => window.open(`https://wa.me/${c.phone || c.telefone}?text=Olá! Sua cobrança está pendente.`, '_blank') })),
+    ...overdueCharges.map(c => ({ id: `ch-${c.id}`, icon: MessageCircle, title: `Cobrança: ${c.clientName || c.cliente_nome || 'Cliente'}`, date: c.data_vencimento || c.dueDate || c.createdAt || c.created, action: 'Cobrar via WhatsApp', color: 'bg-green-600', onClick: () => window.open(`https://wa.me/${c.whatsapp_numero || c.phone || c.telefone || ''}?text=Olá! Sua cobrança está pendente.`, '_blank') })),
     ...readyAlbums.map(a => ({ id: `a-${a.id}`, icon: Upload, title: `Álbum: ${a.title || a.titulo || a.clientName || a.cliente_nome || 'Álbum'}`, date: a.updatedAt || a.updated || a.createdAt || a.created, action: 'Publicar', color: 'bg-orange-600', onClick: () => navigate(`/admin/albuns/${a.id}`) })),
   ];
 
   // Próximas sessões
-  const upcoming = events.filter(e => new Date(e.date || e.data_evento) >= now).sort((a, b) => new Date(a.date || a.data_evento) - new Date(b.date || b.data_evento)).slice(0, 5);
+  const upcoming = events.filter(e => getEventDate(e) >= now).sort((a, b) => getEventDate(a) - getEventDate(b)).slice(0, 5);
 
   // Atividade recente (últimas 5 do sistema)
   const recentActivity = [
     ...quotes.map(q => ({ date: q.createdAt || q.created, text: `Orçamento criado — ${q.clientName || q.cliente_nome || 'Cliente'}`, icon: FileText })),
     ...contracts.filter(c => ['signed', 'assinado'].includes(c.status)).map(c => ({ date: c.signedAt || c.assinado_em || c.updatedAt || c.updated, text: `Contrato assinado — ${c.clientName || c.cliente_nome || 'Cliente'}`, icon: CheckCircle2 })),
-    ...charges.filter(c => ['paid', 'pago'].includes(c.status)).map(c => ({ date: c.paidAt || c.pago_em || c.updatedAt || c.updated, text: `Pagamento recebido — ${formatBRL(c.amount || c.valor)}`, icon: CreditCard })),
+    ...charges.filter(c => ['paid', 'pago'].includes(c.status)).map(c => ({ date: c.pago_em || c.paidAt || c.pagoEm || c.updatedAt || c.updated, text: `Pagamento recebido — ${formatBRL(c.amount || c.valor)}`, icon: CreditCard })),
   ].filter(a => a.date).sort((a, b) => new Date(b.date) - new Date(a.date)).slice(0, 5);
 
   // Redirect to onboarding if not completed
@@ -159,9 +169,9 @@ export default function Dashboard() {
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {[
           { label: 'Sessões Hoje / Semana', value: `${sessionsToday} / ${sessionsWeek}`, icon: Calendar, bg: 'bg-blue-50', fg: 'text-blue-600' },
-          { label: 'Orçamentos Pendentes', value: pendingQuotes.length, sub: pendingQuotes[0] ? timeAgo(pendingQuotes[0].createdAt) + ' parado' : '', icon: FileText, bg: 'bg-amber-50', fg: 'text-amber-600' },
-          { label: 'Receita do Mês', value: formatBRL(summary.received || summary.revenue || 0), icon: TrendingUp, bg: 'bg-green-50', fg: 'text-green-600' },
-          { label: 'Cobranças Atrasadas', value: overdueCharges.length, sub: overdueCharges[0] ? timeAgo(overdueCharges[0].dueDate) : '', icon: AlertCircle, bg: 'bg-red-50', fg: 'text-red-600' },
+          { label: 'Orçamentos Pendentes', value: pendingQuotes.length, sub: pendingQuotes[0] ? timeAgo(pendingQuotes[0].createdAt || pendingQuotes[0].created) + ' parado' : '', icon: FileText, bg: 'bg-amber-50', fg: 'text-amber-600' },
+          { label: 'Receita do Mês', value: formatBRL(summary.receitaMesAtual || summary.received || summary.revenue || 0), icon: TrendingUp, bg: 'bg-green-50', fg: 'text-green-600' },
+          { label: 'Cobranças Atrasadas', value: overdueCharges.length, sub: overdueCharges[0] ? timeAgo(overdueCharges[0].data_vencimento || overdueCharges[0].dueDate) : '', icon: AlertCircle, bg: 'bg-red-50', fg: 'text-red-600' },
         ].map(k => (
           <div key={k.label} className="bg-white rounded-xl border border-gray-200 p-4">
             <div className="flex items-start justify-between">
@@ -213,26 +223,29 @@ export default function Dashboard() {
           <p className="text-sm text-gray-400 text-center py-4">Nenhuma sessão agendada</p>
         ) : (
           <div className="space-y-2">
-            {upcoming.map(ev => (
+            {upcoming.map(ev => {
+              const evDate = getEventDate(ev);
+              return (
               <div key={ev.id} className="flex items-center gap-3 p-3 rounded-lg border border-gray-100 hover:bg-gray-50">
                 <div className="text-center shrink-0 w-10">
-                  <p className="text-[10px] text-gray-400 uppercase">{new Date(ev.date).toLocaleDateString('pt-BR', { weekday: 'short' })}</p>
-                  <p className="text-sm font-bold text-gray-800">{new Date(ev.date).getDate()}</p>
+                  <p className="text-[10px] text-gray-400 uppercase">{evDate.toLocaleDateString('pt-BR', { weekday: 'short' })}</p>
+                  <p className="text-sm font-bold text-gray-800">{evDate.getDate()}</p>
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-gray-800 truncate">{ev.clientName || ev.title}</p>
+                  <p className="text-sm font-medium text-gray-800 truncate">{ev.cliente_nome || ev.clientName || ev.titulo || ev.title || 'Sessão'}</p>
                   <div className="flex items-center gap-2 text-[11px] text-gray-400 mt-0.5">
-                    {ev.time && <span className="flex items-center gap-0.5"><Clock size={10} />{ev.time}</span>}
-                    {ev.type && <span>• {ev.type}</span>}
-                    {ev.location && <span className="flex items-center gap-0.5"><MapPin size={10} />{ev.location}</span>}
+                    {(ev.horario_inicio || ev.time) && <span className="flex items-center gap-0.5"><Clock size={10} />{ev.horario_inicio || ev.time}</span>}
+                    {(ev.tipo_evento || ev.type) && <span>• {ev.tipo_evento || ev.type}</span>}
+                    {(ev.local || ev.location) && <span className="flex items-center gap-0.5"><MapPin size={10} />{ev.local || ev.location}</span>}
                   </div>
                 </div>
-                <button onClick={() => window.open(`https://wa.me/${ev.phone}?text=Lembrete: sua sessão está agendada!`, '_blank')}
+                <button onClick={() => window.open(`https://wa.me/${ev.cliente_telefone || ev.phone}?text=Lembrete: sua sessão está agendada!`, '_blank')}
                   className="text-xs font-medium px-3 py-1.5 rounded-lg border border-gray-200 hover:border-orange-300 hover:text-orange-600 transition-colors shrink-0 flex items-center gap-1">
                   <Bell size={12} /> Lembrete
                 </button>
               </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
