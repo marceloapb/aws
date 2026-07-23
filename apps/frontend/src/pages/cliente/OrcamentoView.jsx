@@ -94,7 +94,10 @@ export default function OrcamentoView() {
                 }`}
               >
                 <div className="flex items-center justify-between mb-3">
-                  <h3 className="font-semibold text-gray-900">{op.nome || `Opção ${idx + 1}`}</h3>
+                  <div>
+                    {opcoes.length > 1 && <span className="text-xs font-semibold text-gray-400 uppercase">Opção {idx + 1}</span>}
+                    <h3 className="font-semibold text-gray-900">{op.nome || `Proposta ${idx + 1}`}</h3>
+                  </div>
                   {isSelected && (
                     <div className="w-6 h-6 rounded-full flex items-center justify-center" style={{ background: ACCENT }}>
                       <Check size={14} className="text-white" />
