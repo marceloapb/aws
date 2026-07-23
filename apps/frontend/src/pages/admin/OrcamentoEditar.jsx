@@ -717,7 +717,7 @@ export default function OrcamentoEditar() {
                   <span>-{fmtBRL(descontoValorCalculado)}</span>
                 </div>
               )}
-              {/* Horas extras */}
+              {/* Horas Adicionais */}
               {horasEvento > 0 && (
                 <div className="pt-2 border-t space-y-1.5">
                   <div className="flex justify-between text-xs text-gray-500">
@@ -731,11 +731,11 @@ export default function OrcamentoEditar() {
                   {horasExtras > 0 && (
                     <>
                       <div className="flex justify-between text-xs text-orange-600 font-medium">
-                        <span>Horas extras ({horasExtras.toFixed(1)}h)</span>
+                        <span>Horas Adicionais ({horasExtras.toFixed(1)}h)</span>
                         <span>+{fmtBRL(subtotalHorasExtras)}</span>
                       </div>
                       <div className="flex items-center gap-2">
-                        <label className="text-[10px] text-gray-400">R$/hora extra:</label>
+                        <label className="text-[10px] text-gray-400">R$/hora adicional:</label>
                         {valorHoraExtraDosItens > 0 ? (
                           <span className="w-20 border border-gray-200 bg-gray-50 rounded px-2 py-1 text-xs text-center font-medium text-gray-700">
                             {valorHoraExtra.toLocaleString('pt-BR', { minimumFractionDigits: 0 })}
