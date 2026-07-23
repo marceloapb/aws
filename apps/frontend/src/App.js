@@ -41,6 +41,7 @@ import Followup from './pages/admin/Followup';
 import ImportCSV from './pages/admin/ImportCSV';
 import Storage from './pages/admin/Storage';
 import Notificacoes from './pages/admin/Notificacoes';
+import NotificacoesConfig from './pages/admin/NotificacoesConfig';
 import MeuPerfil from './pages/admin/MeuPerfil';
 import TrocarSenha from './pages/admin/TrocarSenha';
 import GatewayConfig from './pages/admin/GatewayConfig';
@@ -64,6 +65,7 @@ import EventoDetalhe from './pages/cliente/EventoDetalhe';
 import MeusPagamentos from './pages/cliente/MeusPagamentos';
 import MeuFeedback from './pages/cliente/MeuFeedback';
 import MeuPerfilCliente from './pages/cliente/MeuPerfil';
+import MinhasNotificacoes from './pages/cliente/MinhasNotificacoes';
 
 function ClienteGuard({ children }) {
   const { user } = useAuth();
@@ -168,6 +170,7 @@ function App() {
         <Route path="import" element={<ImportCSV />} />
         <Route path="storage" element={<Storage />} />
         <Route path="notificacoes" element={<Notificacoes />} />
+        <Route path="notificacoes/config" element={<NotificacoesConfig />} />
         <Route path="meu-perfil" element={<MeuPerfil />} />
         <Route path="trocar-senha" element={<TrocarSenha />} />
       </Route>
@@ -186,6 +189,7 @@ function App() {
         <Route path="albuns" element={<MeusAlbuns />} />
         <Route path="albuns/:slug" element={<AlbumView />} />
         <Route path="feedback/:id" element={<MeuFeedback />} />
+        <Route path="notificacoes" element={<MinhasNotificacoes />} />
         <Route path="dados" element={<MeuPerfilCliente />} />
       </Route>
 
