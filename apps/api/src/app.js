@@ -67,6 +67,7 @@ const publicRoutes = require('./routes/public');
 const publicNovidadesRoutes = require('./routes/public-novidades');
 const publicSiteRoutes = require('./routes/public-site');
 const publicAlbumTemaRoutes = require('./routes/public-album-tema');
+const publicAssinaturaRoutes = require('./routes/public-assinatura');
 
 // Rotas Webhook
 const webhooksRoutes = require('./routes/webhooks');
@@ -128,6 +129,7 @@ app.use('/admin/novidades', adminAuth, adminNovidadesRoutes);
 app.use('/admin/site', adminAuth, adminSiteRoutes);
 app.use('/admin/media', adminAuth, adminMediaRoutes);
 app.use('/admin/portfolio', adminAuth, adminPortfolioRoutes);
+app.use('/admin/assinaturas', adminAuth, require('./routes/admin-assinaturas'));
 
 // Registrar rotas Client (protegidas por clientAuth)
 app.use('/client/auth', clientAuthRoutes);
@@ -155,6 +157,7 @@ app.use('/client/notificacoes', clientAuth, clientNotificacoesRoutes);
 
 // Rotas Públicas (site institucional, sem auth)
 app.use('/public/album/:slug/tema', publicAlbumTemaRoutes);
+app.use('/public/assinatura', publicAssinaturaRoutes);
 app.use('/public', publicRoutes);
 app.use('/public/novidades', publicNovidadesRoutes);
 app.use('/public/site', publicSiteRoutes);
