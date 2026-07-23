@@ -22,7 +22,8 @@ export default function Login() {
         const res = await fetch(`${API_URL}/public/site/config`);
         const json = await res.json();
         if (json.success && json.data) {
-          if (json.data.logo_url) setLogoUrl(json.data.logo_url);
+          const logo = json.data.logo_url || json.data.logo_dark_url;
+          if (logo) setLogoUrl(logo);
           if (json.data.nome) setNomeSite(json.data.nome);
         }
       } catch {}
