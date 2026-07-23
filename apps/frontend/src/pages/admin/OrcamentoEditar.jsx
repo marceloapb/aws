@@ -128,26 +128,7 @@ export default function OrcamentoEditar() {
         setItens(itensEnriquecidos);
         setDescontoTipo(opcaoSalva.desconto_tipo || 'pct');
         setDescontoValor(opcaoSalva.desconto_valor || 0);
-        // Restaurar valor hora extra salvo — só marcar como manual se admin editou
-        // (se o valor derivado dos itens for diferente do salvo, permitir atualização automática)
-        const valorHoraExtraDerived = (() => {
-          const valores = itensEnriquecidos
-            .filter(i => i.valor_hora_adicional && i.valor_hora_adicional > 0)
-            .map(i => Number(i.valor_hora_adicional));
-          return valores.length > 0 ? Math.max(...valores) : 0;
-        })();
-        if (opcaoSalva.valor_hora_extra && opcaoSalva.valor_hora_extra > 0) {
-          if (valorHoraExtraDerived > 0) {
-            // Itens do catálogo definem valor hora adicional — usar o valor derivado
-            // (mesmo que o salvo seja diferente, pois o catálogo é a fonte de verdade)
-            setValorHoraExtra(valorHoraExtraDerived);
-            setValorHoraExtraManual(false);
-          } else {
-            // Nenhum item tem valor_hora_adicional no catálogo — preservar o valor salvo
-            setValorHoraExtra(opcaoSalva.valor_hora_extra);
-            setValorHoraExtraManual(true);
-          }
-        }
+        // Valor hora adicional agora é sempre automático (do catálogo)
       } else if (itens_sugeridos && itens_sugeridos.length > 0) {
         setItens(itens_sugeridos.map(i => ({ ...i, _key: Math.random() })));
       }
@@ -197,7 +178,8 @@ export default function OrcamentoEditar() {
   const horasInclusas = useMemo(() => calcHorasInclusas(itens), [itens]);
   const horasExtras = useMemo(() => Math.max(0, horasEvento - horasInclusas), [horasEvento, horasInclusas]);
 
-  // Valor hora extra: derivado do maior valor_hora_adicional dos itens de serviço, ou 350 como fallback
+  // Valor hora adicional: derivado do maior valor_hora_adicional dos itens de serviço
+  // Só existe se algum item do catálogo tiver esse campo > 0
   const valorHoraExtraDosItens = useMemo(() => {
     const valores = (itens || [])
       .filter(i => i.valor_hora_adicional && i.valor_hora_adicional > 0)
@@ -205,20 +187,10 @@ export default function OrcamentoEditar() {
     return valores.length > 0 ? Math.max(...valores) : 0;
   }, [itens]);
 
-  const [valorHoraExtra, setValorHoraExtra] = useState(350);
-  const [valorHoraExtraManual, setValorHoraExtraManual] = useState(false);
+  const valorHoraExtra = valorHoraExtraDosItens;
+  const temHoraAdicional = valorHoraExtraDosItens > 0;
 
-  // Atualizar valorHoraExtra automaticamente quando itens mudam (se não editou manualmente)
-  // Prioriza o valor derivado dos itens do catálogo sempre que disponível
-  useEffect(() => {
-    if (!valorHoraExtraManual) {
-      if (valorHoraExtraDosItens > 0) {
-        setValorHoraExtra(valorHoraExtraDosItens);
-      }
-    }
-  }, [valorHoraExtraDosItens, valorHoraExtraManual]);
-
-  const subtotalHorasExtras = useMemo(() => horasExtras * valorHoraExtra, [horasExtras, valorHoraExtra]);
+  const subtotalHorasExtras = useMemo(() => temHoraAdicional ? horasExtras * valorHoraExtra : 0, [horasExtras, valorHoraExtra, temHoraAdicional]);
 
   // Total incluindo horas extras
   const totalComExtras = useMemo(() => total + subtotalHorasExtras, [total, subtotalHorasExtras]);
@@ -727,7 +699,7 @@ export default function OrcamentoEditar() {
                 </div>
               )}
               {/* Horas Adicionais */}
-              {horasEvento > 0 && (
+              {horasEvento > 0 && temHoraAdicional && (
                 <div className="pt-2 border-t space-y-1.5">
                   <div className="flex justify-between text-xs text-gray-500">
                     <span className="flex items-center gap-1"><Clock size={11} /> Horas do evento</span>
@@ -740,24 +712,11 @@ export default function OrcamentoEditar() {
                   {horasExtras > 0 && (
                     <>
                       <div className="flex justify-between text-xs text-orange-600 font-medium">
-                        <span>Horas Adicionais ({horasExtras.toFixed(1)}h)</span>
+                        <span>Horas Adicionais ({horasExtras.toFixed(1)}h × {fmtBRL(valorHoraExtra)})</span>
                         <span>+{fmtBRL(subtotalHorasExtras)}</span>
                       </div>
                       <div className="flex items-center gap-2">
-                        <label className="text-[10px] text-gray-400">R$/hora adicional:</label>
-                        {valorHoraExtraDosItens > 0 ? (
-                          <span className="w-20 border border-gray-200 bg-gray-50 rounded px-2 py-1 text-xs text-center font-medium text-gray-700">
-                            {valorHoraExtra.toLocaleString('pt-BR', { minimumFractionDigits: 0 })}
-                          </span>
-                        ) : (
-                          <input type="number" min={0} step={10}
-                            className="w-20 border rounded px-2 py-1 text-xs text-center outline-none"
-                            value={valorHoraExtra}
-                            onChange={e => { setValorHoraExtra(Math.max(0, Number(e.target.value))); setValorHoraExtraManual(true); }} />
-                        )}
-                        {valorHoraExtraDosItens > 0 && (
-                          <span className="text-[9px] text-gray-400">(do catálogo)</span>
-                        )}
+                        <span className="text-[9px] text-gray-400">Valor/hora do catálogo</span>
                       </div>
                     </>
                   )}
