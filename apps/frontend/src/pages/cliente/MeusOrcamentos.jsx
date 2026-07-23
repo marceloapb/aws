@@ -178,6 +178,15 @@ export default function MeusOrcamentos() {
                 </div>
                 {showTracker && (
                   <>
+                    {o.status === 'enviado' && (
+                      <button
+                        onClick={() => navigate(`/cliente/orcamentos/${o.id}`)}
+                        className="w-full flex items-center justify-center gap-2 px-4 py-3 border-t text-sm font-semibold transition-colors text-white"
+                        style={{ background: ACCENT }}
+                      >
+                        Ver Orçamento
+                      </button>
+                    )}
                     <button
                       onClick={() => setExpandedTracker(isExpanded ? null : o.id)}
                       className="w-full flex items-center justify-between px-4 py-2 border-t text-sm font-medium hover:bg-gray-50 transition-colors"
