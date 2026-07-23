@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import {
   ArrowLeft, Plus, Trash2, Search, ChevronDown, ChevronUp,
@@ -59,6 +59,8 @@ export default function OrcamentoEditar() {
   const { id } = useParams();
   const { authFetch } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const isNovaOpcao = searchParams.get('novaOpcao') === 'true';
 
   // ─── Estado remoto ────────────────────────────────────────────────────────
   const [loading, setLoading] = useState(true);
@@ -108,7 +110,8 @@ export default function OrcamentoEditar() {
       setValidadeDias(orc.validade_dias || 7);
 
       // Se já tem opções salvas, usa a primeira; senão usa os itens sugeridos
-      const opcaoSalva = (orc.opcoes || [])[0];
+      // Se isNovaOpcao, começar com itens em branco para criar nova opção
+      const opcaoSalva = isNovaOpcao ? null : (orc.opcoes || [])[0];
       const catalogoItensArr = catalogo?.itens || [];
       if (opcaoSalva && (opcaoSalva.itens_snapshot || []).length > 0) {
         // Re-enriquecer itens do snapshot com dados atuais do catálogo
@@ -295,12 +298,10 @@ export default function OrcamentoEditar() {
 
     setSaving(true);
     try {
-      const payload = {
-        titulo: titulo || orcamento?.nome_evento || 'Orçamento',
-        opcoes: [{
-          id: 'principal',
-          nome: titulo || 'Proposta',
-          destaque: true,
+      const novaOpcao = {
+          id: isNovaOpcao ? `opcao-${Date.now()}` : 'principal',
+          nome: titulo || (isNovaOpcao ? `Opção ${(orcamento?.opcoes?.length || 0) + 1}` : 'Proposta'),
+          destaque: !isNovaOpcao,
           itens_snapshot: itens.map(({ _key, ...i }) => ({ ...i, valor_total: (i.valor_unitario || 0) * (i.quantidade || 1) })),
           desconto_tipo: descontoTipo,
           desconto_valor: descontoValor,
@@ -310,7 +311,15 @@ export default function OrcamentoEditar() {
           horas_extras: horasExtras,
           valor_hora_extra: valorHoraExtra,
           subtotal_horas_extras: subtotalHorasExtras,
-        }],
+        };
+
+      const opcoesFinais = isNovaOpcao
+        ? [...(orcamento?.opcoes || []), novaOpcao]
+        : [novaOpcao];
+
+      const payload = {
+        titulo: titulo || orcamento?.nome_evento || 'Orçamento',
+        opcoes: opcoesFinais,
         condicoes_pagamento: {
           avista: condicoes.avista.ativo ? { ativo: true, desconto_pct: condicoes.avista.desconto_pct } : { ativo: false },
           sem_juros: condicoes.sem_juros.ativo ? { ativo: true, max_parcelas: condicoes.sem_juros.max_parcelas } : { ativo: false },
@@ -376,7 +385,7 @@ export default function OrcamentoEditar() {
             <ArrowLeft size={18} />
           </button>
           <div>
-            <h1 className="text-xl font-bold text-gray-900">Editar Orçamento</h1>
+            <h1 className="text-xl font-bold text-gray-900">{isNovaOpcao ? 'Nova Opção' : 'Editar Orçamento'}</h1>
             <p className="text-xs text-gray-400 mt-0.5">
               {orcamento.nome_evento || orcamento.tipo_evento || `#${id?.slice(0, 8)}`}
               {orcamento.data_evento && <> · <span className="font-medium">{fmtDate(orcamento.data_evento)}</span></>}

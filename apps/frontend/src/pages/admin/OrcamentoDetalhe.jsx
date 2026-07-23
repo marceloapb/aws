@@ -283,9 +283,28 @@ export default function OrcamentoDetalhe() {
       )}
 
       {/* ─── OPÇÕES (ORC-03) ─── */}
+      {opcoes.length === 0 && (orc.status === 'solicitado' || orc.status === 'rascunho' || orc.status === 'em_revisao') && (
+        <div className="mb-6 bg-white rounded-xl border border-dashed border-gray-300 p-8 text-center">
+          <h3 className="font-semibold text-gray-900 mb-2">Opções do Orçamento</h3>
+          <p className="text-sm text-gray-500 mb-4">Nenhuma opção criada ainda. Crie opções de proposta para o cliente escolher.</p>
+          <button onClick={() => navigate(`/admin/orcamentos/${id}/editar?novaOpcao=true`)}
+            className="inline-flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-white rounded-lg hover:opacity-90"
+            style={{ background: ACCENT }}>
+            <Copy size={14} /> Criar Primeira Opção
+          </button>
+        </div>
+      )}
       {opcoes.length > 0 && (
         <div className="mb-6">
-          <h3 className="font-semibold text-gray-900 mb-3">Opções do Orçamento</h3>
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="font-semibold text-gray-900">Opções do Orçamento</h3>
+            {(orc.status === 'solicitado' || orc.status === 'rascunho' || orc.status === 'em_revisao' || orc.status === 'pronto_enviar') && (
+              <button onClick={() => navigate(`/admin/orcamentos/${id}/editar?novaOpcao=true`)}
+                className="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium border border-gray-300 rounded-lg hover:bg-gray-50">
+                <Copy size={14} /> Nova Opção
+              </button>
+            )}
+          </div>
           <div className={`grid gap-4 ${opcoes.length === 1 ? 'grid-cols-1' : opcoes.length === 2 ? 'grid-cols-1 md:grid-cols-2' : 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3'}`}>
             {opcoes.map((op, idx) => {
               const subtotal = (op.itens_snapshot || []).reduce((s, i) => s + (i.valor_unitario || 0) * (i.quantidade || 1), 0);
