@@ -1,6 +1,7 @@
 const { Router } = require('express');
 const { dynamo, TABLE } = require('../config/dynamodb');
 const { QueryCommand, GetCommand, PutCommand, UpdateCommand, DeleteCommand, ScanCommand } = require('@aws-sdk/lib-dynamodb');
+const { registrarEvento, registrarMudancaStatusManual, buscarHistorico } = require('../services/clienteHistoricoService');
 
 const router = Router();
 const TENANT = process.env.TENANT_ID || 'default';
@@ -154,12 +155,38 @@ router.get('/:id', async (req, res) => {
   }
 });
 
+// GET /api/admin/clientes/:id/historico
+router.get('/:id/historico', async (req, res) => {
+  try {
+    const clienteId = req.params.id;
+    const limit = Number(req.query.limit) || 50;
+    const eventos = await buscarHistorico(clienteId, limit);
+    res.json({ success: true, data: eventos });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
 // POST /api/admin/clientes
 router.post('/', async (req, res) => {
   try {
     const id = crypto.randomUUID();
-    const item = { ...req.body, id, PK: `TENANT#${TENANT}`, SK: `CLIENTE#${id}`, created: new Date().toISOString() };
+    const item = { ...req.body, id, PK: `TENANT#${TENANT}`, SK: `CLIENTE#${id}`, status: req.body.status || 'Lead', created: new Date().toISOString() };
     await dynamo.send(new PutCommand({ TableName: TABLE, Item: item }));
+
+    // Registrar evento de cadastro no histórico
+    try {
+      await registrarEvento({
+        cliente_id: id,
+        tipo: 'cliente_cadastrado',
+        descricao: `Cliente cadastrado – ${item.nome || item.name || 'Novo cliente'}`,
+        metadata: { origem: item.como_conheceu || 'admin' },
+        autor: req.user?.name || 'admin',
+      });
+    } catch (histErr) {
+      console.error('[CLIENTES] Erro ao registrar histórico cadastro:', histErr.message);
+    }
+
     res.status(201).json({ success: true, data: item });
   } catch (error) {
     res.status(400).json({ success: false, message: error.message });
@@ -173,6 +200,15 @@ router.put('/:id', async (req, res) => {
     const updates = req.body;
     const keys = Object.keys(updates);
     if (keys.length === 0) return res.status(400).json({ success: false, message: 'Nenhum campo para atualizar' });
+
+    // Registrar mudança de status no histórico se status está sendo alterado
+    if (updates.status) {
+      try {
+        await registrarMudancaStatusManual(clienteId, updates.status, req.user?.name || 'admin');
+      } catch (histErr) {
+        console.error('[CLIENTES] Erro ao registrar mudança de status:', histErr.message);
+      }
+    }
 
     const expr = 'SET ' + keys.map((k, i) => `#f${i} = :v${i}`).join(', ');
     const names = Object.fromEntries(keys.map((k, i) => [`#f${i}`, k]));
