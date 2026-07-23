@@ -162,6 +162,55 @@ router.put('/:id', async (req, res) => {
   }
 });
 
+// POST /api/admin/agenda/:id/lembrete - Enviar lembrete via WhatsApp Business API
+router.post('/:id/lembrete', async (req, res) => {
+  try {
+    const evento = await findEvento(req.params.id);
+    if (!evento) return res.status(404).json({ success: false, message: 'Evento não encontrado' });
+
+    // Buscar dados do cliente
+    const cliente = await getCliente(evento.cliente_id);
+    const telefone = cliente?.whatsapp_numero || evento.cliente_telefone || evento.phone;
+
+    if (!telefone) {
+      return res.status(400).json({ success: false, message: 'Cliente não possui número de WhatsApp cadastrado' });
+    }
+
+    // Enviar lembrete via WhatsApp Business API
+    const { enviarLembreteEvento } = require('../services/whatsappService');
+    const nomeCliente = cliente?.nome || evento.cliente_nome || evento.clientName || 'Cliente';
+    const tipoEvento = evento.tipo_evento || evento.type || 'Sessão';
+    const dataFormatada = new Date(evento.data_evento).toLocaleDateString('pt-BR');
+    const horario = evento.horario_inicio || evento.time || '09:00';
+
+    const resultado = await enviarLembreteEvento(telefone, nomeCliente, tipoEvento, dataFormatada, horario);
+
+    if (resultado.success) {
+      // Marcar lembrete como enviado no evento
+      await dynamo.send(new UpdateCommand({
+        TableName: TABLE,
+        Key: { PK: evento.PK, SK: evento.SK },
+        UpdateExpression: 'SET lembrete_enviado = :l, lembrete_enviado_em = :d',
+        ExpressionAttributeValues: {
+          ':l': true,
+          ':d': new Date().toISOString(),
+        },
+      }));
+
+      res.json({
+        success: true,
+        message: 'Lembrete enviado com sucesso via WhatsApp',
+        data: { lembrete_enviado: true, lembrete_enviado_em: new Date().toISOString() },
+      });
+    } else {
+      res.status(500).json({ success: false, message: 'Falha ao enviar lembrete via WhatsApp' });
+    }
+  } catch (error) {
+    console.error('[AGENDA] Erro ao enviar lembrete:', error.message);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
 // DELETE /api/admin/agenda/:id
 router.delete('/:id', async (req, res) => {
   try {

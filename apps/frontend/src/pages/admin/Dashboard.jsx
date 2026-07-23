@@ -37,6 +37,8 @@ export default function Dashboard() {
   const [albums, setAlbums] = useState([]);
   const [summary, setSummary] = useState({});
   const [loading, setLoading] = useState(true);
+  const [lembreteEnviado, setLembreteEnviado] = useState({});
+  const [lembreteLoading, setLembreteLoading] = useState({});
 
   useEffect(() => { loadData(); }, []);
 
@@ -58,6 +60,79 @@ export default function Dashboard() {
       if (aJ.success) setAlbums(aJ.data || []);
     } catch {}
     setLoading(false);
+  };
+
+  // Inicializar estado de lembretes já enviados a partir dos eventos
+  useEffect(() => {
+    const enviados = {};
+    events.forEach(ev => {
+      if (ev.lembrete_enviado) enviados[ev.id] = true;
+    });
+    setLembreteEnviado(prev => ({ ...prev, ...enviados }));
+  }, [events]);
+
+  // Formatar número para WhatsApp (formato internacional sem +)
+  const formatarTelefone = (numero) => {
+    if (!numero) return null;
+    let limpo = numero.replace(/\D/g, '');
+    if (!limpo.startsWith('55')) limpo = '55' + limpo;
+    return limpo;
+  };
+
+  // Verificar se o evento tem telefone válido
+  const temTelefoneValido = (ev) => {
+    const tel = ev.cliente_telefone || ev.phone;
+    return tel && tel.replace(/\D/g, '').length >= 10;
+  };
+
+  // Enviar lembrete via API (WhatsApp Business)
+  const enviarLembrete = async (ev) => {
+    if (lembreteLoading[ev.id]) return;
+    setLembreteLoading(prev => ({ ...prev, [ev.id]: true }));
+    try {
+      const res = await authFetch(`/admin/agenda/${ev.id}/lembrete`, { method: 'POST' });
+      const data = await res.json();
+      if (data.success) {
+        setLembreteEnviado(prev => ({ ...prev, [ev.id]: true }));
+      } else {
+        // Fallback: abrir WhatsApp Web com mensagem personalizada
+        const telefone = formatarTelefone(ev.cliente_telefone || ev.phone);
+        if (telefone) {
+          const nomeCliente = ev.cliente_nome || ev.clientName || 'Cliente';
+          const tipoEvento = ev.tipo_evento || ev.type || 'sessão';
+          const dataEvento = new Date(ev.data_evento || ev.date).toLocaleDateString('pt-BR');
+          const horario = ev.horario_inicio || ev.time || '';
+          const local = ev.local || ev.location || '';
+          let mensagem = `Olá ${nomeCliente}! 📸\n\nEste é um lembrete da sua ${tipoEvento} agendada para ${dataEvento}`;
+          if (horario) mensagem += ` às ${horario}`;
+          if (local) mensagem += ` em ${local}`;
+          mensagem += `.\n\nQualquer dúvida, estou à disposição!`;
+          window.open(`https://wa.me/${telefone}?text=${encodeURIComponent(mensagem)}`, '_blank');
+          setLembreteEnviado(prev => ({ ...prev, [ev.id]: true }));
+        } else {
+          alert(data.message || 'Erro ao enviar lembrete. Verifique se o cliente tem telefone cadastrado.');
+        }
+      }
+    } catch (error) {
+      // Fallback: abrir WhatsApp Web com mensagem personalizada
+      const telefone = formatarTelefone(ev.cliente_telefone || ev.phone);
+      if (telefone) {
+        const nomeCliente = ev.cliente_nome || ev.clientName || 'Cliente';
+        const tipoEvento = ev.tipo_evento || ev.type || 'sessão';
+        const dataEvento = new Date(ev.data_evento || ev.date).toLocaleDateString('pt-BR');
+        const horario = ev.horario_inicio || ev.time || '';
+        const local = ev.local || ev.location || '';
+        let mensagem = `Olá ${nomeCliente}! 📸\n\nEste é um lembrete da sua ${tipoEvento} agendada para ${dataEvento}`;
+        if (horario) mensagem += ` às ${horario}`;
+        if (local) mensagem += ` em ${local}`;
+        mensagem += `.\n\nQualquer dúvida, estou à disposição!`;
+        window.open(`https://wa.me/${telefone}?text=${encodeURIComponent(mensagem)}`, '_blank');
+        setLembreteEnviado(prev => ({ ...prev, [ev.id]: true }));
+      } else {
+        alert('Cliente não possui telefone cadastrado.');
+      }
+    }
+    setLembreteLoading(prev => ({ ...prev, [ev.id]: false }));
   };
 
   const now = new Date();
@@ -239,9 +314,24 @@ export default function Dashboard() {
                     {(ev.local || ev.location) && <span className="flex items-center gap-0.5"><MapPin size={10} />{ev.local || ev.location}</span>}
                   </div>
                 </div>
-                <button onClick={() => window.open(`https://wa.me/${ev.cliente_telefone || ev.phone}?text=Lembrete: sua sessão está agendada!`, '_blank')}
-                  className="text-xs font-medium px-3 py-1.5 rounded-lg border border-gray-200 hover:border-orange-300 hover:text-orange-600 transition-colors shrink-0 flex items-center gap-1">
-                  <Bell size={12} /> Lembrete
+                <button
+                  onClick={() => enviarLembrete(ev)}
+                  disabled={!temTelefoneValido(ev) || lembreteLoading[ev.id]}
+                  title={!temTelefoneValido(ev) ? 'Cliente sem telefone cadastrado' : lembreteEnviado[ev.id] ? 'Lembrete já enviado' : 'Enviar lembrete via WhatsApp'}
+                  className={`text-xs font-medium px-3 py-1.5 rounded-lg border transition-colors shrink-0 flex items-center gap-1
+                    ${!temTelefoneValido(ev)
+                      ? 'border-gray-100 text-gray-300 cursor-not-allowed'
+                      : lembreteEnviado[ev.id]
+                        ? 'border-orange-300 text-orange-600 bg-orange-50'
+                        : 'border-gray-200 hover:border-orange-300 hover:text-orange-600'
+                    }`}
+                >
+                  {lembreteLoading[ev.id] ? (
+                    <RefreshCw size={12} className="animate-spin" />
+                  ) : (
+                    <Bell size={12} />
+                  )}
+                  {lembreteEnviado[ev.id] ? 'Enviado' : 'Lembrete'}
                 </button>
               </div>
               );
