@@ -314,17 +314,12 @@ export default function OrcamentoDetalhe() {
 
               return (
                 <div key={op.id || idx} className={`bg-white rounded-xl border-2 p-5 relative ${
-                  isEscolhida ? 'border-green-500 ring-2 ring-green-100' : op.destaque ? 'border-orange-300' : 'border-gray-200'
+                  isEscolhida ? 'border-green-500 ring-2 ring-green-100' : 'border-gray-200'
                 }`}>
                   {/* Badges */}
                   <div className="flex items-center justify-between mb-3">
                     <div className="flex items-center gap-2">
                       <h4 className="font-semibold text-gray-900">{op.nome || `Opção ${idx + 1}`}</h4>
-                      {op.destaque && (
-                        <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase bg-orange-100 text-orange-700">
-                          <Star size={10} fill="currentColor" /> Recomendada
-                        </span>
-                      )}
                     </div>
                     {(orc.status === 'solicitado' || orc.status === 'rascunho' || orc.status === 'em_revisao' || orc.status === 'pronto_enviar') && (
                       <button onClick={(e) => { e.stopPropagation(); navigate(`/admin/orcamentos/${id}/editar?opcaoIdx=${idx}`); }}
