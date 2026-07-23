@@ -165,30 +165,30 @@ export default function PortfolioPage() {
         </div>
       </section>
 
-      {/* Photo Grid */}
-      <section className="py-10 bg-stone-950">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6">
+      {/* Photo Grid - Masonry 2 columns */}
+      <section className="py-6 bg-stone-950">
+        <div className="max-w-4xl mx-auto px-2 sm:px-4">
           {loading ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="columns-2 gap-2">
               {Array.from({ length: 6 }).map((_, i) => (
-                <div key={i} className="aspect-[4/3] bg-stone-900 rounded-xl animate-pulse" />
+                <div key={i} className="mb-2 bg-stone-900 animate-pulse" style={{ height: i % 2 === 0 ? '200px' : '260px' }} />
               ))}
             </div>
           ) : filteredFotos.length === 0 ? (
             <p className="text-center text-stone-500 py-12">Nenhuma foto encontrada.</p>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="columns-2 gap-2">
               {filteredFotos.map((foto, idx) => (
                 <button
                   key={foto.id || idx}
                   onClick={() => openLightbox(idx)}
-                  className="group relative aspect-[4/3] overflow-hidden rounded-xl bg-stone-900 focus:outline-none focus:ring-2 focus:ring-[#EA580C]"
+                  className="group relative w-full mb-2 overflow-hidden bg-stone-900 block break-inside-avoid focus:outline-none focus:ring-2 focus:ring-[#EA580C]"
                   onContextMenu={e => e.preventDefault()}
                 >
                   <ProtectedImg
                     src={foto.url || foto.thumb_url}
                     alt={foto.titulo || foto.alt || ''}
-                    className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                    className="w-full h-auto object-cover transition-transform duration-500 group-hover:scale-105"
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
                   {foto.titulo && (
