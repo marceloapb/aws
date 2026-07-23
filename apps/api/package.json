@@ -27,6 +27,7 @@
     "helmet": "^7.1.0",
     "jsonwebtoken": "^9.0.2",
     "serverless-http": "^3.2.0",
+    "sharp": "^0.33.2",
     "stripe": "^14.0.0",
     "uuid": "^9.0.0"
   },

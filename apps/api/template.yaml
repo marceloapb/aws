@@ -38,6 +38,7 @@ Globals:
         FRONTEND_URL: !Ref FrontendUrl
         SSM_PREFIX: !Sub '/mbf/${Stage}'
         AWS_NODEJS_CONNECTION_REUSE_ENABLED: '1'
+        MEDIA_QUEUE_URL: !Sub 'https://sqs.${AWS::Region}.amazonaws.com/${AWS::AccountId}/mbf-${Stage}-foto-processamento'
 
 Resources:
   # ═══ API ═══
@@ -93,6 +94,8 @@ Resources:
             ParameterName: !Sub 'mbf/${Stage}/*'
         - SQSSendMessagePolicy:
             QueueName: !GetAtt WebhookQueue.QueueName
+        - SQSSendMessagePolicy:
+            QueueName: !GetAtt FotoProcessingQueue.QueueName
         - Statement:
             - Effect: Allow
               Action:
@@ -401,6 +404,44 @@ Resources:
     Properties:
       QueueName: !Sub 'horizons-${Stage}-webhooks-dlq'
       MessageRetentionPeriod: 1209600
+
+  # ═══ Foto Processing Queue ═══
+  FotoProcessingQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: !Sub 'mbf-${Stage}-foto-processamento'
+      VisibilityTimeout: 120
+      RedrivePolicy:
+        deadLetterTargetArn: !GetAtt FotoProcessingDLQ.Arn
+        maxReceiveCount: 3
+
+  FotoProcessingDLQ:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: !Sub 'mbf-${Stage}-foto-processamento-dlq'
+      MessageRetentionPeriod: 1209600
+
+  FotoProcessingFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub 'mbf-${Stage}-foto-processing'
+      Handler: src/functions/album/processarFoto.handler
+      CodeUri: .
+      Timeout: 120
+      MemorySize: 1024
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref TableName
+        - S3CrudPolicy:
+            BucketName: !Ref FotosBucketName
+        - SQSSendMessagePolicy:
+            QueueName: !GetAtt FotoProcessingDLQ.QueueName
+      Events:
+        SQSEvent:
+          Type: SQS
+          Properties:
+            Queue: !GetAtt FotoProcessingQueue.Arn
+            BatchSize: 1
 
   WebhookConsumerFunction:
     Type: AWS::Serverless::Function
