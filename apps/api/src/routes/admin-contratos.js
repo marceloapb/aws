@@ -2,6 +2,7 @@ const { Router } = require('express');
 const { dynamo, TABLE } = require('../config/dynamodb');
 const { QueryCommand, PutCommand, UpdateCommand } = require('@aws-sdk/lib-dynamodb');
 const { gerarContrato, enviarParaAssinatura } = require('../services/contratoService');
+const { registrarEvento, avancarStatusAutomatico } = require('../services/clienteHistoricoService');
 
 const router = Router();
 
@@ -108,6 +109,25 @@ router.put('/:id', async (req, res) => {
       ExpressionAttributeValues: vals,
       ReturnValues: 'ALL_NEW',
     }));
+
+    // Registrar no histórico quando contrato é assinado
+    if (updates.status === 'assinado' && contrato.status !== 'assinado') {
+      const clienteId = contrato.cliente_id || (contrato.PK?.startsWith('CLIENTE#') ? contrato.PK.replace('CLIENTE#', '') : null);
+      if (clienteId) {
+        try {
+          await registrarEvento({
+            cliente_id: clienteId,
+            tipo: 'contrato_assinado',
+            descricao: `Contrato assinado`,
+            metadata: { contrato_id: req.params.id },
+          });
+          await avancarStatusAutomatico(clienteId, 'contrato_assinado');
+        } catch (histErr) {
+          console.error('[CONTRATO] Erro ao registrar histórico assinatura:', histErr.message);
+        }
+      }
+    }
+
     res.json({ success: true, data: result.Attributes });
   } catch (error) {
     res.status(400).json({ success: false, message: error.message });

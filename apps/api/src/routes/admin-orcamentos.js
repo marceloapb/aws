@@ -6,6 +6,7 @@ const { geocode, distanceMatrix } = require('../services/mapsService');
 const { criarEvento, excluirEvento } = require('../services/googleCalendarService');
 const { features } = require('../config/env');
 const { SYNC_STATUS } = require('../config/constants');
+const { registrarEvento, avancarStatusAutomatico } = require('../services/clienteHistoricoService');
 
 const router = Router();
 const TENANT = process.env.TENANT_ID || 'default';
@@ -601,6 +602,21 @@ router.post('/', async (req, res) => {
     };
     await dynamo.send(new PutCommand({ TableName: TABLE, Item: item }));
 
+    // ─── Avançar status do cliente automaticamente ───
+    if (clienteId) {
+      try {
+        await registrarEvento({
+          cliente_id: clienteId,
+          tipo: 'orcamento_criado',
+          descricao: `Orçamento criado – ${item.tipo_evento || item.titulo || 'Evento'}`,
+          metadata: { orcamento_id: id, valor: item.valor_total || 0 },
+        });
+        await avancarStatusAutomatico(clienteId, 'orcamento_criado');
+      } catch (histErr) {
+        console.error('[ORCAMENTO] Erro ao registrar histórico/status:', histErr.message);
+      }
+    }
+
     // ─── Criar evento na agenda automaticamente ───
     if (item.data_evento) {
       try {
@@ -723,6 +739,23 @@ router.post('/:id/enviar', async (req, res) => {
       ExpressionAttributeValues: { ':s': 'enviado', ':e': new Date().toISOString() },
       ReturnValues: 'ALL_NEW',
     }));
+
+    // Registrar no histórico e avançar status
+    const clienteId = orc.cliente_id || (orc.PK?.startsWith('CLIENTE#') ? orc.PK.replace('CLIENTE#', '') : null);
+    if (clienteId) {
+      try {
+        await registrarEvento({
+          cliente_id: clienteId,
+          tipo: 'orcamento_enviado',
+          descricao: `Orçamento enviado – ${orc.tipo_evento || orc.titulo || 'Evento'}`,
+          metadata: { orcamento_id: req.params.id },
+        });
+        await avancarStatusAutomatico(clienteId, 'orcamento_enviado');
+      } catch (histErr) {
+        console.error('[ORCAMENTO] Erro ao registrar histórico envio:', histErr.message);
+      }
+    }
+
     res.json({ success: true, data: result.Attributes });
   } catch (error) {
     res.status(400).json({ success: false, message: error.message });
@@ -742,6 +775,22 @@ router.post('/:id/aprovar', async (req, res) => {
       ExpressionAttributeValues: { ':s': 'aceito', ':a': new Date().toISOString() },
       ReturnValues: 'ALL_NEW',
     }));
+
+    // Registrar no histórico e avançar status para Cliente
+    const clienteId = orc.cliente_id || (orc.PK?.startsWith('CLIENTE#') ? orc.PK.replace('CLIENTE#', '') : null);
+    if (clienteId) {
+      try {
+        await registrarEvento({
+          cliente_id: clienteId,
+          tipo: 'orcamento_aceito',
+          descricao: `Orçamento aceito – ${orc.tipo_evento || orc.titulo || 'Evento'}`,
+          metadata: { orcamento_id: req.params.id, valor: orc.valor_total || 0 },
+        });
+        await avancarStatusAutomatico(clienteId, 'orcamento_aceito');
+      } catch (histErr) {
+        console.error('[ORCAMENTO] Erro ao registrar histórico aprovação:', histErr.message);
+      }
+    }
 
     // Atualizar status do evento na agenda para confirmado
     if (orc.agenda_evento_id) {
@@ -786,6 +835,21 @@ router.post('/:id/recusar', async (req, res) => {
       ExpressionAttributeValues: { ':s': 'recusado', ':r': new Date().toISOString() },
       ReturnValues: 'ALL_NEW',
     }));
+
+    // Registrar no histórico
+    const clienteId = orc.cliente_id || (orc.PK?.startsWith('CLIENTE#') ? orc.PK.replace('CLIENTE#', '') : null);
+    if (clienteId) {
+      try {
+        await registrarEvento({
+          cliente_id: clienteId,
+          tipo: 'orcamento_recusado',
+          descricao: `Orçamento recusado – ${orc.tipo_evento || orc.titulo || 'Evento'}`,
+          metadata: { orcamento_id: req.params.id },
+        });
+      } catch (histErr) {
+        console.error('[ORCAMENTO] Erro ao registrar histórico recusa:', histErr.message);
+      }
+    }
 
     // Excluir evento da agenda e do Google Calendar
     if (orc.agenda_evento_id) {

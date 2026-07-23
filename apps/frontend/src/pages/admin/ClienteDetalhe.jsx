@@ -23,6 +23,7 @@ export default function ClienteDetalhe() {
   const [orcamentos, setOrcamentos] = useState([]);
   const [contratos, setContratos] = useState([]);
   const [albuns, setAlbuns] = useState([]);
+  const [historico, setHistorico] = useState([]);
   const [loading, setLoading] = useState(true);
   const [statusOpen, setStatusOpen] = useState(false);
   const [nota, setNota] = useState('');
@@ -31,16 +32,18 @@ export default function ClienteDetalhe() {
 
   const loadData = async () => {
     try {
-      const [cliRes, orcRes, contRes, albRes] = await Promise.all([
+      const [cliRes, orcRes, contRes, albRes, histRes] = await Promise.all([
         authFetch(`/admin/clientes/${id}`).then(r => r.json()),
         authFetch(`/admin/orcamentos?cliente_id=${id}`).then(r => r.json()).catch(() => ({ data: [] })),
         authFetch(`/admin/contratos?cliente_id=${id}`).then(r => r.json()).catch(() => ({ data: [] })),
         authFetch(`/admin/albuns?cliente_id=${id}`).then(r => r.json()).catch(() => ({ data: [] })),
+        authFetch(`/admin/clientes/${id}/historico`).then(r => r.json()).catch(() => ({ data: [] })),
       ]);
       if (cliRes.success) setCliente(cliRes.data);
       setOrcamentos(orcRes.data || []);
       setContratos(contRes.data || []);
       setAlbuns(albRes.data || []);
+      setHistorico(histRes.data || []);
     } catch {}
     setLoading(false);
   };
@@ -51,7 +54,14 @@ export default function ClienteDetalhe() {
       method: 'PUT', body: JSON.stringify({ status: novoStatus }),
     });
     const data = await res.json();
-    if (data.success) setCliente(prev => ({ ...prev, status: novoStatus }));
+    if (data.success) {
+      setCliente(prev => ({ ...prev, status: novoStatus }));
+      // Recarregar histórico para incluir a mudança de status
+      try {
+        const histRes = await authFetch(`/admin/clientes/${id}/historico`).then(r => r.json());
+        setHistorico(histRes.data || []);
+      } catch {}
+    }
   };
 
   const addNota = async () => {
@@ -66,20 +76,66 @@ export default function ClienteDetalhe() {
 
   const buildTimeline = () => {
     const events = [];
-    if (cliente.created) events.push({ icon: UserPlus, desc: 'Cliente cadastrado', date: cliente.created });
-    orcamentos.forEach(o => {
-      events.push({ icon: FileText, desc: `Orçamento criado – ${o.tipo_evento || 'Evento'}`, date: o.created });
-      if (o.status === 'aceito') events.push({ icon: FileCheck, desc: 'Orçamento aceito', date: o.updated || o.created });
+
+    // Ícone baseado no tipo de evento armazenado
+    const ICON_MAP = {
+      'cliente_cadastrado': UserPlus,
+      'status_alterado': Users,
+      'orcamento_criado': FileText,
+      'orcamento_enviado': Mail,
+      'orcamento_aceito': FileCheck,
+      'orcamento_recusado': FileText,
+      'contrato_assinado': CheckCircle,
+      'pagamento_recebido': DollarSign,
+      'album_entregue': Camera,
+      'feedback_recebido': Star,
+    };
+
+    // 1) Eventos armazenados no histórico (fonte principal)
+    historico.forEach(h => {
+      events.push({
+        icon: ICON_MAP[h.tipo] || Clock,
+        desc: h.descricao,
+        date: h.created,
+        tipo: h.tipo,
+        source: 'stored',
+      });
     });
+
+    // 2) Eventos derivados (fallback para dados antigos que não têm histórico gravado)
+    const storedTypes = new Set(historico.map(h => `${h.tipo}:${h.metadata?.orcamento_id || h.metadata?.contrato_id || ''}`));
+
+    if (cliente.created && !historico.some(h => h.tipo === 'cliente_cadastrado')) {
+      events.push({ icon: UserPlus, desc: 'Cliente cadastrado', date: cliente.created, source: 'derived' });
+    }
+
+    orcamentos.forEach(o => {
+      if (!storedTypes.has(`orcamento_criado:${o.id}`)) {
+        events.push({ icon: FileText, desc: `Orçamento criado – ${o.tipo_evento || 'Evento'}`, date: o.created, source: 'derived' });
+      }
+      if (o.status === 'aceito' && !storedTypes.has(`orcamento_aceito:${o.id}`)) {
+        events.push({ icon: FileCheck, desc: 'Orçamento aceito', date: o.updated || o.created, source: 'derived' });
+      }
+    });
+
     contratos.forEach(c => {
-      if (c.status === 'assinado') events.push({ icon: CheckCircle, desc: 'Contrato assinado', date: c.data_assinatura || c.updated || c.created });
+      if (c.status === 'assinado' && !storedTypes.has(`contrato_assinado:${c.id}`)) {
+        events.push({ icon: CheckCircle, desc: 'Contrato assinado', date: c.data_assinatura || c.updated || c.created, source: 'derived' });
+      }
     });
+
     orcamentos.forEach(o => {
-      if (o.valor_pago > 0) events.push({ icon: DollarSign, desc: `Pagamento recebido – R$ ${o.valor_pago.toLocaleString('pt-BR')}`, date: o.updated || o.created });
+      if (o.valor_pago > 0 && !storedTypes.has(`pagamento_recebido:${o.id}`)) {
+        events.push({ icon: DollarSign, desc: `Pagamento recebido – R$ ${o.valor_pago.toLocaleString('pt-BR')}`, date: o.updated || o.created, source: 'derived' });
+      }
     });
+
     albuns.forEach(a => {
-      if (a.status === 'publicado') events.push({ icon: Camera, desc: `Álbum entregue – ${a.titulo || 'Álbum'}`, date: a.updated || a.created });
+      if (a.status === 'publicado') {
+        events.push({ icon: Camera, desc: `Álbum entregue – ${a.titulo || 'Álbum'}`, date: a.updated || a.created, source: 'derived' });
+      }
     });
+
     if (cliente.feedback) events.push({ icon: Star, desc: 'Feedback recebido', date: cliente.feedback_date || cliente.updated });
     return events.sort((a, b) => new Date(b.date) - new Date(a.date));
   };
