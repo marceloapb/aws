@@ -11,7 +11,7 @@ const TEMPLATES = {
   default: 'contrato_padrao',
 };
 
-async function gerarContrato(orcamentoId) {
+async function gerarContrato(orcamentoId, modeloId) {
   // Buscar orçamento
   const orcResult = await dynamo.send(new QueryCommand({
     TableName: TABLE,
@@ -32,16 +32,34 @@ async function gerarContrato(orcamentoId) {
   const cliente = cliResult.Items?.[0];
   if (!cliente) throw new Error('Cliente não encontrado no orçamento');
 
-  // Buscar template de configuração
   const TENANT = process.env.TENANT_ID || 'default';
-  const templateKey = TEMPLATES[orcamento.tipo_evento] || TEMPLATES.default;
-  const cfgResult = await dynamo.send(new QueryCommand({
-    TableName: TABLE,
-    KeyConditionExpression: 'PK = :pk AND SK = :sk',
-    ExpressionAttributeValues: { ':pk': `TENANT#${TENANT}`, ':sk': `CONFIG#${templateKey}` },
-  }));
-  let conteudo = cfgResult.Items?.[0]?.valor || getTemplateDefault(orcamento.tipo_evento);
+  let conteudo = null;
 
+  // Se modelo_id fornecido, buscar o MODELO_CONTRATO cadastrado
+  if (modeloId) {
+    const modeloResult = await dynamo.send(new QueryCommand({
+      TableName: TABLE,
+      KeyConditionExpression: 'PK = :pk AND SK = :sk',
+      ExpressionAttributeValues: { ':pk': `TENANT#${TENANT}`, ':sk': `MODELO_CONTRATO#${modeloId}` },
+    }));
+    const modelo = modeloResult.Items?.[0];
+    if (modelo && modelo.corpo_html) {
+      conteudo = modelo.corpo_html;
+    }
+  }
+
+  // Fallback: buscar template de configuração legado
+  if (!conteudo) {
+    const templateKey = TEMPLATES[orcamento.tipo_evento] || TEMPLATES.default;
+    const cfgResult = await dynamo.send(new QueryCommand({
+      TableName: TABLE,
+      KeyConditionExpression: 'PK = :pk AND SK = :sk',
+      ExpressionAttributeValues: { ':pk': `TENANT#${TENANT}`, ':sk': `CONFIG#${templateKey}` },
+    }));
+    conteudo = cfgResult.Items?.[0]?.valor || getTemplateDefault(orcamento.tipo_evento);
+  }
+
+  // Substituir variáveis
   conteudo = conteudo
     .replace(/{{cliente_nome}}/g, cliente.nome)
     .replace(/{{cliente_cpf}}/g, cliente.cpf || '')
@@ -60,6 +78,7 @@ async function gerarContrato(orcamentoId) {
     GSI1PK: 'CONTRATO', GSI1SK: `CONTRATO#${id}`,
     cliente_id: cliente.id,
     orcamento_id: orcamentoId,
+    modelo_id: modeloId || null,
     conteudo_html: conteudo,
     status: 'rascunho',
     token_assinatura: crypto.randomUUID(),

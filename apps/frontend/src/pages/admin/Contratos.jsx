@@ -143,13 +143,30 @@ export default function Contratos() {
 
   // Importar contrato com IA
   const importarContrato = async () => {
-    if (!textoImportar.trim()) return;
+    if (!textoImportar.trim() && !arquivoImportar) return;
     setImportando(true);
     try {
+      const payload = { nome_modelo: nomeImportar || 'Modelo Importado' };
+
+      // Se tem arquivo, enviar como base64 para o backend extrair
+      if (arquivoImportar && !textoImportar.trim()) {
+        const arrayBuffer = await arquivoImportar.arrayBuffer();
+        const base64 = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
+        payload.arquivo_base64 = base64;
+        payload.arquivo_nome = arquivoImportar.name;
+      } else {
+        payload.texto_contrato = textoImportar;
+      }
+
+      // Se tem texto E arquivo, enviar ambos (texto prevalece, arquivo como backup)
+      if (textoImportar.trim()) {
+        payload.texto_contrato = textoImportar;
+      }
+
       const r = await authFetch('/admin/contratos/modelos/importar', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ texto_contrato: textoImportar, nome_modelo: nomeImportar || 'Modelo Importado' }),
+        body: JSON.stringify(payload),
       });
       const j = await r.json();
       if (j.success) {
@@ -158,9 +175,12 @@ export default function Contratos() {
         setTextoImportar('');
         setNomeImportar('');
         setArquivoImportar(null);
+      } else {
+        alert(j.message || 'Erro ao importar contrato');
       }
     } catch (err) {
       console.error('Erro ao importar:', err);
+      alert('Erro ao importar contrato. Tente novamente.');
     } finally {
       setImportando(false);
     }
@@ -173,73 +193,14 @@ export default function Contratos() {
     setArquivoImportar(file);
     setNomeImportar(prev => prev || file.name.replace(/\.[^.]+$/, ''));
 
+    // Para TXT, extraímos o texto direto no frontend (é simples)
     if (file.type === 'text/plain' || file.name.endsWith('.txt')) {
       const text = await file.text();
       setTextoImportar(text);
-    } else if (file.name.endsWith('.docx') || file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
-      // DOCX é um ZIP contendo word/document.xml
-      try {
-        const arrayBuffer = await file.arrayBuffer();
-        const blob = new Blob([arrayBuffer]);
-        // Usar JSZip-like approach: procurar o content XML no arquivo
-        // DOCX (ZIP) possui assinatura PK no início
-        const bytes = new Uint8Array(arrayBuffer);
-
-        // Encontrar word/document.xml dentro do ZIP (busca simplificada)
-        // Alternativa: extrair todo texto legível com heurística melhorada para XML
-        const textDecoder = new TextDecoder('utf-8', { fatal: false });
-        const rawText = textDecoder.decode(bytes);
-
-        // Procurar conteúdo dentro de tags <w:t> (Word XML text nodes)
-        const wtMatches = rawText.match(/<w:t[^>]*>([^<]*)<\/w:t>/g);
-        if (wtMatches && wtMatches.length > 0) {
-          const extractedText = wtMatches
-            .map(m => m.replace(/<w:t[^>]*>/, '').replace(/<\/w:t>/, ''))
-            .join(' ')
-            .replace(/\s+/g, ' ')
-            .trim();
-          setTextoImportar(extractedText);
-        } else {
-          // Fallback: extrair strings UTF-8 legíveis
-          const parts = rawText.match(/[\w\sÀ-ÿçÇ.,;:!?(){}[\]"'\/\-@#$%&*+=]{4,}/g) || [];
-          const fallbackText = parts.join(' ').replace(/\s+/g, ' ').trim();
-          setTextoImportar(fallbackText || 'Não foi possível extrair texto do DOCX automaticamente. Cole o texto do contrato manualmente.');
-        }
-      } catch {
-        setTextoImportar('Não foi possível extrair texto do DOCX automaticamente. Cole o texto do contrato manualmente.');
-      }
-    } else if (file.type === 'application/pdf' || file.name.endsWith('.pdf')) {
-      // Para PDF, extrair strings legíveis do binário
-      const reader = new FileReader();
-      reader.onload = (ev) => {
-        const raw = ev.target.result;
-        const textParts = [];
-        const bytes = new Uint8Array(raw);
-        let current = '';
-        for (let i = 0; i < bytes.length; i++) {
-          const char = bytes[i];
-          if (char >= 32 && char <= 126) {
-            current += String.fromCharCode(char);
-          } else if (char >= 192 && char <= 255) {
-            current += String.fromCharCode(char);
-          } else {
-            if (current.length > 3) textParts.push(current);
-            current = '';
-          }
-        }
-        if (current.length > 3) textParts.push(current);
-        const extractedText = textParts.join(' ').replace(/\s+/g, ' ').trim();
-        setTextoImportar(extractedText || 'Não foi possível extrair texto do PDF automaticamente. Cole o texto do contrato manualmente.');
-      };
-      reader.readAsArrayBuffer(file);
     } else {
-      // Para outros formatos, tentar ler como texto
-      try {
-        const text = await file.text();
-        setTextoImportar(text || 'Não foi possível ler o arquivo. Cole o texto do contrato manualmente.');
-      } catch {
-        setTextoImportar('Não foi possível ler o arquivo. Cole o texto do contrato manualmente.');
-      }
+      // Para DOCX/PDF/DOC: marcamos que tem arquivo e o backend extrai
+      // Colocamos um placeholder para habilitar o botão
+      setTextoImportar(`[Arquivo "${file.name}" será processado pelo servidor]`);
     }
   };
 
@@ -601,7 +562,7 @@ export default function Contratos() {
 
             <button
               onClick={importarContrato}
-              disabled={!textoImportar.trim() || importando}
+              disabled={(!textoImportar.trim() && !arquivoImportar) || importando}
               style={{ background: ACCENT }}
               className="w-full py-2.5 text-white rounded-lg text-sm font-medium hover:opacity-90 disabled:opacity-50 flex items-center justify-center gap-2"
             >
