@@ -65,6 +65,8 @@ jobs:
 
       - name: Build
         working-directory: apps/frontend
+        env:
+          REACT_APP_API_URL: https://setvwal0cd.execute-api.us-east-1.amazonaws.com/prod
         run: npx react-scripts build
 
       - name: Sync to S3
