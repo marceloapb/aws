@@ -273,13 +273,13 @@ router.get('/portfolio', async (req, res) => {
 
         // Generate presigned URLs for each photo
         const fotos = await Promise.all(fotosRaw.map(async (f) => {
-          const thumbKey = (f.status === 'ativo' && f.s3_key_thumb) ? f.s3_key_thumb : f.s3_key;
-          const webKey = (f.status === 'ativo' && f.s3_key_web) ? f.s3_key_web : f.s3_key;
+          // Use original file as source - thumbs don't exist for legacy photos
+          const displayKey = f.s3_key;
           let url = null;
           let url_full = null;
           try {
-            url = await getSignedUrl(s3, new GetObjectCommand({ Bucket: BUCKET, Key: thumbKey || f.s3_key }), { expiresIn: 3600 });
-            url_full = await getSignedUrl(s3, new GetObjectCommand({ Bucket: BUCKET, Key: webKey || f.s3_key }), { expiresIn: 3600 });
+            url = await getSignedUrl(s3, new GetObjectCommand({ Bucket: BUCKET, Key: displayKey }), { expiresIn: 3600 });
+            url_full = url;
           } catch {}
           return {
             id: f.id,
