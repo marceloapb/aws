@@ -158,40 +158,54 @@ router.post('/importar', async (req, res) => {
     const bedrock = new BedrockRuntimeClient({ region: 'us-east-1' });
     const MODEL_ID = process.env.BEDROCK_MODEL_ID || 'amazon.nova-micro-v1:0';
 
-    // Variáveis alinhadas com contratoService.js
-    const prompt = `Você é um assistente especializado em contratos de fotografia profissional.
+    // Prompt otimizado para reproduzir 100% do contrato original
+    const prompt = `Você é um designer de contratos especializado em reproduzir documentos com fidelidade total.
 
-Recebi o texto de um contrato existente e preciso que você o transforme em um modelo HTML reutilizável.
+MISSÃO: Transformar o contrato abaixo em um modelo HTML que seja uma CÓPIA EXATA do original, apenas substituindo dados variáveis por tags.
 
-INSTRUÇÕES:
-1. Analise o contrato fornecido e identifique sua estrutura, cláusulas, e estilo visual
-2. Gere um HTML completo e bem formatado que reproduza fielmente o layout e estrutura do contrato original
-3. Substitua dados específicos de clientes/eventos por variáveis no formato {{nome_variavel}}
-4. Use EXATAMENTE as seguintes variáveis padrão (não invente outras):
-   - {{cliente_nome}} - Nome completo do cliente
-   - {{cliente_cpf}} - CPF/CNPJ do cliente
-   - {{cliente_email}} - E-mail do cliente
-   - {{cliente_endereco}} - Endereço do cliente
-   - {{valor_total}} - Valor total do contrato
-   - {{tipo_evento}} - Tipo de evento
-   - {{data_evento}} - Data do evento
-   - {{local_evento}} - Local do evento
-   - {{data_hoje}} - Data de geração do contrato
-5. Mantenha o mesmo tom, linguagem e estrutura de cláusulas do original
-6. Use CSS inline para manter o estilo (cores, fontes, espaçamentos)
-7. O HTML deve ser profissional, responsivo e adequado para PDF
+REGRAS OBRIGATÓRIAS:
+1. REPRODUZA 100% DO CONTRATO — cada parágrafo, cada cláusula, cada vírgula. NÃO resuma, NÃO omita, NÃO reescreva.
+2. MANTENHA O LAYOUT IDÊNTICO — se tem cabeçalho centralizado, mantenha centralizado. Se tem bordas, mantenha bordas. Se tem tabela, mantenha tabela.
+3. PRESERVE AS CORES EXATAS — se o contrato menciona ou usa cores (títulos em destaque, bordas coloridas, etc.), reproduza-as com CSS inline. Use cores profissionais como #333333 para texto, #EA580C ou equivalente para destaques.
+4. MANTENHA TIPOGRAFIA — use font-family: 'Georgia', serif para textos formais ou 'Helvetica Neue', Arial, sans-serif. Mantenha negrito, itálico, sublinhado exatamente onde aparecem.
+5. IDENTIFIQUE AUTOMATICAMENTE onde estão os dados variáveis e substitua APENAS esses trechos pelas tags corretas.
 
-IMPORTANTE: Use APENAS as variáveis listadas acima. Não use variantes como {{local}}, {{nome_cliente}}, {{cpf_cliente}} etc.
+TAGS DISPONÍVEIS (use SOMENTE estas, posicione-as onde o dado original estava):
+- {{cliente_nome}} → onde aparece o nome do contratante/cliente
+- {{cliente_cpf}} → onde aparece CPF ou CNPJ do cliente
+- {{cliente_email}} → onde aparece e-mail do cliente
+- {{cliente_endereco}} → onde aparece endereço do cliente
+- {{valor_total}} → onde aparece o valor do serviço/contrato
+- {{tipo_evento}} → onde aparece o tipo de evento (casamento, ensaio, etc.)
+- {{data_evento}} → onde aparece a data do evento
+- {{local_evento}} → onde aparece o local/endereço do evento
+- {{data_hoje}} → onde aparece a data de assinatura/geração do contrato
 
-CONTRATO ORIGINAL:
+COMO POSICIONAR AS TAGS:
+- Se o contrato diz "Fulano de Tal, inscrito no CPF 123.456.789-00" → "{{cliente_nome}}, inscrito no CPF {{cliente_cpf}}"
+- Se o contrato diz "no valor de R$ 5.000,00" → "no valor de {{valor_total}}"
+- Se o contrato diz "evento no dia 15/03/2025" → "evento no dia {{data_evento}}"
+- Se um dado NÃO aparece no contrato original, NÃO insira a tag forçadamente
+
+ESTRUTURA DO HTML:
+- Comece com <div style="..."> como container principal
+- Use estilos inline em TODOS os elementos (não use <style> ou classes CSS)
+- Largura máxima 800px, padding adequado, fundo branco
+- Títulos com font-size maior, bold, possivelmente centralizados
+- Parágrafos com text-align: justify, line-height: 1.6
+- Cláusulas numeradas se o original numera
+- Se houver logotipo ou imagem referenciada, coloque um placeholder [LOGO] estilizado
+- Assinaturas no final com linhas _____ se o original tem
+
+CONTRATO ORIGINAL (reproduza 100%):
 ${textoFinal}
 
-Responda APENAS com o HTML do modelo, sem explicações ou markdown. O HTML deve começar com <div> e ser autocontido com estilos inline.`;
+Responda APENAS com o HTML completo. Sem explicações, sem markdown, sem \`\`\`. Comece direto com <div`;
 
     const command = new ConverseCommand({
       modelId: MODEL_ID,
       messages: [{ role: 'user', content: [{ text: prompt }] }],
-      inferenceConfig: { maxTokens: 4000, temperature: 0.3, topP: 0.9 },
+      inferenceConfig: { maxTokens: 8000, temperature: 0.2, topP: 0.9 },
     });
 
     const response = await bedrock.send(command);
