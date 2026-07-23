@@ -184,12 +184,21 @@ router.post('/:id/aprovar', async (req, res) => {
     const orcamento = check.Items[0];
     if (orcamento.status !== 'enviado') return res.status(400).json({ success: false, message: 'Orçamento não pode ser aprovado neste status' });
 
+    const { opcao_escolhida } = req.body || {};
+
+    let updateExpr = 'SET #s = :s, aprovado_em = :a';
+    const exprValues = { ':s': 'aprovado', ':a': new Date().toISOString() };
+    if (opcao_escolhida !== undefined && opcao_escolhida !== null) {
+      updateExpr += ', opcao_escolhida = :oe';
+      exprValues[':oe'] = opcao_escolhida;
+    }
+
     await dynamo.send(new UpdateCommand({
       TableName: TABLE,
       Key: { PK: orcamento.PK, SK: orcamento.SK },
-      UpdateExpression: 'SET #s = :s, aprovado_em = :a',
+      UpdateExpression: updateExpr,
       ExpressionAttributeNames: { '#s': 'status' },
-      ExpressionAttributeValues: { ':s': 'aprovado', ':a': new Date().toISOString() },
+      ExpressionAttributeValues: exprValues,
     }));
 
     // Manter evento na agenda e marcar como confirmado

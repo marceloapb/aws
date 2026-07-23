@@ -329,9 +329,9 @@ export default function OrcamentoDetalhe() {
                       </button>
                     )}
                   </div>
-                  {isEscolhida && orc.status === 'aceito' && (
+                  {isEscolhida && ['aceito', 'aprovado', 'confirmado', 'contrato_gerado'].includes(orc.status) && (
                     <div className="absolute top-3 right-3 flex items-center gap-1 px-2 py-1 bg-green-500 text-white text-[10px] font-bold rounded-full uppercase">
-                      <CheckCircle size={10} /> Escolhida
+                      <CheckCircle size={10} /> Aprovada pelo cliente
                     </div>
                   )}
 
@@ -443,6 +443,33 @@ export default function OrcamentoDetalhe() {
           <TimelineStep label="Aceito" date={orc.aprovado_em} active={!!orc.aprovado_em} />
         </div>
       </div>
+
+      {/* ─── RESUMO DO ORÇAMENTO APROVADO ─── */}
+      {['aprovado', 'aceito', 'confirmado', 'contrato_gerado'].includes(orc.status) && (
+        <div className="bg-green-50 rounded-xl border border-green-200 p-5 mb-6">
+          <h3 className="font-semibold text-green-900 mb-3 flex items-center gap-2">
+            <CheckCircle size={18} className="text-green-600" /> Orçamento Aprovado
+          </h3>
+          <div className="grid sm:grid-cols-3 gap-4 text-sm">
+            <div>
+              <span className="text-green-700">Opção escolhida:</span>
+              <p className="font-bold text-green-900">
+                {orc.opcao_escolhida !== undefined && orc.opcao_escolhida !== null
+                  ? (opcoes[orc.opcao_escolhida]?.nome || `Opção ${Number(orc.opcao_escolhida) + 1}`)
+                  : (opcoes[0]?.nome || 'Opção 1')}
+              </p>
+            </div>
+            <div>
+              <span className="text-green-700">Valor total:</span>
+              <p className="font-bold text-green-900 text-lg">{fmtBRL(orc.valor_total)}</p>
+            </div>
+            <div>
+              <span className="text-green-700">Aprovado em:</span>
+              <p className="font-bold text-green-900">{fmtDateTime(orc.aprovado_em)}</p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ─── OBSERVAÇÕES / MENSAGEM ─── */}
       {(orc.mensagem || orc.observacoes) && (
