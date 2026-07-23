@@ -92,7 +92,7 @@ export default function MeusOrcamentos() {
                 </div>
                 {showTracker && (
                   <>
-                    {o.status === 'enviado' && (
+                    {['enviado', 'aprovado', 'aceito', 'confirmado'].includes(o.status) && (
                       <button
                         onClick={() => navigate(`/cliente/orcamentos/${o.id}`)}
                         className="w-full flex items-center justify-center gap-2 px-4 py-3 border-t text-sm font-semibold transition-colors text-white"
