@@ -22,20 +22,110 @@ const VERSIONS = [
 const handler = async (event) => {
   for (const record of event.Records) {
     const message = JSON.parse(record.body);
-    const { tenant_id, album_id, galeria_id, foto_id, s3_key_original } = message;
 
+    // Suporta álbum E portfólio
+    if (message.tipo === 'portfolio' || message.action === 'process_portfolio_foto') {
+      await processPortfolioFoto(message);
+    } else {
+      await processAlbumFoto(message);
+    }
+  }
+};
+
+async function processPortfolioFoto(message) {
+  const { tenant_id, categoria_id, foto_id, s3_key_original, s3_key_thumb, s3_key_web, pk, sk } = message;
+
+  try {
+    // 1. Baixar original do S3
+    const getResult = await s3.send(new GetObjectCommand({
+      Bucket: BUCKET,
+      Key: s3_key_original,
+    }));
+    const buffer = Buffer.from(await getResult.Body.transformToByteArray());
+
+    // 2. Carregar sharp
+    let sharp;
     try {
-      // 1. Baixar original do S3
-      const getResult = await s3.send(new GetObjectCommand({
-        Bucket: BUCKET,
-        Key: s3_key_original,
+      sharp = require('sharp');
+    } catch (e) {
+      console.warn('Sharp not available for portfolio, marking as processed:', e.message);
+      await ddb.send(new UpdateCommand({
+        TableName: TABLE,
+        Key: { PK: pk, SK: sk },
+        UpdateExpression: 'SET #s = :s',
+        ExpressionAttributeNames: { '#s': 'status' },
+        ExpressionAttributeValues: { ':s': 'ativo' },
       }));
-      const buffer = Buffer.from(await getResult.Body.transformToByteArray());
+      return;
+    }
 
-      // 2. Carregar sharp
-      let sharp;
-      try {
-        sharp = require('sharp');
+    // 3. Gerar versões
+    for (const version of VERSIONS) {
+      const metadata = await sharp(buffer).metadata();
+      const needsResize = metadata.width > version.maxWidth;
+      let processed;
+
+      if (needsResize) {
+        processed = await sharp(buffer)
+          .resize(version.maxWidth, null, { withoutEnlargement: true, fit: 'inside' })
+          .webp({ quality: version.quality })
+          .toBuffer();
+      } else {
+        processed = await sharp(buffer)
+          .webp({ quality: version.quality })
+          .toBuffer();
+      }
+
+      const targetKey = version.name === 'thumb' ? s3_key_thumb : s3_key_web;
+      await s3.send(new PutObjectCommand({
+        Bucket: BUCKET,
+        Key: targetKey,
+        Body: processed,
+        ContentType: 'image/webp',
+        CacheControl: 'public, max-age=31536000',
+      }));
+    }
+
+    // 4. Atualizar status no DynamoDB
+    await ddb.send(new UpdateCommand({
+      TableName: TABLE,
+      Key: { PK: pk, SK: sk },
+      UpdateExpression: 'SET #s = :s, processado_em = :p',
+      ExpressionAttributeNames: { '#s': 'status' },
+      ExpressionAttributeValues: { ':s': 'ativo', ':p': new Date().toISOString() },
+    }));
+
+    console.log(`[PORTFOLIO] Processado: ${foto_id} → thumb+web WebP`);
+  } catch (error) {
+    console.error(`[PORTFOLIO] Erro processando ${foto_id}:`, error.message);
+    try {
+      await ddb.send(new UpdateCommand({
+        TableName: TABLE,
+        Key: { PK: pk, SK: sk },
+        UpdateExpression: 'SET #s = :s, erro_processamento = :e',
+        ExpressionAttributeNames: { '#s': 'status' },
+        ExpressionAttributeValues: { ':s': 'erro', ':e': error.message },
+      }));
+    } catch {}
+    throw error;
+  }
+}
+
+async function processAlbumFoto(message) {
+  const { tenant_id, album_id, galeria_id, foto_id, s3_key_original } = message;
+
+  try {
+    // 1. Baixar original do S3
+    const getResult = await s3.send(new GetObjectCommand({
+      Bucket: BUCKET,
+      Key: s3_key_original,
+    }));
+    const buffer = Buffer.from(await getResult.Body.transformToByteArray());
+
+    // 2. Carregar sharp
+    let sharp;
+    try {
+      sharp = require('sharp');
       } catch (e) {
         console.warn('Sharp not available, marking as processed without resize:', e.message);
         await updateFoto(tenant_id, album_id, foto_id, {
@@ -43,7 +133,7 @@ const handler = async (event) => {
           s3_key_media: s3_key_original,
           s3_key_thumb: s3_key_original,
         });
-        continue;
+        return;
       }
 
       // 3. Ler metadados
@@ -128,8 +218,7 @@ const handler = async (event) => {
       }).catch(() => {});
       throw error; // Re-throw para SQS retry → DLQ
     }
-  }
-};
+}
 
 async function updateFoto(tenantId, albumId, fotoId, updates) {
   const keys = Object.keys(updates);

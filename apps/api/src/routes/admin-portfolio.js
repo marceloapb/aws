@@ -4,11 +4,13 @@ const { QueryCommand, PutCommand, UpdateCommand, DeleteCommand, BatchWriteComman
 const { v4: uuidv4 } = require('uuid');
 const { gerarPresignedUrl, deletarFotosCategoria } = require('../services/portfolioService');
 const { S3Client, DeleteObjectCommand, GetObjectCommand } = require('@aws-sdk/client-s3');
+const { SQSClient, SendMessageCommand } = require('@aws-sdk/client-sqs');
 const { getSignedUrl } = require('@aws-sdk/s3-request-presigner');
 const logger = require('../config/logger');
 
 const router = Router();
 const s3 = new S3Client({});
+const sqs = new SQSClient({});
 const BUCKET = process.env.S3_BUCKET_NAME;
 const PUBLIC_BUCKET = process.env.MEDIA_PUBLIC_BUCKET || process.env.S3_BUCKET_NAME;
 const CDN_DOMAIN = process.env.CDN_DOMAIN || '';
@@ -362,12 +364,36 @@ router.post('/fotos/confirmar', async (req, res) => {
       titulo: titulo ? titulo.trim() : '',
       descricao: descricao ? descricao.trim() : '',
       ordem: ordemVal,
-      status: 'ativo',
+      status: 'processando',
       criadoEm: now,
       atualizadoEm: now,
     };
 
     await dynamo.send(new PutCommand({ TableName: TABLE, Item: item }));
+
+    // Enfileirar processamento de thumbnail/web (mesma fila do álbum)
+    const QUEUE_URL = process.env.MEDIA_QUEUE_URL;
+    if (QUEUE_URL) {
+      try {
+        await sqs.send(new SendMessageCommand({
+          QueueUrl: QUEUE_URL,
+          MessageBody: JSON.stringify({
+            action: 'process_portfolio_foto',
+            tipo: 'portfolio',
+            tenant_id: TENANT_ID,
+            categoria_id,
+            foto_id,
+            s3_key_original: key,
+            s3_key_thumb,
+            s3_key_web,
+            pk: PK_TENANT,
+            sk: `FOTOPORT#${categoria_id}#${foto_id}`,
+          }),
+        }));
+      } catch (sqsErr) {
+        logger.warn({ action: 'portfolio_sqs_error', error: sqsErr.message });
+      }
+    }
 
     logger.info({ action: 'portfolio_foto_confirmed', foto_id, categoria_id });
     res.status(201).json({ success: true, data: item });
