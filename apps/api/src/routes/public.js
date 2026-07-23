@@ -271,41 +271,10 @@ router.get('/portfolio', async (req, res) => {
           .filter(f => f.status === 'ativo' || f.status === 'processando')
           .sort((a, b) => (a.ordem || 0) - (b.ordem || 0));
 
-        // Generate presigned URLs for each photo
-        // Prefer web/thumb versions (lighter), fallback to original if they don't exist
-        const fotos = await Promise.all(fotosRaw.map(async (f) => {
-          let url = null;
-          let url_full = null;
-          try {
-            // Check if web version exists
-            const webKey = f.s3_key_web;
-            const thumbKey = f.s3_key_thumb;
-            if (webKey) {
-              try {
-                await s3.send(new GetObjectCommand({ Bucket: BUCKET, Key: webKey, Range: 'bytes=0-0' }));
-                url_full = await getSignedUrl(s3, new GetObjectCommand({ Bucket: BUCKET, Key: webKey }), { expiresIn: 3600 });
-              } catch {
-                url_full = await getSignedUrl(s3, new GetObjectCommand({ Bucket: BUCKET, Key: f.s3_key }), { expiresIn: 3600 });
-              }
-            } else {
-              url_full = await getSignedUrl(s3, new GetObjectCommand({ Bucket: BUCKET, Key: f.s3_key }), { expiresIn: 3600 });
-            }
-            if (thumbKey) {
-              try {
-                await s3.send(new GetObjectCommand({ Bucket: BUCKET, Key: thumbKey, Range: 'bytes=0-0' }));
-                url = await getSignedUrl(s3, new GetObjectCommand({ Bucket: BUCKET, Key: thumbKey }), { expiresIn: 3600 });
-              } catch {
-                url = url_full;
-              }
-            } else {
-              url = url_full;
-            }
-          } catch {
-            try {
-              url = await getSignedUrl(s3, new GetObjectCommand({ Bucket: BUCKET, Key: f.s3_key }), { expiresIn: 3600 });
-              url_full = url;
-            } catch {}
-          }
+        // Generate URLs for each photo (portfolio bucket is public for this path)
+        const fotos = fotosRaw.map(f => {
+          const baseUrl = `https://${BUCKET}.s3.us-east-1.amazonaws.com`;
+          const url = `${baseUrl}/${f.s3_key}`;
           return {
             id: f.id,
             titulo: f.titulo || '',
@@ -314,9 +283,9 @@ router.get('/portfolio', async (req, res) => {
             categoria: cat.nome,
             url,
             thumb_url: url,
-            url_full,
+            url_full: url,
           };
-        }));
+        });
 
         return {
           id: cat.id,
