@@ -37,6 +37,33 @@ router.get('/', async (req, res) => {
   }
 });
 
+// GET /api/admin/equipamentos/categorias
+router.get('/categorias', async (req, res) => {
+  try {
+    const categorias = [
+      'Câmeras', 'Lentes', 'Flash', 'Iluminação', 'Tripés',
+      'Drones', 'Estabilizadores', 'Áudio', 'Acessórios', 'Outros'
+    ];
+    res.json({ success: true, data: categorias });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// GET /api/admin/equipamentos/checklists
+router.get('/checklists', async (req, res) => {
+  try {
+    const result = await dynamo.send(new QueryCommand({
+      TableName: TABLE,
+      KeyConditionExpression: 'PK = :pk AND begins_with(SK, :sk)',
+      ExpressionAttributeValues: { ':pk': `TENANT#${TENANT}`, ':sk': 'EQUIP_CHECKLIST#' },
+    }));
+    res.json({ success: true, data: result.Items || [] });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
 // POST /api/admin/equipamentos
 router.post('/', async (req, res) => {
   try {

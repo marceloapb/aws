@@ -10,6 +10,7 @@ const MODEL_ID = 'amazon.nova-micro-v1:0';
 // Modelo com visão para identificar equipamentos
 // Claude Sonnet 4.5 — cross-region inference profile (us-east-1)
 const VISION_MODEL_ID = process.env.BEDROCK_VISION_MODEL_ID || 'us.anthropic.claude-sonnet-4-5-20250929-v1:0';
+const VISION_FALLBACK_MODEL_ID = 'us.anthropic.claude-haiku-4-5-20251001-v1:0';
 
 /**
  * Gera caption para Instagram
@@ -124,17 +125,32 @@ Se não conseguir identificar com certeza, use seu melhor palpite baseado na apa
   try {
     response = await bedrock.send(command);
   } catch (err) {
-    // Fornecer mensagem de erro mais clara para problemas comuns
-    if (err.name === 'AccessDeniedException' || err.message?.includes('not authorized')) {
-      throw new Error('Modelo de IA (Vision) não está habilitado na conta AWS. Verifique se o modelo Claude Sonnet 4.5 está ativado no Amazon Bedrock (região us-east-1). Acesse o console do Bedrock > Model access e solicite acesso ao modelo Anthropic Claude Sonnet 4.5.');
-    }
-    if (err.name === 'ValidationException') {
-      throw new Error(`Erro de validação do Bedrock: ${err.message}`);
-    }
-    if (err.name === 'ThrottlingException') {
+    // Try fallback model if primary fails with access error
+    if (err.name === 'AccessDeniedException' || err.message?.includes('not authorized') || err.name === 'ValidationException') {
+      try {
+        const fallbackCommand = new ConverseCommand({
+          modelId: VISION_FALLBACK_MODEL_ID,
+          messages: [{
+            role: 'user',
+            content: [
+              { image: { format, source: { bytes: imageBytes } } },
+              { text: prompt },
+            ],
+          }],
+          inferenceConfig: { maxTokens: 500, temperature: 0.3 },
+        });
+        response = await bedrock.send(fallbackCommand);
+      } catch (fallbackErr) {
+        if (fallbackErr.name === 'AccessDeniedException' || fallbackErr.message?.includes('not authorized')) {
+          throw new Error('Modelo de IA (Vision) não está habilitado na conta AWS. Verifique se o modelo Claude está ativado no Amazon Bedrock (região us-east-1). Acesse o console do Bedrock > Model access e solicite acesso.');
+        }
+        throw new Error(`Erro ao chamar IA: ${fallbackErr.message || fallbackErr.name || 'desconhecido'}`);
+      }
+    } else if (err.name === 'ThrottlingException') {
       throw new Error('Limite de requisições da IA atingido. Tente novamente em alguns segundos.');
+    } else {
+      throw new Error(`Erro ao chamar IA: ${err.message || err.name || 'desconhecido'}`);
     }
-    throw new Error(`Erro ao chamar IA: ${err.message || err.name || 'desconhecido'}`);
   }
 
   const text = response.output.message.content[0].text.trim();
