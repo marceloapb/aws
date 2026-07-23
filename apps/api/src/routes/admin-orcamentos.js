@@ -392,11 +392,31 @@ router.get('/:id/editar', async (req, res) => {
             duracao_base: i.duracao_base || 0,
             valor_hora_adicional: i.valor_hora_adicional || 0,
           })),
-          pacotes: catalogoPacotes.map(p => ({
-            id: p.id,
-            nome: p.nome,
-            descricao: p.descricao || '',
-          })),
+          pacotes: catalogoPacotes.map(p => {
+            // Calcular valor do pacote a partir dos itens
+            const subtotal = (p.itens || []).reduce((s, ref) => {
+              const ci = catalogoItens.find(c => c.id === (ref.item_id || ref.id || ref));
+              return s + (ci ? (resolverValorBase(ci) || ci.valor_base || 0) * (ref.quantidade || 1) : 0);
+            }, 0);
+            let valorPacote = subtotal;
+            if (p.desconto_tipo === 'percentual' && p.desconto_valor > 0) {
+              valorPacote = subtotal * (1 - p.desconto_valor / 100);
+            } else if (p.desconto_tipo === 'fixo' && p.desconto_valor > 0) {
+              valorPacote = Math.max(0, subtotal - p.desconto_valor);
+            }
+            return {
+              id: p.id,
+              nome: p.nome,
+              descricao: p.descricao || '',
+              valor_base: valorPacote,
+              itens: (p.itens || []).map(ref => {
+                const ci = catalogoItens.find(c => c.id === (ref.item_id || ref.id || ref));
+                return { item_id: ref.item_id || ref.id || ref, nome: ci?.nome || ref.nome || '', quantidade: ref.quantidade || 1 };
+              }),
+              desconto_tipo: p.desconto_tipo || '',
+              desconto_valor: p.desconto_valor || 0,
+            };
+          }),
         },
         config: configTenant,
       },
