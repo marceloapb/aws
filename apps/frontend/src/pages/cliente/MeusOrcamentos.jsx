@@ -68,11 +68,15 @@ export default function MeusOrcamentos() {
           {orcamentos.length === 0 ? (
             <div className="bg-white rounded-xl border p-12 text-center text-gray-400">Nenhum orçamento</div>
           ) : orcamentos.map(o => {
-            const showTracker = o.status && !['aceito', 'confirmado'].includes(o.status);
+            const showTracker = true;
             const isExpanded = expandedTracker === o.id;
             // Map backend status to tracker status
             const trackerStatus = o.status === 'rascunho' ? 'orcando' :
+              o.status === 'solicitado' ? 'orcando' :
               o.status === 'enviado' ? 'enviado' :
+              o.status === 'aprovado' ? 'aceito' :
+              o.status === 'aceito' ? 'aceito' :
+              o.status === 'confirmado' ? 'aceito' :
               o.status === 'recusado' ? 'orcando' : (o.status || 'orcando');
 
             return (
@@ -107,7 +111,7 @@ export default function MeusOrcamentos() {
                     </button>
                     {isExpanded && (
                       <div className="px-4 pb-4 border-t bg-gray-50">
-                        <StatusTracker status={trackerStatus} createdAt={o.created} />
+                        <StatusTracker status={trackerStatus} createdAt={o.created} enviadoEm={o.enviado_em} visualizadoEm={o.visualizado_em} aprovadoEm={o.aprovado_em} />
                       </div>
                     )}
                   </>

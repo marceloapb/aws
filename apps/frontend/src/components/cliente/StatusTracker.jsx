@@ -9,60 +9,66 @@ const LABELS = [
   'Solicitação recebida',
   'Em análise pelo fotógrafo',
   'Orçamento sendo montado',
-  'Orçamento enviado - confira!',
-  'Confirmado!',
+  'Orçamento enviado',
+  'Aprovado!',
 ];
 
-export default function StatusTracker({ status, createdAt }) {
+function fmtDateTime(d) {
+  if (!d) return null;
+  return new Date(d).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' });
+}
+
+export default function StatusTracker({ status, createdAt, enviadoEm, visualizadoEm, aprovadoEm }) {
   const currentIndex = STATUS_ORDER.indexOf(status);
+
+  // Map dates to each step
+  const dates = [
+    createdAt,      // Solicitação recebida
+    null,           // Em análise (no specific date)
+    null,           // Orçamento sendo montado
+    enviadoEm,     // Orçamento enviado
+    aprovadoEm,    // Aprovado
+  ];
 
   return (
     <div className="py-3">
       <div className="space-y-0">
         {LABELS.map((label, i) => {
-          const isCompleted = i < currentIndex;
+          const isCompleted = i <= currentIndex;
           const isActive = i === currentIndex;
           const isFuture = i > currentIndex;
+          const stepDate = dates[i];
 
           return (
             <div key={label} className="flex items-start gap-3">
               {/* Vertical line + dot */}
               <div className="flex flex-col items-center">
                 <div
-                  className={`w-4 h-4 rounded-full flex items-center justify-center flex-shrink-0 ${
+                  className={`w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0 ${
                     isCompleted ? 'bg-green-500' :
-                    isActive ? 'animate-pulse' :
                     'border-2 border-dashed border-gray-300 bg-white'
                   }`}
-                  style={isActive ? { backgroundColor: ACCENT } : undefined}
                 >
-                  {isCompleted && <Check size={10} className="text-white" />}
-                  {isActive && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
+                  {isCompleted && <Check size={12} className="text-white" />}
                 </div>
                 {i < LABELS.length - 1 && (
                   <div className={`w-0.5 h-8 ${
-                    isCompleted ? 'bg-green-300' :
-                    isFuture ? 'border-l-2 border-dashed border-gray-200' : 'bg-gray-200'
+                    isCompleted && i < currentIndex ? 'bg-green-300' : 'bg-gray-200'
                   }`} />
                 )}
               </div>
 
               {/* Text */}
-              <div className="pt-0">
+              <div className="pt-0.5">
                 <p className={`text-sm font-medium leading-4 ${
-                  isCompleted ? 'text-green-700' :
-                  isActive ? 'text-gray-900' :
-                  'text-gray-400'
+                  isCompleted ? 'text-green-700' : 'text-gray-400'
                 }`}>
                   {label}
                 </p>
-                {i === 0 && createdAt && (
+                {isCompleted && stepDate && (
                   <p className="text-xs text-gray-400 mt-0.5">
-                    {new Date(createdAt).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
+                    {fmtDateTime(stepDate)}
                   </p>
-                )}
-                {isActive && i > 0 && (
-                  <p className="text-xs mt-0.5" style={{ color: ACCENT }}>Em andamento...</p>
                 )}
               </div>
             </div>
