@@ -55,7 +55,7 @@ export default function MeusOrcamentos() {
   if (loading) return <div className="flex items-center justify-center py-20 text-gray-400">Carregando...</div>;
 
   const statusLabel = {
-    solicitado: 'Solicitado', rascunho: 'Em análise', enviado: 'Aguardando resposta', confirmado: 'Confirmado', aceito: 'Confirmado',
+    solicitado: 'Solicitado', rascunho: 'Em análise', enviado: 'Aguardando sua aprovação', confirmado: 'Confirmado', aceito: 'Confirmado',
     recusado: 'Recusado', expirado: 'Expirado', gerado: 'Pendente', assinado: 'Assinado',
     publicado: 'Disponível', ativo: 'Disponível',
   };
