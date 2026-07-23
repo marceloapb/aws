@@ -138,6 +138,27 @@ export default function Portfolio() {
         return fotos;
     }
   }, [fotos, sortMode]);
+
+  // Save sort order to backend when sortMode changes
+  useEffect(() => {
+    if (!sortMode || !selectedCat || sortedFotos.length === 0) return;
+    const saveOrder = async () => {
+      try {
+        await authFetch(`/admin/portfolio/categorias/${selectedCat}/fotos/ordem`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ fotos: sortedFotos.map((f, i) => ({ id: f.id, ordem: i })) }),
+        });
+        // Update local state with new order values
+        setFotos(sortedFotos.map((f, i) => ({ ...f, ordem: i })));
+        showToast('Ordem salva');
+      } catch {
+        showToast('Erro ao salvar ordem', 'error');
+      }
+    };
+    saveOrder();
+  }, [sortMode]);
+
   const fileInputRef = useRef(null);
   const touchDragRef = useRef({ startIndex: null, currentIndex: null, element: null });
 
