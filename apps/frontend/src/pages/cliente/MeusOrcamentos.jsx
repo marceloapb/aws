@@ -72,10 +72,6 @@ export default function MeusOrcamentos() {
               {successMessage}
             </div>
           )}
-          <button onClick={handleSolicitar} style={{ background: ACCENT }}
-            className="w-full flex items-center justify-center gap-2 px-4 py-3 text-white rounded-xl font-medium hover:opacity-90 transition-opacity">
-            <Plus size={18} /> Solicitar Novo Orçamento
-          </button>
           {orcamentos.length === 0 ? (
             <div className="bg-white rounded-xl border p-12 text-center text-gray-400">Nenhum orçamento</div>
           ) : orcamentos.map(o => {

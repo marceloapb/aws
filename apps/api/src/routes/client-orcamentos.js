@@ -22,14 +22,28 @@ router.get('/', async (req, res) => {
   }
 });
 
-router.get('/:token', async (req, res) => {
+router.get('/:id', async (req, res) => {
   try {
+    const paramId = req.params.id;
+    const clienteId = req.clienteId;
+
+    // Try direct lookup by PK/SK (client owns the orcamento)
+    const directResult = await dynamo.send(new QueryCommand({
+      TableName: TABLE,
+      KeyConditionExpression: 'PK = :pk AND SK = :sk',
+      ExpressionAttributeValues: { ':pk': `CLIENTE#${clienteId}`, ':sk': `ORCAMENTO#${paramId}` },
+    }));
+    if (directResult.Items && directResult.Items.length > 0) {
+      return res.json({ success: true, data: directResult.Items[0] });
+    }
+
+    // Fallback: try by token_acesso
     const result = await dynamo.send(new QueryCommand({
       TableName: TABLE,
       IndexName: 'GSI1',
       KeyConditionExpression: 'GSI1PK = :pk',
       FilterExpression: 'token_acesso = :token',
-      ExpressionAttributeValues: { ':pk': 'ORCAMENTO', ':token': req.params.token },
+      ExpressionAttributeValues: { ':pk': 'ORCAMENTO', ':token': paramId },
     }));
     if (!result.Items || result.Items.length === 0) return res.status(404).json({ success: false, message: 'Orçamento não encontrado' });
     res.json({ success: true, data: result.Items[0] });
