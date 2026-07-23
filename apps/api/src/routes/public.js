@@ -274,16 +274,17 @@ router.get('/portfolio', async (req, res) => {
         // Generate URLs for each photo (portfolio bucket is public for this path)
         const fotos = fotosRaw.map(f => {
           const baseUrl = `https://${BUCKET}.s3.us-east-1.amazonaws.com`;
-          const url = `${baseUrl}/${f.s3_key}`;
+          const thumbUrl = f.s3_key_thumb ? `${baseUrl}/${f.s3_key_thumb}` : (f.s3_key_web ? `${baseUrl}/${f.s3_key_web}` : `${baseUrl}/${f.s3_key}`);
+          const fullUrl = f.s3_key_web ? `${baseUrl}/${f.s3_key_web}` : (f.s3_key ? `${baseUrl}/${f.s3_key}` : thumbUrl);
           return {
             id: f.id,
             titulo: f.titulo || '',
             descricao: f.descricao || '',
             ordem: f.ordem || 0,
             categoria: cat.nome,
-            url,
-            thumb_url: url,
-            url_full: url,
+            url: thumbUrl,
+            thumb_url: thumbUrl,
+            url_full: fullUrl,
           };
         });
 
