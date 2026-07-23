@@ -122,7 +122,6 @@ export default function MeusOrcamentos() {
               </div>
             );
           })}
-        </div>
       </div>
     </div>
   );
