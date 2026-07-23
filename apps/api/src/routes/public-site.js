@@ -20,7 +20,6 @@ router.get('/config', async (req, res) => {
         TableName: TABLE,
         Key: { PK: TENANT, SK: 'CONFIG#SITE' },
       })),
-      // Try both TENANT patterns (CONFIG#faviconKey saved by admin)
       dynamo.send(new GetCommand({
         TableName: TABLE,
         Key: { PK: TENANT, SK: 'CONFIG#faviconKey' },
@@ -45,7 +44,33 @@ router.get('/config', async (req, res) => {
       Object.assign(data, { nome, logo_url, logo_dark_url, redes, whatsapp_pessoal });
     }
 
-    // Add favicon URL (public S3/CloudFront URL built from key)
+    // If no site config, try to get logo from admin config (TENANT#default)
+    if (!data.logo_dark_url && !data.logo_url) {
+      try {
+        const { QueryCommand: QC } = require('@aws-sdk/lib-dynamodb');
+        const configResult = await dynamo.send(new QC({
+          TableName: TABLE,
+          KeyConditionExpression: 'PK = :pk AND begins_with(SK, :sk)',
+          ExpressionAttributeValues: { ':pk': 'TENANT#default', ':sk': 'CONFIG#' },
+        }));
+        const adminConfig = {};
+        for (const item of (configResult.Items || [])) {
+          adminConfig[item.chave] = item.valor;
+        }
+        if (adminConfig.logoDarkKey || adminConfig.logoKey) {
+          const bucket = process.env.S3_BUCKET_NAME || 'mbf-backend-v3-fotos';
+          const logoKey = adminConfig.logoDarkKey || adminConfig.logoKey;
+          data.logo_dark_url = `https://${bucket}.s3.us-east-1.amazonaws.com/${logoKey}`;
+          if (adminConfig.logoKey) {
+            data.logo_url = `https://${bucket}.s3.us-east-1.amazonaws.com/${adminConfig.logoKey}`;
+          }
+        }
+        if (adminConfig.tradeName) data.nome = adminConfig.tradeName;
+        if (!faviconKey && adminConfig.faviconKey) faviconKey = adminConfig.faviconKey;
+      } catch {}
+    }
+
+    // Add favicon URL
     if (faviconKey) {
       const bucket = process.env.S3_BUCKET_NAME || 'mbf-backend-v3-fotos';
       data.favicon_url = `https://${bucket}.s3.us-east-1.amazonaws.com/${faviconKey}`;

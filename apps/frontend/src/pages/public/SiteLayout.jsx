@@ -56,9 +56,11 @@ export default function SiteLayout() {
               {logoUrl ? (
                 <img src={logoUrl} alt={nome} className="h-8 w-auto" />
               ) : (
-                <Camera size={28} className="text-[#EA580C]" />
+                <>
+                  <Camera size={28} className="text-[#EA580C]" />
+                  <span className="text-lg font-bold">{nome}</span>
+                </>
               )}
-              <span className="text-lg font-bold">{nome}</span>
             </Link>
 
             {/* Desktop Nav */}
@@ -145,9 +147,11 @@ export default function SiteLayout() {
                 {logoUrl ? (
                   <img src={logoUrl} alt={nome} className="h-6 w-auto" />
                 ) : (
-                  <Camera size={20} className="text-[#EA580C]" />
+                  <>
+                    <Camera size={20} className="text-[#EA580C]" />
+                    <span className="font-semibold">{nome}</span>
+                  </>
                 )}
-                <span className="font-semibold">{nome}</span>
               </div>
 
               {/* Social Icons */}
