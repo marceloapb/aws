@@ -272,18 +272,19 @@ router.get('/portfolio', async (req, res) => {
           .sort((a, b) => (a.ordem || 0) - (b.ordem || 0));
 
         // Generate URLs for each photo (portfolio bucket is public for this path)
+        // Portfolio is a showcase — use web quality (2048px) for grid, not thumb (400px)
         const fotos = fotosRaw.map(f => {
           const baseUrl = `https://${BUCKET}.s3.us-east-1.amazonaws.com`;
-          const thumbUrl = f.s3_key_thumb ? `${baseUrl}/${f.s3_key_thumb}` : (f.s3_key_web ? `${baseUrl}/${f.s3_key_web}` : `${baseUrl}/${f.s3_key}`);
-          const fullUrl = f.s3_key_web ? `${baseUrl}/${f.s3_key_web}` : (f.s3_key ? `${baseUrl}/${f.s3_key}` : thumbUrl);
+          const webUrl = f.s3_key_web ? `${baseUrl}/${f.s3_key_web}` : (f.s3_key ? `${baseUrl}/${f.s3_key}` : null);
+          const fullUrl = f.s3_key ? `${baseUrl}/${f.s3_key}` : webUrl;
           return {
             id: f.id,
             titulo: f.titulo || '',
             descricao: f.descricao || '',
             ordem: f.ordem || 0,
             categoria: cat.nome,
-            url: thumbUrl,
-            thumb_url: thumbUrl,
+            url: webUrl,
+            thumb_url: webUrl,
             url_full: fullUrl,
           };
         });

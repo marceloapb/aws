@@ -15,8 +15,8 @@ const TABLE = process.env.TABLE_NAME;
 const BUCKET = process.env.S3_BUCKET_NAME;
 
 const VERSIONS = [
-  { name: 'web', maxWidth: 2048, quality: 85, format: 'webp' },
-  { name: 'thumb', maxWidth: 400, quality: 70, format: 'webp' },
+  { name: 'web', maxWidth: 2048, quality: 92, format: 'webp' },
+  { name: 'thumb', maxWidth: 800, quality: 82, format: 'webp' },
 ];
 
 const handler = async (event) => {
