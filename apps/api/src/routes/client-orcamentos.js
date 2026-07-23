@@ -279,4 +279,21 @@ router.post('/:id/recusar', async (req, res) => {
   }
 });
 
+// POST /client/orcamentos/:id/visualizar — Registrar que o cliente visualizou
+router.post('/:id/visualizar', async (req, res) => {
+  try {
+    const clienteId = req.clienteId;
+    const orcamentoId = req.params.id;
+    await dynamo.send(new UpdateCommand({
+      TableName: TABLE,
+      Key: { PK: `CLIENTE#${clienteId}`, SK: `ORCAMENTO#${orcamentoId}` },
+      UpdateExpression: 'SET visualizado_em = :v',
+      ExpressionAttributeValues: { ':v': new Date().toISOString() },
+    }));
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
 module.exports = router;

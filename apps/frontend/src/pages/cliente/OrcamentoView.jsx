@@ -19,7 +19,15 @@ export default function OrcamentoView() {
   useEffect(() => {
     authFetch(`/client/orcamentos/${id}`)
       .then(r => r.json())
-      .then(json => { if (json.success) setOrc(json.data); })
+      .then(json => {
+        if (json.success) {
+          setOrc(json.data);
+          // Registrar visualização
+          if (json.data.status === 'enviado' && !json.data.visualizado_em) {
+            authFetch(`/client/orcamentos/${id}/visualizar`, { method: 'POST' }).catch(() => {});
+          }
+        }
+      })
       .catch(() => {})
       .finally(() => setLoading(false));
   }, [id]);
