@@ -3,12 +3,54 @@ import { X, ChevronLeft, ChevronRight } from 'lucide-react';
 
 const API = process.env.REACT_APP_API_URL || '';
 
+// Protected image component - prevents download/save
+function ProtectedImg({ src, alt, className }) {
+  return (
+    <div className="relative select-none" style={{ WebkitTouchCallout: 'none' }}>
+      <img
+        src={src}
+        alt={alt}
+        loading="lazy"
+        draggable={false}
+        onContextMenu={e => e.preventDefault()}
+        onDragStart={e => e.preventDefault()}
+        className={`${className} pointer-events-none`}
+      />
+      {/* Transparent overlay to block right-click save */}
+      <div
+        className="absolute inset-0 z-10"
+        onContextMenu={e => e.preventDefault()}
+        onDragStart={e => e.preventDefault()}
+      />
+    </div>
+  );
+}
+
 export default function PortfolioPage() {
   const [categorias, setCategorias] = useState([]);
   const [fotos, setFotos] = useState([]);
   const [selected, setSelected] = useState('todas');
   const [loading, setLoading] = useState(true);
   const [lightbox, setLightbox] = useState(null); // index of active photo
+
+  // Protection: block right-click, Ctrl+S, Ctrl+P, PrintScreen on this page
+  useEffect(() => {
+    const blockContext = (e) => e.preventDefault();
+    const blockKeys = (e) => {
+      // Block Ctrl+S (save), Ctrl+P (print), Ctrl+Shift+I (devtools), PrintScreen
+      if ((e.ctrlKey && (e.key === 's' || e.key === 'p' || e.key === 'u')) ||
+          (e.ctrlKey && e.shiftKey && e.key === 'i') ||
+          e.key === 'PrintScreen') {
+        e.preventDefault();
+      }
+    };
+    document.addEventListener('contextmenu', blockContext);
+    document.addEventListener('keydown', blockKeys);
+    return () => {
+      document.removeEventListener('contextmenu', blockContext);
+      document.removeEventListener('keydown', blockKeys);
+    };
+  }, []);
 
   useEffect(() => {
     fetch(`${API}/public/portfolio`)
@@ -73,7 +115,13 @@ export default function PortfolioPage() {
   }, [lightbox]);
 
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen" style={{ WebkitUserSelect: 'none', userSelect: 'none' }}>
+      {/* Anti-print/screenshot CSS */}
+      <style>{`
+        @media print { .portfolio-protected { display: none !important; } }
+        .portfolio-protected img { -webkit-user-drag: none; user-drag: none; }
+      `}</style>
+      <div className="portfolio-protected">
       {/* Header */}
       <section className="py-16 sm:py-20 bg-stone-950">
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
@@ -135,11 +183,11 @@ export default function PortfolioPage() {
                   key={foto.id || idx}
                   onClick={() => openLightbox(idx)}
                   className="group relative aspect-[4/3] overflow-hidden rounded-xl bg-stone-900 focus:outline-none focus:ring-2 focus:ring-[#EA580C]"
+                  onContextMenu={e => e.preventDefault()}
                 >
-                  <img
+                  <ProtectedImg
                     src={foto.url || foto.thumb_url}
                     alt={foto.titulo || foto.alt || ''}
-                    loading="lazy"
                     className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
@@ -179,7 +227,7 @@ export default function PortfolioPage() {
           )}
 
           {/* Image */}
-          <img
+          <ProtectedImg
             src={filteredFotos[lightbox].url_full || filteredFotos[lightbox].url || filteredFotos[lightbox].thumb_url}
             alt={filteredFotos[lightbox].titulo || ''}
             className="max-w-[90vw] max-h-[85vh] object-contain rounded-lg"
@@ -202,6 +250,7 @@ export default function PortfolioPage() {
           </div>
         </div>
       )}
+      </div>
     </div>
   );
 }
