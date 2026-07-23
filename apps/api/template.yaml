@@ -117,6 +117,10 @@ Resources:
               Resource: '*'
             - Effect: Allow
               Action:
+                - sns:Publish
+              Resource: '*'
+            - Effect: Allow
+              Action:
                 - events:PutEvents
               Resource: !Sub 'arn:aws:events:${AWS::Region}:${AWS::AccountId}:event-bus/mbf-events'
       Events:
@@ -327,6 +331,26 @@ Resources:
           Type: Schedule
           Properties:
             Schedule: rate(1 hour)
+
+  # ═══ ASSINATURA ELETRÔNICA ═══
+  ContratoExpiracaoFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub 'mbf-${Stage}-contrato-expiracao'
+      Handler: src/jobs/contratoExpiracaoJob.handler
+      CodeUri: .
+      Timeout: 300
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref TableName
+        - SSMParameterReadPolicy:
+            ParameterName: !Sub 'mbf/${Stage}/*'
+      Events:
+        Schedule:
+          Type: Schedule
+          Properties:
+            Schedule: cron(0 8 * * ? *)
+            Description: Verifica contratos pendentes de assinatura e expira os que ultrapassaram o prazo
 
   # ═══ WEBHOOK FUNCTIONS ═══
   WhatsAppWebhookFunction:
