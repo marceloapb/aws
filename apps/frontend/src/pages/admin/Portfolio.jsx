@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo, memo } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
-import { GripVertical, Eye, EyeOff, Plus, Trash2, Edit2, Upload, X, Image, AlertTriangle, CheckCircle, Move } from 'lucide-react';
+import { GripVertical, Eye, EyeOff, Plus, Trash2, Edit2, Upload, X, Image, AlertTriangle, CheckCircle, Move, ArrowUpDown, ArrowDownAZ, ArrowUpAZ, Calendar } from 'lucide-react';
 
 const ACCENT = '#EA580C';
 
@@ -120,6 +120,24 @@ export default function Portfolio() {
   const [dragType, setDragType] = useState(null);
   const [toast, setToast] = useState(null);
   const [isReorderMode, setIsReorderMode] = useState(false);
+  const [sortMode, setSortMode] = useState(null); // null = manual, 'date_asc', 'date_desc', 'name_asc', 'name_desc'
+
+  const sortedFotos = useMemo(() => {
+    if (!sortMode) return fotos;
+    const sorted = [...fotos];
+    switch (sortMode) {
+      case 'date_asc':
+        return sorted.sort((a, b) => (a.criadoEm || '').localeCompare(b.criadoEm || ''));
+      case 'date_desc':
+        return sorted.sort((a, b) => (b.criadoEm || '').localeCompare(a.criadoEm || ''));
+      case 'name_asc':
+        return sorted.sort((a, b) => (a.titulo || a.id || '').localeCompare(b.titulo || b.id || ''));
+      case 'name_desc':
+        return sorted.sort((a, b) => (b.titulo || b.id || '').localeCompare(a.titulo || a.id || ''));
+      default:
+        return fotos;
+    }
+  }, [fotos, sortMode]);
   const fileInputRef = useRef(null);
   const touchDragRef = useRef({ startIndex: null, currentIndex: null, element: null });
 
@@ -415,12 +433,34 @@ export default function Portfolio() {
             <div className="flex items-center gap-2">
               {fotos.length > 1 && (
                 <button
-                  onClick={() => setIsReorderMode(!isReorderMode)}
+                  onClick={() => { setIsReorderMode(!isReorderMode); if (!isReorderMode) setSortMode(null); }}
                   className={`inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium border rounded-lg transition-colors
                     ${isReorderMode ? 'border-orange-400 bg-orange-50 text-orange-700' : 'border-gray-300 hover:bg-gray-50'}`}
                 >
                   <Move size={14} /> {isReorderMode ? 'Concluir' : 'Reordenar'}
                 </button>
+              )}
+              {fotos.length > 1 && !isReorderMode && (
+                <div className="flex items-center gap-1 border border-gray-300 rounded-lg overflow-hidden">
+                  <button onClick={() => setSortMode(prev => prev === 'date_desc' ? 'date_asc' : 'date_desc')}
+                    className={`inline-flex items-center gap-1 px-2.5 py-2 text-xs font-medium transition-colors ${sortMode?.startsWith('date') ? 'bg-orange-50 text-orange-700' : 'hover:bg-gray-50 text-gray-600'}`}
+                    title={sortMode === 'date_asc' ? 'Data (mais antigo)' : 'Data (mais recente)'}>
+                    <Calendar size={13} />
+                    {sortMode === 'date_asc' ? '↑' : sortMode === 'date_desc' ? '↓' : ''}
+                  </button>
+                  <button onClick={() => setSortMode(prev => prev === 'name_asc' ? 'name_desc' : 'name_asc')}
+                    className={`inline-flex items-center gap-1 px-2.5 py-2 text-xs font-medium transition-colors ${sortMode?.startsWith('name') ? 'bg-orange-50 text-orange-700' : 'hover:bg-gray-50 text-gray-600'}`}
+                    title={sortMode === 'name_desc' ? 'Nome (Z-A)' : 'Nome (A-Z)'}>
+                    {sortMode === 'name_desc' ? <ArrowUpAZ size={13} /> : <ArrowDownAZ size={13} />}
+                  </button>
+                  {sortMode && (
+                    <button onClick={() => setSortMode(null)}
+                      className="inline-flex items-center px-2 py-2 text-xs text-gray-400 hover:text-gray-600 hover:bg-gray-50"
+                      title="Ordem manual">
+                      <X size={13} />
+                    </button>
+                  )}
+                </div>
               )}
               <button onClick={() => fileInputRef.current?.click()} disabled={uploading || isReorderMode}
                 className="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50">
@@ -488,7 +528,7 @@ export default function Portfolio() {
             </div>
           ) : (
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-              {fotos.map((foto, idx) => (
+              {sortedFotos.map((foto, idx) => (
                 <div key={foto.id} data-foto-index={idx}
                   onTouchStart={(e) => handleTouchStart(e, idx)}
                   onTouchMove={handleTouchMove}
