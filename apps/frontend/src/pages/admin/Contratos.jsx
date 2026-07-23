@@ -4,13 +4,15 @@ import { useAuth } from '../../contexts/AuthContext';
 import {
   FileText, Search, Plus, Eye, Send, Download, Copy, RefreshCw,
   Clock, CheckCircle2, AlertTriangle, PercentIcon, X, Trash2,
-  Edit, Layers, ToggleLeft, ToggleRight, CreditCard, ArrowRightLeft
+  Edit, Layers, ToggleLeft, ToggleRight, CreditCard, ArrowRightLeft,
+  Upload, Sparkles, Loader2
 } from 'lucide-react';
 import { SortableHeader } from '../../components/ui';
 import useSortable from '../../hooks/useSortable';
 
 const ACCENT = '#EA580C';
 const STATUS_TABS = ['Todos', 'Gerado', 'Enviado', 'Assinado', 'Expirado'];
+const TIPOS_EVENTO = ['Casamento', 'Aniversário', 'Corporativo', 'Formatura', 'Ensaio', 'Outro'];
 const STATUS_MAP = {
   gerado: { label: 'Gerado', cls: 'text-gray-700 bg-gray-100' },
   enviado: { label: 'Enviado', cls: 'text-blue-700 bg-blue-50' },
@@ -49,7 +51,12 @@ export default function Contratos() {
   // --- Aba Modelos state ---
   const [modalModelo, setModalModelo] = useState(false);
   const [editModelo, setEditModelo] = useState(null);
-  const [formModelo, setFormModelo] = useState({ nome: '', tipo_evento: '', corpo_html: '', ativo: true });
+  const [formModelo, setFormModelo] = useState({ nome: '', tipo_evento: [], corpo_html: '', ativo: true });
+  const [importando, setImportando] = useState(false);
+  const [modalImportar, setModalImportar] = useState(false);
+  const [textoImportar, setTextoImportar] = useState('');
+  const [nomeImportar, setNomeImportar] = useState('');
+  const [arquivoImportar, setArquivoImportar] = useState(null);
 
   // --- Aba Aditivos state ---
   const [aditivos, setAditivos] = useState([]);
@@ -124,7 +131,7 @@ export default function Contratos() {
       .then(r => r.json()).then(j => { if (j.success) setModelos(p => [...p, j.data]); }).catch(() => {});
   };
   const excluirModelo = (id) => { authFetch(`/admin/contratos/modelos/${id}`, { method: 'DELETE' }).then(r => r.json()).then(j => { if (j.success) setModelos(p => p.filter(m => m.id !== id)); }).catch(() => {}); };
-  const resetFormModelo = () => { setFormModelo({ nome: '', tipo_evento: '', corpo_html: '', ativo: true }); setEditModelo(null); };
+  const resetFormModelo = () => { setFormModelo({ nome: '', tipo_evento: [], corpo_html: '', ativo: true }); setEditModelo(null); };
 
   // Aditivos actions
   const criarAditivo = () => {
@@ -133,6 +140,90 @@ export default function Contratos() {
   };
   const aprovarAditivo = (id) => { authFetch(`/admin/aditivos/${id}/aprovar`, { method: 'PUT' }).then(r => r.json()).then(j => { if (j.success) setAditivos(p => p.map(a => a.id === id ? { ...a, status: 'aceito', recalculado: true } : a)); }).catch(() => {}); };
   const enviarAditivoCliente = (id) => { authFetch(`/admin/aditivos/${id}/enviar`, { method: 'POST' }).catch(() => {}); };
+
+  // Importar contrato com IA
+  const importarContrato = async () => {
+    if (!textoImportar.trim()) return;
+    setImportando(true);
+    try {
+      const r = await authFetch('/admin/contratos/modelos/importar', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ texto_contrato: textoImportar, nome_modelo: nomeImportar || 'Modelo Importado' }),
+      });
+      const j = await r.json();
+      if (j.success) {
+        setModelos(p => [...p, j.data]);
+        setModalImportar(false);
+        setTextoImportar('');
+        setNomeImportar('');
+        setArquivoImportar(null);
+      }
+    } catch (err) {
+      console.error('Erro ao importar:', err);
+    } finally {
+      setImportando(false);
+    }
+  };
+
+  // Ler arquivo PDF/DOCX/TXT para importação
+  const handleArquivoImportar = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setArquivoImportar(file);
+    setNomeImportar(file.name.replace(/\.[^.]+$/, ''));
+
+    if (file.type === 'text/plain' || file.name.endsWith('.txt')) {
+      const text = await file.text();
+      setTextoImportar(text);
+    } else if (file.type === 'application/pdf' || file.name.endsWith('.pdf')) {
+      // Para PDF, lemos como texto (o backend receberá o texto extraído)
+      // Usar FileReader para extrair texto básico
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        // Extrair texto visível do PDF (simplificado)
+        const raw = ev.target.result;
+        // Tentar extrair strings legíveis do PDF
+        const textParts = [];
+        const bytes = new Uint8Array(raw);
+        let current = '';
+        for (let i = 0; i < bytes.length; i++) {
+          const char = bytes[i];
+          if (char >= 32 && char <= 126) {
+            current += String.fromCharCode(char);
+          } else if (char >= 192 && char <= 255) {
+            // Caracteres acentuados Latin-1
+            current += String.fromCharCode(char);
+          } else {
+            if (current.length > 3) textParts.push(current);
+            current = '';
+          }
+        }
+        if (current.length > 3) textParts.push(current);
+        const extractedText = textParts.join(' ').replace(/\s+/g, ' ').trim();
+        setTextoImportar(extractedText || 'Não foi possível extrair texto automaticamente do PDF. Cole o texto do contrato manualmente abaixo.');
+      };
+      reader.readAsArrayBuffer(file);
+    } else {
+      // Para DOCX ou outros, tentar ler como texto
+      try {
+        const text = await file.text();
+        setTextoImportar(text);
+      } catch {
+        setTextoImportar('');
+      }
+    }
+  };
+
+  // Toggle tipo de evento (multi-select)
+  const toggleTipoEvento = (tipo) => {
+    setFormModelo(f => ({
+      ...f,
+      tipo_evento: f.tipo_evento.includes(tipo)
+        ? f.tipo_evento.filter(t => t !== tipo)
+        : [...f.tipo_evento, tipo]
+    }));
+  };
 
   const KpiCard = ({ label, value, icon: Icon, suffix }) => (
     <div className="bg-white rounded-xl border border-gray-200 p-4 flex items-center gap-3">
@@ -254,9 +345,14 @@ export default function Contratos() {
         <div className="space-y-6">
           <div className="flex justify-between items-center">
             <p className="text-sm text-gray-500">{modelos.length} modelo(s) cadastrado(s)</p>
-            <button onClick={() => { resetFormModelo(); setModalModelo(true); }} style={{ background: ACCENT }} className="inline-flex items-center gap-2 px-4 py-2 text-white rounded-lg text-sm font-medium hover:opacity-90">
-              <Plus size={16} /> Novo Modelo
-            </button>
+            <div className="flex gap-2">
+              <button onClick={() => setModalImportar(true)} className="inline-flex items-center gap-2 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50">
+                <Upload size={16} /> Importar Contrato
+              </button>
+              <button onClick={() => { resetFormModelo(); setModalModelo(true); }} style={{ background: ACCENT }} className="inline-flex items-center gap-2 px-4 py-2 text-white rounded-lg text-sm font-medium hover:opacity-90">
+                <Plus size={16} /> Novo Modelo
+              </button>
+            </div>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {modelos.map(m => (
@@ -264,7 +360,7 @@ export default function Contratos() {
                 <div className="flex items-start justify-between">
                   <div>
                     <h3 className="font-semibold text-gray-900">{m.nome}</h3>
-                    <p className="text-xs text-gray-500">{m.tipo_evento}</p>
+                    <p className="text-xs text-gray-500">{Array.isArray(m.tipo_evento) ? m.tipo_evento.join(', ') : m.tipo_evento}</p>
                   </div>
                   <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${m.ativo ? 'bg-green-50 text-green-700' : 'bg-gray-100 text-gray-500'}`}>{m.ativo ? 'Ativo' : 'Inativo'}</span>
                 </div>
@@ -272,7 +368,7 @@ export default function Contratos() {
                   {(m.variaveis || VARIAVEIS.slice(0, 4)).map(v => <span key={v} className="text-[10px] bg-orange-50 text-orange-700 px-1.5 py-0.5 rounded">{v}</span>)}
                 </div>
                 <div className="flex gap-2 pt-2 border-t border-gray-100">
-                  <button onClick={() => { setEditModelo(m); setFormModelo({ nome: m.nome, tipo_evento: m.tipo_evento, corpo_html: m.corpo_html || '', ativo: m.ativo }); setModalModelo(true); }} className="text-xs text-gray-600 hover:text-gray-900 flex items-center gap-1"><Edit size={12} />Editar</button>
+                  <button onClick={() => { setEditModelo(m); setFormModelo({ nome: m.nome, tipo_evento: Array.isArray(m.tipo_evento) ? m.tipo_evento : (m.tipo_evento ? [m.tipo_evento] : []), corpo_html: m.corpo_html || '', ativo: m.ativo }); setModalModelo(true); }} className="text-xs text-gray-600 hover:text-gray-900 flex items-center gap-1"><Edit size={12} />Editar</button>
                   <button onClick={() => duplicarModelo(m)} className="text-xs text-gray-600 hover:text-gray-900 flex items-center gap-1"><Layers size={12} />Duplicar</button>
                   <button onClick={() => excluirModelo(m.id)} className="text-xs text-red-500 hover:text-red-700 flex items-center gap-1"><Trash2 size={12} />Excluir</button>
                 </div>
@@ -380,11 +476,23 @@ export default function Contratos() {
               <input value={formModelo.nome} onChange={e => setFormModelo({ ...formModelo, nome: e.target.value })} placeholder="Ex: Casamento Padrão" className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-orange-200" />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Tipo de evento</label>
-              <select value={formModelo.tipo_evento} onChange={e => setFormModelo({ ...formModelo, tipo_evento: e.target.value })} className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-orange-200">
-                <option value="">Selecione...</option>
-                {['Casamento','Aniversário','Corporativo','Formatura','Ensaio','Outro'].map(t => <option key={t} value={t}>{t}</option>)}
-              </select>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Tipo(s) de evento</label>
+              <div className="grid grid-cols-2 gap-2">
+                {TIPOS_EVENTO.map(tipo => (
+                  <label key={tipo} className={`flex items-center gap-2 px-3 py-2 rounded-lg border cursor-pointer transition ${formModelo.tipo_evento.includes(tipo) ? 'border-orange-400 bg-orange-50' : 'border-gray-200 hover:border-gray-300'}`}>
+                    <input
+                      type="checkbox"
+                      checked={formModelo.tipo_evento.includes(tipo)}
+                      onChange={() => toggleTipoEvento(tipo)}
+                      className="w-4 h-4 rounded border-gray-300 text-orange-600 focus:ring-orange-500"
+                    />
+                    <span className="text-sm text-gray-700">{tipo}</span>
+                  </label>
+                ))}
+              </div>
+              {formModelo.tipo_evento.length > 0 && (
+                <p className="text-xs text-gray-500 mt-1">{formModelo.tipo_evento.length} tipo(s) selecionado(s)</p>
+              )}
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Corpo HTML</label>
@@ -399,8 +507,87 @@ export default function Contratos() {
               </button>
               <span className="text-sm text-gray-700">{formModelo.ativo ? 'Ativo' : 'Inativo'}</span>
             </div>
-            <button onClick={salvarModelo} disabled={!formModelo.nome || !formModelo.tipo_evento} style={{ background: ACCENT }} className="w-full py-2.5 text-white rounded-lg text-sm font-medium hover:opacity-90 disabled:opacity-50">
+            <button onClick={salvarModelo} disabled={!formModelo.nome || formModelo.tipo_evento.length === 0} style={{ background: ACCENT }} className="w-full py-2.5 text-white rounded-lg text-sm font-medium hover:opacity-90 disabled:opacity-50">
               {editModelo ? 'Salvar Alterações' : 'Criar Modelo'}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ===== MODAL IMPORTAR CONTRATO ===== */}
+      {modalImportar && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-lg p-6 space-y-4 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Sparkles size={20} style={{ color: ACCENT }} />
+                <h2 className="text-lg font-bold text-gray-900">Importar Contrato com IA</h2>
+              </div>
+              <button onClick={() => { setModalImportar(false); setTextoImportar(''); setNomeImportar(''); setArquivoImportar(null); }}><X size={20} className="text-gray-400 hover:text-gray-600" /></button>
+            </div>
+
+            <div className="bg-orange-50 border border-orange-200 rounded-lg p-3">
+              <p className="text-xs text-orange-800">
+                Suba seu contrato atual (PDF, DOCX ou TXT) e a IA vai ler, identificar cláusulas e gerar um modelo HTML completo mantendo o mesmo layout e estilo.
+              </p>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Nome do modelo</label>
+              <input value={nomeImportar} onChange={e => setNomeImportar(e.target.value)} placeholder="Ex: Contrato Casamento 2025" className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-orange-200" />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Upload do contrato</label>
+              <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-orange-300 transition cursor-pointer" onClick={() => document.getElementById('file-import-contrato').click()}>
+                <input id="file-import-contrato" type="file" accept=".pdf,.docx,.doc,.txt" onChange={handleArquivoImportar} className="hidden" />
+                {arquivoImportar ? (
+                  <div className="space-y-1">
+                    <FileText size={32} className="mx-auto text-orange-500" />
+                    <p className="text-sm font-medium text-gray-900">{arquivoImportar.name}</p>
+                    <p className="text-xs text-gray-500">{(arquivoImportar.size / 1024).toFixed(1)} KB</p>
+                  </div>
+                ) : (
+                  <div className="space-y-1">
+                    <Upload size={32} className="mx-auto text-gray-400" />
+                    <p className="text-sm text-gray-600">Clique ou arraste seu contrato aqui</p>
+                    <p className="text-xs text-gray-400">PDF, DOCX ou TXT</p>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Texto do contrato {arquivoImportar && <span className="text-gray-400 font-normal">(extraído automaticamente - edite se necessário)</span>}
+              </label>
+              <textarea
+                value={textoImportar}
+                onChange={e => setTextoImportar(e.target.value)}
+                rows={10}
+                placeholder="Cole aqui o texto completo do seu contrato atual, ou faça upload do arquivo acima..."
+                className="w-full border rounded-lg px-3 py-2 text-sm font-mono focus:ring-2 focus:ring-orange-200"
+              />
+              <p className="text-xs text-gray-400 mt-1">{textoImportar.length} caracteres</p>
+            </div>
+
+            <button
+              onClick={importarContrato}
+              disabled={!textoImportar.trim() || importando}
+              style={{ background: ACCENT }}
+              className="w-full py-2.5 text-white rounded-lg text-sm font-medium hover:opacity-90 disabled:opacity-50 flex items-center justify-center gap-2"
+            >
+              {importando ? (
+                <>
+                  <Loader2 size={16} className="animate-spin" />
+                  Gerando modelo com IA...
+                </>
+              ) : (
+                <>
+                  <Sparkles size={16} />
+                  Gerar Modelo com IA
+                </>
+              )}
             </button>
           </div>
         </div>
