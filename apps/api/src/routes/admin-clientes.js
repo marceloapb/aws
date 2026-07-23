@@ -116,7 +116,26 @@ router.get('/:id', async (req, res) => {
       Key: { PK: `CLIENT#${clienteId}`, SK: 'PROFILE' },
     }));
     if (result2.Item) {
-      const item = { ...result2.Item, id: clienteId, nome: result2.Item.nome_completo || result2.Item.nome };
+      const raw = result2.Item;
+      const item = {
+        ...raw,
+        id: clienteId,
+        nome: raw.nome_completo || raw.nome || '',
+        email: raw.email || '',
+        telefone: raw.telefone || '',
+        cpf: raw.cpf_cnpj || raw.cpf || raw.documento || '',
+        cpf_cnpj: raw.cpf_cnpj || raw.cpf || raw.documento || '',
+        instagram: raw.instagram || '',
+        endereco: {
+          cep: raw.endereco_cep || '',
+          logradouro: raw.endereco_rua || '',
+          numero: raw.endereco_numero || '',
+          complemento: raw.endereco_complemento || '',
+          bairro: raw.endereco_bairro || '',
+          cidade: raw.endereco_cidade || '',
+          estado: raw.endereco_estado || '',
+        },
+      };
       return res.json({ success: true, data: item });
     }
 
@@ -150,6 +169,7 @@ router.post('/', async (req, res) => {
 // PUT /api/admin/clientes/:id
 router.put('/:id', async (req, res) => {
   try {
+    const clienteId = req.params.id;
     const updates = req.body;
     const keys = Object.keys(updates);
     if (keys.length === 0) return res.status(400).json({ success: false, message: 'Nenhum campo para atualizar' });
@@ -158,12 +178,54 @@ router.put('/:id', async (req, res) => {
     const names = Object.fromEntries(keys.map((k, i) => [`#f${i}`, k]));
     const vals = Object.fromEntries(keys.map((k, i) => [`:v${i}`, updates[k]]));
 
+    // Try TENANT#default / CLIENTE#<id> first
+    try {
+      const check = await dynamo.send(new GetCommand({
+        TableName: TABLE,
+        Key: { PK: `TENANT#${TENANT}`, SK: `CLIENTE#${clienteId}` },
+      }));
+      if (check.Item) {
+        const result = await dynamo.send(new UpdateCommand({
+          TableName: TABLE,
+          Key: { PK: `TENANT#${TENANT}`, SK: `CLIENTE#${clienteId}` },
+          UpdateExpression: expr,
+          ExpressionAttributeNames: names,
+          ExpressionAttributeValues: vals,
+          ReturnValues: 'ALL_NEW',
+        }));
+        return res.json({ success: true, data: result.Attributes });
+      }
+    } catch {}
+
+    // Try CLIENT#<id> / PROFILE pattern (self-signup clients)
+    // Flatten endereco object into individual fields for this pattern
+    const flatUpdates = { ...updates };
+    if (flatUpdates.endereco && typeof flatUpdates.endereco === 'object') {
+      const end = flatUpdates.endereco;
+      flatUpdates.endereco_cep = end.cep || '';
+      flatUpdates.endereco_rua = end.logradouro || end.rua || '';
+      flatUpdates.endereco_numero = end.numero || '';
+      flatUpdates.endereco_complemento = end.complemento || '';
+      flatUpdates.endereco_bairro = end.bairro || '';
+      flatUpdates.endereco_cidade = end.cidade || '';
+      flatUpdates.endereco_estado = end.estado || '';
+      delete flatUpdates.endereco;
+    }
+    if (flatUpdates.cpf) {
+      flatUpdates.cpf_cnpj = flatUpdates.cpf;
+    }
+
+    const flatKeys = Object.keys(flatUpdates);
+    const flatExpr = 'SET ' + flatKeys.map((k, i) => `#f${i} = :v${i}`).join(', ');
+    const flatNames = Object.fromEntries(flatKeys.map((k, i) => [`#f${i}`, k]));
+    const flatVals = Object.fromEntries(flatKeys.map((k, i) => [`:v${i}`, flatUpdates[k]]));
+
     const result = await dynamo.send(new UpdateCommand({
       TableName: TABLE,
-      Key: { PK: `TENANT#${TENANT}`, SK: `CLIENTE#${req.params.id}` },
-      UpdateExpression: expr,
-      ExpressionAttributeNames: names,
-      ExpressionAttributeValues: vals,
+      Key: { PK: `CLIENT#${clienteId}`, SK: 'PROFILE' },
+      UpdateExpression: flatExpr,
+      ExpressionAttributeNames: flatNames,
+      ExpressionAttributeValues: flatVals,
       ReturnValues: 'ALL_NEW',
     }));
     res.json({ success: true, data: result.Attributes });
