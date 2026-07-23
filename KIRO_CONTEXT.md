@@ -118,6 +118,7 @@ apps/
 - Build frontend no Windows: usar `node node_modules/react-scripts/bin/react-scripts.js build`
 
 ## Instruções para o Kiro
+- **SEMPRE ao iniciar sessão**: executar `Set-Location D:\OneDrive\.Git\aws; git pull --rebase` antes de qualquer alteração
 - Não fazer perguntas desnecessárias, só executa
 - Repo local: D:\OneDrive\.Git\aws
 - Depois de alterações, fazer commit + push (o GitHub Actions faz o deploy automaticamente)
