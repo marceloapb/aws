@@ -143,13 +143,30 @@ export default function Contratos() {
 
   // Importar contrato com IA
   const importarContrato = async () => {
-    if (!textoImportar.trim()) return;
+    if (!textoImportar.trim() && !arquivoImportar) return;
     setImportando(true);
     try {
+      const payload = { nome_modelo: nomeImportar || 'Modelo Importado' };
+
+      // Se tem arquivo, enviar como base64 para o backend extrair
+      if (arquivoImportar && !textoImportar.trim()) {
+        const arrayBuffer = await arquivoImportar.arrayBuffer();
+        const base64 = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
+        payload.arquivo_base64 = base64;
+        payload.arquivo_nome = arquivoImportar.name;
+      } else {
+        payload.texto_contrato = textoImportar;
+      }
+
+      // Se tem texto E arquivo, enviar ambos (texto prevalece, arquivo como backup)
+      if (textoImportar.trim()) {
+        payload.texto_contrato = textoImportar;
+      }
+
       const r = await authFetch('/admin/contratos/modelos/importar', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ texto_contrato: textoImportar, nome_modelo: nomeImportar || 'Modelo Importado' }),
+        body: JSON.stringify(payload),
       });
       const j = await r.json();
       if (j.success) {
@@ -158,9 +175,12 @@ export default function Contratos() {
         setTextoImportar('');
         setNomeImportar('');
         setArquivoImportar(null);
+      } else {
+        alert(j.message || 'Erro ao importar contrato');
       }
     } catch (err) {
       console.error('Erro ao importar:', err);
+      alert('Erro ao importar contrato. Tente novamente.');
     } finally {
       setImportando(false);
     }
@@ -171,47 +191,16 @@ export default function Contratos() {
     const file = e.target.files?.[0];
     if (!file) return;
     setArquivoImportar(file);
-    setNomeImportar(file.name.replace(/\.[^.]+$/, ''));
+    setNomeImportar(prev => prev || file.name.replace(/\.[^.]+$/, ''));
 
+    // Para TXT, extraímos o texto direto no frontend (é simples)
     if (file.type === 'text/plain' || file.name.endsWith('.txt')) {
       const text = await file.text();
       setTextoImportar(text);
-    } else if (file.type === 'application/pdf' || file.name.endsWith('.pdf')) {
-      // Para PDF, lemos como texto (o backend receberá o texto extraído)
-      // Usar FileReader para extrair texto básico
-      const reader = new FileReader();
-      reader.onload = (ev) => {
-        // Extrair texto visível do PDF (simplificado)
-        const raw = ev.target.result;
-        // Tentar extrair strings legíveis do PDF
-        const textParts = [];
-        const bytes = new Uint8Array(raw);
-        let current = '';
-        for (let i = 0; i < bytes.length; i++) {
-          const char = bytes[i];
-          if (char >= 32 && char <= 126) {
-            current += String.fromCharCode(char);
-          } else if (char >= 192 && char <= 255) {
-            // Caracteres acentuados Latin-1
-            current += String.fromCharCode(char);
-          } else {
-            if (current.length > 3) textParts.push(current);
-            current = '';
-          }
-        }
-        if (current.length > 3) textParts.push(current);
-        const extractedText = textParts.join(' ').replace(/\s+/g, ' ').trim();
-        setTextoImportar(extractedText || 'Não foi possível extrair texto automaticamente do PDF. Cole o texto do contrato manualmente abaixo.');
-      };
-      reader.readAsArrayBuffer(file);
     } else {
-      // Para DOCX ou outros, tentar ler como texto
-      try {
-        const text = await file.text();
-        setTextoImportar(text);
-      } catch {
-        setTextoImportar('');
-      }
+      // Para DOCX/PDF/DOC: marcamos que tem arquivo e o backend extrai
+      // Colocamos um placeholder para habilitar o botão
+      setTextoImportar(`[Arquivo "${file.name}" será processado pelo servidor]`);
     }
   };
 
@@ -573,7 +562,7 @@ export default function Contratos() {
 
             <button
               onClick={importarContrato}
-              disabled={!textoImportar.trim() || importando}
+              disabled={(!textoImportar.trim() && !arquivoImportar) || importando}
               style={{ background: ACCENT }}
               className="w-full py-2.5 text-white rounded-lg text-sm font-medium hover:opacity-90 disabled:opacity-50 flex items-center justify-center gap-2"
             >
