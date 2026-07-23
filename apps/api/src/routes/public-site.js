@@ -5,6 +5,7 @@
 const { Router } = require('express');
 const { dynamo, TABLE } = require('../config/dynamodb');
 const { GetCommand, QueryCommand } = require('@aws-sdk/lib-dynamodb');
+const { getPresignedReadUrl } = require('../services/mediaUrlService');
 
 const router = Router();
 const TENANT = 'TENANT#1';
@@ -59,10 +60,15 @@ router.get('/config', async (req, res) => {
         }
         if (adminConfig.logoDarkKey || adminConfig.logoKey) {
           const bucket = process.env.S3_BUCKET_NAME || 'mbf-backend-v3-fotos';
-          const logoKey = adminConfig.logoDarkKey || adminConfig.logoKey;
-          data.logo_dark_url = `https://${bucket}.s3.us-east-1.amazonaws.com/${logoKey}`;
           if (adminConfig.logoKey) {
-            data.logo_url = `https://${bucket}.s3.us-east-1.amazonaws.com/${adminConfig.logoKey}`;
+            try {
+              data.logo_url = await getPresignedReadUrl(adminConfig.logoKey, bucket, 86400);
+            } catch {}
+          }
+          if (adminConfig.logoDarkKey) {
+            try {
+              data.logo_dark_url = await getPresignedReadUrl(adminConfig.logoDarkKey, bucket, 86400);
+            } catch {}
           }
         }
         if (adminConfig.tradeName) data.nome = adminConfig.tradeName;
