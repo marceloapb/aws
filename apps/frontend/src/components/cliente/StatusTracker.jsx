@@ -8,8 +8,8 @@ const STATUS_ORDER = ['orcando', 'em_analise', 'pronto', 'enviado', 'aceito'];
 const LABELS = [
   'Solicitação recebida',
   'Em análise pelo fotógrafo',
-  'Proposta sendo montada',
-  'Proposta enviada - confira!',
+  'Orçamento sendo montado',
+  'Orçamento enviado - confira!',
   'Confirmado!',
 ];
 
