@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { FileText, ChevronDown, Plus, CheckCircle } from 'lucide-react';
+import { FileText, ChevronDown, CheckCircle } from 'lucide-react';
 import StatusTracker from '../../components/cliente/StatusTracker';
 
 const ACCENT = '#EA580C';
@@ -17,14 +17,11 @@ export default function MeusOrcamentos() {
 
   useEffect(() => {
     if (location.state?.openModal) {
-      // Redirect to the new dedicated page
       navigate('/cliente/orcamentos/novo', { replace: true });
     }
     if (location.state?.successMessage) {
       setSuccessMessage(location.state.successMessage);
-      setTab('orcamentos');
       window.history.replaceState({}, document.title);
-      // Auto-dismiss after 5 seconds
       setTimeout(() => setSuccessMessage(''), 5000);
     }
   }, [location.state]);
@@ -37,10 +34,6 @@ export default function MeusOrcamentos() {
       setOrcamentos(orcRes.data || []);
     } catch {}
     setLoading(false);
-  };
-
-  const handleSolicitar = () => {
-    navigate('/cliente/orcamentos/novo');
   };
 
   if (loading) return <div className="flex items-center justify-center py-20 text-gray-400">Carregando...</div>;
