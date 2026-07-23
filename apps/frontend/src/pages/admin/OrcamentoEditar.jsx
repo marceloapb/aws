@@ -728,7 +728,7 @@ export default function OrcamentoEditar() {
 
             {descontoValorCalculado > 0 && (
               <div className="flex justify-between text-sm text-red-500 font-medium">
-                <span>Desconto aplicado</span>
+                <span>Desconto {descontoAplicarEm === 'avista' ? '(só à vista)' : descontoAplicarEm === 'parcelado' ? '(só parcelado)' : ''}</span>
                 <span>-{fmtBRL(descontoValorCalculado)}</span>
               </div>
             )}
@@ -742,7 +742,7 @@ export default function OrcamentoEditar() {
                 <span>{itens.length} item{itens.length !== 1 ? 'ns' : ''}</span>
                 <span className="font-medium">{fmtBRL(subtotal)}</span>
               </div>
-              {descontoValorCalculado > 0 && (
+              {descontoValorCalculado > 0 && descontoAplicarEm === 'tudo' && (
                 <div className="flex justify-between text-sm text-red-500">
                   <span>Desconto</span>
                   <span>-{fmtBRL(descontoValorCalculado)}</span>
@@ -784,19 +784,34 @@ export default function OrcamentoEditar() {
                 <p className="text-xs font-semibold text-gray-500 uppercase">Formas de pagamento</p>
                 {condicoes.avista.ativo && (
                   <div className="flex justify-between text-xs">
-                    <span className="text-gray-500">À vista{condicoes.avista.desconto_pct > 0 && ` (${condicoes.avista.desconto_pct}% off)`}</span>
+                    <span className="text-gray-500">
+                      À vista{condicoes.avista.desconto_pct > 0 && ` (${condicoes.avista.desconto_pct}% off)`}
+                      {descontoAplicarEm === 'avista' && descontoValorCalculado > 0 && (
+                        <span className="text-red-500 ml-1">(-{descontoTipo === 'pct' ? `${descontoValor}%` : fmtBRL(descontoValorCalculado)})</span>
+                      )}
+                    </span>
                     <span className="font-semibold text-green-700">{fmtBRL(parcelaAvista)}</span>
                   </div>
                 )}
                 {condicoes.sem_juros.ativo && (
                   <div className="flex justify-between text-xs">
-                    <span className="text-gray-500">{condicoes.sem_juros.max_parcelas}× sem juros</span>
+                    <span className="text-gray-500">
+                      {condicoes.sem_juros.max_parcelas}× sem juros
+                      {descontoAplicarEm === 'parcelado' && descontoValorCalculado > 0 && (
+                        <span className="text-red-500 ml-1">(-{descontoTipo === 'pct' ? `${descontoValor}%` : fmtBRL(descontoValorCalculado)})</span>
+                      )}
+                    </span>
                     <span className="font-semibold text-blue-700">{fmtBRL(parcelaSemJuros)}</span>
                   </div>
                 )}
                 {condicoes.com_juros.ativo && (
                   <div className="flex justify-between text-xs">
-                    <span className="text-gray-500">{condicoes.com_juros.max_parcelas}× c/ {condicoes.com_juros.taxa_mensal}% a.m.</span>
+                    <span className="text-gray-500">
+                      {condicoes.com_juros.max_parcelas}× c/ {condicoes.com_juros.taxa_mensal}% a.m.
+                      {descontoAplicarEm === 'parcelado' && descontoValorCalculado > 0 && (
+                        <span className="text-red-500 ml-1">(-{descontoTipo === 'pct' ? `${descontoValor}%` : fmtBRL(descontoValorCalculado)})</span>
+                      )}
+                    </span>
                     <span className="font-semibold text-purple-700">{fmtBRL(parcelaComJuros)}</span>
                   </div>
                 )}
