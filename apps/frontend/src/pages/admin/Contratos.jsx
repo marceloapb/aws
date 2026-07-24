@@ -93,9 +93,16 @@ export default function Contratos() {
     const orcId = searchParams.get('orcamento_id');
     if (orcId) {
       setFormGerar(f => ({ ...f, orcamento_id: orcId }));
-      setModalGerar(true);
+      // Load orcamentos and modelos then open modal
+      Promise.all([
+        authFetch('/admin/orcamentos').then(r => r.json()).then(j => {
+          const aceitos = (j.data || []).filter(o => ['aceito', 'aprovado', 'confirmado'].includes(o.status));
+          setOrcamentos(aceitos);
+        }).catch(() => {}),
+        authFetch('/admin/contratos-modelos').then(r => r.json()).then(j => { if (j.success) setModelos(j.data || []); }).catch(() => {}),
+      ]).then(() => setModalGerar(true));
     }
-  }, [searchParams]);
+  }, []);
 
   // --- Aba Modelos state ---
   const [modalModelo, setModalModelo] = useState(false);
@@ -156,7 +163,11 @@ export default function Contratos() {
 
   // Actions
   const abrirModalGerar = () => {
-    authFetch('/admin/orcamentos?status=aceito').then(r => r.json()).then(j => { if (j.success) setOrcamentos(j.data || []); }).catch(() => {});
+    authFetch('/admin/orcamentos').then(r => r.json()).then(j => {
+      const aceitos = (j.data || []).filter(o => ['aceito', 'aprovado', 'confirmado'].includes(o.status));
+      setOrcamentos(aceitos);
+    }).catch(() => {});
+    authFetch('/admin/contratos-modelos').then(r => r.json()).then(j => { if (j.success) setModelos(j.data || []); }).catch(() => {});
     setModalGerar(true);
   };
   const gerarContrato = () => {
