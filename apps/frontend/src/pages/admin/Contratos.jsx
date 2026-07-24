@@ -210,7 +210,7 @@ export default function Contratos() {
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `contrato-${id.slice(-6)}.html`;
+      a.download = `contrato-${id.slice(-6)}.pdf`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
