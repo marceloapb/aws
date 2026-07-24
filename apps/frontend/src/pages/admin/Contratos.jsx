@@ -19,7 +19,46 @@ const STATUS_MAP = {
   assinado: { label: 'Assinado', cls: 'text-green-700 bg-green-50' },
   expirado: { label: 'Expirado', cls: 'text-red-700 bg-red-50' },
 };
-const VARIAVEIS = ['{{nome_cliente}}', '{{cpf_cliente}}', '{{valor_total}}', '{{data_evento}}', '{{local}}', '{{itens_descricao}}', '{{condicoes_pagamento}}'];
+const VARIAVEIS_GRUPOS = [
+  { label: '👤 Cliente', vars: [
+    { tag: '{{cliente_nome}}', desc: 'Nome completo' },
+    { tag: '{{cliente_cpf}}', desc: 'CPF ou CNPJ' },
+    { tag: '{{cliente_email}}', desc: 'E-mail' },
+    { tag: '{{cliente_telefone}}', desc: 'Telefone' },
+    { tag: '{{cliente_endereco}}', desc: 'Endereço completo' },
+    { tag: '{{cliente_instagram}}', desc: 'Instagram' },
+  ]},
+  { label: '📸 Evento', vars: [
+    { tag: '{{tipo_evento}}', desc: 'Tipo (casamento, ensaio...)' },
+    { tag: '{{data_evento}}', desc: 'Data do evento' },
+    { tag: '{{horario_inicio}}', desc: 'Horário início' },
+    { tag: '{{horario_fim}}', desc: 'Horário término' },
+    { tag: '{{local_evento}}', desc: 'Local / endereço' },
+    { tag: '{{duracao_horas}}', desc: 'Duração total em horas' },
+  ]},
+  { label: '💰 Orçamento', vars: [
+    { tag: '{{valor_total}}', desc: 'Valor total aprovado' },
+    { tag: '{{itens_descricao}}', desc: 'Lista de serviços/produtos' },
+    { tag: '{{condicoes_pagamento}}', desc: 'Formas de pagamento' },
+    { tag: '{{desconto}}', desc: 'Valor do desconto' },
+    { tag: '{{parcelas}}', desc: 'Nº de parcelas' },
+    { tag: '{{valor_parcela}}', desc: 'Valor de cada parcela' },
+  ]},
+  { label: '📋 Contrato', vars: [
+    { tag: '{{data_hoje}}', desc: 'Data de geração' },
+    { tag: '{{validade_dias}}', desc: 'Dias de validade' },
+    { tag: '{{numero_contrato}}', desc: 'Nº do contrato' },
+  ]},
+  { label: '🏢 Empresa', vars: [
+    { tag: '{{empresa_nome}}', desc: 'Nome fantasia' },
+    { tag: '{{empresa_razao}}', desc: 'Razão social' },
+    { tag: '{{empresa_cnpj}}', desc: 'CNPJ' },
+    { tag: '{{empresa_endereco}}', desc: 'Endereço' },
+    { tag: '{{empresa_telefone}}', desc: 'Telefone' },
+    { tag: '{{empresa_email}}', desc: 'E-mail' },
+  ]},
+];
+const VARIAVEIS = VARIAVEIS_GRUPOS.flatMap(g => g.vars.map(v => v.tag));
 
 function diasRestantes(expiraEm) {
   if (!expiraEm) return null;
@@ -489,7 +528,27 @@ export default function Contratos() {
               <label className="block text-sm font-medium text-gray-700 mb-1">Corpo HTML</label>
               <textarea value={formModelo.corpo_html} onChange={e => setFormModelo({ ...formModelo, corpo_html: e.target.value })} rows={8} placeholder="Use variáveis: {{nome_cliente}}, {{cpf_cliente}}, {{valor_total}}, {{data_evento}}, {{local}}, {{itens_descricao}}, {{condicoes_pagamento}}" className="w-full border rounded-lg px-3 py-2 text-sm font-mono focus:ring-2 focus:ring-orange-200" />
               <div className="flex flex-wrap gap-1 mt-2">
-                {VARIAVEIS.map(v => <span key={v} onClick={() => setFormModelo(f => ({ ...f, corpo_html: f.corpo_html + v }))} className="text-[10px] bg-orange-50 text-orange-700 px-1.5 py-0.5 rounded cursor-pointer hover:bg-orange-100">{v}</span>)}
+                <details className="w-full border border-gray-200 rounded-lg overflow-hidden">
+                  <summary className="px-3 py-2 bg-gray-50 text-xs font-medium text-gray-700 cursor-pointer hover:bg-gray-100 select-none">
+                    📎 Variáveis disponíveis — clique para inserir
+                  </summary>
+                  <div className="p-3 space-y-3 max-h-60 overflow-y-auto">
+                    {VARIAVEIS_GRUPOS.map(grupo => (
+                      <div key={grupo.label}>
+                        <p className="text-[10px] font-bold text-gray-500 uppercase mb-1">{grupo.label}</p>
+                        <div className="flex flex-wrap gap-1">
+                          {grupo.vars.map(v => (
+                            <span key={v.tag} onClick={() => setFormModelo(f => ({ ...f, corpo_html: f.corpo_html + v.tag }))}
+                              title={v.desc}
+                              className="text-[10px] bg-orange-50 text-orange-700 px-2 py-1 rounded cursor-pointer hover:bg-orange-100 border border-orange-200 transition-colors">
+                              {v.tag} <span className="text-orange-400 ml-0.5">({v.desc})</span>
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </details>
               </div>
             </div>
             <div className="flex items-center gap-2">
