@@ -54,8 +54,26 @@ export default function Financeiro() {
   const [formCobranca, setFormCobranca] = useState({ cliente_id: '', valor: '', vencimento: '', parcela: '1/1', meio: 'PIX' });
   const [formDespesa, setFormDespesa] = useState({ descricao: '', valor: '', categoria: 'Outros', data: '', evento_id: '', recorrente: false, recorrencia: 'mensal' });
   const [formEntrada, setFormEntrada] = useState({ descricao: '', valor: '', data: '' });
-  const [categorias, setCategorias] = useState(CATEGORIAS_DESPESA.map((c, i) => ({ id: i + 1, nome: c, cor: ['#3B82F6', '#10B981', '#F59E0B', '#8B5CF6', '#EC4899', '#6366F1', '#14B8A6', '#6B7280'][i] })));
+  const [categorias, setCategorias] = useState([]);
   const [novaCat, setNovaCat] = useState({ nome: '', cor: '#3B82F6' });
+
+  // Load categorias from API
+  useEffect(() => {
+    authFetch('/admin/financeiro/categorias')
+      .then(r => r.json())
+      .then(data => {
+        const cats = Array.isArray(data) ? data : (data.data || []);
+        if (cats.length === 0) {
+          // Seed com categorias padrão se vazio
+          setCategorias(CATEGORIAS_DESPESA.map((c, i) => ({ id: String(i + 1), nome: c, cor: ['#3B82F6', '#10B981', '#F59E0B', '#8B5CF6', '#EC4899', '#6366F1', '#14B8A6', '#6B7280'][i] })));
+        } else {
+          setCategorias(cats);
+        }
+      })
+      .catch(() => {
+        setCategorias(CATEGORIAS_DESPESA.map((c, i) => ({ id: String(i + 1), nome: c, cor: ['#3B82F6', '#10B981', '#F59E0B', '#8B5CF6', '#EC4899', '#6366F1', '#14B8A6', '#6B7280'][i] })));
+      });
+  }, []);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -789,14 +807,23 @@ export default function Financeiro() {
                 <div key={c.id} className="flex items-center gap-3 p-2 border rounded-lg">
                   <div className="w-4 h-4 rounded-full" style={{ backgroundColor: c.cor }} />
                   <span className="text-sm flex-1">{c.nome}</span>
-                  <button onClick={() => setCategorias(cats => cats.filter(x => x.id !== c.id))} className="p-1 hover:bg-red-100 rounded text-red-600"><Trash2 size={14} /></button>
+                  <button onClick={async () => {
+                    await authFetch(`/admin/financeiro/categorias/${c.id}`, { method: 'DELETE' });
+                    setCategorias(cats => cats.filter(x => x.id !== c.id));
+                  }} className="p-1 hover:bg-red-100 rounded text-red-600"><Trash2 size={14} /></button>
                 </div>
               ))}
             </div>
             <div className="flex gap-2">
               <input placeholder="Nova categoria" value={novaCat.nome} onChange={e => setNovaCat(c => ({ ...c, nome: e.target.value }))} className="flex-1 border rounded-lg px-3 py-2 text-sm" />
               <input type="color" value={novaCat.cor} onChange={e => setNovaCat(c => ({ ...c, cor: e.target.value }))} className="w-10 h-10 border rounded cursor-pointer" />
-              <button onClick={() => { if (novaCat.nome) { setCategorias(cats => [...cats, { id: Date.now(), ...novaCat }]); setNovaCat({ nome: '', cor: '#3B82F6' }); } }}
+              <button onClick={async () => {
+                if (!novaCat.nome) return;
+                const r = await authFetch('/admin/financeiro/categorias', { method: 'POST', body: JSON.stringify(novaCat) });
+                const json = await r.json();
+                setCategorias(cats => [...cats, json]);
+                setNovaCat({ nome: '', cor: '#3B82F6' });
+              }}
                 className="px-3 py-2 text-white rounded-lg text-sm" style={{ backgroundColor: ACCENT }}>Adicionar</button>
             </div>
           </div>

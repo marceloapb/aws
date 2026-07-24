@@ -264,6 +264,55 @@ router.delete('/despesas/:id', async (req, res) => {
 });
 
 
+// ─── GET /admin/financeiro/categorias ───────────────────────────────────────────
+router.get('/categorias', async (req, res) => {
+  try {
+    const photographerId = req.user.sub;
+    const result = await docClient.send(new QueryCommand({
+      TableName: TABLE_NAME,
+      KeyConditionExpression: 'PK = :pk AND begins_with(SK, :sk)',
+      ExpressionAttributeValues: { ':pk': `PHOTOGRAPHER#${photographerId}`, ':sk': 'CAT_DESPESA#' },
+    }));
+    res.json(result.Items || []);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ─── POST /admin/financeiro/categorias ──────────────────────────────────────────
+router.post('/categorias', async (req, res) => {
+  try {
+    const photographerId = req.user.sub;
+    const { nome, cor } = req.body;
+    if (!nome) return res.status(400).json({ error: 'Nome é obrigatório' });
+    const id = uuidv4();
+    const item = {
+      PK: `PHOTOGRAPHER#${photographerId}`,
+      SK: `CAT_DESPESA#${id}`,
+      id, nome, cor: cor || '#6B7280',
+      criadoEm: new Date().toISOString(),
+    };
+    await docClient.send(new PutCommand({ TableName: TABLE_NAME, Item: item }));
+    res.status(201).json(item);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ─── DELETE /admin/financeiro/categorias/:id ─────────────────────────────────────
+router.delete('/categorias/:id', async (req, res) => {
+  try {
+    const photographerId = req.user.sub;
+    await docClient.send(new DeleteCommand({
+      TableName: TABLE_NAME,
+      Key: { PK: `PHOTOGRAPHER#${photographerId}`, SK: `CAT_DESPESA#${req.params.id}` },
+    }));
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // ─── GET /admin/financeiro/fluxo-caixa ──────────────────────────────────────────
 router.get('/fluxo-caixa', async (req, res) => {
   try {
