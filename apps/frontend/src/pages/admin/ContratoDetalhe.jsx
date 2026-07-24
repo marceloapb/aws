@@ -214,24 +214,55 @@ export default function ContratoDetalhe() {
       {contrato.assinatura_contratado && (
         <div className="bg-green-50 rounded-xl border border-green-200 p-6">
           <h2 className="font-semibold text-lg mb-3 flex items-center gap-2"><CheckCircle2 size={18} className="text-green-600" /> Assinado pelo Contratado</h2>
-          <dl className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
+          <dl className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
             <Dado label="Assinado por" value={contrato.assinatura_contratado.nome} />
             <Dado label="Data/Hora" value={contrato.assinado_contratado_em ? new Date(contrato.assinado_contratado_em).toLocaleString('pt-BR') : '—'} />
             <Dado label="IP" value={contrato.assinatura_contratado.ip} />
+            <Dado label="User Agent" value={<span className="truncate block max-w-[200px]" title={contrato.assinatura_contratado.user_agent}>{contrato.assinatura_contratado.user_agent}</span>} />
           </dl>
         </div>
       )}
 
-      {/* Dados de Aceite */}
-      {contrato.status === 'assinado' && contrato.aceite && (
-        <div className="bg-white rounded-xl border p-6">
-          <h2 className="font-semibold text-lg mb-3 flex items-center gap-2"><CheckCircle2 size={18} className="text-green-600" /> Dados de Aceite</h2>
+      {/* Assinatura do Contratante (Cliente) */}
+      {contrato.status === 'assinado' && (contrato.aceite || contrato.log_auditoria || contrato.assinado_em) && (
+        <div className="bg-green-50 rounded-xl border border-green-200 p-6">
+          <h2 className="font-semibold text-lg mb-3 flex items-center gap-2"><CheckCircle2 size={18} className="text-green-600" /> Assinado pelo Contratante</h2>
           <dl className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-            <Dado label="Nome digitado" value={contrato.aceite.nome} />
-            <Dado label="Data/Hora" value={contrato.aceite.data ? new Date(contrato.aceite.data).toLocaleString('pt-BR') : '—'} />
-            <Dado label="IP" value={contrato.aceite.ip} />
-            <Dado label="User Agent" value={<span className="truncate block max-w-[200px]" title={contrato.aceite.user_agent}>{contrato.aceite.user_agent}</span>} />
+            <Dado label="Assinado por" value={
+              contrato.aceite?.nome ||
+              contrato.log_auditoria?.signatario?.nomeCompleto ||
+              contrato.selo_assinatura?.signatario ||
+              contrato.cliente_nome || '—'
+            } />
+            <Dado label="Data/Hora" value={
+              (contrato.aceite?.data || contrato.assinado_em)
+                ? new Date(contrato.aceite?.data || contrato.assinado_em).toLocaleString('pt-BR')
+                : '—'
+            } />
+            <Dado label="IP" value={
+              contrato.aceite?.ip ||
+              contrato.log_auditoria?.enderecoIP ||
+              contrato.ip_assinatura || '—'
+            } />
+            <Dado label="User Agent" value={
+              <span className="truncate block max-w-[200px]" title={
+                contrato.aceite?.user_agent || contrato.log_auditoria?.userAgent || contrato.user_agent_assinatura || ''
+              }>
+                {contrato.aceite?.user_agent || contrato.log_auditoria?.userAgent || contrato.user_agent_assinatura || '—'}
+              </span>
+            } />
           </dl>
+          {/* Método de autenticação (se OTP) */}
+          {contrato.log_auditoria?.autenticacao && (
+            <div className="mt-3 pt-3 border-t border-green-200">
+              <dl className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                <Dado label="Método" value={contrato.assinatura_metodo === 'assinatura_eletronica_avancada' ? 'Assinatura Eletrônica Avançada' : 'Aceite Digital'} />
+                <Dado label="Autenticação" value={`OTP via ${contrato.log_auditoria.autenticacao.canal}`} />
+                <Dado label="Hash (SHA-256)" value={<span className="truncate block max-w-[200px] font-mono text-[11px]" title={contrato.hash_documento}>{contrato.hash_documento?.slice(0, 16)}...</span>} />
+                <Dado label="Código Selo" value={contrato.selo_assinatura?.codigo_verificacao || '—'} />
+              </dl>
+            </div>
+          )}
         </div>
       )}
 

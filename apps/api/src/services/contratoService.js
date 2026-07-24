@@ -367,17 +367,29 @@ async function assinarContrato(token, dadosAssinatura) {
   const contrato = result.Items[0];
   if (contrato.status === 'assinado') throw new Error('Contrato já foi assinado');
 
+  const agora = new Date().toISOString();
+
+  // Montar objeto "aceite" com comprovação da assinatura do contratante (cliente)
+  const aceite = {
+    nome: dadosAssinatura.nome_digitado || '',
+    data: agora,
+    ip: dadosAssinatura.ip || '',
+    user_agent: dadosAssinatura.userAgent || '',
+    aceite_termos: dadosAssinatura.aceite_termos || false,
+  };
+
   await dynamo.send(new UpdateCommand({
     TableName: TABLE,
     Key: { PK: contrato.PK, SK: contrato.SK },
-    UpdateExpression: 'SET #s = :s, assinado_em = :a, ip_assinatura = :ip, user_agent_assinatura = :ua, assinatura_hash = :h',
+    UpdateExpression: 'SET #s = :s, assinado_em = :a, ip_assinatura = :ip, user_agent_assinatura = :ua, assinatura_hash = :h, aceite = :aceite',
     ExpressionAttributeNames: { '#s': 'status' },
     ExpressionAttributeValues: {
       ':s': 'assinado',
-      ':a': new Date().toISOString(),
-      ':ip': dadosAssinatura.ip,
-      ':ua': dadosAssinatura.userAgent,
-      ':h': dadosAssinatura.hash,
+      ':a': agora,
+      ':ip': dadosAssinatura.ip || '',
+      ':ua': dadosAssinatura.userAgent || '',
+      ':h': dadosAssinatura.hash || '',
+      ':aceite': aceite,
     },
   }));
 
