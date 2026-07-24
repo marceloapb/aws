@@ -65,7 +65,7 @@ async function gerarSeloHTML(aceite, contratoId) {
 
   return `
     <div style="
-      border: 2px solid #059669;
+      border: 2px solid #1a5c2e;
       border-radius: 12px;
       padding: 20px;
       margin: 30px 0;
@@ -74,7 +74,7 @@ async function gerarSeloHTML(aceite, contratoId) {
       font-size: 11px;
       page-break-inside: avoid;
     ">
-      <div style="font-size: 14px; font-weight: bold; color: #059669; margin-bottom: 12px;">
+      <div style="font-size: 14px; font-weight: bold; color: #1a5c2e; margin-bottom: 12px;">
         &#x2705; DOCUMENTO ASSINADO ELETRONICAMENTE
       </div>
       <table style="width: 100%; border-collapse: collapse;">

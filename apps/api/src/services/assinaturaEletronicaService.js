@@ -16,10 +16,13 @@ const OTP_EXPIRATION_MINUTES = 10;
 const OTP_LENGTH = 6;
 const MAX_OTP_ATTEMPTS = 3;
 const CONTRACT_LINK_EXPIRATION_HOURS = 72;
+const OTP_COOLDOWN_SECONDS = 60; // Mínimo 60s entre envios
+const OTP_MAX_PER_HOUR = 5; // Máximo 5 envios por hora por contrato
 
 /**
  * RF02: Gera um OTP de 6 dígitos e envia para o canal do cliente
  * RNF04: Implementa fallback WhatsApp → SMS
+ * SIG-02: Rate limiting server-side (60s entre envios, 5/hora)
  */
 async function gerarEEnviarOTP(contratoId, canalPreferido = 'whatsapp') {
   // Buscar contrato
@@ -30,6 +33,9 @@ async function gerarEEnviarOTP(contratoId, canalPreferido = 'whatsapp') {
   // Buscar cliente
   const cliente = await buscarCliente(contrato.cliente_id);
   if (!cliente) throw new Error('Cliente não encontrado');
+
+  // SIG-02: Rate limiting — verificar cooldown e limite por hora
+  await verificarRateLimitOTP(contratoId);
 
   // Gerar OTP de 6 dígitos (RF02)
   const otp = gerarCodigoOTP();
@@ -268,6 +274,49 @@ async function obterLogAuditoria(contratoId) {
 }
 
 // ═══ Funções auxiliares ═══
+
+/**
+ * SIG-02: Rate limiting server-side para OTP
+ * - Mínimo 60 segundos entre envios para o mesmo contrato
+ * - Máximo 5 envios por hora por contrato
+ */
+async function verificarRateLimitOTP(contratoId) {
+  const agora = new Date();
+  const umaHoraAtras = new Date(agora.getTime() - 60 * 60 * 1000);
+
+  // Buscar todos os OTPs do contrato na última hora
+  const result = await dynamo.send(new QueryCommand({
+    TableName: TABLE,
+    KeyConditionExpression: 'PK = :pk AND begins_with(SK, :sk)',
+    ExpressionAttributeValues: {
+      ':pk': `CONTRATO#${contratoId}`,
+      ':sk': 'OTP#',
+    },
+    ScanIndexForward: false, // Mais recente primeiro
+  }));
+
+  const otpsUltimaHora = (result.Items || []).filter(item => {
+    const criado = new Date(item.criadoEm);
+    return criado >= umaHoraAtras;
+  });
+
+  // Verificar limite por hora (máximo 5)
+  if (otpsUltimaHora.length >= OTP_MAX_PER_HOUR) {
+    throw new Error('Limite de envios atingido. Tente novamente em 1 hora.');
+  }
+
+  // Verificar cooldown (mínimo 60 segundos entre envios)
+  if (otpsUltimaHora.length > 0) {
+    const maisRecente = otpsUltimaHora[0];
+    const criadoEm = new Date(maisRecente.criadoEm);
+    const segundosDesdeUltimo = Math.floor((agora - criadoEm) / 1000);
+
+    if (segundosDesdeUltimo < OTP_COOLDOWN_SECONDS) {
+      const restante = OTP_COOLDOWN_SECONDS - segundosDesdeUltimo;
+      throw new Error(`Aguarde ${restante} segundos antes de solicitar um novo código.`);
+    }
+  }
+}
 
 function gerarCodigoOTP() {
   // Gera código OTP seguro de 6 dígitos usando crypto
