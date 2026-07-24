@@ -205,17 +205,35 @@ export default function Contratos() {
   const downloadPdf = async (id) => {
     try {
       const res = await authFetch(`/admin/contratos/${id}/pdf`, { method: 'POST' });
-      if (!res.ok) { alert('Erro ao gerar PDF'); return; }
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `contrato-${id.slice(-6)}.pdf`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-    } catch { alert('Erro ao gerar PDF'); }
+      const json = await res.json();
+      if (!json.success || !json.html) { alert(json.message || 'Erro ao gerar PDF'); return; }
+
+      // Load html2pdf.js dynamically
+      if (!window.html2pdf) {
+        const script = document.createElement('script');
+        script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js';
+        document.head.appendChild(script);
+        await new Promise(resolve => { script.onload = resolve; });
+      }
+
+      // Create temp container
+      const container = document.createElement('div');
+      container.innerHTML = json.html;
+      container.style.position = 'absolute';
+      container.style.left = '-9999px';
+      document.body.appendChild(container);
+
+      // Generate PDF
+      await window.html2pdf().set({
+        margin: [10, 10, 10, 10],
+        filename: `contrato-${id.slice(-6)}.pdf`,
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { scale: 2, useCORS: true },
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+      }).from(container).save();
+
+      document.body.removeChild(container);
+    } catch (err) { alert('Erro ao gerar PDF: ' + err.message); }
   };
   const copiarLink = (id) => { navigator.clipboard.writeText(`${window.location.origin}/contratos/${id}/assinar`); };
 

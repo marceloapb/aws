@@ -205,31 +205,7 @@ router.post('/:id/pdf', async (req, res) => {
   try {
     const { gerarContratoPDF } = require('../services/contratoPdfService');
     const htmlBuffer = await gerarContratoPDF(req.params.id);
-    const html = htmlBuffer.toString('utf-8');
-
-    // Gerar PDF real com puppeteer + chromium
-    const chromium = require('@sparticuz/chromium');
-    const puppeteer = require('puppeteer-core');
-
-    const browser = await puppeteer.launch({
-      args: chromium.args,
-      defaultViewport: chromium.defaultViewport,
-      executablePath: await chromium.executablePath(),
-      headless: chromium.headless,
-    });
-
-    const page = await browser.newPage();
-    await page.setContent(html, { waitUntil: 'networkidle0' });
-    const pdfBuffer = await page.pdf({
-      format: 'A4',
-      margin: { top: '20mm', right: '15mm', bottom: '20mm', left: '15mm' },
-      printBackground: true,
-    });
-    await browser.close();
-
-    res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', `attachment; filename="contrato-${req.params.id.slice(-6)}.pdf"`);
-    res.send(Buffer.from(pdfBuffer));
+    res.json({ success: true, html: htmlBuffer.toString('utf-8') });
   } catch (error) {
     console.error('[PDF] Erro:', error.message);
     res.status(400).json({ success: false, message: error.message });
