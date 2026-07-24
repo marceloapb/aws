@@ -200,6 +200,19 @@ router.put('/:id', async (req, res) => {
   }
 });
 
+// POST /api/admin/contratos/:id/pdf — Download contrato como arquivo
+router.post('/:id/pdf', async (req, res) => {
+  try {
+    const { gerarContratoPDF } = require('../services/contratoPdfService');
+    const pdfBuffer = await gerarContratoPDF(req.params.id);
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="contrato-${req.params.id.slice(-6)}.html"`);
+    res.send(pdfBuffer);
+  } catch (error) {
+    res.status(400).json({ success: false, message: error.message });
+  }
+});
+
 // POST /api/admin/contratos/:id/assinar-contratado
 router.post('/:id/assinar-contratado', async (req, res) => {
   try {

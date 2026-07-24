@@ -204,13 +204,17 @@ export default function Contratos() {
   const reenviar = (id) => authFetch(`/admin/contratos/${id}/enviar`, { method: 'POST' }).catch(() => {});
   const downloadPdf = async (id) => {
     try {
-      const res = await authFetch(`/admin/contratos/${id}`);
-      const json = await res.json();
-      const contrato = json.data || json;
-      if (!contrato.conteudo_html) { alert('Contrato sem conteúdo'); return; }
-      const w = window.open('', '_blank');
-      w.document.write(`<html><head><title>Contrato ${contrato.numero_contrato || id}</title><style>body{font-family:Georgia,serif;padding:40px;max-width:800px;margin:auto;line-height:1.6;}@media print{body{padding:20px;}}</style></head><body>${contrato.conteudo_html}<script>setTimeout(()=>window.print(),500)<\/script></body></html>`);
-      w.document.close();
+      const res = await authFetch(`/admin/contratos/${id}/pdf`, { method: 'POST' });
+      if (!res.ok) { alert('Erro ao gerar PDF'); return; }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `contrato-${id.slice(-6)}.html`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
     } catch { alert('Erro ao gerar PDF'); }
   };
   const copiarLink = (id) => { navigator.clipboard.writeText(`${window.location.origin}/contratos/${id}/assinar`); };

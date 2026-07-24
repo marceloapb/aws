@@ -27,14 +27,20 @@ async function gerarContratoPDF(contratoId) {
   const contrato = result.Items?.[0];
   if (!contrato) throw new Error('Contrato não encontrado');
 
-  // Buscar cliente
+  // Buscar cliente (múltiplos padrões)
+  let cliente = null;
   const cliResult = await dynamo.send(new QueryCommand({
     TableName: TABLE,
     IndexName: 'GSI1',
     KeyConditionExpression: 'GSI1PK = :pk AND GSI1SK = :sk',
     ExpressionAttributeValues: { ':pk': 'CLIENTE', ':sk': `CLIENTE#${contrato.cliente_id}` },
   }));
-  const cliente = cliResult.Items?.[0];
+  cliente = cliResult.Items?.[0];
+  if (!cliente) {
+    const { GetCommand } = require('@aws-sdk/lib-dynamodb');
+    const cli2 = await dynamo.send(new GetCommand({ TableName: TABLE, Key: { PK: `CLIENT#${contrato.cliente_id}`, SK: 'PROFILE' } })).catch(() => ({ Item: null }));
+    if (cli2.Item) cliente = { ...cli2.Item, id: contrato.cliente_id };
+  }
 
   // Buscar log de auditoria se contrato assinado
   let logsAuditoria = [];
