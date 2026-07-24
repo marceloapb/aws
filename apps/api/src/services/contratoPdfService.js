@@ -113,10 +113,10 @@ function gerarCabecalho() {
     p { margin-bottom: 8px; font-size: 14px; }
     hr { border: none; border-top: 1px solid #e5e7eb; margin: 20px 0; }
     .contrato-conteudo { margin-bottom: 40px; }
-    .selo-assinatura { border: 2px solid #059669; border-radius: 12px; padding: 20px; margin: 30px 0; background: #ecfdf5; }
-    .selo-titulo { color: #059669; font-weight: bold; font-size: 16px; margin-bottom: 10px; display: flex; align-items: center; gap: 8px; }
+    .selo-assinatura { border: 2px solid #1a5c2e; border-radius: 12px; padding: 20px; margin: 30px 0; background: #ecfdf5; }
+    .selo-titulo { color: #1a5c2e; font-weight: bold; font-size: 16px; margin-bottom: 10px; display: flex; align-items: center; gap: 8px; }
     .selo-dados { font-size: 12px; color: #374151; }
-    .selo-dados dt { font-weight: bold; color: #065f46; }
+    .selo-dados dt { font-weight: bold; color: #1a5c2e; }
     .selo-dados dd { margin-bottom: 6px; margin-left: 0; }
     .auditoria-page { page-break-before: always; margin-top: 40px; border-top: 3px solid #1f2937; padding-top: 30px; }
     .auditoria-titulo { color: #1f2937; font-size: 18px; text-align: center; margin-bottom: 20px; }

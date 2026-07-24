@@ -11,8 +11,8 @@ const logger = require('../config/logger');
 
 const sns = new SNSClient({});
 
-// Canais disponíveis em ordem de prioridade
-const CANAIS = ['whatsapp', 'sms', 'email'];
+// Canais disponíveis em ordem de prioridade (SIG-05: WhatsApp → Email → SMS)
+const CANAIS = ['whatsapp', 'email', 'sms'];
 
 /**
  * RNF04: Envia OTP com mecanismo de redundância

@@ -226,6 +226,109 @@ router.post('/:id/assinar-contratado', async (req, res) => {
   }
 });
 
+// GET /api/admin/contratos/:id/manifesto — SIG-04: Download manifesto via URL assinada S3
+router.get('/:id/manifesto', async (req, res) => {
+  try {
+    const result = await dynamo.send(new QueryCommand({
+      TableName: TABLE,
+      IndexName: 'GSI1',
+      KeyConditionExpression: 'GSI1PK = :pk AND GSI1SK = :sk',
+      ExpressionAttributeValues: { ':pk': 'CONTRATO', ':sk': `CONTRATO#${req.params.id}` },
+    }));
+    if (!result.Items || result.Items.length === 0) {
+      return res.status(404).json({ success: false, message: 'Contrato não encontrado' });
+    }
+    const contrato = result.Items[0];
+
+    if (contrato.status !== 'assinado') {
+      return res.status(400).json({ success: false, message: 'Contrato ainda não foi assinado.' });
+    }
+
+    // Se manifesto já existe no S3, gerar URL assinada
+    if (contrato.manifesto_s3_key) {
+      const { gerarUrlAssinada } = require('../services/integrityService');
+      const url = await gerarUrlAssinada(contrato.manifesto_s3_key, 300); // 5 min
+      return res.json({
+        success: true,
+        data: {
+          url,
+          s3_key: contrato.manifesto_s3_key,
+          hash: contrato.manifesto_hash || null,
+          gerado_em: contrato.manifesto_gerado_em || null,
+          retain_until: contrato.manifesto_retain_until || null,
+          expira_url_em: new Date(Date.now() + 300 * 1000).toISOString(),
+        },
+      });
+    }
+
+    // Se manifesto ainda não foi gerado, gerar agora (fallback manual)
+    const { gerarManifestoParaContrato } = require('../functions/contratos/gerarManifesto');
+    const resultado = await gerarManifestoParaContrato(req.params.id);
+
+    const { gerarUrlAssinada } = require('../services/integrityService');
+    const url = await gerarUrlAssinada(resultado.s3Key, 300);
+
+    res.json({
+      success: true,
+      data: {
+        url,
+        s3_key: resultado.s3Key,
+        hash: resultado.hash,
+        gerado_em: new Date().toISOString(),
+        retain_until: resultado.retain_until,
+        expira_url_em: new Date(Date.now() + 300 * 1000).toISOString(),
+      },
+    });
+  } catch (error) {
+    console.error('[MANIFESTO] Erro:', error.message);
+    res.status(400).json({ success: false, message: error.message });
+  }
+});
+
+// GET /api/admin/contratos/:id/audit-log — SIG-03: Endpoint dedicado para consulta de audit log
+router.get('/:id/audit-log', async (req, res) => {
+  try {
+    const { listarAuditLog } = require('../services/auditLogService');
+    const { limite = 100, ordem = 'asc' } = req.query;
+
+    // Verificar se contrato existe
+    const result = await dynamo.send(new QueryCommand({
+      TableName: TABLE,
+      IndexName: 'GSI1',
+      KeyConditionExpression: 'GSI1PK = :pk AND GSI1SK = :sk',
+      ExpressionAttributeValues: { ':pk': 'CONTRATO', ':sk': `CONTRATO#${req.params.id}` },
+    }));
+    if (!result.Items || result.Items.length === 0) {
+      return res.status(404).json({ success: false, message: 'Contrato não encontrado' });
+    }
+
+    const logs = await listarAuditLog(req.params.id, {
+      limite: Math.min(Number(limite), 500),
+      ordem: ordem === 'desc' ? 'desc' : 'asc',
+    });
+
+    res.json({
+      success: true,
+      data: {
+        contrato_id: req.params.id,
+        total: logs.length,
+        eventos: logs.map(log => ({
+          id: log.id,
+          evento: log.evento,
+          timestamp: log.timestamp || log.created_at,
+          ip_address: log.ip_address,
+          user_agent: log.user_agent,
+          detalhes: log.detalhes || {},
+          cliente_id: log.cliente_id,
+        })),
+      },
+    });
+  } catch (error) {
+    console.error('[AUDIT-LOG] Erro:', error.message);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
 // DELETE /api/admin/contratos/:id
 router.delete('/:id', async (req, res) => {
   try {

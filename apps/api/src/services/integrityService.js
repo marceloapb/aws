@@ -35,12 +35,16 @@ async function uploadComIntegridade(key, buffer, contentType = 'application/pdf'
   const hash = calcularHash(buffer);
   const agora = new Date();
 
-  // Upload com hash nos metadados
+  // SIG-06: Upload com hash nos metadados + ChecksumSHA256 para validação server-side AWS
+  const checksumBase64 = crypto.createHash('sha256').update(buffer).digest('base64');
+
   await s3.send(new PutObjectCommand({
     Bucket: CONTRATOS_BUCKET,
     Key: key,
     Body: buffer,
     ContentType: contentType,
+    ChecksumAlgorithm: 'SHA256',
+    ChecksumSHA256: checksumBase64,
     Metadata: {
       'sha256': hash,
       'gerado-em': agora.toISOString(),

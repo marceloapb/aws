@@ -12,6 +12,9 @@ Parameters:
   FotosBucketName:
     Type: String
     Default: mbf-backend-v3-fotos
+  ContratosBucketName:
+    Type: String
+    Default: mbf-contratos-prod
   CognitoUserPoolId:
     Type: String
     Default: us-east-1_ENV0dsEJx
@@ -32,6 +35,7 @@ Globals:
       Variables:
         TABLE_NAME: !Ref TableName
         S3_BUCKET_NAME: !Ref FotosBucketName
+        CONTRATOS_BUCKET: !Ref ContratosBucketName
         COGNITO_USER_POOL_ID: !Ref CognitoUserPoolId
         COGNITO_CLIENT_ID: !Ref CognitoClientId
         STAGE: !Ref Stage
@@ -90,6 +94,8 @@ Resources:
             TableName: !Ref TableName
         - S3CrudPolicy:
             BucketName: !Ref FotosBucketName
+        - S3CrudPolicy:
+            BucketName: !Ref ContratosBucketName
         - SSMParameterReadPolicy:
             ParameterName: !Sub 'mbf/${Stage}/*'
         - SQSSendMessagePolicy:
@@ -119,6 +125,11 @@ Resources:
               Action:
                 - sns:Publish
               Resource: '*'
+            - Effect: Allow
+              Action:
+                - s3:PutObjectRetention
+                - s3:GetObjectRetention
+              Resource: !Sub 'arn:aws:s3:::${ContratosBucketName}/*'
             - Effect: Allow
               Action:
                 - events:PutEvents
@@ -485,6 +496,85 @@ Resources:
           Properties:
             Queue: !GetAtt WebhookQueue.Arn
             BatchSize: 1
+
+  # ═══ SIG-06: CONTRATOS BUCKET (Object Lock + Versioning + Glacier) ═══
+  ContratosBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Ref ContratosBucketName
+      ObjectLockEnabled: true
+      ObjectLockConfiguration:
+        ObjectLockEnabled: Enabled
+        Rule:
+          DefaultRetention:
+            Mode: COMPLIANCE
+            Years: 5
+      VersioningConfiguration:
+        Status: Enabled
+      LifecycleConfiguration:
+        Rules:
+          - Id: TransitionToGlacierAfter90Days
+            Status: Enabled
+            Transitions:
+              - StorageClass: GLACIER
+                TransitionInDays: 90
+            NoncurrentVersionTransitions:
+              - StorageClass: GLACIER
+                TransitionInDays: 30
+          - Id: DeleteOldVersionsAfter365Days
+            Status: Enabled
+            NoncurrentVersionExpiration:
+              NoncurrentDays: 365
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+
+  # ═══ SIG-04: MANIFESTO TRIGGER (DynamoDB Stream) ═══
+  ManifestoTriggerFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub 'mbf-${Stage}-manifesto-trigger'
+      Handler: src/functions/contratos/gerarManifesto.handler
+      CodeUri: .
+      Timeout: 120
+      MemorySize: 512
+      Environment:
+        Variables:
+          CONTRATOS_BUCKET: !Ref ContratosBucketName
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref TableName
+        - S3CrudPolicy:
+            BucketName: !Ref ContratosBucketName
+        - Statement:
+            - Effect: Allow
+              Action:
+                - s3:PutObjectRetention
+                - s3:GetObjectRetention
+              Resource: !Sub 'arn:aws:s3:::${ContratosBucketName}/*'
+            - Effect: Allow
+              Action:
+                - dynamodb:GetRecords
+                - dynamodb:GetShardIterator
+                - dynamodb:DescribeStream
+                - dynamodb:ListStreams
+              Resource: !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${TableName}/stream/*'
+      Events:
+        DynamoDBStream:
+          Type: DynamoDB
+          Properties:
+            Stream: !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${TableName}/stream/*'
+            StartingPosition: LATEST
+            BatchSize: 10
+            FilterCriteria:
+              Filters:
+                - Pattern: '{"eventName": ["MODIFY"], "dynamodb": {"NewImage": {"GSI1PK": {"S": ["CONTRATO"]}, "status": {"S": ["assinado"]}}}}'
 
 Outputs:
   ApiUrl:
