@@ -264,15 +264,88 @@ async function enviarParaAssinatura(contratoId) {
     ExpressionAttributeValues: { ':s': 'enviado', ':e': new Date().toISOString() },
   }));
 
-  if (cliente.whatsapp_numero) {
+  const link = `${env.FRONTEND_URL}/contrato/${contrato.token_assinatura}`;
+  let enviado_whatsapp = false;
+  let enviado_email = false;
+
+  // Enviar WhatsApp
+  const telefone = cliente.whatsapp_numero || cliente.telefone;
+  if (telefone) {
     try {
-      await enviarTemplate(cliente.whatsapp_numero, 'contrato_assinatura', [cliente.nome, link]);
+      await enviarTemplate(telefone, 'contrato_assinatura', [cliente.nome || 'Cliente', link]);
+      enviado_whatsapp = true;
     } catch (error) {
       console.error('[CONTRATO] Erro ao enviar WhatsApp:', error.message);
     }
   }
 
-  return { link, enviado_whatsapp: !!cliente.whatsapp_numero };
+  // Enviar E-mail
+  const email = cliente.email;
+  if (email) {
+    try {
+      const { SESClient, SendEmailCommand } = require('@aws-sdk/client-ses');
+      const ses = new SESClient({});
+      const fromEmail = process.env.SES_FROM_EMAIL || 'noreply@mbfoto.com.br';
+      await ses.send(new SendEmailCommand({
+        Source: fromEmail,
+        Destination: { ToAddresses: [email] },
+        Message: {
+          Subject: { Data: 'Seu contrato está pronto para assinatura' },
+          Body: {
+            Html: {
+              Data: `<div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:20px;">
+                <div style="background:#EA580C;padding:15px 20px;border-radius:8px 8px 0 0;">
+                  <h2 style="color:white;margin:0;font-size:18px;">📋 Contrato para Assinatura</h2>
+                </div>
+                <div style="background:white;padding:20px;border:1px solid #e5e7eb;border-top:none;border-radius:0 0 8px 8px;">
+                  <p>Olá <strong>${cliente.nome || 'Cliente'}</strong>,</p>
+                  <p>Seu contrato está pronto para revisão e assinatura.</p>
+                  <a href="${link}" style="display:inline-block;margin-top:15px;padding:12px 24px;background:#EA580C;color:white;text-decoration:none;border-radius:6px;font-weight:bold;">Assinar Contrato</a>
+                  <p style="color:#6b7280;font-size:12px;margin-top:20px;">Se não solicitou este contrato, ignore este e-mail.</p>
+                </div>
+              </div>`,
+            },
+          },
+        },
+      }));
+      enviado_email = true;
+    } catch (error) {
+      console.error('[CONTRATO] Erro ao enviar email:', error.message);
+    }
+  }
+
+  return { link, enviado_whatsapp, enviado_email };
+}
+
+/**
+ * Assinar como contratado (admin/fotógrafo assina primeiro)
+ */
+async function assinarComoContratado(contratoId, dadosAdmin) {
+  const result = await dynamo.send(new QueryCommand({
+    TableName: TABLE,
+    IndexName: 'GSI1',
+    KeyConditionExpression: 'GSI1PK = :pk AND GSI1SK = :sk',
+    ExpressionAttributeValues: { ':pk': 'CONTRATO', ':sk': `CONTRATO#${contratoId}` },
+  }));
+  const contrato = result.Items?.[0];
+  if (!contrato) throw new Error('Contrato não encontrado');
+
+  await dynamo.send(new UpdateCommand({
+    TableName: TABLE,
+    Key: { PK: contrato.PK, SK: contrato.SK },
+    UpdateExpression: 'SET assinatura_contratado = :ac, assinado_contratado_em = :dt',
+    ExpressionAttributeValues: {
+      ':ac': {
+        nome: dadosAdmin.nome || '',
+        ip: dadosAdmin.ip || '',
+        user_agent: dadosAdmin.userAgent || '',
+        data: new Date().toISOString(),
+      },
+      ':dt': new Date().toISOString(),
+    },
+  }));
+
+  return { success: true };
 }
 
 async function assinarContrato(token, dadosAssinatura) {
@@ -314,4 +387,4 @@ function getTemplateDefault(tipoEvento) {
 <p>Data: {{data_hoje}}</p>`;
 }
 
-module.exports = { gerarContrato, enviarParaAssinatura, assinarContrato };
+module.exports = { gerarContrato, enviarParaAssinatura, assinarContrato, assinarComoContratado };

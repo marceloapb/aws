@@ -1,7 +1,7 @@
 const { Router } = require('express');
 const { dynamo, TABLE } = require('../config/dynamodb');
 const { QueryCommand, PutCommand, UpdateCommand } = require('@aws-sdk/lib-dynamodb');
-const { gerarContrato, enviarParaAssinatura } = require('../services/contratoService');
+const { gerarContrato, enviarParaAssinatura, assinarComoContratado } = require('../services/contratoService');
 const { registrarEvento, avancarStatusAutomatico } = require('../services/clienteHistoricoService');
 
 const router = Router();
@@ -195,6 +195,20 @@ router.put('/:id', async (req, res) => {
     }
 
     res.json({ success: true, data: result.Attributes });
+  } catch (error) {
+    res.status(400).json({ success: false, message: error.message });
+  }
+});
+
+// POST /api/admin/contratos/:id/assinar-contratado
+router.post('/:id/assinar-contratado', async (req, res) => {
+  try {
+    const resultado = await assinarComoContratado(req.params.id, {
+      nome: req.user?.email || 'Admin',
+      ip: req.headers['x-forwarded-for'] || req.ip || '',
+      userAgent: req.headers['user-agent'] || '',
+    });
+    res.json({ success: true, data: resultado });
   } catch (error) {
     res.status(400).json({ success: false, message: error.message });
   }

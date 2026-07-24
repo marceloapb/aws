@@ -62,6 +62,22 @@ export default function ContratoDetalhe() {
     }
   }
 
+  async function handleAssinarContratado() {
+    if (!window.confirm('Confirma sua assinatura como CONTRATADO neste contrato?')) return;
+    try {
+      const res = await authFetch(`/admin/contratos/${id}/assinar-contratado`, { method: 'POST' });
+      const json = await res.json();
+      if (!res.ok || !json.success) {
+        alert(json.message || 'Erro ao assinar');
+        return;
+      }
+      alert('Contrato assinado como Contratado com sucesso!');
+      fetchContrato();
+    } catch (err) {
+      alert('Erro: ' + err.message);
+    }
+  }
+
   async function handleEnviar() {
     try {
       const res = await authFetch(`/admin/contratos/${id}/enviar`, { method: 'POST' });
@@ -125,6 +141,7 @@ export default function ContratoDetalhe() {
         <div className="flex gap-2">
           <ActionButtons status={contrato.status} onEnviar={handleEnviar} onCopiar={handleCopiarLink}
             onPDF={handleDownloadPDF} onEditar={() => setEditing(!editing)} onSalvar={handleSalvar} editing={editing}
+            onAssinarContratado={handleAssinarContratado}
             onExcluir={() => navigate('/admin/contratos')} copied={copied} />
         </div>
       </div>
@@ -186,6 +203,18 @@ export default function ContratoDetalhe() {
         </div>
       </div>
 
+      {/* Assinatura do Contratado */}
+      {contrato.assinatura_contratado && (
+        <div className="bg-green-50 rounded-xl border border-green-200 p-6">
+          <h2 className="font-semibold text-lg mb-3 flex items-center gap-2"><CheckCircle2 size={18} className="text-green-600" /> Assinado pelo Contratado</h2>
+          <dl className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
+            <Dado label="Assinado por" value={contrato.assinatura_contratado.nome} />
+            <Dado label="Data/Hora" value={contrato.assinado_contratado_em ? new Date(contrato.assinado_contratado_em).toLocaleString('pt-BR') : '—'} />
+            <Dado label="IP" value={contrato.assinatura_contratado.ip} />
+          </dl>
+        </div>
+      )}
+
       {/* Dados de Aceite */}
       {contrato.status === 'assinado' && contrato.aceite && (
         <div className="bg-white rounded-xl border p-6">
@@ -246,7 +275,7 @@ function Dado({ label, value }) {
   );
 }
 
-function ActionButtons({ status, onEnviar, onCopiar, onPDF, onEditar, onSalvar, onExcluir, copied, editing }) {
+function ActionButtons({ status, onEnviar, onCopiar, onPDF, onEditar, onSalvar, onExcluir, onAssinarContratado, copied, editing }) {
   const btn = 'px-3 py-2 rounded-lg text-sm font-medium flex items-center gap-1.5 transition-colors';
   const primary = `${btn} text-white` ;
   const secondary = `${btn} border hover:bg-gray-50`;
@@ -263,6 +292,7 @@ function ActionButtons({ status, onEnviar, onCopiar, onPDF, onEditar, onSalvar, 
     case 'gerado':
       return (<>
         <button className={secondary} onClick={onEditar}><Edit size={15} /> Editar</button>
+        <button className={secondary} onClick={onAssinarContratado}><CheckCircle2 size={15} /> Assinar como Contratado</button>
         <button className={primary} style={{ backgroundColor: ACCENT }} onClick={onEnviar}><Send size={15} /> Enviar para Assinatura</button>
         <button className={`${btn} text-red-600 hover:bg-red-50`} onClick={onExcluir}><Trash2 size={15} /> Excluir</button>
       </>);
