@@ -93,10 +93,10 @@ export default function Contratos() {
     const orcId = searchParams.get('orcamento_id');
     if (orcId) {
       setFormGerar(f => ({ ...f, orcamento_id: orcId }));
-      // Load orcamentos and modelos then open modal
       Promise.all([
         authFetch('/admin/orcamentos').then(r => r.json()).then(j => {
-          const aceitos = (j.data || []).filter(o => ['aceito', 'aprovado', 'confirmado'].includes(o.status));
+          const all = j.data || [];
+          const aceitos = all.filter(o => ['accepted', 'aceito', 'aprovado', 'confirmado', 'contrato_gerado'].includes(o.status));
           setOrcamentos(aceitos);
         }).catch(() => {}),
         authFetch('/admin/contratos-modelos').then(r => r.json()).then(j => { if (j.success) setModelos(j.data || []); }).catch(() => {}),
@@ -164,7 +164,8 @@ export default function Contratos() {
   // Actions
   const abrirModalGerar = () => {
     authFetch('/admin/orcamentos').then(r => r.json()).then(j => {
-      const aceitos = (j.data || []).filter(o => ['aceito', 'aprovado', 'confirmado'].includes(o.status));
+      const all = j.data || [];
+      const aceitos = all.filter(o => ['accepted', 'aceito', 'aprovado', 'confirmado', 'contrato_gerado'].includes(o.status));
       setOrcamentos(aceitos);
     }).catch(() => {});
     authFetch('/admin/contratos-modelos').then(r => r.json()).then(j => { if (j.success) setModelos(j.data || []); }).catch(() => {});
@@ -495,7 +496,7 @@ export default function Contratos() {
               <label className="block text-sm font-medium text-gray-700 mb-1">Orçamento aceito</label>
               <select value={formGerar.orcamento_id} onChange={e => setFormGerar({ ...formGerar, orcamento_id: e.target.value })} className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-orange-200">
                 <option value="">Selecione...</option>
-                {orcamentos.map(o => <option key={o.id} value={o.id}>#{o.id} — {o.cliente_nome} ({formatCurrency(o.valor_total)})</option>)}
+                {orcamentos.map(o => <option key={o.id} value={o.id}>{o.clientName || o.eventType || 'Orçamento'} — {formatCurrency(o.total || o.valor_total || 0)}</option>)}
               </select>
             </div>
             <div>
