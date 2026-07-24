@@ -132,6 +132,7 @@ function App() {
 
         {/* Contratos */}
         <Route path="contratos" element={<Contratos />} />
+        <Route path="contratos/novo" element={<Contratos />} />
         <Route path="contratos/:id" element={<ContratoDetalhe />} />
 
         {/* Financeiro */}

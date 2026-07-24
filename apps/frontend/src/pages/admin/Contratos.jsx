@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import {
   FileText, Search, Plus, Eye, Send, Download, Copy, RefreshCw,
@@ -74,6 +74,7 @@ function diasEnviado(enviadoEm) {
 export default function Contratos() {
   const { authFetch } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [abaGlobal, setAbaGlobal] = useState('Contratos');
 
   // --- Aba Contratos state ---
@@ -86,6 +87,15 @@ export default function Contratos() {
   const [orcamentos, setOrcamentos] = useState([]);
   const [modelos, setModelos] = useState([]);
   const [formGerar, setFormGerar] = useState({ orcamento_id: '', modelo_id: '' });
+
+  // Auto-open modal when coming from orcamento detail
+  useEffect(() => {
+    const orcId = searchParams.get('orcamento_id');
+    if (orcId) {
+      setFormGerar(f => ({ ...f, orcamento_id: orcId }));
+      setModalGerar(true);
+    }
+  }, [searchParams]);
 
   // --- Aba Modelos state ---
   const [modalModelo, setModalModelo] = useState(false);
