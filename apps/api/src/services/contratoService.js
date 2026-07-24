@@ -264,7 +264,6 @@ async function enviarParaAssinatura(contratoId) {
     ExpressionAttributeValues: { ':s': 'enviado', ':e': new Date().toISOString() },
   }));
 
-  const link = `${env.FRONTEND_URL}/contrato/${contrato.token_assinatura}`;
   let enviado_whatsapp = false;
   let enviado_email = false;
 
