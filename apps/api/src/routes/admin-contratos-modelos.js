@@ -203,14 +203,69 @@ ${textoFinal}
 
 Responda APENAS com o HTML completo. Sem explicações, sem markdown, sem \`\`\`. Comece direto com <div`;
 
-    const command = new ConverseCommand({
-      modelId: MODEL_ID,
-      messages: [{ role: 'user', content: [{ text: prompt }] }],
-      inferenceConfig: { maxTokens: 50000, temperature: 0.2, topP: 0.9 },
-    });
+    // Para contratos longos, processar em partes
+    const MAX_INPUT_CHARS = 6000; // ~2000 tokens por chunk
+    let corpoHtml = '';
 
-    const response = await bedrock.send(command);
-    let corpoHtml = response.output.message.content[0].text.trim();
+    if (textoFinal.length > MAX_INPUT_CHARS) {
+      // Dividir em chunks preservando parágrafos
+      const paragraphs = textoFinal.split(/\n\n+/);
+      const chunks = [];
+      let currentChunk = '';
+      for (const p of paragraphs) {
+        if ((currentChunk + '\n\n' + p).length > MAX_INPUT_CHARS && currentChunk) {
+          chunks.push(currentChunk);
+          currentChunk = p;
+        } else {
+          currentChunk += (currentChunk ? '\n\n' : '') + p;
+        }
+      }
+      if (currentChunk) chunks.push(currentChunk);
+
+      // Processar cada chunk
+      const htmlParts = [];
+      for (let i = 0; i < chunks.length; i++) {
+        const chunkPrompt = i === 0
+          ? prompt.replace(textoFinal, chunks[i])
+          : `Continue transformando o contrato em HTML. Esta é a parte ${i + 1} de ${chunks.length}. Mantenha o mesmo estilo CSS inline da parte anterior. NÃO adicione <div> container externo, apenas o conteúdo interno.
+
+CONTRATO (parte ${i + 1}):
+${chunks[i]}
+
+Responda APENAS com o HTML desta parte. Sem explicações, sem markdown.`;
+
+        const cmd = new ConverseCommand({
+          modelId: MODEL_ID,
+          messages: [{ role: 'user', content: [{ text: chunkPrompt }] }],
+          inferenceConfig: { maxTokens: 5000, temperature: 0.2, topP: 0.9 },
+        });
+        const resp = await bedrock.send(cmd);
+        let part = resp.output.message.content[0].text.trim();
+        if (part.startsWith('```')) part = part.replace(/^```html?\n?/, '').replace(/\n?```$/, '');
+        htmlParts.push(part);
+      }
+
+      // Juntar: primeira parte tem o container, as demais inserem dentro
+      corpoHtml = htmlParts[0];
+      if (htmlParts.length > 1) {
+        // Inserir partes adicionais antes do último </div>
+        const lastDivIdx = corpoHtml.lastIndexOf('</div>');
+        if (lastDivIdx > -1) {
+          corpoHtml = corpoHtml.slice(0, lastDivIdx) + htmlParts.slice(1).join('\n') + corpoHtml.slice(lastDivIdx);
+        } else {
+          corpoHtml += htmlParts.slice(1).join('\n');
+        }
+      }
+    } else {
+      // Contrato curto — chamada única
+      const command = new ConverseCommand({
+        modelId: MODEL_ID,
+        messages: [{ role: 'user', content: [{ text: prompt }] }],
+        inferenceConfig: { maxTokens: 5000, temperature: 0.2, topP: 0.9 },
+      });
+      const response = await bedrock.send(command);
+      corpoHtml = response.output.message.content[0].text.trim();
+    }
 
     // Limpar possíveis wrappers de markdown
     if (corpoHtml.startsWith('```html')) {
