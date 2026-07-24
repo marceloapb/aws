@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useSearchParams } from 'react-router-dom';
-import { Settings, Save, Building2, Image, Receipt, Bell } from 'lucide-react';
+import { Settings, Save, Building2, Image, Receipt, Bell, Mail } from 'lucide-react';
 import ConfigDadosEmpresa from '../../components/ConfigDadosEmpresa';
 import ConfigPrazos from '../../components/ConfigPrazos';
 import ConfigBackup from '../../components/ConfigBackup';
+import ConfigEmails from '../../components/ConfigEmails';
 import AlbumConfigContent from './AlbumConfig';
 import NfseConfigContent from './NfseConfig';
 import NotificacoesConfigContent from './NotificacoesConfig';
@@ -14,6 +15,7 @@ const ACCENT = '#EA580C';
 const TABS = [
   { key: 'empresa', label: 'Empresa', icon: Building2 },
   { key: 'albuns', label: 'Álbuns', icon: Image },
+  { key: 'emails', label: 'E-mails', icon: Mail },
   { key: 'nfse', label: 'NFS-e', icon: Receipt },
   { key: 'notificacoes', label: 'Notificações', icon: Bell },
 ];
@@ -243,6 +245,7 @@ export default function ConfigEmpresa() {
       )}
 
       {tab === 'albuns' && <AlbumConfigContent />}
+      {tab === 'emails' && <ConfigEmails />}
       {tab === 'nfse' && <NfseConfigContent />}
       {tab === 'notificacoes' && <NotificacoesConfigContent />}
     </div>
