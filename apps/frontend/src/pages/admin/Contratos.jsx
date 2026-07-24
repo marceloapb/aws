@@ -202,7 +202,17 @@ export default function Contratos() {
   };
   const enviar = (id) => authFetch(`/admin/contratos/${id}/enviar`, { method: 'POST' }).then(r => r.json()).then(j => { if (j.success) setContratos(p => p.map(c => c.id === id ? { ...c, status: 'enviado', enviado_em: new Date().toISOString() } : c)); }).catch(() => {});
   const reenviar = (id) => authFetch(`/admin/contratos/${id}/enviar`, { method: 'POST' }).catch(() => {});
-  const downloadPdf = (id) => authFetch(`/admin/contratos/${id}/pdf`).then(r => r.blob()).then(b => { const u = URL.createObjectURL(b); const a = document.createElement('a'); a.href = u; a.download = `contrato-${id}.pdf`; a.click(); URL.revokeObjectURL(u); }).catch(() => {});
+  const downloadPdf = async (id) => {
+    try {
+      const res = await authFetch(`/admin/contratos/${id}`);
+      const json = await res.json();
+      const contrato = json.data || json;
+      if (!contrato.conteudo_html) { alert('Contrato sem conteúdo'); return; }
+      const w = window.open('', '_blank');
+      w.document.write(`<html><head><title>Contrato ${contrato.numero_contrato || id}</title><style>body{font-family:Georgia,serif;padding:40px;max-width:800px;margin:auto;line-height:1.6;}@media print{body{padding:20px;}}</style></head><body>${contrato.conteudo_html}<script>setTimeout(()=>window.print(),500)<\/script></body></html>`);
+      w.document.close();
+    } catch { alert('Erro ao gerar PDF'); }
+  };
   const copiarLink = (id) => { navigator.clipboard.writeText(`${window.location.origin}/contratos/${id}/assinar`); };
 
   // Modelos actions
