@@ -127,3 +127,30 @@ apps/
 - git pull --rebase antes de push se rejeitar
 - Quando o Marcelo pedir pra publicar/deploy, só commit + push é suficiente
 - Não perguntar sobre cache do navegador ou se o deploy está no lugar certo — confia no processo
+
+## Pendências / Próximas implementações
+- **Templates de E-mail**: criar aba em Configurações > E-mails com:
+  - Nome do remetente configurável (na tela Integrações)
+  - Editor visual (tipo o do contrato) para cada template
+  - Logo da empresa no cabeçalho de todos os e-mails
+  - Templates para: contrato assinatura, orçamento novo, álbum publicado, lembrete pagamento, boas-vindas, follow-up, notificação geral
+  - Variáveis dinâmicas disponíveis em cada template
+  - O SES_FROM_EMAIL está em SSM (/mbf/prod/SES_FROM_EMAIL = contato@bloise.com.br)
+  - Domínio verificado no SES: bloise.com.br
+
+## Problemas conhecidos
+- WhatsApp Meta API: token expirado (Invalid OAuth access token) — precisa renovar no painel Meta
+- Despesas recorrentes: o POST funciona mas precisa testar se está gravando
+- Modelo Bedrock para texto (amazon.nova-micro): funciona, mas para contratos longos usa nova-lite com chunks
+- Portfolio: pipeline de thumbnails (SQS → Lambda) criado mas a Lambda de processamento pode não estar deployada ainda (depende do SAM deploy com sharp)
+
+## Contexto técnico importante
+- tenantId do admin Cognito: 3438a468-a031-7040-2d21-abc059a80915
+- Configurações ficam em TENANT#default (não no sub do admin)
+- Modelos de contrato ficam em TENANT#<adminSub> (3438a468...)
+- Clientes self-signup ficam em CLIENT#<cognitoSub>/PROFILE
+- Clientes criados pelo admin ficam em TENANT#default/CLIENTE#<id>
+- Orçamentos ficam em CLIENTE#<clienteId>/ORCAMENTO#<id> com GSI1PK=ORCAMENTO
+- Contratos ficam em CLIENTE#<clienteId>/CONTRATO#<id> com GSI1PK=CONTRATO
+- Status normalizado no frontend admin: aprovado→accepted, solicitado→draft, rascunho→draft
+- Portfolio fotos: bucket público para /1/portfolio/*, usa -web.webp para exibição
