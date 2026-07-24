@@ -22,14 +22,41 @@ async function gerarContrato(orcamentoId, modeloId) {
   const orcamento = orcResult.Items?.[0];
   if (!orcamento) throw new Error('Orçamento não encontrado');
 
-  // Buscar cliente
+  // Buscar cliente (tentar múltiplos padrões)
+  let cliente = null;
+
+  // Padrão 1: GSI1 (CLIENTE/CLIENTE#<id>) - clientes criados pelo admin
   const cliResult = await dynamo.send(new QueryCommand({
     TableName: TABLE,
     IndexName: 'GSI1',
     KeyConditionExpression: 'GSI1PK = :pk AND GSI1SK = :sk',
     ExpressionAttributeValues: { ':pk': 'CLIENTE', ':sk': `CLIENTE#${orcamento.cliente_id}` },
   }));
-  const cliente = cliResult.Items?.[0];
+  cliente = cliResult.Items?.[0];
+
+  // Padrão 2: CLIENT#<id> / PROFILE (self-signup)
+  if (!cliente) {
+    const { GetCommand } = require('@aws-sdk/lib-dynamodb');
+    const cli2 = await dynamo.send(new GetCommand({
+      TableName: TABLE,
+      Key: { PK: `CLIENT#${orcamento.cliente_id}`, SK: 'PROFILE' },
+    }));
+    if (cli2.Item) {
+      cliente = { ...cli2.Item, id: orcamento.cliente_id, nome: cli2.Item.nome || cli2.Item.nome_completo || '' };
+    }
+  }
+
+  // Padrão 3: TENANT#default / CLIENTE#<id>
+  if (!cliente) {
+    const TENANT = process.env.TENANT_ID || 'default';
+    const { GetCommand } = require('@aws-sdk/lib-dynamodb');
+    const cli3 = await dynamo.send(new GetCommand({
+      TableName: TABLE,
+      Key: { PK: `TENANT#${TENANT}`, SK: `CLIENTE#${orcamento.cliente_id}` },
+    }));
+    if (cli3.Item) cliente = cli3.Item;
+  }
+
   if (!cliente) throw new Error('Cliente não encontrado no orçamento');
 
   const TENANT = process.env.TENANT_ID || 'default';
