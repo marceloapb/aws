@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 
-const API = process.env.REACT_APP_API_URL || '';
+const API = process.env.REACT_APP_API_URL || 'https://setvwal0cd.execute-api.us-east-1.amazonaws.com/prod';
 
 /**
  * SIG-01: Verificação pública de autenticidade de assinatura

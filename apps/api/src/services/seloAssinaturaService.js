@@ -4,7 +4,12 @@
 // ══════════════════════════════════════════════════════════════
 
 const crypto = require('crypto');
-const QRCode = require('qrcode');
+let QRCode;
+try {
+  QRCode = require('qrcode');
+} catch {
+  QRCode = null; // qrcode package optional
+}
 const { env } = require('../config/env');
 
 /**
@@ -51,7 +56,9 @@ async function gerarSeloHTML(aceite, contratoId) {
 
   let qrDataUrl = '';
   try {
-    qrDataUrl = await QRCode.toDataURL(urlVerificacao, { width: 100, margin: 1 });
+    if (QRCode) {
+      qrDataUrl = await QRCode.toDataURL(urlVerificacao, { width: 100, margin: 1 });
+    }
   } catch {
     // Se QRCode falhar, prosseguir sem QR
   }
