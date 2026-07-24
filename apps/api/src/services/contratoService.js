@@ -22,6 +22,18 @@ async function gerarContrato(orcamentoId, modeloId, tenantId) {
   const orcamento = orcResult.Items?.[0];
   if (!orcamento) throw new Error('Orçamento não encontrado');
 
+  // Verificar se já existe contrato para este orçamento
+  const contratoExistente = await dynamo.send(new QueryCommand({
+    TableName: TABLE,
+    IndexName: 'GSI1',
+    KeyConditionExpression: 'GSI1PK = :pk',
+    FilterExpression: 'orcamento_id = :oid',
+    ExpressionAttributeValues: { ':pk': 'CONTRATO', ':oid': orcamentoId },
+  }));
+  if (contratoExistente.Items && contratoExistente.Items.length > 0) {
+    throw new Error('Já existe um contrato gerado para este orçamento. Exclua o contrato existente antes de gerar um novo.');
+  }
+
   // Buscar cliente (tentar múltiplos padrões)
   let cliente = null;
 
