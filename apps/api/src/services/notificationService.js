@@ -7,6 +7,7 @@ const { SESClient, SendEmailCommand } = require('@aws-sdk/client-ses');
 const { DynamoDBDocumentClient, PutCommand } = require('@aws-sdk/lib-dynamodb');
 const { DynamoDBClient } = require('@aws-sdk/client-dynamodb');
 const { v4: uuid } = require('uuid');
+const { registrarLogIntegracao: registrarLog } = require('./integracaoLogService');
 
 const ses = new SESClient({});
 const ddb = DynamoDBDocumentClient.from(new DynamoDBClient({}));
@@ -111,8 +112,10 @@ async function notificar({
         },
       }));
       resultados.email = { success: true };
+      registrarLog('email', tipo, 'sucesso', `E-mail "${titulo}" enviado para ${destinatario_email}`);
     } catch (err) {
       resultados.email = { success: false, error: err.message };
+      registrarLog('email', tipo, 'erro', `Falha ao enviar "${titulo}" para ${destinatario_email}: ${err.message}`);
     }
   }
 
@@ -126,8 +129,10 @@ async function notificar({
         parameters: [{ text: titulo }, { text: mensagem }],
       });
       resultados.whatsapp = { success: true };
+      registrarLog('whatsapp', tipo, 'sucesso', `WhatsApp "${titulo}" enviado para ${destinatario_whatsapp}`);
     } catch (err) {
       resultados.whatsapp = { success: false, error: err.message };
+      registrarLog('whatsapp', tipo, 'erro', `Falha ao enviar "${titulo}" para ${destinatario_whatsapp}: ${err.message}`);
     }
   }
 

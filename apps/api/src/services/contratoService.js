@@ -267,14 +267,18 @@ async function enviarParaAssinatura(contratoId) {
   let enviado_whatsapp = false;
   let enviado_email = false;
 
+  const { registrarLogIntegracao } = require('./integracaoLogService');
+
   // Enviar WhatsApp
   const telefone = cliente.whatsapp_numero || cliente.telefone;
   if (telefone) {
     try {
       await enviarTemplate(telefone, 'contrato_assinatura', [cliente.nome || 'Cliente', link]);
       enviado_whatsapp = true;
+      await registrarLogIntegracao('whatsapp', 'envio_contrato', 'sucesso', `Contrato enviado para ${cliente.nome || telefone} (${telefone})`);
     } catch (error) {
       console.error('[CONTRATO] Erro ao enviar WhatsApp:', error.message);
+      await registrarLogIntegracao('whatsapp', 'envio_contrato', 'erro', `Falha ao enviar para ${telefone}: ${error.message}`);
     }
   }
 
@@ -310,8 +314,10 @@ async function enviarParaAssinatura(contratoId) {
         },
       }));
       enviado_email = true;
+      await registrarLogIntegracao('email', 'envio_contrato', 'sucesso', `E-mail enviado para ${email} (de: ${fromEmail})`);
     } catch (error) {
       console.error('[CONTRATO] Erro ao enviar email:', error.message);
+      await registrarLogIntegracao('email', 'envio_contrato', 'erro', `Falha ao enviar para ${email}: ${error.message}`);
     }
   }
 
