@@ -99,7 +99,7 @@ export default function Contratos() {
           const aceitos = all.filter(o => ['accepted', 'aceito', 'aprovado', 'confirmado', 'contrato_gerado'].includes(o.status));
           setOrcamentos(aceitos);
         }).catch(() => {}),
-        authFetch('/admin/contratos-modelos').then(r => r.json()).then(j => { if (j.success) setModelos(j.data || []); }).catch(() => {}),
+        authFetch('/admin/contratos/modelos').then(r => r.json()).then(j => { if (j.success) setModelos(j.data || []); }).catch(() => {}),
       ]).then(() => setModalGerar(true));
     }
   }, []);
@@ -168,7 +168,7 @@ export default function Contratos() {
       const aceitos = all.filter(o => ['accepted', 'aceito', 'aprovado', 'confirmado', 'contrato_gerado'].includes(o.status));
       setOrcamentos(aceitos);
     }).catch(() => {});
-    authFetch('/admin/contratos-modelos').then(r => r.json()).then(j => { if (j.success) setModelos(j.data || []); }).catch(() => {});
+    authFetch('/admin/contratos/modelos').then(r => r.json()).then(j => { if (j.success) setModelos(j.data || []); }).catch(() => {});
     setModalGerar(true);
   };
   const gerarContrato = () => {
