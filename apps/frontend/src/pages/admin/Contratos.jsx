@@ -171,10 +171,22 @@ export default function Contratos() {
     authFetch('/admin/contratos/modelos').then(r => r.json()).then(j => { if (j.success) setModelos(j.data || []); }).catch(() => {});
     setModalGerar(true);
   };
-  const gerarContrato = () => {
-    if (!formGerar.orcamento_id || !formGerar.modelo_id) return;
-    authFetch('/admin/contratos/gerar', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(formGerar) })
-      .then(r => r.json()).then(j => { if (j.success) { setModalGerar(false); setContratos(p => [j.data, ...p]); setFormGerar({ orcamento_id: '', modelo_id: '' }); } }).catch(() => {});
+  const gerarContrato = async () => {
+    if (!formGerar.orcamento_id) { alert('Selecione um orçamento'); return; }
+    try {
+      const res = await authFetch('/admin/contratos/gerar', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(formGerar) });
+      const j = await res.json();
+      if (j.success) {
+        setModalGerar(false);
+        setContratos(p => [j.data, ...p]);
+        setFormGerar({ orcamento_id: '', modelo_id: '' });
+        navigate(`/admin/contratos/${j.data.id}`);
+      } else {
+        alert(j.message || 'Erro ao gerar contrato');
+      }
+    } catch (err) {
+      alert('Erro ao gerar contrato: ' + err.message);
+    }
   };
   const enviar = (id) => authFetch(`/admin/contratos/${id}/enviar`, { method: 'POST' }).then(r => r.json()).then(j => { if (j.success) setContratos(p => p.map(c => c.id === id ? { ...c, status: 'enviado', enviado_em: new Date().toISOString() } : c)); }).catch(() => {});
   const reenviar = (id) => authFetch(`/admin/contratos/${id}/enviar`, { method: 'POST' }).catch(() => {});
@@ -506,7 +518,7 @@ export default function Contratos() {
                 {modelos.filter(m => m.ativo).map(m => <option key={m.id} value={m.id}>{m.nome}</option>)}
               </select>
             </div>
-            <button onClick={gerarContrato} disabled={!formGerar.orcamento_id || !formGerar.modelo_id} style={{ background: ACCENT }} className="w-full py-2.5 text-white rounded-lg text-sm font-medium hover:opacity-90 disabled:opacity-50">
+            <button onClick={gerarContrato} disabled={!formGerar.orcamento_id} style={{ background: ACCENT }} className="w-full py-2.5 text-white rounded-lg text-sm font-medium hover:opacity-90 disabled:opacity-50">
               Gerar Contrato
             </button>
           </div>
