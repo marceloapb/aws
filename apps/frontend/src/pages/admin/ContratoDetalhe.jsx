@@ -142,6 +142,7 @@ export default function ContratoDetalhe() {
           <ActionButtons status={contrato.status} onEnviar={handleEnviar} onCopiar={handleCopiarLink}
             onPDF={handleDownloadPDF} onEditar={() => setEditing(!editing)} onSalvar={handleSalvar} editing={editing}
             onAssinarContratado={handleAssinarContratado}
+            jaAssinouContratado={!!contrato.assinatura_contratado}
             onExcluir={() => navigate('/admin/contratos')} copied={copied} />
         </div>
       </div>
@@ -275,7 +276,7 @@ function Dado({ label, value }) {
   );
 }
 
-function ActionButtons({ status, onEnviar, onCopiar, onPDF, onEditar, onSalvar, onExcluir, onAssinarContratado, copied, editing }) {
+function ActionButtons({ status, onEnviar, onCopiar, onPDF, onEditar, onSalvar, onExcluir, onAssinarContratado, copied, editing, jaAssinouContratado }) {
   const btn = 'px-3 py-2 rounded-lg text-sm font-medium flex items-center gap-1.5 transition-colors';
   const primary = `${btn} text-white` ;
   const secondary = `${btn} border hover:bg-gray-50`;
@@ -292,7 +293,10 @@ function ActionButtons({ status, onEnviar, onCopiar, onPDF, onEditar, onSalvar, 
     case 'gerado':
       return (<>
         <button className={secondary} onClick={onEditar}><Edit size={15} /> Editar</button>
-        <button className={secondary} onClick={onAssinarContratado}><CheckCircle2 size={15} /> Assinar como Contratado</button>
+        <button className={secondary} onClick={onAssinarContratado} disabled={jaAssinouContratado}
+          style={jaAssinouContratado ? { opacity: 0.5, cursor: 'not-allowed' } : {}}>
+          <CheckCircle2 size={15} /> {jaAssinouContratado ? '✓ Assinado' : 'Assinar como Contratado'}
+        </button>
         <button className={primary} style={{ backgroundColor: ACCENT }} onClick={onEnviar}><Send size={15} /> Enviar para Assinatura</button>
         <button className={`${btn} text-red-600 hover:bg-red-50`} onClick={onExcluir}><Trash2 size={15} /> Excluir</button>
       </>);
