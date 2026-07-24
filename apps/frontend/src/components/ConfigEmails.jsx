@@ -20,6 +20,7 @@ export default function ConfigEmails() {
   const [sending, setSending] = useState(false);
   const [expandedVars, setExpandedVars] = useState(false);
   const [subTab, setSubTab] = useState('templates'); // templates | config
+  const [editorKey, setEditorKey] = useState(0);
 
   useEffect(() => {
     loadData();
@@ -44,16 +45,22 @@ export default function ConfigEmails() {
     setShowPreview(false);
     setPreview(null);
     setMsg('');
+    // Force re-render of contentEditable by updating key
+    setEditorKey(prev => prev + 1);
   };
 
   const handleSaveTemplate = async () => {
     if (!selectedTemplate) return;
+    // Sync contentEditable content before saving
+    const editor = document.getElementById('template-corpo-editor');
+    const currentForm = editor ? { ...editForm, corpo: editor.innerHTML } : editForm;
+    if (editor) setEditForm(currentForm);
     setSaving(true);
     setMsg('');
     try {
       const res = await authFetch(`/admin/email-templates/${selectedTemplate.tipo}`, {
         method: 'PUT',
-        body: JSON.stringify(editForm),
+        body: JSON.stringify(currentForm),
       });
       const json = await res.json();
       if (json.success) {
@@ -163,16 +170,11 @@ export default function ConfigEmails() {
   };
 
   const insertVariable = (variable) => {
-    const textarea = document.getElementById('template-corpo-editor');
-    if (textarea) {
-      const start = textarea.selectionStart;
-      const end = textarea.selectionEnd;
-      const newCorpo = editForm.corpo.substring(0, start) + variable + editForm.corpo.substring(end);
-      setEditForm({ ...editForm, corpo: newCorpo });
-      setTimeout(() => {
-        textarea.focus();
-        textarea.setSelectionRange(start + variable.length, start + variable.length);
-      }, 0);
+    const editor = document.getElementById('template-corpo-editor');
+    if (editor) {
+      editor.focus();
+      document.execCommand('insertText', false, variable);
+      setEditForm(f => ({ ...f, corpo: editor.innerHTML }));
     } else {
       setEditForm({ ...editForm, corpo: editForm.corpo + variable });
     }
@@ -349,13 +351,46 @@ export default function ConfigEmails() {
                     placeholder="Assunto do e-mail (pode usar variáveis)" />
                 </div>
 
-                {/* Corpo (editor) */}
+                {/* Corpo (editor rich-text) */}
                 <div className="mb-4">
                   <label className="block text-sm font-medium text-gray-700 mb-1">Corpo do E-mail (HTML)</label>
-                  <textarea id="template-corpo-editor" value={editForm.corpo} onChange={e => setEditForm({ ...editForm, corpo: e.target.value })}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm font-mono h-64 focus:ring-2 focus:ring-orange-200 focus:border-orange-400 resize-y"
-                    placeholder="HTML do corpo do e-mail..." />
-                  <p className="text-xs text-gray-400 mt-1">Use HTML para formatar. As variáveis serão substituídas automaticamente ao enviar.</p>
+                  {/* Rich Text Toolbar */}
+                  <div className="flex flex-wrap gap-1 p-2 border border-b-0 rounded-t-lg bg-gray-50">
+                    <button type="button" onClick={() => document.execCommand('bold')} className="px-2 py-1 text-xs font-bold border rounded hover:bg-gray-200" title="Negrito">B</button>
+                    <button type="button" onClick={() => document.execCommand('italic')} className="px-2 py-1 text-xs italic border rounded hover:bg-gray-200" title="Itálico">I</button>
+                    <button type="button" onClick={() => document.execCommand('underline')} className="px-2 py-1 text-xs underline border rounded hover:bg-gray-200" title="Sublinhado">U</button>
+                    <span className="w-px h-6 bg-gray-300 mx-1" />
+                    <select onChange={e => { document.execCommand('fontSize', false, e.target.value); e.target.value = ''; }} defaultValue="" className="text-xs border rounded px-1 py-1 hover:bg-gray-200">
+                      <option value="" disabled>Tamanho</option>
+                      <option value="1">Pequeno</option>
+                      <option value="3">Normal</option>
+                      <option value="5">Grande</option>
+                      <option value="7">Muito Grande</option>
+                    </select>
+                    <input type="color" onChange={e => document.execCommand('foreColor', false, e.target.value)} title="Cor do texto" className="w-7 h-7 border rounded cursor-pointer" defaultValue="#333333" />
+                    <span className="w-px h-6 bg-gray-300 mx-1" />
+                    <button type="button" onClick={() => document.execCommand('justifyLeft')} className="px-2 py-1 text-xs border rounded hover:bg-gray-200" title="Alinhar esquerda">&#x2B05;</button>
+                    <button type="button" onClick={() => document.execCommand('justifyCenter')} className="px-2 py-1 text-xs border rounded hover:bg-gray-200" title="Centralizar">&#x2B1B;</button>
+                    <button type="button" onClick={() => document.execCommand('justifyRight')} className="px-2 py-1 text-xs border rounded hover:bg-gray-200" title="Alinhar direita">&#x27A1;</button>
+                    <button type="button" onClick={() => document.execCommand('justifyFull')} className="px-2 py-1 text-xs border rounded hover:bg-gray-200" title="Justificar">&#x2630;</button>
+                    <span className="w-px h-6 bg-gray-300 mx-1" />
+                    <button type="button" onClick={() => document.execCommand('insertOrderedList')} className="px-2 py-1 text-xs border rounded hover:bg-gray-200" title="Lista numerada">1.</button>
+                    <button type="button" onClick={() => document.execCommand('insertUnorderedList')} className="px-2 py-1 text-xs border rounded hover:bg-gray-200" title="Lista">&bull;</button>
+                    <button type="button" onClick={() => document.execCommand('indent')} className="px-2 py-1 text-xs border rounded hover:bg-gray-200" title="Indentar">&rarr;</button>
+                    <button type="button" onClick={() => document.execCommand('outdent')} className="px-2 py-1 text-xs border rounded hover:bg-gray-200" title="Desindentar">&larr;</button>
+                  </div>
+                  {/* Editable area */}
+                  <div
+                    key={editorKey}
+                    id="template-corpo-editor"
+                    contentEditable
+                    suppressContentEditableWarning
+                    dangerouslySetInnerHTML={{ __html: editForm.corpo }}
+                    onBlur={e => setEditForm(f => ({ ...f, corpo: e.target.innerHTML }))}
+                    className="w-full border border-t-0 rounded-b-lg px-4 py-3 text-sm min-h-[300px] max-h-[500px] overflow-y-auto focus:outline-none focus:ring-2 focus:ring-orange-200 prose prose-sm max-w-none"
+                    style={{ lineHeight: '1.8' }}
+                  />
+                  <p className="text-xs text-gray-400 mt-1">Use a barra de ferramentas para formatar. As variáveis serão substituídas automaticamente ao enviar.</p>
                 </div>
 
                 {/* Ações */}
