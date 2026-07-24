@@ -174,7 +174,12 @@ export default function Contratos() {
   const gerarContrato = async () => {
     if (!formGerar.orcamento_id) { alert('Selecione um orçamento'); return; }
     try {
-      const res = await authFetch('/admin/contratos/gerar', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(formGerar) });
+      const res = await authFetch('/admin/contratos/gerar', { method: 'POST', body: JSON.stringify(formGerar) });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        alert(err.message || `Erro ${res.status}`);
+        return;
+      }
       const j = await res.json();
       if (j.success) {
         setModalGerar(false);
