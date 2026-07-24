@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
-import { FolderOpen, FileSignature, CheckCircle, Eye } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { FolderOpen, FileSignature, Eye, ChevronRight } from 'lucide-react';
 
 const ACCENT = '#EA580C';
 
@@ -15,6 +16,7 @@ const STATUS_LABEL = {
 
 export default function MeusContratos() {
   const { authFetch } = useAuth();
+  const navigate = useNavigate();
   const [contracts, setContracts] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -29,12 +31,6 @@ export default function MeusContratos() {
       .finally(() => setLoading(false));
   }, []);
 
-  const abrirContrato = (c) => {
-    if (c.token_assinatura) {
-      window.open(`/contrato/${c.token_assinatura}`, '_blank');
-    }
-  };
-
   if (loading) return <div className="flex items-center justify-center py-20 text-gray-400">Carregando...</div>;
 
   return (
@@ -47,13 +43,15 @@ export default function MeusContratos() {
       <div className="space-y-3">
         {contracts.length === 0 ? (
           <div className="bg-white rounded-xl border border-gray-200 p-8 text-center text-gray-400">
-            Nenhum contrato disponível. Após aceitar um orçamento, o contrato aparecerá aqui para assinatura.
+            Nenhum contrato disponível.
           </div>
         ) : (
           contracts.map(c => {
             const st = STATUS_LABEL[c.status] || STATUS_LABEL.gerado;
             return (
-              <div key={c.id} className="bg-white rounded-xl border border-gray-200 p-4">
+              <div key={c.id}
+                onClick={() => navigate(`/cliente/contratos/${c.token_assinatura || c.id}`)}
+                className="bg-white rounded-xl border border-gray-200 p-4 hover:shadow-md transition-shadow cursor-pointer">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-lg flex items-center justify-center bg-orange-50">
@@ -68,21 +66,10 @@ export default function MeusContratos() {
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
-                    {(c.status === 'enviado' || c.status === 'pendente_assinatura') && c.token_assinatura && (
-                      <button onClick={() => abrirContrato(c)} style={{ background: ACCENT }}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 text-white rounded-lg text-xs font-medium hover:opacity-90">
-                        <CheckCircle size={14} /> Assinar
-                      </button>
-                    )}
-                    {c.status === 'assinado' && (
-                      <button onClick={() => abrirContrato(c)}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-gray-300 rounded-lg text-xs font-medium hover:bg-gray-50">
-                        <Eye size={14} /> Visualizar
-                      </button>
-                    )}
                     <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${st.cls}`}>
                       {st.label}
                     </span>
+                    <ChevronRight size={16} className="text-gray-400" />
                   </div>
                 </div>
               </div>

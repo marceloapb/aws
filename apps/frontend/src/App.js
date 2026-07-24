@@ -55,6 +55,7 @@ import MeusOrcamentos from './pages/cliente/MeusOrcamentos';
 import SolicitarOrcamento from './pages/cliente/SolicitarOrcamento';
 import OrcamentoView from './pages/cliente/OrcamentoView';
 import MeusContratos from './pages/cliente/MeusContratos';
+import ContratoClienteView from './pages/cliente/ContratoClienteView';
 import MeusAlbuns from './pages/cliente/MeusAlbuns';
 // AlbumConfig moved to ConfigEmpresa hub
 import AlbumView from './pages/cliente/AlbumView';
@@ -186,6 +187,7 @@ function App() {
         <Route path="orcamentos/novo" element={<SolicitarOrcamento />} />
         <Route path="orcamentos/:id" element={<OrcamentoView />} />
         <Route path="contratos" element={<MeusContratos />} />
+        <Route path="contratos/:token" element={<ContratoClienteView />} />
         <Route path="pagamentos" element={<MeusPagamentos />} />
         <Route path="albuns" element={<MeusAlbuns />} />
         <Route path="albuns/:slug" element={<AlbumView />} />
