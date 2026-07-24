@@ -55,7 +55,14 @@ const VARIAVEIS_GRUPOS = [
     { tag: '{{empresa_cnpj}}', desc: 'CNPJ' },
     { tag: '{{empresa_endereco}}', desc: 'Endereço' },
     { tag: '{{empresa_telefone}}', desc: 'Telefone' },
+    { tag: '{{empresa_whatsapp}}', desc: 'WhatsApp' },
     { tag: '{{empresa_email}}', desc: 'E-mail' },
+    { tag: '{{empresa_instagram}}', desc: 'Instagram' },
+    { tag: '{{empresa_website}}', desc: 'Website' },
+    { tag: '{{empresa_pix}}', desc: 'Chave Pix' },
+    { tag: '{{empresa_banco}}', desc: 'Banco' },
+    { tag: '{{empresa_agencia}}', desc: 'Agência' },
+    { tag: '{{empresa_conta}}', desc: 'Conta' },
   ]},
 ];
 const VARIAVEIS = VARIAVEIS_GRUPOS.flatMap(g => g.vars.map(v => v.tag));

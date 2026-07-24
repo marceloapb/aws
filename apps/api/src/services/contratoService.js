@@ -89,12 +89,22 @@ async function gerarContrato(orcamentoId, modeloId, tenantId) {
   // Buscar dados da empresa para variáveis {{empresa_*}}
   let empresa = {};
   try {
-    const cfgResult = await dynamo.send(new QueryCommand({
+    // Try tenant-specific first, then fallback to TENANT#default
+    let cfgResult = await dynamo.send(new QueryCommand({
       TableName: TABLE,
       KeyConditionExpression: 'PK = :pk AND begins_with(SK, :sk)',
       ExpressionAttributeValues: { ':pk': `TENANT#${TENANT}`, ':sk': 'CONFIG#' },
     }));
-    for (const item of (cfgResult.Items || [])) {
+    let items = (cfgResult.Items || []).filter(i => i.chave);
+    if (items.length === 0 && TENANT !== 'default') {
+      cfgResult = await dynamo.send(new QueryCommand({
+        TableName: TABLE,
+        KeyConditionExpression: 'PK = :pk AND begins_with(SK, :sk)',
+        ExpressionAttributeValues: { ':pk': 'TENANT#default', ':sk': 'CONFIG#' },
+      }));
+      items = (cfgResult.Items || []).filter(i => i.chave);
+    }
+    for (const item of items) {
       empresa[item.chave] = item.valor;
     }
   } catch {}
@@ -103,6 +113,9 @@ async function gerarContrato(orcamentoId, modeloId, tenantId) {
   const clienteEndereco = cliente.endereco_rua
     ? [cliente.endereco_rua, cliente.endereco_numero, cliente.endereco_bairro, cliente.endereco_cidade, cliente.endereco_estado].filter(Boolean).join(', ')
     : (cliente.endereco || '');
+
+  // Montar endereço da empresa
+  const empresaEndereco = [empresa.rua, empresa.numero, empresa.complemento, empresa.bairro, empresa.cidade, empresa.estado].filter(Boolean).join(', ');
 
   // Substituir variáveis
   conteudo = conteudo
@@ -145,9 +158,17 @@ async function gerarContrato(orcamentoId, modeloId, tenantId) {
     .replace(/{{empresa_nome}}/g, empresa.tradeName || empresa.businessName || '')
     .replace(/{{empresa_razao}}/g, empresa.businessName || '')
     .replace(/{{empresa_cnpj}}/g, empresa.cnpj || '')
-    .replace(/{{empresa_endereco}}/g, [empresa.street, empresa.number, empresa.neighborhood, empresa.city, empresa.state].filter(Boolean).join(', ') || '')
-    .replace(/{{empresa_telefone}}/g, empresa.phone || '')
-    .replace(/{{empresa_email}}/g, empresa.email || '');
+    .replace(/{{empresa_endereco}}/g, empresaEndereco)
+    .replace(/{{empresa_telefone}}/g, empresa.phone || empresa.whatsappBusiness || '')
+    .replace(/{{empresa_whatsapp}}/g, empresa.whatsappBusiness || empresa.phone || '')
+    .replace(/{{empresa_email}}/g, empresa.email || '')
+    .replace(/{{empresa_instagram}}/g, empresa.instagram || '')
+    .replace(/{{empresa_website}}/g, empresa.website || '')
+    // Dados bancários
+    .replace(/{{empresa_pix}}/g, empresa.pix || empresa.pixKey || '')
+    .replace(/{{empresa_banco}}/g, empresa.banco || '')
+    .replace(/{{empresa_agencia}}/g, empresa.agencia || '')
+    .replace(/{{empresa_conta}}/g, empresa.conta || '');
 
   const id = crypto.randomUUID();
   const contrato = {
