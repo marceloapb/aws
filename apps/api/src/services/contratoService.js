@@ -86,17 +86,68 @@ async function gerarContrato(orcamentoId, modeloId, tenantId) {
     conteudo = cfgResult.Items?.[0]?.valor || getTemplateDefault(orcamento.tipo_evento);
   }
 
+  // Buscar dados da empresa para variáveis {{empresa_*}}
+  let empresa = {};
+  try {
+    const cfgResult = await dynamo.send(new QueryCommand({
+      TableName: TABLE,
+      KeyConditionExpression: 'PK = :pk AND begins_with(SK, :sk)',
+      ExpressionAttributeValues: { ':pk': `TENANT#${TENANT}`, ':sk': 'CONFIG#' },
+    }));
+    for (const item of (cfgResult.Items || [])) {
+      empresa[item.chave] = item.valor;
+    }
+  } catch {}
+
+  // Montar endereço do cliente
+  const clienteEndereco = cliente.endereco_rua
+    ? [cliente.endereco_rua, cliente.endereco_numero, cliente.endereco_bairro, cliente.endereco_cidade, cliente.endereco_estado].filter(Boolean).join(', ')
+    : (cliente.endereco || '');
+
   // Substituir variáveis
   conteudo = conteudo
-    .replace(/{{cliente_nome}}/g, cliente.nome)
-    .replace(/{{cliente_cpf}}/g, cliente.cpf || '')
+    // Cliente
+    .replace(/{{cliente_nome}}/g, cliente.nome || '')
+    .replace(/{{nome_cliente}}/g, cliente.nome || '')
+    .replace(/{{cliente_cpf}}/g, cliente.cpf_cnpj || cliente.cpf || '')
+    .replace(/{{cpf_cliente}}/g, cliente.cpf_cnpj || cliente.cpf || '')
     .replace(/{{cliente_email}}/g, cliente.email || '')
-    .replace(/{{cliente_endereco}}/g, cliente.endereco || '')
-    .replace(/{{tipo_evento}}/g, orcamento.tipo_evento)
-    .replace(/{{data_evento}}/g, orcamento.data_evento || '')
-    .replace(/{{local_evento}}/g, orcamento.local || '')
-    .replace(/{{valor_total}}/g, `R$ ${orcamento.valor_total?.toFixed(2)}`)
-    .replace(/{{data_hoje}}/g, new Date().toLocaleDateString('pt-BR'));
+    .replace(/{{cliente_telefone}}/g, cliente.telefone || '')
+    .replace(/{{cliente_endereco}}/g, clienteEndereco)
+    .replace(/{{cliente_instagram}}/g, cliente.instagram || '')
+    // Evento
+    .replace(/{{tipo_evento}}/g, orcamento.tipo_evento || orcamento.nome_evento || '')
+    .replace(/{{data_evento}}/g, orcamento.data_evento ? new Date(orcamento.data_evento + 'T12:00:00').toLocaleDateString('pt-BR') : '')
+    .replace(/{{local_evento}}/g, orcamento.local || orcamento.local_evento || '')
+    .replace(/{{local}}/g, orcamento.local || orcamento.local_evento || '')
+    .replace(/{{horario_inicio}}/g, orcamento.horario_inicio || '')
+    .replace(/{{horario_fim}}/g, orcamento.horario_fim || '')
+    .replace(/{{duracao_horas}}/g, orcamento.horas_evento || '')
+    // Orçamento
+    .replace(/{{valor_total}}/g, `R$ ${(orcamento.valor_total || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`)
+    .replace(/{{itens_descricao}}/g, (orcamento.opcoes?.[0]?.itens_snapshot || []).map(i => `${i.nome} (${i.quantidade}x)`).join(', ') || '')
+    .replace(/{{condicoes_pagamento}}/g, (() => {
+      const c = orcamento.condicoes_pagamento || {};
+      const parts = [];
+      if (c.avista?.ativo) parts.push(`À vista com ${c.avista.desconto_pct || 0}% de desconto`);
+      if (c.sem_juros?.ativo) parts.push(`${c.sem_juros.max_parcelas}x sem juros`);
+      if (c.com_juros?.ativo) parts.push(`${c.com_juros.max_parcelas}x com ${c.com_juros.taxa_mensal}% a.m.`);
+      return parts.join(' | ') || 'A combinar';
+    })())
+    .replace(/{{desconto}}/g, orcamento.opcoes?.[0]?.desconto_valor ? `${orcamento.opcoes[0].desconto_valor}${orcamento.opcoes[0].desconto_tipo === 'pct' ? '%' : ' reais'}` : '')
+    .replace(/{{parcelas}}/g, orcamento.condicoes_pagamento?.sem_juros?.max_parcelas || '')
+    .replace(/{{valor_parcela}}/g, orcamento.condicoes_pagamento?.sem_juros?.max_parcelas ? `R$ ${((orcamento.valor_total || 0) / orcamento.condicoes_pagamento.sem_juros.max_parcelas).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` : '')
+    // Contrato
+    .replace(/{{data_hoje}}/g, new Date().toLocaleDateString('pt-BR'))
+    .replace(/{{validade_dias}}/g, orcamento.validade_dias || '7')
+    .replace(/{{numero_contrato}}/g, '')
+    // Empresa
+    .replace(/{{empresa_nome}}/g, empresa.tradeName || empresa.businessName || '')
+    .replace(/{{empresa_razao}}/g, empresa.businessName || '')
+    .replace(/{{empresa_cnpj}}/g, empresa.cnpj || '')
+    .replace(/{{empresa_endereco}}/g, [empresa.street, empresa.number, empresa.neighborhood, empresa.city, empresa.state].filter(Boolean).join(', ') || '')
+    .replace(/{{empresa_telefone}}/g, empresa.phone || '')
+    .replace(/{{empresa_email}}/g, empresa.email || '');
 
   const id = crypto.randomUUID();
   const contrato = {
