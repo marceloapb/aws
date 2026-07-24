@@ -72,6 +72,28 @@ router.get('/:id', async (req, res) => {
       } catch {}
     }
 
+    // Enrich with valor_total from orcamento
+    if (!contrato.valor_total && contrato.orcamento_id) {
+      try {
+        const orcResult = await dynamo.send(new QueryCommand({
+          TableName: TABLE, IndexName: 'GSI1',
+          KeyConditionExpression: 'GSI1PK = :pk AND GSI1SK = :sk',
+          ExpressionAttributeValues: { ':pk': 'ORCAMENTO', ':sk': `ORCAMENTO#${contrato.orcamento_id}` },
+        }));
+        if (orcResult.Items?.[0]) contrato.valor_total = orcResult.Items[0].valor_total || null;
+      } catch {}
+    }
+
+    // Enrich with modelo_nome
+    if (contrato.modelo_id && !contrato.modelo_nome) {
+      try {
+        const TENANT = req.tenantId || process.env.TENANT_ID || 'default';
+        const { GetCommand } = require('@aws-sdk/lib-dynamodb');
+        const mod = await dynamo.send(new GetCommand({ TableName: TABLE, Key: { PK: `TENANT#${TENANT}`, SK: `MODELO_CONTRATO#${contrato.modelo_id}` } }));
+        if (mod.Item) contrato.modelo_nome = mod.Item.nome || '';
+      } catch {}
+    }
+
     res.json({ success: true, data: contrato });
   } catch (error) {
     res.status(404).json({ success: false, message: 'Contrato não encontrado' });

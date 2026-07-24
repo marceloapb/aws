@@ -48,6 +48,20 @@ export default function ContratoDetalhe() {
     }
   }
 
+  const [editing, setEditing] = useState(false);
+
+  async function handleSalvar() {
+    try {
+      const editorEl = document.getElementById('contrato-editor-detalhe');
+      const novoHtml = editorEl ? editorEl.innerHTML : contrato.conteudo_html;
+      await authFetch(`/admin/contratos/${id}`, { method: 'PUT', body: JSON.stringify({ conteudo_html: novoHtml }) });
+      setContrato(c => ({ ...c, conteudo_html: novoHtml }));
+      setEditing(false);
+    } catch (err) {
+      alert('Erro ao salvar: ' + err.message);
+    }
+  }
+
   async function handleEnviar() {
     await authFetch(`/admin/contratos/${id}/enviar`, { method: 'POST' });
     fetchContrato();
@@ -100,7 +114,7 @@ export default function ContratoDetalhe() {
         </div>
         <div className="flex gap-2">
           <ActionButtons status={contrato.status} onEnviar={handleEnviar} onCopiar={handleCopiarLink}
-            onPDF={handleDownloadPDF} onEditar={() => navigate(`/admin/contratos/${id}/editar`)}
+            onPDF={handleDownloadPDF} onEditar={() => setEditing(!editing)} onSalvar={handleSalvar} editing={editing}
             onExcluir={() => navigate('/admin/contratos')} copied={copied} />
         </div>
       </div>
@@ -144,10 +158,19 @@ export default function ContratoDetalhe() {
 
         {/* Preview do Conteúdo */}
         <div className="bg-white rounded-xl border p-6 flex flex-col">
-          <h2 className="font-semibold text-lg mb-3">Preview do Contrato</h2>
-          <div className="flex-1 overflow-auto max-h-72 border rounded-lg p-4 text-sm bg-gray-50">
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="font-semibold text-lg">Preview do Contrato</h2>
+            <button onClick={() => {
+              const w = window.open('', '_blank');
+              w.document.write(`<html><head><title>Contrato</title><style>body{font-family:Georgia,serif;padding:40px;max-width:800px;margin:auto;}</style></head><body>${contrato.conteudo_html || ''}</body></html>`);
+              w.document.close();
+            }} className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium border rounded-lg hover:bg-gray-50">
+              <Eye size={14} /> Ver Completo
+            </button>
+          </div>
+          <div className={`flex-1 overflow-auto max-h-72 border rounded-lg p-4 text-sm ${editing ? 'bg-white ring-2 ring-orange-200' : 'bg-gray-50'}`}>
             {contrato.conteudo_html
-              ? <div dangerouslySetInnerHTML={{ __html: contrato.conteudo_html }} />
+              ? <div id="contrato-editor-detalhe" contentEditable={editing} suppressContentEditableWarning dangerouslySetInnerHTML={{ __html: contrato.conteudo_html }} className={editing ? 'outline-none min-h-[200px]' : ''} />
               : <p className="text-gray-400 italic text-center mt-12">Conteúdo do contrato</p>}
           </div>
         </div>
@@ -213,10 +236,17 @@ function Dado({ label, value }) {
   );
 }
 
-function ActionButtons({ status, onEnviar, onCopiar, onPDF, onEditar, onExcluir, copied }) {
+function ActionButtons({ status, onEnviar, onCopiar, onPDF, onEditar, onSalvar, onExcluir, copied, editing }) {
   const btn = 'px-3 py-2 rounded-lg text-sm font-medium flex items-center gap-1.5 transition-colors';
   const primary = `${btn} text-white` ;
   const secondary = `${btn} border hover:bg-gray-50`;
+
+  if (editing) {
+    return (<>
+      <button className={primary} style={{ backgroundColor: '#10B981' }} onClick={onSalvar}><CheckCircle2 size={15} /> Salvar</button>
+      <button className={secondary} onClick={onEditar}><XCircle size={15} /> Cancelar</button>
+    </>);
+  }
 
   switch (status) {
     case 'rascunho':
