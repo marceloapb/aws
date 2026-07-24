@@ -213,7 +213,7 @@ router.get('/despesas', async (req, res) => {
 router.post('/despesas', async (req, res) => {
   try {
     const photographerId = req.user.sub;
-    const { descricao, valor, categoria, data, evento_id, recorrente, tipo } = req.body;
+    const { descricao, valor, categoria, data, evento_id, recorrente, recorrencia, tipo } = req.body;
     const despesaId = uuidv4();
 
     await docClient.send(new PutCommand({
@@ -228,6 +228,7 @@ router.post('/despesas', async (req, res) => {
         data: data || new Date().toISOString().slice(0, 10),
         tipo: tipo || 'saida',
         recorrente: recorrente || false,
+        recorrencia: recorrente ? (recorrencia || 'mensal') : null,
         evento_id: evento_id || '',
         criadoEm: new Date().toISOString()
       }

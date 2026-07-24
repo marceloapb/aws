@@ -52,7 +52,7 @@ export default function Financeiro() {
   // Form states
   const [formPagar, setFormPagar] = useState({ meio: 'PIX', data_pagamento: '', valor_pago: 0 });
   const [formCobranca, setFormCobranca] = useState({ cliente_id: '', valor: '', vencimento: '', parcela: '1/1', meio: 'PIX' });
-  const [formDespesa, setFormDespesa] = useState({ descricao: '', valor: '', categoria: 'Outros', data: '', evento_id: '', recorrente: false });
+  const [formDespesa, setFormDespesa] = useState({ descricao: '', valor: '', categoria: 'Outros', data: '', evento_id: '', recorrente: false, recorrencia: 'mensal' });
   const [formEntrada, setFormEntrada] = useState({ descricao: '', valor: '', data: '' });
   const [categorias, setCategorias] = useState(CATEGORIAS_DESPESA.map((c, i) => ({ id: i + 1, nome: c, cor: ['#3B82F6', '#10B981', '#F59E0B', '#8B5CF6', '#EC4899', '#6366F1', '#14B8A6', '#6B7280'][i] })));
   const [novaCat, setNovaCat] = useState({ nome: '', cor: '#3B82F6' });
@@ -66,10 +66,16 @@ export default function Financeiro() {
         if (r.ok) setResumo(await r.json());
       } else if (activeTab === 1) {
         const r = await authFetch(`/admin/cobrancas${params}`);
-        if (r.ok) setCobrancas(await r.json());
+        if (r.ok) {
+          const json = await r.json();
+          setCobrancas(Array.isArray(json) ? json : (json.data || []));
+        }
       } else if (activeTab === 2) {
         const r = await authFetch(`/admin/financeiro/despesas${params}`);
-        if (r.ok) setDespesas(await r.json());
+        if (r.ok) {
+          const json = await r.json();
+          setDespesas(Array.isArray(json) ? json : (json.data || []));
+        }
       } else if (activeTab === 3) {
         const p = periodo === 'Custom' ? `?periodo_inicio=${customRange.inicio}&periodo_fim=${customRange.fim}` : `?periodo_inicio=&periodo_fim=`;
         const r = await authFetch(`/admin/financeiro/fluxo-caixa${p}`);
@@ -107,7 +113,7 @@ export default function Financeiro() {
   const criarDespesa = async () => {
     await authFetch(`/admin/financeiro/despesas`, { method: 'POST', body: JSON.stringify(formDespesa) });
     setModalNovaDespesa(false);
-    setFormDespesa({ descricao: '', valor: '', categoria: 'Outros', data: '', evento_id: '', recorrente: false });
+    setFormDespesa({ descricao: '', valor: '', categoria: 'Outros', data: '', evento_id: '', recorrente: false, recorrencia: 'mensal' });
     fetchData();
   };
 
@@ -718,8 +724,22 @@ export default function Financeiro() {
               </div>
               <div className="flex items-center gap-2">
                 <input type="checkbox" id="recorrente" checked={formDespesa.recorrente} onChange={e => setFormDespesa(f => ({ ...f, recorrente: e.target.checked }))} className="rounded" />
-                <label htmlFor="recorrente" className="text-sm text-gray-700">Despesa recorrente (FIN-16)</label>
+                <label htmlFor="recorrente" className="text-sm text-gray-700">Despesa recorrente</label>
               </div>
+              {formDespesa.recorrente && (
+                <div>
+                  <label className="text-xs font-medium text-gray-700">Frequência</label>
+                  <select value={formDespesa.recorrencia} onChange={e => setFormDespesa(f => ({ ...f, recorrencia: e.target.value }))} className="w-full border rounded-lg px-3 py-2 text-sm mt-1">
+                    <option value="semanal">Semanal</option>
+                    <option value="quinzenal">Quinzenal</option>
+                    <option value="mensal">Mensal</option>
+                    <option value="bimestral">Bimestral</option>
+                    <option value="trimestral">Trimestral</option>
+                    <option value="semestral">Semestral</option>
+                    <option value="anual">Anual</option>
+                  </select>
+                </div>
+              )}
             </div>
             <div className="flex justify-end gap-2 mt-6">
               <button onClick={() => setModalNovaDespesa(false)} className="px-4 py-2 border rounded-lg text-sm hover:bg-gray-50">Cancelar</button>
