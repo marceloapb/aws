@@ -93,9 +93,67 @@ export default function ContratoClienteView() {
 
       {/* Assinatura do contratado (se já assinou) */}
       {contrato.assinatura_contratado && (
-        <div className="bg-gray-50 rounded-xl border p-4 mb-6 text-sm text-gray-600">
-          <p className="font-medium text-gray-800 mb-1">Assinado pelo Contratado:</p>
-          <p>{contrato.assinatura_contratado.nome} — {contrato.assinado_contratado_em ? new Date(contrato.assinado_contratado_em).toLocaleString('pt-BR') : ''}</p>
+        <div className="bg-green-50 rounded-xl border border-green-200 p-5 mb-6">
+          <div className="flex items-center gap-2 mb-3">
+            <CheckCircle size={18} className="text-green-600" />
+            <p className="font-semibold text-green-800">Assinado pelo Contratado</p>
+          </div>
+          <dl className="grid grid-cols-2 gap-3 text-sm">
+            <div>
+              <dt className="text-gray-500 text-xs">Assinado por</dt>
+              <dd className="font-medium text-gray-900 mt-0.5">{contrato.assinatura_contratado.nome || '—'}</dd>
+            </div>
+            <div>
+              <dt className="text-gray-500 text-xs">Data/Hora</dt>
+              <dd className="font-medium text-gray-900 mt-0.5">{contrato.assinado_contratado_em ? new Date(contrato.assinado_contratado_em).toLocaleString('pt-BR') : '—'}</dd>
+            </div>
+            <div>
+              <dt className="text-gray-500 text-xs">IP</dt>
+              <dd className="font-medium text-gray-900 mt-0.5">{contrato.assinatura_contratado.ip || '—'}</dd>
+            </div>
+          </dl>
+        </div>
+      )}
+
+      {/* Assinatura do contratante/cliente (se já assinou) */}
+      {contrato.status === 'assinado' && (contrato.aceite || contrato.assinado_em) && (
+        <div className="bg-green-50 rounded-xl border border-green-200 p-5 mb-6">
+          <div className="flex items-center gap-2 mb-3">
+            <CheckCircle size={18} className="text-green-600" />
+            <p className="font-semibold text-green-800">Assinado pelo Contratante</p>
+          </div>
+          <dl className="grid grid-cols-2 gap-3 text-sm">
+            <div>
+              <dt className="text-gray-500 text-xs">Assinado por</dt>
+              <dd className="font-medium text-gray-900 mt-0.5">{
+                contrato.aceite?.nome ||
+                contrato.log_auditoria?.signatario?.nomeCompleto ||
+                contrato.selo_assinatura?.signatario || '—'
+              }</dd>
+            </div>
+            <div>
+              <dt className="text-gray-500 text-xs">Data/Hora</dt>
+              <dd className="font-medium text-gray-900 mt-0.5">{
+                (contrato.aceite?.data || contrato.assinado_em)
+                  ? new Date(contrato.aceite?.data || contrato.assinado_em).toLocaleString('pt-BR')
+                  : '—'
+              }</dd>
+            </div>
+            <div>
+              <dt className="text-gray-500 text-xs">IP</dt>
+              <dd className="font-medium text-gray-900 mt-0.5">{
+                contrato.aceite?.ip ||
+                contrato.log_auditoria?.enderecoIP ||
+                contrato.ip_assinatura || '—'
+              }</dd>
+            </div>
+            {contrato.selo_assinatura?.codigo_verificacao && (
+              <div>
+                <dt className="text-gray-500 text-xs">Código de verificação</dt>
+                <dd className="font-medium text-gray-900 mt-0.5 font-mono text-xs">{contrato.selo_assinatura.codigo_verificacao}</dd>
+              </div>
+            )}
+          </dl>
         </div>
       )}
 
@@ -139,7 +197,7 @@ export default function ContratoClienteView() {
         </div>
       )}
 
-      {contrato.status === 'assinado' && contrato.assinado_em && (
+      {contrato.status === 'assinado' && !contrato.aceite && !contrato.log_auditoria && contrato.assinado_em && (
         <div className="bg-green-50 rounded-xl border border-green-200 p-4 text-center">
           <CheckCircle size={24} className="text-green-600 mx-auto mb-2" />
           <p className="font-semibold text-green-800">Contrato assinado em {new Date(contrato.assinado_em).toLocaleString('pt-BR')}</p>
