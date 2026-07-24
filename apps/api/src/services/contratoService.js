@@ -231,13 +231,27 @@ async function enviarParaAssinatura(contratoId) {
   const contrato = result.Items?.[0];
   if (!contrato) throw new Error('Contrato não encontrado');
 
+  // Buscar cliente (múltiplos padrões)
+  let cliente = null;
   const cliResult = await dynamo.send(new QueryCommand({
     TableName: TABLE,
     IndexName: 'GSI1',
     KeyConditionExpression: 'GSI1PK = :pk AND GSI1SK = :sk',
     ExpressionAttributeValues: { ':pk': 'CLIENTE', ':sk': `CLIENTE#${contrato.cliente_id}` },
   }));
-  const cliente = cliResult.Items?.[0];
+  cliente = cliResult.Items?.[0];
+
+  if (!cliente) {
+    const { GetCommand } = require('@aws-sdk/lib-dynamodb');
+    const cli2 = await dynamo.send(new GetCommand({ TableName: TABLE, Key: { PK: `CLIENT#${contrato.cliente_id}`, SK: 'PROFILE' } }));
+    if (cli2.Item) cliente = { ...cli2.Item, id: contrato.cliente_id };
+  }
+  if (!cliente) {
+    const TENANT = process.env.TENANT_ID || 'default';
+    const { GetCommand } = require('@aws-sdk/lib-dynamodb');
+    const cli3 = await dynamo.send(new GetCommand({ TableName: TABLE, Key: { PK: `TENANT#${TENANT}`, SK: `CLIENTE#${contrato.cliente_id}` } }));
+    if (cli3.Item) cliente = cli3.Item;
+  }
   if (!cliente) throw new Error('Cliente não encontrado');
 
   const link = `${env.FRONTEND_URL}/contrato/${contrato.token_assinatura}`;

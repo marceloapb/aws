@@ -63,8 +63,18 @@ export default function ContratoDetalhe() {
   }
 
   async function handleEnviar() {
-    await authFetch(`/admin/contratos/${id}/enviar`, { method: 'POST' });
-    fetchContrato();
+    try {
+      const res = await authFetch(`/admin/contratos/${id}/enviar`, { method: 'POST' });
+      const json = await res.json();
+      if (!res.ok || !json.success) {
+        alert(json.message || 'Erro ao enviar para assinatura');
+        return;
+      }
+      alert('Contrato enviado para assinatura com sucesso!');
+      fetchContrato();
+    } catch (err) {
+      alert('Erro ao enviar: ' + err.message);
+    }
   }
 
   async function handleDownloadPDF() {
