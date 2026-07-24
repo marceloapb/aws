@@ -42,7 +42,7 @@ export default function Equipamentos() {
     { key: 'tipo', label: 'Tipo' },
     { key: 'marca', label: 'Marca/Modelo', render: (v, row) => `${v || ''} ${row.modelo || ''}`.trim() },
     { key: 'valor_aquisicao', label: 'Valor', render: (v) => formatarMoeda(v) },
-    { key: 'status', label: 'Status', render: (v) => <StatusBadge status={v || 'ativo'} /> },
+    { key: 'status', label: 'Status', align: 'center', render: (v) => <StatusBadge status={v || 'ativo'} /> },
   ];
 
   if (loading) return <LoadingSpinner size="lg" />;

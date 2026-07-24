@@ -8,7 +8,7 @@ export default function DataTable({ columns, data, onRowClick, emptyMessage = 'N
         <thead className="bg-gray-50">
           <tr>
             {columns.map((col) => (
-              <th key={col.key} className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th key={col.key} className={`px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider ${col.align === 'center' ? 'text-center' : 'text-left'}`}>
                 {col.label}
               </th>
             ))}
@@ -18,7 +18,7 @@ export default function DataTable({ columns, data, onRowClick, emptyMessage = 'N
           {data.map((row, idx) => (
             <tr key={row.id || idx} onClick={() => onRowClick?.(row)} className={onRowClick ? 'cursor-pointer hover:bg-gray-50' : ''}>
               {columns.map((col) => (
-                <td key={col.key} className="px-4 py-3 text-sm text-gray-900">
+                <td key={col.key} className={`px-4 py-3 text-sm text-gray-900 ${col.align === 'center' ? 'text-center' : ''}`}>
                   {col.render ? col.render(row[col.key], row) : row[col.key]}
                 </td>
               ))}
