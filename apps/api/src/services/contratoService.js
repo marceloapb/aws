@@ -284,7 +284,9 @@ async function enviarParaAssinatura(contratoId) {
     try {
       const { SESClient, SendEmailCommand } = require('@aws-sdk/client-ses');
       const ses = new SESClient({});
-      const fromEmail = process.env.SES_FROM_EMAIL || 'noreply@mbfoto.com.br';
+      const { loadParams } = require('../config/env');
+      const params = await loadParams();
+      const fromEmail = params.SES_FROM_EMAIL || process.env.SES_FROM_EMAIL || 'contato@bloise.com.br';
       await ses.send(new SendEmailCommand({
         Source: fromEmail,
         Destination: { ToAddresses: [email] },
