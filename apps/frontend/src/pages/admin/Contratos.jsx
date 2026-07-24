@@ -390,6 +390,7 @@ export default function Contratos() {
                             {c.status === 'enviado' && <button onClick={() => reenviar(c.id)} title="Reenviar" className="p-1.5 rounded hover:bg-gray-100"><RefreshCw size={15} /></button>}
                             <button onClick={() => downloadPdf(c.id)} title="PDF" className="p-1.5 rounded hover:bg-gray-100"><Download size={15} /></button>
                             <button onClick={() => copiarLink(c.id)} title="Copiar link" className="p-1.5 rounded hover:bg-gray-100"><Copy size={15} /></button>
+                            <button onClick={async () => { if (window.confirm('Excluir este contrato?')) { await authFetch(`/admin/contratos/${c.id}`, { method: 'DELETE' }); setContratos(p => p.filter(x => x.id !== c.id)); } }} title="Excluir" className="p-1.5 rounded hover:bg-red-100 text-red-600"><Trash2 size={15} /></button>
                           </div>
                         </td>
                       </tr>

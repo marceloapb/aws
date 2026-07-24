@@ -38,7 +38,35 @@ router.get('/', async (req, res) => {
 
     const total = items.length;
     const start = (Number(page) - 1) * Number(limit);
-    const data = items.slice(start, start + Number(limit));
+    const pageItems = items.slice(start, start + Number(limit));
+
+    // Enrich with client names and orcamento data
+    const { GetCommand } = require('@aws-sdk/lib-dynamodb');
+    const data = await Promise.all(pageItems.map(async (c) => {
+      // Get client name
+      if (c.cliente_id && !c.cliente_nome) {
+        try {
+          const cli = await dynamo.send(new GetCommand({ TableName: TABLE, Key: { PK: `CLIENT#${c.cliente_id}`, SK: 'PROFILE' } }));
+          if (cli.Item) c.cliente_nome = cli.Item.nome || cli.Item.nome_completo || '';
+        } catch {}
+      }
+      // Get valor_total and tipo_evento from orcamento
+      if (c.orcamento_id && (!c.valor_total || !c.tipo_evento)) {
+        try {
+          const orc = await dynamo.send(new QueryCommand({
+            TableName: TABLE, IndexName: 'GSI1',
+            KeyConditionExpression: 'GSI1PK = :pk AND GSI1SK = :sk',
+            ExpressionAttributeValues: { ':pk': 'ORCAMENTO', ':sk': `ORCAMENTO#${c.orcamento_id}` },
+          }));
+          if (orc.Items?.[0]) {
+            c.valor_total = c.valor_total || orc.Items[0].valor_total || null;
+            c.tipo_evento = c.tipo_evento || orc.Items[0].tipo_evento || orc.Items[0].nome_evento || '';
+          }
+        } catch {}
+      }
+      c.gerado_em = c.gerado_em || c.created || null;
+      return c;
+    }));
 
     res.json({ success: true, data, pagination: { page: Number(page), totalPages: Math.ceil(total / Number(limit)), totalItems: total } });
   } catch (error) {
@@ -169,6 +197,25 @@ router.put('/:id', async (req, res) => {
     res.json({ success: true, data: result.Attributes });
   } catch (error) {
     res.status(400).json({ success: false, message: error.message });
+  }
+});
+
+// DELETE /api/admin/contratos/:id
+router.delete('/:id', async (req, res) => {
+  try {
+    const result = await dynamo.send(new QueryCommand({
+      TableName: TABLE,
+      IndexName: 'GSI1',
+      KeyConditionExpression: 'GSI1PK = :pk AND GSI1SK = :sk',
+      ExpressionAttributeValues: { ':pk': 'CONTRATO', ':sk': `CONTRATO#${req.params.id}` },
+    }));
+    if (!result.Items || result.Items.length === 0) return res.status(404).json({ success: false, message: 'Contrato não encontrado' });
+    const contrato = result.Items[0];
+    const { DeleteCommand } = require('@aws-sdk/lib-dynamodb');
+    await dynamo.send(new DeleteCommand({ TableName: TABLE, Key: { PK: contrato.PK, SK: contrato.SK } }));
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
   }
 });
 
