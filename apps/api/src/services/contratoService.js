@@ -11,7 +11,7 @@ const TEMPLATES = {
   default: 'contrato_padrao',
 };
 
-async function gerarContrato(orcamentoId, modeloId) {
+async function gerarContrato(orcamentoId, modeloId, tenantId) {
   // Buscar orçamento
   const orcResult = await dynamo.send(new QueryCommand({
     TableName: TABLE,
@@ -59,7 +59,7 @@ async function gerarContrato(orcamentoId, modeloId) {
 
   if (!cliente) throw new Error('Cliente não encontrado no orçamento');
 
-  const TENANT = process.env.TENANT_ID || 'default';
+  const TENANT = tenantId || process.env.TENANT_ID || 'default';
   let conteudo = null;
 
   // Se modelo_id fornecido, buscar o MODELO_CONTRATO cadastrado

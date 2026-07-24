@@ -105,7 +105,7 @@ router.post('/gerar', async (req, res) => {
   try {
     const { orcamento_id, modelo_id } = req.body;
     if (!orcamento_id) return res.status(400).json({ success: false, message: 'orcamento_id é obrigatório' });
-    const contrato = await gerarContrato(orcamento_id, modelo_id);
+    const contrato = await gerarContrato(orcamento_id, modelo_id, req.tenantId);
     res.status(201).json({ success: true, data: contrato });
   } catch (error) {
     res.status(400).json({ success: false, message: error.message });
