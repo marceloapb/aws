@@ -56,7 +56,23 @@ router.get('/:id', async (req, res) => {
       ExpressionAttributeValues: { ':pk': 'CONTRATO', ':sk': `CONTRATO#${req.params.id}` },
     }));
     if (!result.Items || result.Items.length === 0) return res.status(404).json({ success: false, message: 'Contrato não encontrado' });
-    res.json({ success: true, data: result.Items[0] });
+    const contrato = result.Items[0];
+
+    // Enrich with client name
+    if (contrato.cliente_id && !contrato.cliente_nome) {
+      try {
+        const { GetCommand } = require('@aws-sdk/lib-dynamodb');
+        const cli = await dynamo.send(new GetCommand({ TableName: TABLE, Key: { PK: `CLIENT#${contrato.cliente_id}`, SK: 'PROFILE' } }));
+        if (cli.Item) contrato.cliente_nome = cli.Item.nome || cli.Item.nome_completo || '';
+        if (!contrato.cliente_nome) {
+          const TENANT = process.env.TENANT_ID || 'default';
+          const cli2 = await dynamo.send(new GetCommand({ TableName: TABLE, Key: { PK: `TENANT#${TENANT}`, SK: `CLIENTE#${contrato.cliente_id}` } }));
+          if (cli2.Item) contrato.cliente_nome = cli2.Item.nome || '';
+        }
+      } catch {}
+    }
+
+    res.json({ success: true, data: contrato });
   } catch (error) {
     res.status(404).json({ success: false, message: 'Contrato não encontrado' });
   }

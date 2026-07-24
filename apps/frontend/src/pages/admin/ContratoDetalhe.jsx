@@ -9,6 +9,7 @@ import { useAuth } from '../../contexts/AuthContext';
 const ACCENT = '#EA580C';
 
 const STATUS_CONFIG = {
+  rascunho: { label: 'Rascunho', bg: 'bg-yellow-100 text-yellow-700' },
   gerado: { label: 'Gerado', bg: 'bg-gray-100 text-gray-700' },
   enviado: { label: 'Enviado', bg: 'bg-blue-100 text-blue-700' },
   assinado: { label: 'Assinado', bg: 'bg-green-100 text-green-700' },
@@ -31,8 +32,15 @@ export default function ContratoDetalhe() {
     try {
       setLoading(true);
       const res = await authFetch(`/admin/contratos/${id}`);
-      const data = await res.json();
-      setContrato(data);
+      const json = await res.json();
+      const c = json.data || json;
+      // Normalize fields
+      c.data_gerado = c.data_gerado || c.created || null;
+      c.cliente_nome = c.cliente_nome || c.cliente?.nome || '';
+      c.modelo_nome = c.modelo_nome || '';
+      c.valor_total = c.valor_total || null;
+      c.token = c.token_assinatura || c.token || '';
+      setContrato(c);
     } catch (err) {
       console.error('Erro ao carregar contrato:', err);
     } finally {
@@ -211,6 +219,7 @@ function ActionButtons({ status, onEnviar, onCopiar, onPDF, onEditar, onExcluir,
   const secondary = `${btn} border hover:bg-gray-50`;
 
   switch (status) {
+    case 'rascunho':
     case 'gerado':
       return (<>
         <button className={secondary} onClick={onEditar}><Edit size={15} /> Editar</button>
