@@ -25,6 +25,11 @@ function getGreeting() {
   return 'Boa noite';
 }
 
+function capitalize(str) {
+  if (!str) return '';
+  return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
+}
+
 export default function Dashboard() {
   const { user, authFetch } = useAuth();
   const navigate = useNavigate();
@@ -137,9 +142,18 @@ export default function Dashboard() {
 
   const now = new Date();
   const todayStr = now.toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
-  const getEventDate = (e) => new Date(e.data_evento || e.date);
-  const sessionsToday = events.filter(e => getEventDate(e).toDateString() === now.toDateString()).length;
-  const sessionsWeek = events.filter(e => { const d = getEventDate(e); return d >= now && d <= new Date(now.getTime() + 7 * 86400000); }).length;
+  const getEventDate = (e) => {
+    const raw = e.data_evento || e.date;
+    if (!raw) return null;
+    // Formato YYYY-MM-DD: adicionar T00:00:00 para evitar problemas de timezone
+    const d = typeof raw === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(raw)
+      ? new Date(raw + 'T00:00:00')
+      : new Date(raw);
+    return isNaN(d.getTime()) ? null : d;
+  };
+  const isValidEvent = (e) => getEventDate(e) !== null;
+  const sessionsToday = events.filter(e => { const d = getEventDate(e); return d && d.toDateString() === now.toDateString(); }).length;
+  const sessionsWeek = events.filter(e => { const d = getEventDate(e); return d && d >= now && d <= new Date(now.getTime() + 7 * 86400000); }).length;
   const pendingQuotes = quotes.filter(q => ['draft', 'sent', 'pending', 'rascunho', 'pendente', 'enviado'].includes(q.status));
   const overdueCharges = charges.filter(c => {
     // Status explicitamente marcado como atrasado
@@ -163,8 +177,8 @@ export default function Dashboard() {
     ...readyAlbums.map(a => ({ id: `a-${a.id}`, icon: Upload, title: `Álbum: ${a.title || a.titulo || a.clientName || a.cliente_nome || 'Álbum'}`, date: a.updatedAt || a.updated || a.createdAt || a.created, action: 'Publicar', color: 'bg-orange-600', onClick: () => navigate(`/admin/albuns/${a.id}`) })),
   ];
 
-  // Próximas sessões
-  const upcoming = events.filter(e => getEventDate(e) >= now).sort((a, b) => getEventDate(a) - getEventDate(b)).slice(0, 5);
+  // Próximas sessões (filtra apenas eventos com data válida)
+  const upcoming = events.filter(e => { const d = getEventDate(e); return d && d >= now; }).sort((a, b) => getEventDate(a) - getEventDate(b)).slice(0, 5);
 
   // Atividade recente (últimas 5 do sistema)
   const recentActivity = [
@@ -190,7 +204,7 @@ export default function Dashboard() {
       <div className="flex items-center justify-between mb-6 flex-col sm:flex-row gap-3">
         <div className="flex items-center gap-3">
           <LayoutDashboard size={24} style={{ color: '#EA580C' }} />
-          <h1 className="text-2xl font-bold text-gray-900">{getGreeting()}, {user?.name?.split(' ')[0] || 'Usuário'} 👋</h1>
+          <h1 className="text-2xl font-bold text-gray-900">{getGreeting()}, {capitalize(user?.name?.split(' ')[0]) || 'Usuário'} 👋</h1>
         </div>
         <div className="flex gap-2">
           <button onClick={() => setShowPrefsModal(!showPrefsModal)} className="p-2 rounded-lg border border-gray-200 hover:bg-gray-50" title="Personalizar Dashboard">
@@ -300,6 +314,7 @@ export default function Dashboard() {
           <div className="space-y-2">
             {upcoming.map(ev => {
               const evDate = getEventDate(ev);
+              if (!evDate) return null;
               return (
               <div key={ev.id} className="flex items-center gap-3 p-3 rounded-lg border border-gray-100 hover:bg-gray-50">
                 <div className="text-center shrink-0 w-10">
