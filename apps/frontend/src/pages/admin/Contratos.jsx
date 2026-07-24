@@ -375,9 +375,7 @@ export default function Contratos() {
           <div className="flex justify-between items-center">
             <p className="text-sm text-gray-500">{modelos.length} modelo(s) cadastrado(s)</p>
             <div className="flex gap-2">
-              <button onClick={() => setModalImportar(true)} className="inline-flex items-center gap-2 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50">
-                <Upload size={16} /> Importar Contrato
-              </button>
+              
               <button onClick={() => { resetFormModelo(); setModalModelo(true); }} style={{ background: ACCENT }} className="inline-flex items-center gap-2 px-4 py-2 text-white rounded-lg text-sm font-medium hover:opacity-90">
                 <Plus size={16} /> Novo Modelo
               </button>
@@ -495,8 +493,8 @@ export default function Contratos() {
 
       {/* ===== MODAL MODELO ===== */}
       {modalModelo && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-lg p-6 space-y-4 max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-4xl p-6 space-y-4 max-h-[95vh] overflow-y-auto">
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-bold text-gray-900">{editModelo ? 'Editar Modelo' : 'Novo Modelo'}</h2>
               <button onClick={() => { setModalModelo(false); resetFormModelo(); }}><X size={20} className="text-gray-400 hover:text-gray-600" /></button>
@@ -507,7 +505,7 @@ export default function Contratos() {
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Tipo(s) de evento</label>
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                 {TIPOS_EVENTO.map(tipo => (
                   <label key={tipo} className={`flex items-center gap-2 px-3 py-2 rounded-lg border cursor-pointer transition ${formModelo.tipo_evento.includes(tipo) ? 'border-orange-400 bg-orange-50' : 'border-gray-200 hover:border-gray-300'}`}>
                     <input
@@ -520,36 +518,69 @@ export default function Contratos() {
                   </label>
                 ))}
               </div>
-              {formModelo.tipo_evento.length > 0 && (
-                <p className="text-xs text-gray-500 mt-1">{formModelo.tipo_evento.length} tipo(s) selecionado(s)</p>
-              )}
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Corpo HTML</label>
-              <textarea value={formModelo.corpo_html} onChange={e => setFormModelo({ ...formModelo, corpo_html: e.target.value })} rows={8} placeholder="Use variáveis: {{nome_cliente}}, {{cpf_cliente}}, {{valor_total}}, {{data_evento}}, {{local}}, {{itens_descricao}}, {{condicoes_pagamento}}" className="w-full border rounded-lg px-3 py-2 text-sm font-mono focus:ring-2 focus:ring-orange-200" />
-              <div className="flex flex-wrap gap-1 mt-2">
-                <details className="w-full border border-gray-200 rounded-lg overflow-hidden">
-                  <summary className="px-3 py-2 bg-gray-50 text-xs font-medium text-gray-700 cursor-pointer hover:bg-gray-100 select-none">
-                    📎 Variáveis disponíveis — clique para inserir
-                  </summary>
-                  <div className="p-3 space-y-3 max-h-60 overflow-y-auto">
-                    {VARIAVEIS_GRUPOS.map(grupo => (
-                      <div key={grupo.label}>
-                        <p className="text-[10px] font-bold text-gray-500 uppercase mb-1">{grupo.label}</p>
-                        <div className="flex flex-wrap gap-1">
-                          {grupo.vars.map(v => (
-                            <span key={v.tag} onClick={() => setFormModelo(f => ({ ...f, corpo_html: f.corpo_html + v.tag }))}
-                              title={v.desc}
-                              className="text-[10px] bg-orange-50 text-orange-700 px-2 py-1 rounded cursor-pointer hover:bg-orange-100 border border-orange-200 transition-colors">
-                              {v.tag} <span className="text-orange-400 ml-0.5">({v.desc})</span>
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </details>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Conteúdo do contrato</label>
+              {/* Rich Text Toolbar */}
+              <div className="flex flex-wrap gap-1 p-2 border border-b-0 rounded-t-lg bg-gray-50">
+                <button type="button" onClick={() => document.execCommand('bold')} className="px-2 py-1 text-xs font-bold border rounded hover:bg-gray-200" title="Negrito">B</button>
+                <button type="button" onClick={() => document.execCommand('italic')} className="px-2 py-1 text-xs italic border rounded hover:bg-gray-200" title="Itálico">I</button>
+                <button type="button" onClick={() => document.execCommand('underline')} className="px-2 py-1 text-xs underline border rounded hover:bg-gray-200" title="Sublinhado">U</button>
+                <span className="w-px h-6 bg-gray-300 mx-1" />
+                <select onChange={e => { document.execCommand('fontSize', false, e.target.value); e.target.value = ''; }} defaultValue="" className="text-xs border rounded px-1 py-1 hover:bg-gray-200">
+                  <option value="" disabled>Tamanho</option>
+                  <option value="1">Pequeno</option>
+                  <option value="3">Normal</option>
+                  <option value="5">Grande</option>
+                  <option value="7">Muito Grande</option>
+                </select>
+                <input type="color" onChange={e => document.execCommand('foreColor', false, e.target.value)} title="Cor do texto" className="w-7 h-7 border rounded cursor-pointer" defaultValue="#333333" />
+                <span className="w-px h-6 bg-gray-300 mx-1" />
+                <button type="button" onClick={() => document.execCommand('justifyLeft')} className="px-2 py-1 text-xs border rounded hover:bg-gray-200" title="Alinhar esquerda">⬅</button>
+                <button type="button" onClick={() => document.execCommand('justifyCenter')} className="px-2 py-1 text-xs border rounded hover:bg-gray-200" title="Centralizar">⬛</button>
+                <button type="button" onClick={() => document.execCommand('justifyRight')} className="px-2 py-1 text-xs border rounded hover:bg-gray-200" title="Alinhar direita">➡</button>
+                <button type="button" onClick={() => document.execCommand('justifyFull')} className="px-2 py-1 text-xs border rounded hover:bg-gray-200" title="Justificar">☰</button>
+                <span className="w-px h-6 bg-gray-300 mx-1" />
+                <button type="button" onClick={() => document.execCommand('insertOrderedList')} className="px-2 py-1 text-xs border rounded hover:bg-gray-200" title="Lista numerada">1.</button>
+                <button type="button" onClick={() => document.execCommand('insertUnorderedList')} className="px-2 py-1 text-xs border rounded hover:bg-gray-200" title="Lista">•</button>
+                <button type="button" onClick={() => document.execCommand('indent')} className="px-2 py-1 text-xs border rounded hover:bg-gray-200" title="Indentar">→</button>
+                <button type="button" onClick={() => document.execCommand('outdent')} className="px-2 py-1 text-xs border rounded hover:bg-gray-200" title="Desindentar">←</button>
               </div>
+              {/* Editable area */}
+              <div
+                id="contrato-editor"
+                contentEditable
+                suppressContentEditableWarning
+                dangerouslySetInnerHTML={{ __html: formModelo.corpo_html }}
+                onBlur={e => setFormModelo(f => ({ ...f, corpo_html: e.target.innerHTML }))}
+                className="w-full border border-t-0 rounded-b-lg px-4 py-3 text-sm min-h-[400px] max-h-[500px] overflow-y-auto focus:outline-none focus:ring-2 focus:ring-orange-200 prose prose-sm max-w-none"
+                style={{ lineHeight: '1.8' }}
+              />
+              {/* Variables panel */}
+              <details className="w-full border border-gray-200 rounded-lg overflow-hidden mt-2">
+                <summary className="px-3 py-2 bg-gray-50 text-xs font-medium text-gray-700 cursor-pointer hover:bg-gray-100 select-none">
+                  📎 Variáveis disponíveis — clique para inserir no texto
+                </summary>
+                <div className="p-3 space-y-3 max-h-48 overflow-y-auto">
+                  {VARIAVEIS_GRUPOS.map(grupo => (
+                    <div key={grupo.label}>
+                      <p className="text-[10px] font-bold text-gray-500 uppercase mb-1">{grupo.label}</p>
+                      <div className="flex flex-wrap gap-1">
+                        {grupo.vars.map(v => (
+                          <span key={v.tag} onClick={() => {
+                            const editor = document.getElementById('contrato-editor');
+                            if (editor) { editor.focus(); document.execCommand('insertText', false, v.tag); setFormModelo(f => ({ ...f, corpo_html: editor.innerHTML })); }
+                          }}
+                            title={v.desc}
+                            className="text-[10px] bg-orange-50 text-orange-700 px-2 py-1 rounded cursor-pointer hover:bg-orange-100 border border-orange-200 transition-colors">
+                            {v.tag}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </details>
             </div>
             <div className="flex items-center gap-2">
               <button onClick={() => setFormModelo(f => ({ ...f, ativo: !f.ativo }))} className="text-gray-600">
@@ -595,84 +626,6 @@ export default function Contratos() {
       )}
 
       {/* ===== MODAL IMPORTAR CONTRATO ===== */}
-      {modalImportar && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-lg p-6 space-y-4 max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Sparkles size={20} style={{ color: ACCENT }} />
-                <h2 className="text-lg font-bold text-gray-900">Importar Contrato com IA</h2>
-              </div>
-              <button onClick={() => { setModalImportar(false); setTextoImportar(''); setNomeImportar(''); setArquivoImportar(null); }}><X size={20} className="text-gray-400 hover:text-gray-600" /></button>
-            </div>
-
-            <div className="bg-orange-50 border border-orange-200 rounded-lg p-3">
-              <p className="text-xs text-orange-800">
-                Suba seu contrato atual (PDF, DOCX ou TXT) e a IA vai ler, identificar cláusulas e gerar um modelo HTML completo mantendo o mesmo layout e estilo.
-              </p>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Nome do modelo</label>
-              <input value={nomeImportar} onChange={e => setNomeImportar(e.target.value)} placeholder="Ex: Contrato Casamento 2025" className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-orange-200" />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Upload do contrato</label>
-              <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-orange-300 transition cursor-pointer" onClick={() => document.getElementById('file-import-contrato').click()}>
-                <input id="file-import-contrato" type="file" accept=".pdf,.docx,.doc,.txt" onChange={handleArquivoImportar} className="hidden" />
-                {arquivoImportar ? (
-                  <div className="space-y-1">
-                    <FileText size={32} className="mx-auto text-orange-500" />
-                    <p className="text-sm font-medium text-gray-900">{arquivoImportar.name}</p>
-                    <p className="text-xs text-gray-500">{(arquivoImportar.size / 1024).toFixed(1)} KB</p>
-                  </div>
-                ) : (
-                  <div className="space-y-1">
-                    <Upload size={32} className="mx-auto text-gray-400" />
-                    <p className="text-sm text-gray-600">Clique ou arraste seu contrato aqui</p>
-                    <p className="text-xs text-gray-400">PDF, DOCX ou TXT</p>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Texto do contrato {arquivoImportar && <span className="text-gray-400 font-normal">(extraído automaticamente - edite se necessário)</span>}
-              </label>
-              <textarea
-                value={textoImportar}
-                onChange={e => setTextoImportar(e.target.value)}
-                rows={10}
-                placeholder="Cole aqui o texto completo do seu contrato atual, ou faça upload do arquivo acima..."
-                className="w-full border rounded-lg px-3 py-2 text-sm font-mono focus:ring-2 focus:ring-orange-200"
-              />
-              <p className="text-xs text-gray-400 mt-1">{textoImportar.length} caracteres</p>
-            </div>
-
-            <button
-              onClick={importarContrato}
-              disabled={(!textoImportar.trim() && !arquivoImportar) || importando}
-              style={{ background: ACCENT }}
-              className="w-full py-2.5 text-white rounded-lg text-sm font-medium hover:opacity-90 disabled:opacity-50 flex items-center justify-center gap-2"
-            >
-              {importando ? (
-                <>
-                  <Loader2 size={16} className="animate-spin" />
-                  Gerando modelo com IA...
-                </>
-              ) : (
-                <>
-                  <Sparkles size={16} />
-                  Gerar Modelo com IA
-                </>
-              )}
-            </button>
-          </div>
-        </div>
-      )}
-
       {/* ===== MODAL ADITIVO ===== */}
       {modalAditivo && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
