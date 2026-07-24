@@ -14,6 +14,9 @@ const {
 } = require('../services/assinaturaEletronicaService');
 const { gerarContratoPDF } = require('../services/contratoPdfService');
 const { enviarParaAssinatura } = require('../services/contratoService');
+const { listarAuditLog } = require('../services/auditLogService');
+const { gerarHTMLManifesto, montarManifesto } = require('../services/manifestoService');
+const { gerarUrlAssinada } = require('../services/integrityService');
 const logger = require('../config/logger');
 
 const router = Router();
@@ -210,6 +213,55 @@ router.get('/dashboard', async (req, res) => {
     res.json({ success: true, data: metricas });
   } catch (error) {
     logger.error({ action: 'admin_dashboard_assinaturas_error', error: error.message });
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+/**
+ * GET /admin/assinaturas/:contratoId/audit-log
+ * SIG-03: Retorna audit log granular (AUDIT# entries)
+ */
+router.get('/:contratoId/audit-log', async (req, res) => {
+  try {
+    const { contratoId } = req.params;
+    const logs = await listarAuditLog(contratoId, { ordem: 'desc' });
+    res.json({ success: true, data: { contrato_id: contratoId, total_eventos: logs.length, eventos: logs } });
+  } catch (error) {
+    logger.error({ action: 'admin_audit_log_error', error: error.message });
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+/**
+ * GET /admin/assinaturas/:contratoId/manifesto
+ * SIG-04: Retorna HTML do manifesto técnico de assinatura
+ */
+router.get('/:contratoId/manifesto', async (req, res) => {
+  try {
+    const { contratoId } = req.params;
+
+    // Buscar contrato
+    const result = await dynamo.send(new QueryCommand({
+      TableName: TABLE,
+      IndexName: 'GSI1',
+      KeyConditionExpression: 'GSI1PK = :pk AND GSI1SK = :sk',
+      ExpressionAttributeValues: { ':pk': 'CONTRATO', ':sk': `CONTRATO#${contratoId}` },
+    }));
+    const contrato = result.Items?.[0];
+    if (!contrato) return res.status(404).json({ success: false, message: 'Contrato não encontrado' });
+    if (contrato.status !== 'assinado') return res.status(400).json({ success: false, message: 'Contrato não assinado' });
+
+    // Buscar audit logs
+    const auditLog = await listarAuditLog(contratoId, { ordem: 'asc' });
+
+    // Montar e gerar manifesto
+    const aceite = contrato.log_auditoria || {};
+    const dados = await montarManifesto(contrato, aceite, auditLog);
+    const html = gerarHTMLManifesto(dados);
+
+    res.json({ success: true, data: { html, dados } });
+  } catch (error) {
+    logger.error({ action: 'admin_manifesto_error', error: error.message });
     res.status(500).json({ success: false, message: error.message });
   }
 });

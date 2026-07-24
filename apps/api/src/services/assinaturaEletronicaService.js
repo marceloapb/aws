@@ -7,6 +7,7 @@ const crypto = require('crypto');
 const { dynamo, TABLE } = require('../config/dynamodb');
 const { QueryCommand, PutCommand, UpdateCommand, GetCommand } = require('@aws-sdk/lib-dynamodb');
 const { enviarOTP } = require('./otpService');
+const { registrarAudit, EVENTOS } = require('./auditLogService');
 const logger = require('../config/logger');
 
 // Configurações do módulo
@@ -70,6 +71,12 @@ async function gerarEEnviarOTP(contratoId, canalPreferido = 'whatsapp') {
     otpId,
   });
 
+  // SIG-03: Registrar evento de auditoria
+  await registrarAudit(contratoId, EVENTOS.OTP_SOLICITADO, {
+    cliente_id: contrato.cliente_id,
+    detalhes: { canal: resultado.canalUtilizado, otp_id: otpId },
+  });
+
   return {
     otpId,
     canalUtilizado: resultado.canalUtilizado,
@@ -106,6 +113,12 @@ async function validarOTPEAssinar(contratoId, codigoInformado, metadados) {
   const codigoValido = verificarOTP(codigoInformado, otpAtivo.codigo);
   if (!codigoValido) {
     const restantes = otpAtivo.maxTentativas - (otpAtivo.tentativas + 1);
+    // SIG-03: Registrar tentativa falha
+    await registrarAudit(contratoId, EVENTOS.OTP_TENTATIVA, {
+      ip_address: metadados.ip,
+      user_agent: metadados.userAgent,
+      detalhes: { sucesso: false, tentativas_restantes: restantes },
+    });
     throw new Error(`Código incorreto. Você tem ${restantes} tentativa(s) restante(s).`);
   }
 
@@ -175,6 +188,20 @@ async function validarOTPEAssinar(contratoId, codigoInformado, metadados) {
     clienteId: contrato.cliente_id,
     hashDocumento,
     ip: metadados.ip,
+  });
+
+  // SIG-03: Registrar OTP verificado e aceite confirmado
+  await registrarAudit(contratoId, EVENTOS.OTP_VERIFICADO, {
+    cliente_id: contrato.cliente_id,
+    ip_address: metadados.ip,
+    user_agent: metadados.userAgent,
+    detalhes: { canal: otpAtivo.canalEnvio, otp_id: otpAtivo.id },
+  });
+  await registrarAudit(contratoId, EVENTOS.ACEITE_CONFIRMADO, {
+    cliente_id: contrato.cliente_id,
+    ip_address: metadados.ip,
+    user_agent: metadados.userAgent,
+    detalhes: { hash_documento: hashDocumento, metodo: 'assinatura_eletronica_avancada' },
   });
 
   return {

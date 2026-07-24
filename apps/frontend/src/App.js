@@ -12,6 +12,8 @@ import NovidadesPage from './pages/public/NovidadesPage';
 import NovidadeDetalhe from './pages/public/NovidadeDetalhe';
 import SobrePage from './pages/public/SobrePage';
 import ContatoPage from './pages/public/ContatoPage';
+import ContratoAssinar from './pages/public/ContratoAssinar';
+import VerificarAssinatura from './pages/public/VerificarAssinatura';
 import Dashboard from './pages/admin/Dashboard';
 import ConfigEmpresa from './pages/admin/ConfigEmpresa';
 import Catalogo from './pages/admin/Catalogo';
@@ -110,6 +112,10 @@ function App() {
 
       <Route path="/login" element={user ? <Navigate to={user.role === 'admin' ? '/admin' : '/cliente'} /> : <Login />} />
       <Route path="/cadastro" element={<Cadastro />} />
+
+      {/* Contrato público - assinatura eletrônica (SIG-07) */}
+      <Route path="/contrato/:token" element={<ContratoAssinar />} />
+      <Route path="/verificar/:codigo" element={<VerificarAssinatura />} />
 
       {/* Admin */}
       <Route path="/admin/onboarding" element={<PrivateRoute role="admin"><Onboarding /></PrivateRoute>} />
