@@ -3,7 +3,7 @@ import { useParams } from 'react-router-dom';
 import OTPInput from '../../components/OTPInput';
 import OTPTimer from '../../components/OTPTimer';
 
-const API = process.env.REACT_APP_API_URL || '';
+const API = process.env.REACT_APP_API_URL || 'https://setvwal0cd.execute-api.us-east-1.amazonaws.com/prod';
 
 /**
  * SIG-07: Página pública de assinatura de contrato com OTP mobile-first

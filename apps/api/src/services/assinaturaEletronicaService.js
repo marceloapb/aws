@@ -8,6 +8,7 @@ const { dynamo, TABLE } = require('../config/dynamodb');
 const { QueryCommand, PutCommand, UpdateCommand, GetCommand } = require('@aws-sdk/lib-dynamodb');
 const { enviarOTP } = require('./otpService');
 const { registrarAudit, EVENTOS } = require('./auditLogService');
+const { gerarCodigoVerificacao } = require('./seloAssinaturaService');
 const logger = require('../config/logger');
 
 // Configurações do módulo
@@ -134,6 +135,7 @@ async function validarOTPEAssinar(contratoId, codigoInformado, metadados) {
 
   // Montar dados do log de auditoria (Seção 3 da spec)
   const logAuditoria = {
+    contratoId,
     enderecoIP: metadados.ip || 'N/A',
     timestamp: new Date().toISOString(),
     autenticacao: {
@@ -291,18 +293,23 @@ function gerarHashDocumento(conteudo) {
 }
 
 function gerarSeloAssinatura(logAuditoria) {
+  const timestamp = logAuditoria.timestamp;
+  const contratoId = logAuditoria.contratoId || 'unknown';
+  const codigoVerificacao = gerarCodigoVerificacao(contratoId, timestamp);
+
   const dados = {
     tipo: 'ASSINATURA_ELETRONICA_AVANCADA',
     lei: 'Lei 14.063/2020 - Art. 4º, II',
     mp: 'MP 2.200-2/2001',
     signatario: logAuditoria.signatario.nomeCompleto,
     cpf: mascararCPF(logAuditoria.signatario.cpf),
-    data: logAuditoria.timestamp,
+    data: timestamp,
     hash: logAuditoria.hashDocumento,
     algoritmo: logAuditoria.algoritmoHash,
     autenticacao: `OTP via ${logAuditoria.autenticacao.canal}`,
     ip: logAuditoria.enderecoIP,
     id: crypto.randomUUID(),
+    codigo_verificacao: codigoVerificacao,
   };
   // Gerar hash do selo para validação posterior
   dados.seloHash = crypto.createHash('sha256').update(JSON.stringify(dados)).digest('hex');
