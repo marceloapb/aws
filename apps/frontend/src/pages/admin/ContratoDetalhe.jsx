@@ -16,7 +16,13 @@ const STATUS_CONFIG = {
   expirado: { label: 'Expirado', bg: 'bg-red-100 text-red-700' },
 };
 
-const TIMELINE_STEPS = ['gerado', 'enviado', 'visualizado', 'assinado'];
+const TIMELINE_STEPS = [
+  { key: 'gerado', label: 'Gerado', dateField: 'created' },
+  { key: 'assinado_contratado', label: 'Assinado (Contratado)', dateField: 'assinado_contratado_em' },
+  { key: 'enviado', label: 'Enviado ao Cliente', dateField: 'enviado_em' },
+  { key: 'visualizado', label: 'Visualizado', dateField: 'visualizado_em' },
+  { key: 'assinado', label: 'Assinado (Cliente)', dateField: 'assinado_em' },
+];
 
 export default function ContratoDetalhe() {
   const { id } = useParams();
@@ -116,7 +122,7 @@ export default function ContratoDetalhe() {
   }
 
   function getTimelineIndex(status) {
-    const map = { gerado: 0, enviado: 1, visualizado: 2, assinado: 3, expirado: 1 };
+    const map = { rascunho: 0, gerado: 0, enviado: 2, visualizado: 3, assinado: 4, expirado: 2 };
     return map[status] ?? 0;
   }
 
@@ -151,18 +157,18 @@ export default function ContratoDetalhe() {
       <div className="bg-white rounded-xl border p-6">
         <div className="flex items-center justify-between relative">
           <div className="absolute top-4 left-0 right-0 h-0.5 bg-gray-200 z-0" />
-          <div className="absolute top-4 left-0 h-0.5 z-0" style={{ width: `${(statusIdx / 3) * 100}%`, backgroundColor: ACCENT }} />
+          <div className="absolute top-4 left-0 h-0.5 z-0" style={{ width: `${(statusIdx / (TIMELINE_STEPS.length - 1)) * 100}%`, backgroundColor: ACCENT }} />
           {TIMELINE_STEPS.map((step, i) => {
-            const done = i <= statusIdx;
-            const dateKey = `data_${step}`;
+            const stepDate = contrato[step.dateField];
+            const done = !!stepDate;
             return (
-              <div key={step} className="flex flex-col items-center z-10 relative">
+              <div key={step.key} className="flex flex-col items-center z-10 relative">
                 <div className={`w-8 h-8 rounded-full flex items-center justify-center border-2 ${done ? 'text-white' : 'bg-white border-gray-300 text-gray-400'}`}
                   style={done ? { backgroundColor: ACCENT, borderColor: ACCENT } : {}}>
                   {done ? <CheckCircle2 size={16} /> : <Clock size={16} />}
                 </div>
-                <span className="text-xs font-medium mt-2 capitalize">{step}</span>
-                {contrato[dateKey] && <span className="text-[10px] text-gray-400">{new Date(contrato[dateKey]).toLocaleDateString('pt-BR')}</span>}
+                <span className="text-[11px] font-medium mt-2 text-center max-w-[80px]">{step.label}</span>
+                {stepDate && <span className="text-[10px] text-gray-400">{new Date(stepDate).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</span>}
               </div>
             );
           })}
