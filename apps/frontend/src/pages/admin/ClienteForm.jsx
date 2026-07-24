@@ -28,7 +28,7 @@ export default function ClienteForm() {
   const [form, setForm] = useState({
     nome: '', email: '', telefone: '', whatsapp: '', cpf: '', data_nascimento: '', instagram: '',
     endereco: { cep: '', logradouro: '', numero: '', complemento: '', bairro: '', cidade: '', estado: '' },
-    como_conheceu: '', notas: '', tags: [],
+    como_conheceu: '', notas: '', tags: [], bloquear_notificacoes: false,
   });
   const [tagInput, setTagInput] = useState('');
   const [loading, setLoading] = useState(isEditing);
@@ -49,7 +49,7 @@ export default function ClienteForm() {
           cpf: c.cpf || '', data_nascimento: c.data_nascimento ? c.data_nascimento.slice(0, 10) : '',
           instagram: c.instagram || '',
           endereco: { cep: c.endereco?.cep || '', logradouro: c.endereco?.logradouro || c.endereco?.rua || '', numero: c.endereco?.numero || '', complemento: c.endereco?.complemento || '', bairro: c.endereco?.bairro || '', cidade: c.endereco?.cidade || '', estado: c.endereco?.estado || '' },
-          como_conheceu: c.como_conheceu || '', notas: c.notas || c.observacoes || '', tags: c.tags || [],
+          como_conheceu: c.como_conheceu || '', notas: c.notas || c.observacoes || '', tags: c.tags || [], bloquear_notificacoes: c.bloquear_notificacoes || false,
         });
       }
     } catch (e) { console.error(e); }
@@ -221,6 +221,21 @@ export default function ClienteForm() {
                 </button>
               </div>
             </div>
+          </div>
+        </div>
+
+        {/* Notificações */}
+        <div className="bg-white rounded-xl border p-6">
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">Notificações</h2>
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-gray-700">Bloquear notificações</p>
+              <p className="text-xs text-gray-500">Se ativado, nenhuma notificação (e-mail, WhatsApp, in-app) será enviada para este cliente.</p>
+            </div>
+            <button type="button" onClick={() => setForm(f => ({ ...f, bloquear_notificacoes: !f.bloquear_notificacoes }))}
+              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${form.bloquear_notificacoes ? 'bg-red-500' : 'bg-gray-200'}`}>
+              <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${form.bloquear_notificacoes ? 'translate-x-6' : 'translate-x-1'}`} />
+            </button>
           </div>
         </div>
 

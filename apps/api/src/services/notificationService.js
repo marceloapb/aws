@@ -31,6 +31,30 @@ async function notificar({
   const resultados = {};
   const now = new Date().toISOString();
 
+  // Verificar se o destinatário tem notificações bloqueadas
+  if (destinatario_id) {
+    try {
+      const { GetCommand } = require('@aws-sdk/lib-dynamodb');
+      // Check CLIENT#/PROFILE pattern
+      const profileCheck = await ddb.send(new GetCommand({
+        TableName: TABLE,
+        Key: { PK: `CLIENT#${destinatario_id}`, SK: 'PROFILE' },
+      })).catch(() => ({ Item: null }));
+      if (profileCheck.Item?.bloquear_notificacoes) {
+        return { bloqueado: true, motivo: 'Cliente com notificações bloqueadas' };
+      }
+      // Check TENANT#default/CLIENTE# pattern
+      const TENANT = process.env.TENANT_ID || 'default';
+      const clienteCheck = await ddb.send(new GetCommand({
+        TableName: TABLE,
+        Key: { PK: `TENANT#${TENANT}`, SK: `CLIENTE#${destinatario_id}` },
+      })).catch(() => ({ Item: null }));
+      if (clienteCheck.Item?.bloquear_notificacoes) {
+        return { bloqueado: true, motivo: 'Cliente com notificações bloqueadas' };
+      }
+    } catch {}
+  }
+
   // 1. IN-APP — salvar no DynamoDB
   if (canais.includes('in_app')) {
     try {

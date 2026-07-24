@@ -65,6 +65,7 @@ const clienteLinks = [
   { to: '/cliente', icon: LayoutDashboard, label: 'Painel', end: true },
   { to: '/cliente/eventos', icon: Calendar, label: 'Meus Eventos' },
   { to: '/cliente/orcamentos', icon: FileText, label: 'Orçamentos' },
+  { to: '/cliente/contratos', icon: FolderOpen, label: 'Contratos' },
   { to: '/cliente/pagamentos', icon: CreditCard, label: 'Pagamentos' },
   { to: '/cliente/albuns', icon: Image, label: 'Minhas Fotos' },
   { to: '/cliente/dados', icon: Users, label: 'Meus Dados' },
