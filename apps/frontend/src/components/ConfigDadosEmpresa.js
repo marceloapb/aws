@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Building2, Phone, Share2, MapPin, Clock, Navigation } from 'lucide-react';
+import { Building2, Phone, Share2, MapPin, Clock, Navigation, CreditCard } from 'lucide-react';
 import SectionHeader from './config/SectionHeader';
 import FieldLabel from './config/FieldLabel';
 import MaskedInput from './form/MaskedInput';
@@ -165,6 +165,35 @@ export default function ConfigDadosEmpresa({ form, setForm, onUploadLogo, onUplo
       </section>
 
       {/* Seção Endereço — com busca CEP automática */}
+      {/* Seção Dados Bancários */}
+      <section>
+        <SectionHeader icon={CreditCard} title="Dados Bancários" description="Informações para pagamento e contratos" />
+
+        <div className="grid md:grid-cols-2 gap-4">
+          <div>
+            <FieldLabel>Chave Pix</FieldLabel>
+            <input name="pix" value={form.pix || ''} onChange={handleChange}
+              className={inputClass('pix')} placeholder="CPF, CNPJ, e-mail ou chave aleatória" />
+          </div>
+          <div>
+            <FieldLabel>Banco</FieldLabel>
+            <input name="banco" value={form.banco || ''} onChange={handleChange}
+              className={inputClass('banco')} placeholder="Ex: Nubank, Itaú, Bradesco..." />
+          </div>
+          <div>
+            <FieldLabel>Agência</FieldLabel>
+            <input name="agencia" value={form.agencia || ''} onChange={handleChange}
+              className={inputClass('agencia')} placeholder="0001" />
+          </div>
+          <div>
+            <FieldLabel>Conta</FieldLabel>
+            <input name="conta" value={form.conta || ''} onChange={handleChange}
+              className={inputClass('conta')} placeholder="12345-6" />
+          </div>
+        </div>
+      </section>
+
+      {/* Seção Endereço */}
       <section>
         <SectionHeader icon={MapPin} title="Endereço" description="Localização física — digite o CEP para preencher automaticamente" />
         <AddressForm form={form} setForm={setForm} />
