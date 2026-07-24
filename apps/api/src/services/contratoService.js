@@ -3,6 +3,24 @@ const { QueryCommand, GetCommand, PutCommand, UpdateCommand } = require('@aws-sd
 const { enviarTemplate } = require('./whatsappService');
 const { env } = require('../config/env');
 
+/**
+ * Gera número sequencial para contratos (ex: 2026-001, 2026-002...)
+ * Usa atomic counter no DynamoDB
+ */
+async function gerarNumeroContrato(tenantId) {
+  const ano = new Date().getFullYear();
+  const result = await dynamo.send(new UpdateCommand({
+    TableName: TABLE,
+    Key: { PK: `TENANT#${tenantId || 'default'}`, SK: `COUNTER#contrato_${ano}` },
+    UpdateExpression: 'ADD #seq :inc',
+    ExpressionAttributeNames: { '#seq': 'seq' },
+    ExpressionAttributeValues: { ':inc': 1 },
+    ReturnValues: 'ALL_NEW',
+  }));
+  const seq = result.Attributes.seq || 1;
+  return `${ano}-${String(seq).padStart(3, '0')}`;
+}
+
 const TEMPLATES = {
   casamento: 'contrato_casamento',
   ensaio: 'contrato_ensaio',
@@ -129,6 +147,9 @@ async function gerarContrato(orcamentoId, modeloId, tenantId) {
   // Montar endereço da empresa
   const empresaEndereco = [empresa.rua, empresa.numero, empresa.complemento, empresa.bairro, empresa.cidade, empresa.estado].filter(Boolean).join(', ');
 
+  // Gerar número sequencial do contrato
+  const numeroContrato = await gerarNumeroContrato(TENANT);
+
   // Substituir variáveis
   conteudo = conteudo
     // Cliente
@@ -165,7 +186,7 @@ async function gerarContrato(orcamentoId, modeloId, tenantId) {
     // Contrato
     .replace(/{{data_hoje}}/g, new Date().toLocaleDateString('pt-BR'))
     .replace(/{{validade_dias}}/g, orcamento.validade_dias || '7')
-    .replace(/{{numero_contrato}}/g, '')
+    .replace(/{{numero_contrato}}/g, numeroContrato)
     // Empresa
     .replace(/{{empresa_nome}}/g, empresa.tradeName || empresa.businessName || '')
     .replace(/{{empresa_razao}}/g, empresa.businessName || '')
@@ -190,6 +211,7 @@ async function gerarContrato(orcamentoId, modeloId, tenantId) {
     cliente_id: cliente.id,
     orcamento_id: orcamentoId,
     modelo_id: modeloId || null,
+    numero_contrato: numeroContrato,
     conteudo_html: conteudo,
     status: 'rascunho',
     token_assinatura: crypto.randomUUID(),
