@@ -156,7 +156,8 @@ router.post('/importar', async (req, res) => {
 
     const { BedrockRuntimeClient, ConverseCommand } = require('@aws-sdk/client-bedrock-runtime');
     const bedrock = new BedrockRuntimeClient({ region: 'us-east-1' });
-    const MODEL_ID = process.env.BEDROCK_MODEL_ID || 'amazon.nova-micro-v1:0';
+    // Usar modelo maior para contratos longos (Nova Lite suporta até 128k context e output longo)
+    const MODEL_ID = process.env.BEDROCK_CONTRACT_MODEL_ID || 'amazon.nova-lite-v1:0';
 
     // Prompt otimizado para reproduzir 100% do contrato original
     const prompt = `Você é um designer de contratos especializado em reproduzir documentos com fidelidade total.
@@ -205,7 +206,7 @@ Responda APENAS com o HTML completo. Sem explicações, sem markdown, sem \`\`\`
     const command = new ConverseCommand({
       modelId: MODEL_ID,
       messages: [{ role: 'user', content: [{ text: prompt }] }],
-      inferenceConfig: { maxTokens: 8000, temperature: 0.2, topP: 0.9 },
+      inferenceConfig: { maxTokens: 50000, temperature: 0.2, topP: 0.9 },
     });
 
     const response = await bedrock.send(command);
