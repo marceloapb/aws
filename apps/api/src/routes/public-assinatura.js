@@ -298,8 +298,10 @@ router.get('/contrato/:token/canais-otp', async (req, res) => {
       const parcial = local[0] + '***@' + domain;
       canais.push({ id: 'email', nome: 'E-mail', destino_parcial: parcial, disponivel: true });
     }
-    // SMS desabilitado — conta AWS no sandbox
-
+    if (telefone) {
+      const parcial = '***' + telefone.replace(/\D/g, '').slice(-4);
+      canais.push({ id: 'sms', nome: 'SMS', destino_parcial: parcial, disponivel: true });
+    }
     res.json({ success: true, data: { canais } });
   } catch (error) {
     logger.error({ action: 'canais_otp_error', error: error.message });

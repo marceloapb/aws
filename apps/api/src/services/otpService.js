@@ -11,9 +11,8 @@ const logger = require('../config/logger');
 
 const sns = new SNSClient({});
 
-// Canais disponíveis em ordem de prioridade (WhatsApp → Email)
-// SMS desabilitado — conta AWS no sandbox, só envia para números verificados
-const CANAIS = ['whatsapp', 'email'];
+// Canais disponíveis em ordem de prioridade (WhatsApp → Email → SMS)
+const CANAIS = ['whatsapp', 'email', 'sms'];
 
 /**
  * RNF04: Envia OTP com mecanismo de redundância
