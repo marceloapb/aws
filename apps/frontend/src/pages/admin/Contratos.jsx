@@ -103,8 +103,10 @@ export default function Contratos() {
       Promise.all([
         authFetch('/admin/orcamentos').then(r => r.json()).then(j => {
           const all = j.data || [];
-          const aceitos = all.filter(o => ['accepted', 'aceito', 'aprovado', 'confirmado', 'contrato_gerado'].includes(o.status));
-          setOrcamentos(aceitos);
+          const aceitos = all.filter(o => ['accepted', 'aceito', 'aprovado', 'confirmado'].includes(o.status));
+          // Excluir orçamentos que já possuem contrato vinculado
+          const orcamentosComContrato = new Set(contratos.map(c => c.orcamento_id).filter(Boolean));
+          setOrcamentos(aceitos.filter(o => !orcamentosComContrato.has(o.id)));
         }).catch(() => {}),
         authFetch('/admin/contratos/modelos').then(r => r.json()).then(j => { if (j.success) setModelos(j.data || []); }).catch(() => {}),
       ]).then(() => setModalGerar(true));
@@ -172,8 +174,10 @@ export default function Contratos() {
   const abrirModalGerar = () => {
     authFetch('/admin/orcamentos').then(r => r.json()).then(j => {
       const all = j.data || [];
-      const aceitos = all.filter(o => ['accepted', 'aceito', 'aprovado', 'confirmado', 'contrato_gerado'].includes(o.status));
-      setOrcamentos(aceitos);
+      const aceitos = all.filter(o => ['accepted', 'aceito', 'aprovado', 'confirmado'].includes(o.status));
+      // Excluir orçamentos que já possuem contrato vinculado
+      const orcamentosComContrato = new Set(contratos.map(c => c.orcamento_id).filter(Boolean));
+      setOrcamentos(aceitos.filter(o => !orcamentosComContrato.has(o.id)));
     }).catch(() => {});
     authFetch('/admin/contratos/modelos').then(r => r.json()).then(j => { if (j.success) setModelos(j.data || []); }).catch(() => {});
     setModalGerar(true);
