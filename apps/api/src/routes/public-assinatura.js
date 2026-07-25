@@ -268,6 +268,16 @@ router.get('/contrato/:token/canais-otp', async (req, res) => {
       if (cli2?.Item) cliente = cli2.Item;
     }
 
+    // Padrão 3: TENANT#default / CLIENTE#<id> (clientes criados pelo admin)
+    if (!cliente) {
+      const TENANT = process.env.TENANT_ID || 'default';
+      const cli3 = await dynamo.send(new GetCommand({
+        TableName: TABLE,
+        Key: { PK: `TENANT#${TENANT}`, SK: `CLIENTE#${contrato.cliente_id}` },
+      })).catch(() => ({ Item: null }));
+      if (cli3?.Item) cliente = { ...cli3.Item, id: contrato.cliente_id };
+    }
+
     if (!cliente) {
       return res.status(404).json({ success: false, message: 'Cliente não encontrado.' });
     }

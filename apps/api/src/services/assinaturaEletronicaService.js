@@ -382,13 +382,31 @@ async function buscarContratoPorId(contratoId) {
 }
 
 async function buscarCliente(clienteId) {
+  // Padrão 1: GSI1 com GSI1PK=CLIENTE (clientes com GSI populado)
   const result = await dynamo.send(new QueryCommand({
     TableName: TABLE,
     IndexName: 'GSI1',
     KeyConditionExpression: 'GSI1PK = :pk AND GSI1SK = :sk',
     ExpressionAttributeValues: { ':pk': 'CLIENTE', ':sk': `CLIENTE#${clienteId}` },
   }));
-  return result.Items?.[0] || null;
+  if (result.Items?.[0]) return result.Items[0];
+
+  // Padrão 2: CLIENT#<id> / PROFILE (clientes self-signup via Cognito)
+  const cli2 = await dynamo.send(new GetCommand({
+    TableName: TABLE,
+    Key: { PK: `CLIENT#${clienteId}`, SK: 'PROFILE' },
+  }));
+  if (cli2.Item) return { ...cli2.Item, id: clienteId };
+
+  // Padrão 3: TENANT#default / CLIENTE#<id> (clientes criados pelo admin)
+  const TENANT = process.env.TENANT_ID || 'default';
+  const cli3 = await dynamo.send(new GetCommand({
+    TableName: TABLE,
+    Key: { PK: `TENANT#${TENANT}`, SK: `CLIENTE#${clienteId}` },
+  }));
+  if (cli3.Item) return { ...cli3.Item, id: clienteId };
+
+  return null;
 }
 
 async function buscarOTPAtivo(contratoId) {
