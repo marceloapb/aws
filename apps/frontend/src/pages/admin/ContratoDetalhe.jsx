@@ -5,6 +5,7 @@ import {
   Clock, CheckCircle2, Eye, FileText, Plus, XCircle, FolderOpen
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
+import SeloAssinatura from '../../components/SeloAssinatura';
 
 const ACCENT = '#EA580C';
 
@@ -31,6 +32,8 @@ export default function ContratoDetalhe() {
   const [contrato, setContrato] = useState(null);
   const [loading, setLoading] = useState(true);
   const [copied, setCopied] = useState(false);
+  const [integridadeResultado, setIntegridadeResultado] = useState(null);
+  const [verificandoIntegridade, setVerificandoIntegridade] = useState(false);
 
   useEffect(() => { fetchContrato(); }, [id]);
 
@@ -110,6 +113,23 @@ export default function ContratoDetalhe() {
     navigator.clipboard.writeText(link);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+  }
+
+  async function verificarIntegridade() {
+    setVerificandoIntegridade(true);
+    try {
+      const res = await authFetch(`/admin/assinaturas/${id}/integridade`);
+      const json = await res.json();
+      if (json.success) {
+        setIntegridadeResultado(json.data);
+      } else {
+        setIntegridadeResultado({ integridadeOk: false, mensagem: json.message || 'Erro ao verificar' });
+      }
+    } catch (err) {
+      setIntegridadeResultado({ integridadeOk: false, mensagem: 'Erro de conexão ao verificar integridade.' });
+    } finally {
+      setVerificandoIntegridade(false);
+    }
   }
 
   function calcCountdown(dataExp) {
@@ -272,6 +292,20 @@ export default function ContratoDetalhe() {
             </div>
           )}
         </div>
+      )}
+
+      {/* Selo de Assinatura Eletrônica */}
+      {contrato.status === 'assinado' && (contrato.selo_assinatura || contrato.hash_documento) && (
+        <SeloAssinatura
+          selo={contrato.selo_assinatura}
+          assinadoEm={contrato.assinado_em}
+          hashDocumento={contrato.hash_documento}
+          logAuditoria={contrato.log_auditoria}
+          metodo={contrato.assinatura_metodo}
+          onVerificarIntegridade={verificarIntegridade}
+          verificandoIntegridade={verificandoIntegridade}
+          integridadeResultado={integridadeResultado}
+        />
       )}
 
       {/* Histórico de Ações */}

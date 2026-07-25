@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams } from 'react-router-dom';
 import OTPInput from '../../components/OTPInput';
 import OTPTimer from '../../components/OTPTimer';
+import SeloAssinatura from '../../components/SeloAssinatura';
 
 const API = process.env.REACT_APP_API_URL || 'https://setvwal0cd.execute-api.us-east-1.amazonaws.com/prod';
 
@@ -31,6 +32,28 @@ export default function ContratoAssinar() {
   const [canalSelecionado, setCanalSelecionado] = useState('whatsapp');
   const [clearOtp, setClearOtp] = useState(0);
   const [cooldown, setCooldown] = useState(0);
+
+  // Estado integridade
+  const [verificandoIntegridade, setVerificandoIntegridade] = useState(false);
+  const [integridadeResultado, setIntegridadeResultado] = useState(null);
+
+  // Verificar integridade
+  const verificarIntegridade = async () => {
+    setVerificandoIntegridade(true);
+    try {
+      const res = await fetch(`${API}/public/assinatura/contrato/${token}/verificar-integridade`);
+      const data = await res.json();
+      if (data.success) {
+        setIntegridadeResultado(data.data);
+      } else {
+        setIntegridadeResultado({ integridadeOk: false, mensagem: data.message || 'Erro ao verificar.' });
+      }
+    } catch {
+      setIntegridadeResultado({ integridadeOk: false, mensagem: 'Erro de conexão ao verificar integridade.' });
+    } finally {
+      setVerificandoIntegridade(false);
+    }
+  };
 
   // Resultado
   const [resultado, setResultado] = useState(null);
@@ -188,28 +211,48 @@ export default function ContratoAssinar() {
 
   if (passo === 'assinado') {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-green-50 p-4">
-        <div className="bg-white rounded-xl shadow-lg p-8 max-w-md w-full text-center">
-          <div className="text-6xl mb-4">&#x2705;</div>
-          <h1 className="text-2xl font-bold text-green-700 mb-2">Contrato Assinado!</h1>
-          <p className="text-gray-600 mb-4">
-            {resultado?.mensagem || 'Seu contrato foi assinado com sucesso.'}
-          </p>
-          {resultado?.assinadoEm && (
-            <p className="text-sm text-gray-500">
-              Assinado em: {new Date(resultado.assinadoEm).toLocaleString('pt-BR')}
+      <div className="min-h-screen bg-green-50 p-4">
+        <div className="max-w-2xl mx-auto">
+          {/* Success message */}
+          <div className="bg-white rounded-xl shadow-lg p-8 text-center mb-6">
+            <div className="text-6xl mb-4">&#x2705;</div>
+            <h1 className="text-2xl font-bold text-green-700 mb-2">Contrato Assinado!</h1>
+            <p className="text-gray-600 mb-4">
+              {resultado?.mensagem || 'Seu contrato foi assinado com sucesso.'}
             </p>
-          )}
-          {resultado?.hashDocumento && (
-            <div className="mt-4 p-3 bg-gray-50 rounded-lg">
-              <p className="text-xs text-gray-500 font-mono break-all">
-                Hash: {resultado.hashDocumento.slice(0, 32)}...
+            {resultado?.assinadoEm && (
+              <p className="text-sm text-gray-500">
+                Assinado em: {new Date(resultado.assinadoEm).toLocaleString('pt-BR')}
               </p>
+            )}
+            <p className="mt-4 text-sm text-gray-500">
+              Você receberá uma cópia por e-mail/WhatsApp.
+            </p>
+          </div>
+
+          {/* Conteúdo do contrato (read-only) */}
+          {contrato?.conteudo_html && (
+            <div className="bg-white rounded-xl shadow-sm border p-6 mb-6">
+              <div
+                className="prose prose-sm max-w-none"
+                dangerouslySetInnerHTML={{ __html: contrato.conteudo_html }}
+              />
             </div>
           )}
-          <p className="mt-6 text-sm text-gray-500">
-            Você receberá uma cópia por e-mail/WhatsApp.
-          </p>
+
+          {/* Selo de Assinatura */}
+          {(resultado?.selo || contrato?.selo_assinatura) && (
+            <SeloAssinatura
+              selo={resultado?.selo || contrato?.selo_assinatura}
+              assinadoEm={resultado?.assinadoEm || contrato?.assinado_em}
+              hashDocumento={resultado?.hashDocumento || contrato?.hash_documento}
+              logAuditoria={resultado?.logAuditoria || contrato?.log_auditoria}
+              metodo={resultado?.metodo || contrato?.assinatura_metodo || 'assinatura_eletronica_avancada'}
+              onVerificarIntegridade={verificarIntegridade}
+              verificandoIntegridade={verificandoIntegridade}
+              integridadeResultado={integridadeResultado}
+            />
+          )}
         </div>
       </div>
     );

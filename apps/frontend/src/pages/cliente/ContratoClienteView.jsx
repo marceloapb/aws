@@ -2,8 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { ChevronLeft, FileSignature, CheckCircle, AlertCircle } from 'lucide-react';
+import SeloAssinatura from '../../components/SeloAssinatura';
 
 const ACCENT = '#EA580C';
+
+const API = process.env.REACT_APP_API_URL || 'https://setvwal0cd.execute-api.us-east-1.amazonaws.com/prod';
 
 export default function ContratoClienteView() {
   const { token } = useParams();
@@ -15,6 +18,8 @@ export default function ContratoClienteView() {
   const [nomeDigitado, setNomeDigitado] = useState('');
   const [aceiteTermos, setAceiteTermos] = useState(false);
   const [sucesso, setSucesso] = useState(false);
+  const [integridadeResultado, setIntegridadeResultado] = useState(null);
+  const [verificandoIntegridade, setVerificandoIntegridade] = useState(false);
 
   useEffect(() => {
     authFetch(`/client/contratos/${token}`)
@@ -46,6 +51,23 @@ export default function ContratoClienteView() {
       alert('Erro ao assinar: ' + err.message);
     }
     setAssinando(false);
+  };
+
+  const verificarIntegridade = async () => {
+    setVerificandoIntegridade(true);
+    try {
+      const res = await fetch(`${API}/public/assinatura/contrato/${token}/verificar-integridade`);
+      const json = await res.json();
+      if (json.success) {
+        setIntegridadeResultado(json.data);
+      } else {
+        setIntegridadeResultado({ integridadeOk: false, mensagem: json.message || 'Erro ao verificar' });
+      }
+    } catch (err) {
+      setIntegridadeResultado({ integridadeOk: false, mensagem: 'Erro de conexão ao verificar integridade.' });
+    } finally {
+      setVerificandoIntegridade(false);
+    }
   };
 
   if (loading) return <div className="flex items-center justify-center py-20 text-gray-400">Carregando...</div>;
@@ -154,6 +176,22 @@ export default function ContratoClienteView() {
               </div>
             )}
           </dl>
+        </div>
+      )}
+
+      {/* Selo de Assinatura Eletrônica */}
+      {contrato.status === 'assinado' && (contrato.selo_assinatura || contrato.hash_documento) && (
+        <div className="mb-6">
+          <SeloAssinatura
+            selo={contrato.selo_assinatura}
+            assinadoEm={contrato.assinado_em}
+            hashDocumento={contrato.hash_documento}
+            logAuditoria={contrato.log_auditoria}
+            metodo={contrato.assinatura_metodo}
+            onVerificarIntegridade={verificarIntegridade}
+            verificandoIntegridade={verificandoIntegridade}
+            integridadeResultado={integridadeResultado}
+          />
         </div>
       )}
 
