@@ -98,7 +98,7 @@ async function enviarViaWhatsApp(cliente, codigo, contratoId) {
 
   await enviarWhatsApp({
     numero,
-    template: 'assinatura_contrato',
+    template: 'contrato_otp_codigo',
     parametros: [cliente.nome || 'Cliente', codigo],
   });
 
