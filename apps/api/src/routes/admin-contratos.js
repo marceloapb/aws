@@ -219,11 +219,20 @@ router.post('/:id/assinar-contratado', async (req, res) => {
     const TENANT = req.tenantId || process.env.TENANT_ID || 'default';
     let nomeContratado = req.user?.email || 'Admin';
     try {
-      const cfgResult = await dynamo.send(new QueryCommand({
+      // Buscar no tenant do usuário
+      let cfgResult = await dynamo.send(new QueryCommand({
         TableName: TABLE,
         KeyConditionExpression: 'PK = :pk AND begins_with(SK, :sk)',
         ExpressionAttributeValues: { ':pk': `TENANT#${TENANT}`, ':sk': 'CONFIG#' },
       }));
+      // Fallback para TENANT#default se não encontrou configs
+      if ((!cfgResult.Items || cfgResult.Items.length === 0) && TENANT !== 'default') {
+        cfgResult = await dynamo.send(new QueryCommand({
+          TableName: TABLE,
+          KeyConditionExpression: 'PK = :pk AND begins_with(SK, :sk)',
+          ExpressionAttributeValues: { ':pk': 'TENANT#default', ':sk': 'CONFIG#' },
+        }));
+      }
       const configs = {};
       for (const item of (cfgResult.Items || [])) {
         configs[item.chave] = item.valor;
