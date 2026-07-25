@@ -9,6 +9,10 @@ Parameters:
   TableName:
     Type: String
     Default: mbf-backend-v3-table
+  TableStreamArn:
+    Type: String
+    Default: arn:aws:dynamodb:us-east-1:975877354440:table/mbf-backend-v3-table/stream/2026-07-24T17:11:28.584
+    Description: ARN exato do DynamoDB Stream (inclui timestamp)
   FotosBucketName:
     Type: String
     Default: mbf-backend-v3-fotos
@@ -27,7 +31,7 @@ Parameters:
 
 Globals:
   Function:
-    Runtime: nodejs20.x
+    Runtime: nodejs22.x
     Timeout: 120
     MemorySize: 512
     Tracing: Active
@@ -564,12 +568,12 @@ Resources:
                 - dynamodb:GetShardIterator
                 - dynamodb:DescribeStream
                 - dynamodb:ListStreams
-              Resource: !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${TableName}/stream/*'
+              Resource: !Ref TableStreamArn
       Events:
         DynamoDBStream:
           Type: DynamoDB
           Properties:
-            Stream: !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${TableName}/stream/*'
+            Stream: !Ref TableStreamArn
             StartingPosition: LATEST
             BatchSize: 10
             FilterCriteria:

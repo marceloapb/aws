@@ -23,7 +23,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
 
       - uses: aws-actions/setup-sam@v2
 
@@ -39,7 +39,11 @@ jobs:
 
       - name: SAM Deploy
         working-directory: apps/api
-        run: sam deploy --no-confirm-changeset --no-fail-on-empty-changeset
+        run: |
+          sam deploy \
+            --no-confirm-changeset \
+            --no-fail-on-empty-changeset \
+            --on-failure ROLLBACK
 
   deploy-frontend:
     name: Deploy Frontend (S3 + CloudFront)
@@ -49,7 +53,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
           cache-dependency-path: apps/frontend/package-lock.json
 
