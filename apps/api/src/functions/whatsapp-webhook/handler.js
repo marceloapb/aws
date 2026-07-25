@@ -1,10 +1,19 @@
-const { getWhatsAppConfig } = require('../../utils/ssm');
+const { getParameter } = require('../../utils/ssm');
 const { validatePayload } = require('./validator');
 const { DynamoDBClient } = require('@aws-sdk/client-dynamodb');
 const { DynamoDBDocumentClient, PutCommand } = require('@aws-sdk/lib-dynamodb');
 
 const ddb = DynamoDBDocumentClient.from(new DynamoDBClient({}));
 const TABLE = process.env.TABLE_NAME;
+const PREFIX = process.env.SSM_PREFIX || '/mbf/prod';
+
+let cachedVerifyToken = null;
+
+async function getWhatsAppConfig() {
+  if (cachedVerifyToken) return { verifyToken: cachedVerifyToken };
+  cachedVerifyToken = await getParameter(`${PREFIX}/WHATSAPP_VERIFY_TOKEN`, true);
+  return { verifyToken: cachedVerifyToken };
+}
 
 const main = async (event) => {
   const method = event.requestContext?.http?.method;
