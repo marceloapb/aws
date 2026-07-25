@@ -115,7 +115,7 @@ router.post('/contrato/:token/solicitar-otp', async (req, res) => {
 router.post('/contrato/:token/verificar-otp', async (req, res) => {
   try {
     const { token } = req.params;
-    const { codigo } = req.body;
+    const { codigo, nome_digitado, aceite_termos } = req.body;
 
     if (!codigo || codigo.length !== 6) {
       return res.status(400).json({
@@ -146,6 +146,8 @@ router.post('/contrato/:token/verificar-otp', async (req, res) => {
           req.connection?.remoteAddress ||
           req.ip,
       userAgent: req.headers['user-agent'] || '',
+      nomeInformado: nome_digitado || '',
+      aceiteTermos: !!aceite_termos,
     };
 
     const resultado = await validarOTPEAssinar(contrato.id, codigo, metadados);

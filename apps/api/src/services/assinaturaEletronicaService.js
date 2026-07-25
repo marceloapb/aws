@@ -151,11 +151,13 @@ async function validarOTPEAssinar(contratoId, codigoInformado, metadados) {
       otpId: otpAtivo.id,
     },
     signatario: {
-      nomeCompleto: cliente.nome || '',
+      nomeCompleto: metadados.nomeInformado || cliente.nome || '',
       cpf: cliente.cpf || '',
       email: cliente.email || '',
       telefone: cliente.whatsapp_numero || cliente.telefone || '',
     },
+    aceiteTermos: metadados.aceiteTermos || false,
+    nomeInformado: metadados.nomeInformado || '',
     userAgent: metadados.userAgent || '',
     hashDocumento,
     algoritmoHash: 'SHA-256',
@@ -171,7 +173,7 @@ async function validarOTPEAssinar(contratoId, codigoInformado, metadados) {
     UpdateExpression: `SET #s = :s, assinado_em = :a, hash_documento = :h, 
       algoritmo_hash = :ah, selo_assinatura = :selo, log_auditoria = :log, 
       ip_assinatura = :ip, user_agent_assinatura = :ua, 
-      assinatura_metodo = :metodo, otp_validado = :otpVal`,
+      assinatura_metodo = :metodo, otp_validado = :otpVal, aceite = :aceite`,
     ExpressionAttributeNames: { '#s': 'status' },
     ExpressionAttributeValues: {
       ':s': 'assinado',
@@ -184,6 +186,13 @@ async function validarOTPEAssinar(contratoId, codigoInformado, metadados) {
       ':ua': metadados.userAgent || '',
       ':metodo': 'assinatura_eletronica_avancada',
       ':otpVal': true,
+      ':aceite': {
+        nome: metadados.nomeInformado || cliente.nome || '',
+        aceite_termos: metadados.aceiteTermos || false,
+        data: new Date().toISOString(),
+        ip: metadados.ip || '',
+        user_agent: metadados.userAgent || '',
+      },
     },
   }));
 
