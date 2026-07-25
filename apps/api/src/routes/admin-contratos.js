@@ -219,23 +219,22 @@ router.post('/:id/assinar-contratado', async (req, res) => {
     const TENANT = req.tenantId || process.env.TENANT_ID || 'default';
     let nomeContratado = req.user?.email || 'Admin';
     try {
-      // Buscar no tenant do usuário
-      let cfgResult = await dynamo.send(new QueryCommand({
-        TableName: TABLE,
-        KeyConditionExpression: 'PK = :pk AND begins_with(SK, :sk)',
-        ExpressionAttributeValues: { ':pk': `TENANT#${TENANT}`, ':sk': 'CONFIG#' },
-      }));
-      // Fallback para TENANT#default se não encontrou configs
-      if ((!cfgResult.Items || cfgResult.Items.length === 0) && TENANT !== 'default') {
-        cfgResult = await dynamo.send(new QueryCommand({
+      // Buscar configs — tenta no tenant do usuário E em default
+      const tenants = TENANT === 'default' ? ['default'] : [TENANT, 'default'];
+      let configs = {};
+      for (const t of tenants) {
+        const cfgResult = await dynamo.send(new QueryCommand({
           TableName: TABLE,
           KeyConditionExpression: 'PK = :pk AND begins_with(SK, :sk)',
-          ExpressionAttributeValues: { ':pk': 'TENANT#default', ':sk': 'CONFIG#' },
+          ExpressionAttributeValues: { ':pk': `TENANT#${t}`, ':sk': 'CONFIG#' },
         }));
-      }
-      const configs = {};
-      for (const item of (cfgResult.Items || [])) {
-        configs[item.chave] = item.valor;
+        for (const item of (cfgResult.Items || [])) {
+          if (item.chave && item.valor && !configs[item.chave]) {
+            configs[item.chave] = item.valor;
+          }
+        }
+        // Se já encontrou tradeName ou businessName, para
+        if (configs.tradeName || configs.businessName) break;
       }
       nomeContratado = configs.tradeName || configs.businessName || nomeContratado;
     } catch (e) { /* fallback para email */ }
