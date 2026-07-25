@@ -121,15 +121,21 @@ export default function ContratoDetalhe() {
     return `${dias}d ${horas}h restantes`;
   }
 
-  function getTimelineIndex(status) {
-    const map = { rascunho: 0, gerado: 0, enviado: 2, visualizado: 3, assinado: 4, expirado: 2 };
-    return map[status] ?? 0;
+  function getTimelineIndex(contratoData) {
+    // Calculate progress based on actual completed steps (dateFields with values)
+    let lastCompleted = -1;
+    for (let i = 0; i < TIMELINE_STEPS.length; i++) {
+      if (contratoData[TIMELINE_STEPS[i].dateField]) {
+        lastCompleted = i;
+      }
+    }
+    return Math.max(lastCompleted, 0);
   }
 
   if (loading) return <div className="flex items-center justify-center h-64"><Clock className="animate-spin" /></div>;
   if (!contrato) return <div className="p-6 text-center text-gray-500">Contrato não encontrado.</div>;
 
-  const statusIdx = getTimelineIndex(contrato.status);
+  const statusIdx = getTimelineIndex(contrato);
   const statusCfg = STATUS_CONFIG[contrato.status] || STATUS_CONFIG.gerado;
 
   return (
@@ -154,21 +160,23 @@ export default function ContratoDetalhe() {
       </div>
 
       {/* Timeline */}
-      <div className="bg-white rounded-xl border p-6">
-        <div className="flex items-center justify-between relative">
-          <div className="absolute top-4 left-0 right-0 h-0.5 bg-gray-200 z-0" />
-          <div className="absolute top-4 left-0 h-0.5 z-0" style={{ width: `${(statusIdx / (TIMELINE_STEPS.length - 1)) * 100}%`, backgroundColor: ACCENT }} />
+      <div className="bg-white rounded-xl border p-6 overflow-x-auto">
+        <div className="flex items-start justify-between relative min-w-[500px]">
+          {/* Background track line */}
+          <div className="absolute top-4 left-[10%] right-[10%] h-0.5 bg-gray-200 z-0" />
+          {/* Active progress line */}
+          <div className="absolute top-4 left-[10%] h-0.5 z-0" style={{ width: `${(statusIdx / (TIMELINE_STEPS.length - 1)) * 80}%`, backgroundColor: ACCENT }} />
           {TIMELINE_STEPS.map((step, i) => {
             const stepDate = contrato[step.dateField];
             const done = !!stepDate;
             return (
-              <div key={step.key} className="flex flex-col items-center z-10 relative">
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center border-2 ${done ? 'text-white' : 'bg-white border-gray-300 text-gray-400'}`}
+              <div key={step.key} className="flex flex-col items-center z-10 relative flex-1">
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center border-2 shrink-0 ${done ? 'text-white' : 'bg-white border-gray-300 text-gray-400'}`}
                   style={done ? { backgroundColor: ACCENT, borderColor: ACCENT } : {}}>
                   {done ? <CheckCircle2 size={16} /> : <Clock size={16} />}
                 </div>
-                <span className="text-[11px] font-medium mt-2 text-center max-w-[80px]">{step.label}</span>
-                {stepDate && <span className="text-[10px] text-gray-400">{new Date(stepDate).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</span>}
+                <span className="text-[11px] font-medium mt-2 text-center leading-tight w-[90px]">{step.label}</span>
+                {stepDate && <span className="text-[10px] text-gray-400 mt-0.5">{new Date(stepDate).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</span>}
               </div>
             );
           })}
