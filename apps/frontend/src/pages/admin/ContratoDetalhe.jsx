@@ -103,9 +103,38 @@ export default function ContratoDetalhe() {
   }
 
   async function handleDownloadPDF() {
-    const res = await authFetch(`/admin/contratos/${id}/pdf`, { method: 'POST' });
-    const data = await res.json();
-    if (data.url) window.open(data.url, '_blank');
+    try {
+      const res = await authFetch(`/admin/contratos/${id}/pdf`, { method: 'POST' });
+      const json = await res.json();
+      if (!json.success || !json.html) { alert(json.message || 'Erro ao gerar PDF'); return; }
+
+      // Load html2pdf.js dynamically
+      if (!window.html2pdf) {
+        const script = document.createElement('script');
+        script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js';
+        document.head.appendChild(script);
+        await new Promise(resolve => { script.onload = resolve; });
+      }
+
+      // Create temp container
+      const container = document.createElement('div');
+      container.innerHTML = json.html;
+      container.style.position = 'absolute';
+      container.style.left = '-9999px';
+      document.body.appendChild(container);
+
+      // Generate PDF
+      const nomeArquivo = `contrato-${contrato?.numero_contrato || id.slice(-6)}.pdf`;
+      await window.html2pdf().set({
+        margin: [10, 10, 10, 10],
+        filename: nomeArquivo,
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { scale: 2, useCORS: true },
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+      }).from(container).save();
+
+      document.body.removeChild(container);
+    } catch (err) { alert('Erro ao gerar PDF: ' + err.message); }
   }
 
   function handleCopiarLink() {
