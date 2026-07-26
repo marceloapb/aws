@@ -484,6 +484,11 @@ router.get('/conversas', async (req, res) => {
 router.get('/conversas/:clienteId', async (req, res) => {
   try {
     const numero = req.params.clienteId;
+    const { GetObjectCommand } = require('@aws-sdk/client-s3');
+    const { getSignedUrl } = require('@aws-sdk/s3-request-presigner');
+    const { S3Client } = require('@aws-sdk/client-s3');
+    const s3 = new S3Client({});
+    const BUCKET = process.env.S3_BUCKET_NAME || 'mbf-backend-v3-fotos';
 
     // Buscar mensagens recebidas
     const msgResult = await dynamo.send(new QueryCommand({
@@ -501,26 +506,43 @@ router.get('/conversas/:clienteId', async (req, res) => {
       ScanIndexForward: true,
     }));
 
-    const todas = [
-      ...(msgResult.Items || []).map(m => ({
+    // Gerar signed URLs para mídias
+    const generateMediaUrl = async (s3Key) => {
+      if (!s3Key) return null;
+      try {
+        return await getSignedUrl(s3, new GetObjectCommand({ Bucket: BUCKET, Key: s3Key }), { expiresIn: 3600 });
+      } catch { return null; }
+    };
+
+    const entradas = await Promise.all((msgResult.Items || []).map(async m => {
+      const mediaUrl = m.mediaS3Key ? await generateMediaUrl(m.mediaS3Key) : null;
+      return {
         id: m.SK,
         direcao: 'entrada',
-        texto: m.text || `[${m.type || 'mídia'}]`,
+        texto: m.text || (m.mediaS3Key ? '' : `[${m.type || 'mídia'}]`),
         tipo: m.type,
+        mediaUrl,
+        mediaMime: m.mediaMime || null,
+        mediaS3Key: m.mediaS3Key || null,
         timestamp: m.timestamp,
         hora: m.timestamp ? new Date(Number(m.timestamp) * 1000).toLocaleString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : '',
         status: 'recebido',
-      })),
-      ...(outResult.Items || []).map(m => ({
-        id: m.SK,
-        direcao: 'saida',
-        texto: m.text || m.templateNome || '[template]',
-        tipo: m.type || 'text',
-        timestamp: m.timestamp || m.createdAt,
-        hora: m.createdAt ? new Date(m.createdAt).toLocaleString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : '',
-        status: m.status || 'enviado',
-      })),
-    ];
+      };
+    }));
+
+    const saidas = (outResult.Items || []).map(m => ({
+      id: m.SK,
+      direcao: 'saida',
+      texto: m.text || m.templateNome || '[template]',
+      tipo: m.type || 'text',
+      mediaUrl: null,
+      mediaMime: null,
+      timestamp: m.timestamp || m.createdAt,
+      hora: m.createdAt ? new Date(m.createdAt).toLocaleString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : '',
+      status: m.status || 'enviado',
+    }));
+
+    const todas = [...entradas, ...saidas];
 
     // Ordenar por timestamp
     todas.sort((a, b) => {

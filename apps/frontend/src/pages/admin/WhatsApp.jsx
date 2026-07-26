@@ -494,7 +494,41 @@ export default function WhatsApp() {
                   return (
                     <div key={i} className={`flex ${isSistema ? 'justify-end' : 'justify-start'}`}>
                       <div className={`max-w-[70%] rounded-lg px-3 py-2 ${isSistema ? 'text-white' : 'bg-gray-100 text-gray-800'}`} style={isSistema ? { background: ACCENT } : {}}>
-                        <p className="text-sm">{m.texto}</p>
+                        {/* Image */}
+                        {m.mediaUrl && m.tipo === 'image' && (
+                          <a href={m.mediaUrl} target="_blank" rel="noreferrer">
+                            <img src={m.mediaUrl} alt="Imagem" className="rounded max-w-full max-h-48 mb-1 cursor-pointer hover:opacity-90" loading="lazy" />
+                          </a>
+                        )}
+                        {/* Audio */}
+                        {m.mediaUrl && (m.tipo === 'audio' || m.mediaMime?.startsWith('audio/')) && (
+                          <audio controls className="max-w-full mb-1" style={{ minWidth: '200px' }}>
+                            <source src={m.mediaUrl} type={m.mediaMime || 'audio/ogg'} />
+                            Seu navegador não suporta áudio.
+                          </audio>
+                        )}
+                        {/* Video */}
+                        {m.mediaUrl && m.tipo === 'video' && (
+                          <video controls className="rounded max-w-full max-h-48 mb-1">
+                            <source src={m.mediaUrl} type={m.mediaMime || 'video/mp4'} />
+                          </video>
+                        )}
+                        {/* Document */}
+                        {m.mediaUrl && m.tipo === 'document' && (
+                          <a href={m.mediaUrl} target="_blank" rel="noreferrer" className={`flex items-center gap-2 text-xs underline mb-1 ${isSistema ? 'text-orange-100' : 'text-blue-600'}`}>
+                            📎 Documento
+                          </a>
+                        )}
+                        {/* Sticker */}
+                        {m.mediaUrl && m.tipo === 'sticker' && (
+                          <img src={m.mediaUrl} alt="Sticker" className="max-w-[120px] mb-1" loading="lazy" />
+                        )}
+                        {/* Text */}
+                        {m.texto && <p className="text-sm">{m.texto}</p>}
+                        {/* Fallback for media without URL */}
+                        {!m.mediaUrl && !m.texto && m.tipo !== 'text' && (
+                          <p className="text-sm italic opacity-70">[{m.tipo}]</p>
+                        )}
                         <div className={`flex items-center gap-1 mt-1 text-xs ${isSistema ? 'text-orange-200' : 'text-gray-400'}`}>
                           <span>{m.hora}</span>
                           {isSistema && <StIcon size={12} />}
