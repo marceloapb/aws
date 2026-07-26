@@ -138,7 +138,6 @@ export default function ContratoClienteView() {
 
   // OTP input handlers
   const handleOtpChange = (index, value) => {
-  const handleOtpChange = (index, value) => {
     // Detectar paste via onChange (alguns browsers mobile)
     const cleaned = value.replace(/\D/g, '');
     if (cleaned.length > 1) {
