@@ -1,5 +1,5 @@
 const crypto = require('crypto');
-const { getParam } = require('../../utils/ssm');
+const { getParameter } = require('../../utils/ssm');
 const { validatePayload } = require('./validator');
 const { DynamoDBClient } = require('@aws-sdk/client-dynamodb');
 const { DynamoDBDocumentClient, PutCommand } = require('@aws-sdk/lib-dynamodb');
@@ -7,6 +7,14 @@ const { DynamoDBDocumentClient, PutCommand } = require('@aws-sdk/lib-dynamodb');
 const ddb = DynamoDBDocumentClient.from(new DynamoDBClient({}));
 const TABLE = process.env.TABLE_NAME;
 const PREFIX = process.env.SSM_PREFIX || '/mbf/prod';
+
+// Cache SSM params
+const cache = {};
+async function getParam(name) {
+  if (cache[name]) return cache[name];
+  cache[name] = await getParameter(name, true);
+  return cache[name];
+}
 
 const main = async (event) => {
   const method = event.requestContext?.http?.method;
