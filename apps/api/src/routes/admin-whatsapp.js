@@ -514,16 +514,82 @@ router.get('/conversas/:clienteId', async (req, res) => {
       } catch { return null; }
     };
 
+    // Download mídia sob demanda: se tem mediaId mas não tem s3Key, baixar agora
+    const { loadParams } = require('../config/env');
+    const params = await loadParams();
+    const accessToken = params.WHATSAPP_ACCESS_TOKEN;
+    const { S3Client: S3C, PutObjectCommand: PutObjCmd } = require('@aws-sdk/client-s3');
+    const s3put = new S3C({});
+
+    const downloadMediaOnDemand = async (item) => {
+      if (!item.mediaId || item.mediaS3Key || !accessToken) return null;
+      try {
+        // Get media URL from Meta
+        const metaResp = await fetch(`https://graph.facebook.com/v20.0/${item.mediaId}`, {
+          headers: { 'Authorization': `Bearer ${accessToken}` },
+          signal: AbortSignal.timeout(10000),
+        });
+        const metaData = await metaResp.json();
+        if (!metaResp.ok || !metaData.url) return null;
+
+        const mimeType = metaData.mime_type || 'application/octet-stream';
+
+        // Download file
+        const fileResp = await fetch(metaData.url, {
+          headers: { 'Authorization': `Bearer ${accessToken}` },
+          signal: AbortSignal.timeout(30000),
+        });
+        if (!fileResp.ok) return null;
+
+        const buffer = Buffer.from(await fileResp.arrayBuffer());
+
+        // Determine extension
+        const extMap = { 'image/jpeg': '.jpg', 'image/png': '.png', 'image/webp': '.webp', 'audio/ogg': '.ogg', 'audio/ogg; codecs=opus': '.ogg', 'audio/mpeg': '.mp3', 'audio/mp4': '.m4a', 'video/mp4': '.mp4' };
+        const ext = extMap[mimeType.split(';')[0]] || '';
+
+        const fromNum = item.PK.replace('WHATSAPP#', '');
+        const s3Key = `whatsapp/media/${fromNum}/${Date.now()}-${item.mediaId.slice(-8)}${ext}`;
+
+        // Upload to S3
+        await s3put.send(new PutObjCmd({ Bucket: BUCKET, Key: s3Key, Body: buffer, ContentType: mimeType }));
+
+        // Update DynamoDB with s3Key and mime
+        await dynamo.send(new UpdateCommand({
+          TableName: TABLE,
+          Key: { PK: item.PK, SK: item.SK },
+          UpdateExpression: 'SET mediaS3Key = :key, mediaMime = :mime',
+          ExpressionAttributeValues: { ':key': s3Key, ':mime': mimeType },
+        }));
+
+        return { s3Key, mimeType };
+      } catch (err) {
+        console.error('[WHATSAPP] Erro download on-demand:', err.message);
+        return null;
+      }
+    };
+
     const entradas = await Promise.all((msgResult.Items || []).map(async m => {
-      const mediaUrl = m.mediaS3Key ? await generateMediaUrl(m.mediaS3Key) : null;
+      let mediaS3Key = m.mediaS3Key;
+      let mediaMime = m.mediaMime;
+
+      // Tentar download sob demanda se necessário
+      if (m.mediaId && !mediaS3Key) {
+        const result = await downloadMediaOnDemand(m);
+        if (result) {
+          mediaS3Key = result.s3Key;
+          mediaMime = result.mimeType;
+        }
+      }
+
+      const mediaUrl = mediaS3Key ? await generateMediaUrl(mediaS3Key) : null;
       return {
         id: m.SK,
         direcao: 'entrada',
-        texto: m.text || (m.mediaS3Key ? '' : `[${m.type || 'mídia'}]`),
+        texto: m.text || (mediaUrl ? '' : (m.mediaId ? `[${m.type || 'mídia'}]` : '')),
         tipo: m.type,
         mediaUrl,
-        mediaMime: m.mediaMime || null,
-        mediaS3Key: m.mediaS3Key || null,
+        mediaMime: mediaMime || null,
+        mediaS3Key: mediaS3Key || null,
         timestamp: m.timestamp,
         hora: m.timestamp ? new Date(Number(m.timestamp) * 1000).toLocaleString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : '',
         status: 'recebido',
