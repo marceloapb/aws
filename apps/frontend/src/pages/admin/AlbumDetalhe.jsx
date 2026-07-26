@@ -520,7 +520,7 @@ export default function AlbumDetalhe() {
 
         {/* ========== PREVIEW AREA ========== */}
         <main className="flex-1 bg-gray-200 flex items-center justify-center overflow-hidden p-4">
-          <div className="w-full h-full max-w-4xl bg-white rounded-xl shadow-2xl overflow-hidden flex flex-col">
+          <div className="w-full max-w-5xl aspect-video bg-white rounded-xl shadow-2xl overflow-hidden flex flex-col">
             {/* Browser chrome */}
             <div className="h-7 bg-gray-100 border-b flex items-center px-3 gap-2 shrink-0">
               <div className="flex gap-1.5"><div className="w-2.5 h-2.5 rounded-full bg-red-400" /><div className="w-2.5 h-2.5 rounded-full bg-yellow-400" /><div className="w-2.5 h-2.5 rounded-full bg-green-400" /></div>
