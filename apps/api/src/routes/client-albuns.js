@@ -55,14 +55,36 @@ router.get('/publico/:slug', async (req, res) => {
       }
     }
 
+    // Buscar galerias do álbum
+    const galeriasResult = await dynamo.send(new QueryCommand({
+      TableName: TABLE,
+      KeyConditionExpression: 'PK = :pk AND begins_with(SK, :sk)',
+      ExpressionAttributeValues: { ':pk': `ALBUM#${album.id}`, ':sk': 'GALERIA#' },
+    }));
+    const galerias = (galeriasResult.Items || []).sort((a, b) => (a.ordem || 0) - (b.ordem || 0));
+
+    // Buscar fotos
     const fotosResult = await dynamo.send(new QueryCommand({
       TableName: TABLE,
       KeyConditionExpression: 'PK = :pk AND begins_with(SK, :sk)',
       ExpressionAttributeValues: { ':pk': `ALBUM#${album.id}`, ':sk': 'FOTO#' },
     }));
-    const fotos = await assinarFotos((fotosResult.Items || []).sort((a, b) => (a.ordem || 0) - (b.ordem || 0)));
+    const fotosRaw = (fotosResult.Items || []).sort((a, b) => (a.ordem || 0) - (b.ordem || 0));
+    const fotos = await assinarFotos(fotosRaw);
 
-    res.json({ success: true, data: { ...album, fotos } });
+    // Agrupar fotos por galeria e calcular total por galeria
+    const galeriasComInfo = galerias.map(g => {
+      const fotosGaleria = fotos.filter(f => f.galeria_id === g.id);
+      return {
+        id: g.id,
+        nome: g.nome,
+        ordem: g.ordem,
+        total_fotos: fotosGaleria.length,
+        thumbnail_url: fotosGaleria[0]?.url_thumb || fotosGaleria[0]?.url || null,
+      };
+    }).filter(g => g.total_fotos > 0);
+
+    res.json({ success: true, data: { ...album, fotos, galerias: galeriasComInfo } });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }

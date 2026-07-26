@@ -68,6 +68,7 @@ const publicRoutes = require('./routes/public');
 const publicNovidadesRoutes = require('./routes/public-novidades');
 const publicSiteRoutes = require('./routes/public-site');
 const publicAlbumTemaRoutes = require('./routes/public-album-tema');
+const publicAlbumRoutes = require('./routes/public-album');
 const publicAssinaturaRoutes = require('./routes/public-assinatura');
 
 // Rotas Admin - Assinaturas
@@ -160,6 +161,7 @@ app.use('/client/notificacoes', clientAuth, clientNotificacoesRoutes);
 
 // Rotas Públicas (site institucional, sem auth)
 app.use('/public/album/:slug/tema', publicAlbumTemaRoutes);
+app.use('/public/album/:slug', publicAlbumRoutes);
 app.use('/public/assinatura', publicAssinaturaRoutes);
 app.use('/public', publicRoutes);
 app.use('/public/novidades', publicNovidadesRoutes);
