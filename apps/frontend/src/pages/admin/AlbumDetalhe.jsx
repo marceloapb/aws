@@ -77,15 +77,17 @@ export default function AlbumDetalhe() {
   const totalFotos = fotos.length;
   const selecionadasCliente = fotos.filter(f => f.selecionada_cliente).length;
   const pagamento = album?.pagamento_percentual || 0;
-  const podePubilcar = pagamento >= 70;
+  const pagamentoBaixo = pagamento < 70;
   const diasExpiracao = album?.data_expiracao
     ? Math.max(0, Math.ceil((new Date(album.data_expiracao) - new Date()) / 86400000)) : null;
 
   // ALB-07 Publicar
   const handlePublicar = async () => {
-    if (!podePubilcar) return;
+    if (pagamentoBaixo && !window.confirm(`Atenção: pagamento em ${pagamento}% (recomendado mínimo 70%). Deseja publicar mesmo assim?`)) return;
     const res = await authFetch(`/admin/albuns/${id}/publicar`, { method: 'POST' });
-    if (res.ok) fetchAlbum();
+    const json = await res.json();
+    if (json.success) fetchAlbum();
+    else alert(json.message || 'Erro ao publicar');
   };
 
   // ALB-02 Upload
@@ -326,14 +328,16 @@ export default function AlbumDetalhe() {
         </div>
 
         {/* Barra pagamento ALB-04 */}
-        <div className="mt-3">
-          <div className="flex items-center justify-between text-xs mb-1">
-            <span>Pagamento: {pagamento}% (mínimo 70% para publicar)</span>
+        {pagamentoBaixo && (
+          <div className="mt-3 flex items-center gap-2 px-3 py-2 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-800">
+            <span>⚠️ Pagamento: {pagamento}% — recomendado mínimo 70% antes de publicar</span>
           </div>
-          <div className="w-full bg-gray-200 rounded-full h-2">
-            <div className="h-2 rounded-full transition-all" style={{ width: `${pagamento}%`, backgroundColor: ACCENT }} />
+        )}
+        {!pagamentoBaixo && pagamento > 0 && (
+          <div className="mt-3 flex items-center gap-2 px-3 py-2 bg-green-50 border border-green-200 rounded-lg text-xs text-green-700">
+            <span>✅ Pagamento: {pagamento}%</span>
           </div>
-        </div>
+        )}
 
         {/* ALB-10 Barra expiração */}
         {album.status === 'publicado' && album.dias_totais && (
@@ -352,16 +356,11 @@ export default function AlbumDetalhe() {
           <input ref={fileInputRef} type="file" multiple accept="image/*" className="hidden" onChange={handleUpload} />
 
           <div className="relative group">
-            <button onClick={handlePublicar} disabled={!podePubilcar}
-              className={`flex items-center gap-1 px-3 py-2 rounded text-sm text-white ${podePubilcar ? '' : 'opacity-50 cursor-not-allowed'}`}
+            <button onClick={handlePublicar}
+              className="flex items-center gap-1 px-3 py-2 rounded text-sm text-white"
               style={{ backgroundColor: ACCENT }}>
               <Send size={15} /> Publicar
             </button>
-            {!podePubilcar && (
-              <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 bg-gray-800 text-white text-xs rounded opacity-0 group-hover:opacity-100 whitespace-nowrap">
-                Pagamento insuficiente
-              </span>
-            )}
           </div>
 
           {album.status === 'publicado' && (

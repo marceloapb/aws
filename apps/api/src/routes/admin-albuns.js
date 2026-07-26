@@ -300,11 +300,7 @@ router.post('/:id/publicar', async (req, res) => {
         .reduce((sum, c) => sum + (c.valor || 0), 0);
 
       if (totalValor > 0 && (totalPago / totalValor) < 0.7) {
-        return res.status(400).json({
-          success: false,
-          message: `Pagamento insuficiente. Necessário 70% (${Math.round((totalPago / totalValor) * 100)}% pago)`,
-          data: { total: totalValor, pago: totalPago, percentual: Math.round((totalPago / totalValor) * 100) },
-        });
+        console.log(`[ALBUM] Publicando com pagamento abaixo de 70%: ${Math.round((totalPago / totalValor) * 100)}%`);
       }
     }
 
