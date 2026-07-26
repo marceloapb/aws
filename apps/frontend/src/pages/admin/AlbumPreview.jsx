@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
-import { Eye, X, ChevronLeft, ChevronRight, Download, Share2, ArrowRight, ArrowLeft, ZoomIn } from 'lucide-react';
+import { Eye, X, ChevronLeft, ChevronRight, Download, ArrowRight, ArrowLeft } from 'lucide-react';
 
 const DEFAULTS_TEMA = {
   capa_foto_id: null,
@@ -177,7 +177,8 @@ export default function AlbumPreview() {
             <img
               src={capaFoto.url || capaFoto.url_full || ''}
               alt=""
-              className="w-full h-full object-cover"
+              className="w-full h-full"
+              style={{ objectFit: tema.capa_modo || 'cover' }}
             />
             <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-black/10" />
             <div className="absolute inset-0 bg-gradient-to-r from-black/40 to-transparent" />
@@ -229,7 +230,7 @@ export default function AlbumPreview() {
     const galeriasAtivas = getGaleriasComFotos();
 
     return (
-      <div className="min-h-screen bg-[#1A1A1A] text-white">
+      <div className="min-h-screen" style={{ backgroundColor: cores.fundo, color: cores.texto }}>
         {/* Banner preview */}
         <div className="bg-yellow-50 border-b border-yellow-200 px-4 py-2 text-center">
           <span className="inline-flex items-center gap-2 text-sm text-yellow-800 font-medium">
@@ -238,15 +239,13 @@ export default function AlbumPreview() {
         </div>
 
         {/* Header */}
-        <header className="sticky top-0 z-20 bg-[#1A1A1A]/95 backdrop-blur-sm border-b border-white/5">
+        <header className="sticky top-0 z-20 backdrop-blur-sm border-b" style={{ backgroundColor: `${cores.fundo}ee`, borderColor: `${cores.texto}10` }}>
           <div className="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
-            <button onClick={() => setView('cover')} className="p-2 -ml-2 text-white/60 hover:text-white transition-colors">
+            <button onClick={() => setView('cover')} className="p-2 -ml-2 opacity-60 hover:opacity-100 transition-opacity">
               <ArrowLeft size={20} />
             </button>
-            <h1 className="text-base md:text-lg font-medium">{album.titulo}</h1>
-            <div className="flex items-center gap-2">
-              <Share2 size={18} className="text-white/40" />
-            </div>
+            <h1 className="text-base md:text-lg font-medium" style={{ fontFamily: tema.fonte_titulo || 'Playfair Display' }}>{album.titulo}</h1>
+            <div className="w-8" />
           </div>
         </header>
 
@@ -298,8 +297,67 @@ export default function AlbumPreview() {
   const galeriaNome = activeGaleria?.nome || 'Galeria';
   const galeriasAtivas = getGaleriasComFotos();
 
+  // Layout do tema
+  const layout = tema.layout || 'grade';
+
+  const getGridClass = () => {
+    switch (layout) {
+      case 'mosaico': return 'columns-2 md:columns-3 lg:columns-4 gap-3';
+      case 'colagem': return 'columns-2 md:columns-3 gap-2';
+      case 'coluna': return 'grid grid-cols-1 md:grid-cols-2 gap-4';
+      case 'ladrilhos': return 'grid grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-1';
+      case 'slider': return 'flex overflow-x-auto gap-4 snap-x snap-mandatory pb-4 scrollbar-hide';
+      default: return 'grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3';
+    }
+  };
+
+  const getItemClass = () => {
+    switch (layout) {
+      case 'mosaico': return 'break-inside-avoid mb-3 rounded-lg overflow-hidden';
+      case 'colagem': return 'break-inside-avoid mb-2 rounded-lg overflow-hidden';
+      case 'coluna': return 'rounded-lg overflow-hidden';
+      case 'ladrilhos': return 'aspect-square overflow-hidden';
+      case 'slider': return 'min-w-[70vw] md:min-w-[45vw] lg:min-w-[30vw] flex-shrink-0 snap-center rounded-lg overflow-hidden';
+      default: return 'aspect-square rounded-lg overflow-hidden';
+    }
+  };
+
+  const getImgClass = () => {
+    switch (layout) {
+      case 'mosaico': return 'w-full object-cover';
+      case 'colagem': return 'w-full object-cover';
+      case 'coluna': return 'w-full max-h-[500px] object-cover';
+      case 'slider': return 'w-full h-[60vh] object-cover';
+      default: return 'w-full h-full object-cover';
+    }
+  };
+
+  // Animação
+  const animStyle = (i) => {
+    if (tema.animacao === 'none' || !tema.animacao) return {};
+    return { animationDelay: `${i * 0.06}s` };
+  };
+
+  const animClass = (() => {
+    switch (tema.animacao) {
+      case 'fade': return 'animate-[fadeIn_0.5s_ease-out_both]';
+      case 'slide': return 'animate-[slideUp_0.5s_ease-out_both]';
+      case 'zoom': return 'animate-[zoomIn_0.4s_ease-out_both]';
+      default: return '';
+    }
+  })();
+
   return (
-    <div className="min-h-screen bg-[#1A1A1A] text-white">
+    <div className="min-h-screen" style={{ backgroundColor: cores.fundo, color: cores.texto, fontFamily: tema.fonte_corpo || 'Inter' }}>
+      {/* CSS Animations */}
+      <style>{`
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes zoomIn { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
+        .scrollbar-hide::-webkit-scrollbar { display: none; }
+        .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+      `}</style>
+
       {/* Banner preview */}
       <div className="bg-yellow-50 border-b border-yellow-200 px-4 py-2 text-center">
         <span className="inline-flex items-center gap-2 text-sm text-yellow-800 font-medium">
@@ -308,105 +366,57 @@ export default function AlbumPreview() {
       </div>
 
       {/* Header */}
-      <header className="sticky top-0 z-20 bg-[#1A1A1A]/95 backdrop-blur-sm border-b border-white/5">
+      <header className="sticky top-0 z-20 backdrop-blur-sm border-b" style={{ backgroundColor: `${cores.fundo}ee`, borderColor: `${cores.texto}10` }}>
         <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
           <button
             onClick={() => galeriasAtivas.length > 1 ? setView('sets') : setView('cover')}
-            className="p-2 -ml-2 text-white/60 hover:text-white transition-colors"
+            className="p-2 -ml-2 opacity-60 hover:opacity-100 transition-opacity"
           >
             <ArrowLeft size={20} />
           </button>
           <div className="text-center">
-            <h1 className="text-sm md:text-base font-medium">{galeriaNome}</h1>
+            <h1 className="text-sm md:text-base font-medium" style={{ fontFamily: tema.fonte_titulo || 'Playfair Display' }}>{galeriaNome}</h1>
             {album.titulo !== galeriaNome && (
-              <p className="text-xs text-white/40">{album.titulo}</p>
+              <p className="text-xs opacity-40">{album.titulo}</p>
             )}
           </div>
-          <div className="flex items-center gap-1">
-            <Share2 size={18} className="text-white/40" />
-            {album.permite_download && <Download size={18} className="text-white/40" />}
+          <div className="flex items-center gap-2">
+            {album.permite_download && <Download size={18} className="opacity-40" />}
           </div>
         </div>
       </header>
 
       {/* Photo Grid */}
       <main className="max-w-7xl mx-auto px-2 md:px-4 py-4">
-        {/* Featured layout: first photo large + 2 side */}
-        {fotosVisiveis.length > 0 && (
-          <div className="mb-2 md:mb-3">
-            <div className="grid grid-cols-3 gap-2 md:gap-3">
-              {/* Main featured photo */}
-              <div
-                className="col-span-2 row-span-2 relative group cursor-pointer rounded-lg overflow-hidden"
-                style={{ aspectRatio: '4/3' }}
-                onClick={() => setLightbox(0)}
-              >
-                <img
-                  src={fotosVisiveis[0]?.url || ''}
-                  alt=""
-                  className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-[1.02]"
-                />
-                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors" />
-                <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                  <ZoomIn size={32} className="text-white drop-shadow-lg" />
-                </div>
-                <div className="absolute inset-0 border-2 border-transparent group-hover:border-orange-500 rounded-lg transition-colors pointer-events-none" />
-              </div>
-
-              {/* Side photos */}
-              {fotosVisiveis.slice(1, 3).map((foto, i) => (
-                <div
-                  key={foto.id || i}
-                  className="relative group cursor-pointer rounded-lg overflow-hidden"
-                  style={{ aspectRatio: '1' }}
-                  onClick={() => setLightbox(i + 1)}
-                >
-                  <img
-                    src={foto.url || ''}
-                    alt=""
-                    className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-[1.02]"
-                    loading="lazy"
-                  />
-                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors" />
-                  <div className="absolute inset-0 border-2 border-transparent group-hover:border-orange-500 rounded-lg transition-colors pointer-events-none" />
-                </div>
-              ))}
+        <div className={getGridClass()}>
+          {fotosVisiveis.map((foto, i) => (
+            <div
+              key={foto.id || i}
+              className={`relative group cursor-pointer ${getItemClass()} ${animClass}`}
+              style={animStyle(i)}
+              onClick={() => setLightbox(i)}
+            >
+              <img
+                src={foto.url || ''}
+                alt={foto.titulo || foto.filename || ''}
+                className={`${getImgClass()} transition-transform duration-300 group-hover:scale-[1.03]`}
+                loading="lazy"
+                decoding="async"
+              />
+              <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors pointer-events-none" />
             </div>
-          </div>
-        )}
-
-        {/* Remaining photos grid */}
-        {fotosVisiveis.length > 3 && (
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 md:gap-3">
-            {fotosVisiveis.slice(3).map((foto, i) => (
-              <div
-                key={foto.id || i}
-                className="relative group cursor-pointer rounded-lg overflow-hidden aspect-square"
-                onClick={() => setLightbox(i + 3)}
-              >
-                <img
-                  src={foto.url || ''}
-                  alt=""
-                  className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-[1.02]"
-                  loading="lazy"
-                  decoding="async"
-                />
-                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors" />
-                <div className="absolute inset-0 border-2 border-transparent group-hover:border-orange-500 rounded-lg transition-colors pointer-events-none" />
-              </div>
-            ))}
-          </div>
-        )}
+          ))}
+        </div>
 
         {/* Infinite scroll loader */}
         {visibleCount < activeFotos.length && (
           <div ref={loaderRef} className="flex justify-center py-8">
-            <div className="w-6 h-6 border-2 border-white/20 border-t-white/60 rounded-full animate-spin" />
+            <div className="w-6 h-6 border-2 border-t-current rounded-full animate-spin opacity-30" />
           </div>
         )}
 
         {/* Photo count */}
-        <div className="text-center py-6 text-white/30 text-sm">
+        <div className="text-center py-6 text-sm opacity-30">
           {activeFotos.length} fotos
         </div>
       </main>
