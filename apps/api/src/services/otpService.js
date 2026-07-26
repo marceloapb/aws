@@ -113,7 +113,7 @@ async function enviarViaWhatsApp(cliente, codigo, contratoId, tokenAssinatura) {
 
   await enviarWhatsApp({
     numero,
-    template: 'contrato_otp_codigo',
+    template: 'mbfoto_codigo_verificacao',
     parametros: [],
     components,
   });
