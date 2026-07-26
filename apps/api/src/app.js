@@ -260,6 +260,34 @@ app.get('/admin/maps/status', adminAuth, async (req, res) => {
   return getStatus(req, res);
 });
 
+// Central de Comunicação - Mensagens do Sistema
+app.get('/admin/config/mensagens', adminAuth, async (req, res) => {
+  try {
+    const { DynamoDBDocumentClient, GetCommand } = require('@aws-sdk/lib-dynamodb');
+    const { DynamoDBClient } = require('@aws-sdk/client-dynamodb');
+    const ddb = DynamoDBDocumentClient.from(new DynamoDBClient({}));
+    const TABLE = process.env.TABLE_NAME || 'mbf-backend-v3-table';
+    const TENANT = process.env.TENANT_ID || 'default';
+    const result = await ddb.send(new GetCommand({ TableName: TABLE, Key: { PK: `TENANT#${TENANT}`, SK: 'CONFIG#MENSAGENS_SISTEMA' } }));
+    res.json({ success: true, data: result.Item || {} });
+  } catch (error) { res.json({ success: true, data: {} }); }
+});
+
+app.put('/admin/config/mensagens', adminAuth, async (req, res) => {
+  try {
+    const { DynamoDBDocumentClient, PutCommand } = require('@aws-sdk/lib-dynamodb');
+    const { DynamoDBClient } = require('@aws-sdk/client-dynamodb');
+    const ddb = DynamoDBDocumentClient.from(new DynamoDBClient({}));
+    const TABLE = process.env.TABLE_NAME || 'mbf-backend-v3-table';
+    const TENANT = process.env.TENANT_ID || 'default';
+    await ddb.send(new PutCommand({
+      TableName: TABLE,
+      Item: { PK: `TENANT#${TENANT}`, SK: 'CONFIG#MENSAGENS_SISTEMA', ...req.body, updated: new Date().toISOString() },
+    }));
+    res.json({ success: true });
+  } catch (error) { res.status(400).json({ success: false, message: error.message }); }
+});
+
 // DSH-07: Badges (contagem de pendências para o menu)
 app.get('/admin/dashboard/badges', adminAuth, async (req, res) => {
   try {

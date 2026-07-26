@@ -45,9 +45,7 @@ const adminSections = [
   {
     label: 'Comunicação',
     links: [
-      { to: '/admin/whatsapp', icon: MessageCircle, label: 'WhatsApp' },
-      { to: '/admin/config?tab=emails', icon: Mail, label: 'Templates E-mail' },
-      { to: '/admin/notificacoes/config', icon: Zap, label: 'Regras Notificação' },
+      { to: '/admin/comunicacao', icon: MessageCircle, label: 'Central de Comunicação' },
     ],
   },
   {

@@ -44,6 +44,7 @@ import ImportCSV from './pages/admin/ImportCSV';
 import Storage from './pages/admin/Storage';
 import Notificacoes from './pages/admin/Notificacoes';
 import NotificacoesConfig from './pages/admin/NotificacoesConfig';
+import CentralComunicacao from './pages/admin/CentralComunicacao';
 import MeuPerfil from './pages/admin/MeuPerfil';
 import TrocarSenha from './pages/admin/TrocarSenha';
 import GatewayConfig from './pages/admin/GatewayConfig';
@@ -179,6 +180,7 @@ function App() {
         <Route path="storage" element={<Storage />} />
         <Route path="notificacoes" element={<Notificacoes />} />
         <Route path="notificacoes/config" element={<NotificacoesConfig />} />
+        <Route path="comunicacao" element={<CentralComunicacao />} />
         <Route path="meu-perfil" element={<MeuPerfil />} />
         <Route path="trocar-senha" element={<TrocarSenha />} />
       </Route>
