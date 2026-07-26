@@ -583,6 +583,38 @@ router.get('/:id', async (req, res) => {
       orcamento.valor_total = orcamento.total || orcamento.valor || 0;
     }
 
+    // Verificar se já tem contrato vinculado
+    try {
+      const clienteId = orcamento.cliente_id || (orcamento.PK?.startsWith('CLIENTE#') ? orcamento.PK.replace('CLIENTE#', '') : null);
+      if (clienteId) {
+        const ctResult = await dynamo.send(new QueryCommand({
+          TableName: TABLE,
+          KeyConditionExpression: 'PK = :pk AND begins_with(SK, :sk)',
+          ExpressionAttributeValues: { ':pk': `CLIENTE#${clienteId}`, ':sk': 'CONTRATO#' },
+        }));
+        const contratoVinculado = (ctResult.Items || []).find(c => c.orcamento_id === req.params.id);
+        if (contratoVinculado) {
+          orcamento.contrato_vinculado = { id: contratoVinculado.id, status: contratoVinculado.status };
+        }
+      }
+    } catch {}
+
+    // Verificar se já tem álbum vinculado
+    try {
+      const clienteId = orcamento.cliente_id || (orcamento.PK?.startsWith('CLIENTE#') ? orcamento.PK.replace('CLIENTE#', '') : null);
+      if (clienteId) {
+        const albumResult = await dynamo.send(new QueryCommand({
+          TableName: TABLE,
+          KeyConditionExpression: 'PK = :pk AND begins_with(SK, :sk)',
+          ExpressionAttributeValues: { ':pk': `CLIENTE#${clienteId}`, ':sk': 'ALBUM#' },
+        }));
+        const albumVinculado = (albumResult.Items || []).find(a => a.orcamento_id === req.params.id);
+        if (albumVinculado) {
+          orcamento.album_vinculado = { id: albumVinculado.id, titulo: albumVinculado.titulo, status: albumVinculado.status };
+        }
+      }
+    } catch {}
+
     res.json({ success: true, data: orcamento });
   } catch (error) {
     res.status(404).json({ success: false, message: 'Orçamento não encontrado' });

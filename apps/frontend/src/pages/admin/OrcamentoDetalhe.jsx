@@ -4,7 +4,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import {
   ArrowLeft, Send, CheckCircle, Copy, FileText, Edit2, Download,
   Trash2, RefreshCw, RotateCcw, Phone, Mail, Star, Clock, XCircle, MapPin, AlertTriangle,
-  DollarSign, Calendar, Hash, Tag, Info
+  DollarSign, Calendar, Hash, Tag, Info, Image
 } from 'lucide-react';
 import DistanceBadge from '../../components/DistanceBadge';
 import MapEmbed from '../../components/MapEmbed';
@@ -132,7 +132,16 @@ export default function OrcamentoDetalhe() {
             </>
           )}
           {orc.status === 'aceito' && (
-            <Btn icon={FileText} label="Gerar Contrato" accent onClick={() => navigate(`/admin/contratos/novo?orcamento_id=${id}`)} />
+            <>
+              {orc.contrato_vinculado
+                ? <Btn icon={FileText} label={`Contrato (${orc.contrato_vinculado.status})`} onClick={() => navigate(`/admin/contratos/${orc.contrato_vinculado.id}`)} />
+                : <Btn icon={FileText} label="Gerar Contrato" accent onClick={() => navigate(`/admin/contratos/novo?orcamento_id=${id}`)} />
+              }
+              {orc.album_vinculado
+                ? <Btn icon={Image} label={`Álbum (${orc.album_vinculado.status || 'criado'})`} onClick={() => navigate(`/admin/albuns/${orc.album_vinculado.id}`)} />
+                : <Btn icon={Image} label="Gerar Álbum" accent onClick={() => navigate(`/admin/albuns/novo?orcamento_id=${id}&cliente_id=${orc.cliente_id || ''}`)} />
+              }
+            </>
           )}
           {(orc.status === 'recusado' || orc.status === 'expirado') && (
             <>
