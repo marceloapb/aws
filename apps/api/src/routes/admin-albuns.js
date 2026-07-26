@@ -319,16 +319,31 @@ router.post('/:id/publicar', async (req, res) => {
       }
     }
 
+    // Calculate expiration from publish date (not creation date)
+    const TENANT = process.env.TENANT_ID || 'default';
+    let diasExpiracao = 180;
+    try {
+      const cfgResult = await dynamo.send(new GetCommand({
+        TableName: TABLE,
+        Key: { PK: `TENANT#${TENANT}`, SK: 'CONFIG#ALBUM' },
+      }));
+      diasExpiracao = cfgResult.Item?.prazo_padrao_dias || 180;
+    } catch {}
+    const dataExpiracao = new Date();
+    dataExpiracao.setDate(dataExpiracao.getDate() + diasExpiracao);
+
     // Update album
     const result = await dynamo.send(new UpdateCommand({
       TableName: TABLE,
       Key: { PK: album.PK, SK: album.SK },
-      UpdateExpression: 'SET #s = :status, slug = :slug, disponivel_em = :disp',
+      UpdateExpression: 'SET #s = :status, slug = :slug, disponivel_em = :disp, data_expiracao = :exp, dias_totais = :dias',
       ExpressionAttributeNames: { '#s': 'status' },
       ExpressionAttributeValues: {
         ':status': 'publicado',
         ':slug': slug,
         ':disp': new Date().toISOString(),
+        ':exp': dataExpiracao.toISOString().split('T')[0],
+        ':dias': diasExpiracao,
       },
       ReturnValues: 'ALL_NEW',
     }));
