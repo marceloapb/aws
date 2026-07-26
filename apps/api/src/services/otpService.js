@@ -97,23 +97,17 @@ async function enviarViaWhatsApp(cliente, codigo, contratoId, tokenAssinatura) {
   const numero = cliente.whatsapp_numero || cliente.telefone;
   if (!numero) throw new Error('Cliente não possui número de WhatsApp cadastrado');
 
-  // Template AUTHENTICATION: body param {{1}} = código, button URL param = código
+  // Template UTILITY mbfoto_confirmar_contrato: body param {{1}} = código
   const components = [
     {
       type: 'body',
-      parameters: [{ type: 'text', text: codigo }],
-    },
-    {
-      type: 'button',
-      sub_type: 'url',
-      index: '0',
       parameters: [{ type: 'text', text: codigo }],
     },
   ];
 
   await enviarWhatsApp({
     numero,
-    template: 'mbfoto_codigo_verificacao',
+    template: 'mbfoto_confirmar_contrato',
     parametros: [],
     components,
   });
