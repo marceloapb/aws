@@ -202,6 +202,9 @@ export default function AlbumPreview() {
                 alt={foto.titulo || ''}
                 className={`w-full ${tema.layout === 'grade' || tema.layout === 'ladrilhos' ? 'h-full object-cover' : 'object-cover'}`}
                 loading="lazy"
+                decoding="async"
+                sizes="(max-width: 768px) 50vw, (max-width: 1024px) 33vw, 25vw"
+                style={{ maxHeight: tema.layout === 'coluna' ? '400px' : undefined }}
               />
               {/* Overlay hover */}
               <div className="absolute inset-0 bg-black/0 hover:bg-black/20 transition-colors flex items-end opacity-0 hover:opacity-100">
@@ -231,7 +234,7 @@ export default function AlbumPreview() {
           <button onClick={() => setLightbox(Math.min(fotos.length - 1, lightbox + 1))} className="absolute right-4 text-white p-2 hover:bg-white/10 rounded-full">
             <ChevronRight size={28} />
           </button>
-          <img src={fotos[lightbox]?.url || fotos[lightbox]?.url_media || ''} alt="" className="max-h-[90vh] max-w-[90vw] object-contain" />
+          <img src={fotos[lightbox]?.url_full || fotos[lightbox]?.url || ''} alt="" className="max-h-[90vh] max-w-[90vw] object-contain" />
           <div className="absolute bottom-4 left-1/2 -translate-x-1/2 text-white text-sm bg-black/50 px-3 py-1 rounded-full">
             {lightbox + 1} / {fotos.length}
             {fotos[lightbox]?.titulo && <span className="ml-2">— {fotos[lightbox].titulo}</span>}

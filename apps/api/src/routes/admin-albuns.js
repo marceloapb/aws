@@ -129,11 +129,17 @@ router.get('/:id', async (req, res) => {
     const bucket = process.env.S3_BUCKET_NAME;
 
     const fotosComUrl = await Promise.all(fotos.map(async (foto) => {
-      const key = foto.s3_key_thumb || foto.s3_key_media || foto.s3_key_original || foto.key;
-      if (!key) return foto;
+      const keyThumb = (foto.s3_key_thumb && foto.s3_key_thumb !== null) ? foto.s3_key_thumb : null;
+      const keyMedia = (foto.s3_key_media && foto.s3_key_media !== null) ? foto.s3_key_media : null;
+      const keyOriginal = foto.s3_key_original || foto.s3_key || foto.key;
+      const keyForGrid = keyThumb || keyMedia || keyOriginal;
+      if (!keyForGrid) return foto;
       try {
-        const url = await getSignedUrl(s3, new GetObjectCommand({ Bucket: bucket, Key: key }), { expiresIn: 3600 });
-        return { ...foto, url };
+        const url = await getSignedUrl(s3, new GetObjectCommand({ Bucket: bucket, Key: keyForGrid }), { expiresIn: 3600 });
+        const url_full = (keyForGrid !== keyOriginal && keyOriginal)
+          ? await getSignedUrl(s3, new GetObjectCommand({ Bucket: bucket, Key: keyOriginal }), { expiresIn: 3600 })
+          : url;
+        return { ...foto, url, url_full };
       } catch {
         return foto;
       }
@@ -390,6 +396,55 @@ router.post('/:id/despublicar', async (req, res) => {
   }
 });
 
+// POST /api/admin/albuns/:id/reprocessar — Re-enqueue photos with processing errors
+router.post('/:id/reprocessar', async (req, res) => {
+  try {
+    const albumId = req.params.id;
+    const tenant_id = req.tenantId || '1';
+    const QUEUE_URL = process.env.MEDIA_QUEUE_URL;
+    if (!QUEUE_URL) return res.status(400).json({ success: false, message: 'MEDIA_QUEUE_URL não configurada' });
+
+    // Buscar fotos com erro
+    const fotosResult = await dynamo.send(new QueryCommand({
+      TableName: TABLE,
+      KeyConditionExpression: 'PK = :pk AND begins_with(SK, :sk)',
+      ExpressionAttributeValues: { ':pk': `ALBUM#${albumId}`, ':sk': 'FOTO#' },
+    }));
+    const fotosComErro = (fotosResult.Items || []).filter(f => f.status_processamento === 'erro' || !f.s3_key_thumb || f.s3_key_thumb === null);
+
+    let enqueued = 0;
+    for (const foto of fotosComErro) {
+      const originalKey = foto.s3_key_original || foto.s3_key;
+      if (!originalKey) continue;
+      await sqs.send(new SendMessageCommand({
+        QueueUrl: QUEUE_URL,
+        MessageBody: JSON.stringify({
+          action: 'process_foto',
+          tenant_id: foto.tenant_id || tenant_id,
+          album_id: albumId,
+          galeria_id: foto.galeria_id,
+          foto_id: foto.id,
+          s3_key_original: originalKey,
+          s3_key: originalKey,
+          content_type: foto.content_type || 'image/jpeg',
+        }),
+      }));
+      // Reset status
+      await dynamo.send(new UpdateCommand({
+        TableName: TABLE,
+        Key: { PK: foto.PK, SK: foto.SK },
+        UpdateExpression: 'SET status_processamento = :s REMOVE erro_processamento',
+        ExpressionAttributeValues: { ':s': 'pendente' },
+      }));
+      enqueued++;
+    }
+
+    res.json({ success: true, message: `${enqueued} fotos enfileiradas para reprocessamento`, data: { total: enqueued } });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
 // POST /api/admin/albuns/:id/upload-urls — Batch presigned URLs
 router.post('/:id/upload-urls', async (req, res) => {
   try {
@@ -505,8 +560,11 @@ router.post('/:id/fotos/confirmar-batch', async (req, res) => {
           QueueUrl: QUEUE_URL,
           MessageBody: JSON.stringify({
             action: 'process_foto',
+            tenant_id: foto.tenant_id,
             album_id: albumId,
+            galeria_id: foto.galeria_id,
             foto_id: foto.id,
+            s3_key_original: foto.s3_key_original || foto.s3_key,
             s3_key: foto.s3_key,
             content_type: foto.content_type,
           }),

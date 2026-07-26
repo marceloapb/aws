@@ -112,13 +112,14 @@ async function processPortfolioFoto(message) {
 }
 
 async function processAlbumFoto(message) {
-  const { tenant_id, album_id, galeria_id, foto_id, s3_key_original } = message;
+  const { tenant_id, album_id, galeria_id, foto_id, s3_key_original, s3_key } = message;
+  const originalKey = s3_key_original || s3_key;
 
   try {
     // 1. Baixar original do S3
     const getResult = await s3.send(new GetObjectCommand({
       Bucket: BUCKET,
-      Key: s3_key_original,
+      Key: originalKey,
     }));
     const buffer = Buffer.from(await getResult.Body.transformToByteArray());
 
@@ -130,8 +131,8 @@ async function processAlbumFoto(message) {
         console.warn('Sharp not available, marking as processed without resize:', e.message);
         await updateFoto(tenant_id, album_id, foto_id, {
           status_processamento: 'completo',
-          s3_key_media: s3_key_original,
-          s3_key_thumb: s3_key_original,
+          s3_key_media: originalKey,
+          s3_key_thumb: originalKey,
         });
         return;
       }
@@ -141,7 +142,7 @@ async function processAlbumFoto(message) {
       const { width, height } = metadata;
 
       // 4. Gerar versões
-      const basePath = s3_key_original.replace(/\.[^.]+$/, '');
+      const basePath = originalKey.replace(/\.[^.]+$/, '');
       const urls = {};
 
       for (const version of VERSIONS) {
@@ -201,8 +202,8 @@ async function processAlbumFoto(message) {
       // 5. Atualizar DynamoDB
       await updateFoto(tenant_id, album_id, foto_id, {
         status_processamento: 'completo',
-        s3_key_media: urls.s3_key_media || s3_key_original,
-        s3_key_thumb: urls.s3_key_thumb || s3_key_original,
+        s3_key_media: urls.s3_key_media || originalKey,
+        s3_key_thumb: urls.s3_key_thumb || originalKey,
         width,
         height,
         tamanho_bytes: buffer.length,
