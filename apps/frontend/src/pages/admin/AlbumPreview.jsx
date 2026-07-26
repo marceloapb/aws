@@ -302,8 +302,8 @@ export default function AlbumPreview() {
 
   const getGridClass = () => {
     switch (layout) {
-      case 'mosaico': return 'columns-2 md:columns-3 lg:columns-4 gap-3';
-      case 'colagem': return 'columns-2 md:columns-3 gap-2';
+      case 'mosaico': return 'grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 auto-rows-[200px]';
+      case 'colagem': return 'grid grid-cols-2 md:grid-cols-3 gap-2 auto-rows-[180px]';
       case 'coluna': return 'grid grid-cols-1 md:grid-cols-2 gap-4';
       case 'ladrilhos': return 'grid grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-1';
       case 'slider': return 'flex overflow-x-auto gap-4 snap-x snap-mandatory pb-4 scrollbar-hide';
@@ -311,10 +311,19 @@ export default function AlbumPreview() {
     }
   };
 
-  const getItemClass = () => {
+  const getItemClass = (i) => {
     switch (layout) {
-      case 'mosaico': return 'break-inside-avoid mb-3 rounded-lg overflow-hidden';
-      case 'colagem': return 'break-inside-avoid mb-2 rounded-lg overflow-hidden';
+      case 'mosaico': {
+        // Variação de alturas para efeito mosaico (por linha)
+        const pattern = i % 5;
+        if (pattern === 0) return 'row-span-2 rounded-lg overflow-hidden';
+        return 'row-span-1 rounded-lg overflow-hidden';
+      }
+      case 'colagem': {
+        const pattern = i % 7;
+        if (pattern === 0 || pattern === 3) return 'row-span-2 rounded-lg overflow-hidden';
+        return 'row-span-1 rounded-lg overflow-hidden';
+      }
       case 'coluna': return 'rounded-lg overflow-hidden';
       case 'ladrilhos': return 'aspect-square overflow-hidden';
       case 'slider': return 'min-w-[70vw] md:min-w-[45vw] lg:min-w-[30vw] flex-shrink-0 snap-center rounded-lg overflow-hidden';
@@ -392,7 +401,7 @@ export default function AlbumPreview() {
           {fotosVisiveis.map((foto, i) => (
             <div
               key={foto.id || i}
-              className={`relative group cursor-pointer ${getItemClass()} ${animClass}`}
+              className={`relative group cursor-pointer ${getItemClass(i)} ${animClass}`}
               style={animStyle(i)}
               onClick={() => setLightbox(i)}
             >
