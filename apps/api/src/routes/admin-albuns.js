@@ -149,8 +149,25 @@ router.get('/:id', async (req, res) => {
 router.post('/', async (req, res) => {
   try {
     const id = crypto.randomUUID();
+    const TENANT = process.env.TENANT_ID || 'default';
+
+    // Buscar dias de expiração da configuração
+    let diasExpiracao = req.body.dias_expiracao || null;
+    if (!diasExpiracao) {
+      try {
+        const cfgResult = await dynamo.send(new GetCommand({
+          TableName: TABLE,
+          Key: { PK: `TENANT#${TENANT}`, SK: 'CONFIG#dataRetentionMonths' },
+        }));
+        const meses = Number(cfgResult.Item?.valor) || 0;
+        diasExpiracao = meses > 0 ? meses * 30 : 30; // default 30 dias se config = 0
+      } catch {
+        diasExpiracao = 30;
+      }
+    }
+
     const dataExpiracao = new Date();
-    dataExpiracao.setDate(dataExpiracao.getDate() + (req.body.dias_expiracao || 30));
+    dataExpiracao.setDate(dataExpiracao.getDate() + diasExpiracao);
     const clienteId = req.body.cliente_id || null;
 
     const item = {
