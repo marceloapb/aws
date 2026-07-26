@@ -3,6 +3,7 @@ const { dynamo, TABLE } = require('../config/dynamodb');
 const { QueryCommand, PutCommand, UpdateCommand } = require('@aws-sdk/lib-dynamodb');
 const { gerarContrato, enviarParaAssinatura, assinarComoContratado } = require('../services/contratoService');
 const { registrarEvento, avancarStatusAutomatico } = require('../services/clienteHistoricoService');
+const { notificarContratoAssinado } = require('../services/notificationService');
 
 const router = Router();
 
@@ -191,6 +192,25 @@ router.put('/:id', async (req, res) => {
         } catch (histErr) {
           console.error('[CONTRATO] Erro ao registrar histórico assinatura:', histErr.message);
         }
+      }
+      // Notificar admin via WhatsApp + email
+      try {
+        const { QueryCommand: QCmd } = require('@aws-sdk/lib-dynamodb');
+        const TENANT = req.tenantId || process.env.TENANT_ID || 'default';
+        const configResult = await dynamo.send(new QCmd({
+          TableName: TABLE,
+          KeyConditionExpression: 'PK = :pk AND begins_with(SK, :sk)',
+          ExpressionAttributeValues: { ':pk': `TENANT#${TENANT}`, ':sk': 'CONFIG#' },
+        }));
+        const configs = {};
+        (configResult.Items || []).forEach(item => { configs[item.chave] = item.valor; });
+        const adminEmail = configs.email || process.env.SES_FROM_EMAIL;
+        const adminWhatsapp = configs.whatsappBusiness || configs.phone || '';
+        const adminId = TENANT;
+        const clienteNome = contrato.cliente_nome || 'Cliente';
+        await notificarContratoAssinado(adminEmail, adminWhatsapp, adminId, clienteNome);
+      } catch (notifErr) {
+        console.error('[CONTRATO] Erro ao notificar assinatura:', notifErr.message);
       }
     }
 

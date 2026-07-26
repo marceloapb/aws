@@ -131,8 +131,19 @@ async function notificar({
       resultados.whatsapp = { success: true };
       registrarLog('whatsapp', tipo, 'sucesso', `WhatsApp "${titulo}" enviado para ${destinatario_whatsapp}`);
     } catch (err) {
-      resultados.whatsapp = { success: false, error: err.message };
-      registrarLog('whatsapp', tipo, 'erro', `Falha ao enviar "${titulo}" para ${destinatario_whatsapp}: ${err.message}`);
+      // Fallback: tentar enviar como texto simples (dentro da janela de 24h)
+      try {
+        const whatsapp = require('../lib/whatsapp/client');
+        await whatsapp.enviarTexto({
+          telefone: destinatario_whatsapp,
+          texto: `📸 *MBFoto*\n\n*${titulo}*\n${mensagem}`,
+        });
+        resultados.whatsapp = { success: true, fallback: 'texto' };
+        registrarLog('whatsapp', tipo, 'sucesso', `WhatsApp texto "${titulo}" enviado para ${destinatario_whatsapp} (fallback)`);
+      } catch (fallbackErr) {
+        resultados.whatsapp = { success: false, error: err.message, fallback_error: fallbackErr.message };
+        registrarLog('whatsapp', tipo, 'erro', `Falha ao enviar "${titulo}" para ${destinatario_whatsapp}: ${err.message} | fallback: ${fallbackErr.message}`);
+      }
     }
   }
 

@@ -9,6 +9,7 @@ const { QueryCommand, PutCommand, UpdateCommand, GetCommand } = require('@aws-sd
 const { enviarOTP } = require('./otpService');
 const { registrarAudit, EVENTOS } = require('./auditLogService');
 const { gerarCodigoVerificacao } = require('./seloAssinaturaService');
+const { notificarContratoAssinado } = require('./notificationService');
 const logger = require('../config/logger');
 
 // Configurações do módulo
@@ -220,6 +221,25 @@ async function validarOTPEAssinar(contratoId, codigoInformado, metadados) {
     user_agent: metadados.userAgent,
     detalhes: { hash_documento: hashDocumento, metodo: 'assinatura_eletronica_avancada' },
   });
+
+  // Notificar admin (WhatsApp + email + in_app)
+  try {
+    const TENANT = process.env.TENANT_ID || 'default';
+    const configResult = await dynamo.send(new QueryCommand({
+      TableName: TABLE,
+      KeyConditionExpression: 'PK = :pk AND begins_with(SK, :sk)',
+      ExpressionAttributeValues: { ':pk': `TENANT#${TENANT}`, ':sk': 'CONFIG#' },
+    }));
+    const configs = {};
+    (configResult.Items || []).forEach(item => { configs[item.chave] = item.valor; });
+    const adminEmail = configs.email || process.env.SES_FROM_EMAIL;
+    const adminWhatsapp = configs.whatsappBusiness || configs.phone || '';
+    const adminId = TENANT;
+    const clienteNome = metadados.nomeInformado || cliente.nome || 'Cliente';
+    await notificarContratoAssinado(adminEmail, adminWhatsapp, adminId, clienteNome);
+  } catch (notifErr) {
+    logger.error({ action: 'notificacao_contrato_assinado_erro', error: notifErr.message, contratoId });
+  }
 
   return {
     success: true,
