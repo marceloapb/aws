@@ -23,15 +23,16 @@ const CANAIS = ['whatsapp', 'email', 'sms'];
  * @param {string} opts.codigo - Código OTP de 6 dígitos
  * @param {string} opts.canalPreferido - Canal preferido: 'whatsapp', 'sms' ou 'email'
  * @param {string} opts.contratoId - ID do contrato para referência
+ * @param {string} opts.tokenAssinatura - Token público do contrato para link no botão
  * @returns {Promise<Object>} Resultado com canal utilizado e máscara do destino
  */
-async function enviarOTP({ cliente, codigo, canalPreferido = 'whatsapp', contratoId }) {
+async function enviarOTP({ cliente, codigo, canalPreferido = 'whatsapp', contratoId, tokenAssinatura }) {
   const canaisOrdenados = ordenarCanais(canalPreferido);
   let ultimoErro = null;
 
   for (const canal of canaisOrdenados) {
     try {
-      const resultado = await tentarEnvio(canal, cliente, codigo, contratoId);
+      const resultado = await tentarEnvio(canal, cliente, codigo, contratoId, tokenAssinatura);
       
       logger.info({
         action: 'otp_enviado_sucesso',
@@ -76,10 +77,10 @@ function ordenarCanais(canalPreferido) {
 /**
  * Tenta enviar OTP pelo canal especificado
  */
-async function tentarEnvio(canal, cliente, codigo, contratoId) {
+async function tentarEnvio(canal, cliente, codigo, contratoId, tokenAssinatura) {
   switch (canal) {
     case 'whatsapp':
-      return await enviarViaWhatsApp(cliente, codigo, contratoId);
+      return await enviarViaWhatsApp(cliente, codigo, contratoId, tokenAssinatura);
     case 'sms':
       return await enviarViaSMS(cliente, codigo, contratoId);
     case 'email':
@@ -92,14 +93,33 @@ async function tentarEnvio(canal, cliente, codigo, contratoId) {
 /**
  * Envio via WhatsApp Cloud API
  */
-async function enviarViaWhatsApp(cliente, codigo, contratoId) {
+async function enviarViaWhatsApp(cliente, codigo, contratoId, tokenAssinatura) {
   const numero = cliente.whatsapp_numero || cliente.telefone;
   if (!numero) throw new Error('Cliente não possui número de WhatsApp cadastrado');
+
+  // Montar components: body (código OTP) + button (URL dinâmica com token)
+  const components = [
+    {
+      type: 'body',
+      parameters: [{ type: 'text', text: codigo }],
+    },
+  ];
+
+  // Se tem token de assinatura, adicionar parâmetro do botão URL dinâmico
+  if (tokenAssinatura) {
+    components.push({
+      type: 'button',
+      sub_type: 'url',
+      index: '0',
+      parameters: [{ type: 'text', text: tokenAssinatura }],
+    });
+  }
 
   await enviarWhatsApp({
     numero,
     template: 'contrato_otp_codigo',
-    parametros: [codigo],
+    parametros: [],
+    components,
   });
 
   return {

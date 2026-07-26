@@ -20,9 +20,9 @@ async function getConfig() {
 
 /**
  * Envia mensagem via template do WhatsApp Cloud API
- * @param {{ telefone: string, template_name: string, language?: string, parameters?: Array<{type: string, text: string}> }} opts
+ * @param {{ telefone: string, template_name: string, language?: string, parameters?: Array<{type: string, text: string}>, components?: Array }} opts
  */
-async function enviarTemplate({ telefone, template_name, language = 'pt_BR', parameters = [] }) {
+async function enviarTemplate({ telefone, template_name, language = 'pt_BR', parameters = [], components = null }) {
   const config = await getConfig();
 
   // Formata telefone (remove não-numéricos, adiciona 55 se necessário)
@@ -39,7 +39,10 @@ async function enviarTemplate({ telefone, template_name, language = 'pt_BR', par
     },
   };
 
-  if (parameters.length > 0) {
+  // Se components customizados foram passados, usar diretamente
+  if (components) {
+    body.template.components = components;
+  } else if (parameters.length > 0) {
     body.template.components = [{
       type: 'body',
       parameters: parameters.map(p => ({

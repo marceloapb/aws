@@ -69,6 +69,7 @@ async function gerarEEnviarOTP(contratoId, canalPreferido = 'whatsapp') {
     codigo: otp,
     canalPreferido,
     contratoId,
+    tokenAssinatura: contrato.token_assinatura || '',
   });
 
   logger.info({
