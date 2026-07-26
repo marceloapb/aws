@@ -481,13 +481,17 @@ export default function AlbumDetalhe() {
             </button>
             <select onChange={e => {
               const val = e.target.value;
-              if (val === 'nome') setFotos(prev => [...prev].sort((a, b) => (a.titulo || a.nome || '').localeCompare(b.titulo || b.nome || '')));
-              else if (val === 'data') setFotos(prev => [...prev].sort((a, b) => (b.created || '').localeCompare(a.created || '')));
+              if (val === 'nome_asc') setFotos(prev => [...prev].sort((a, b) => (a.titulo || a.nome || a.key || '').localeCompare(b.titulo || b.nome || b.key || '')));
+              else if (val === 'nome_desc') setFotos(prev => [...prev].sort((a, b) => (b.titulo || b.nome || b.key || '').localeCompare(a.titulo || a.nome || a.key || '')));
+              else if (val === 'data_desc') setFotos(prev => [...prev].sort((a, b) => (b.created || '').localeCompare(a.created || '')));
+              else if (val === 'data_asc') setFotos(prev => [...prev].sort((a, b) => (a.created || '').localeCompare(b.created || '')));
               else if (val === 'ordem') setFotos(prev => [...prev].sort((a, b) => (a.ordem || 0) - (b.ordem || 0)));
             }} className="text-xs border rounded-lg px-2.5 py-1.5">
               <option value="ordem">Ordenar: Padrão</option>
-              <option value="nome">Ordenar: Nome</option>
-              <option value="data">Ordenar: Data (recente)</option>
+              <option value="nome_asc">Nome A → Z</option>
+              <option value="nome_desc">Nome Z → A</option>
+              <option value="data_desc">Data: Mais recente</option>
+              <option value="data_asc">Data: Mais antiga</option>
             </select>
             {selecionadas.length === 1 && (
               <button onClick={async () => {
