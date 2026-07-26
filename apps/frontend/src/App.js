@@ -45,6 +45,13 @@ import Storage from './pages/admin/Storage';
 import Notificacoes from './pages/admin/Notificacoes';
 import NotificacoesConfig from './pages/admin/NotificacoesConfig';
 import CentralComunicacao from './pages/admin/CentralComunicacao';
+import MensagensSistema from './pages/admin/MensagensSistema';
+import ConfigEmails from './components/ConfigEmails';
+
+// Wrappers para rotas de comunicação
+const WhatsAppPage = WhatsApp;
+const ComunicacaoEmails = ConfigEmails;
+const ComunicacaoMensagens = MensagensSistema;
 import MeuPerfil from './pages/admin/MeuPerfil';
 import TrocarSenha from './pages/admin/TrocarSenha';
 import GatewayConfig from './pages/admin/GatewayConfig';
@@ -180,7 +187,10 @@ function App() {
         <Route path="storage" element={<Storage />} />
         <Route path="notificacoes" element={<Notificacoes />} />
         <Route path="notificacoes/config" element={<NotificacoesConfig />} />
-        <Route path="comunicacao" element={<CentralComunicacao />} />
+        <Route path="comunicacao" element={<WhatsAppPage />} />
+        <Route path="comunicacao/emails" element={<ComunicacaoEmails />} />
+        <Route path="comunicacao/mensagens" element={<ComunicacaoMensagens />} />
+        <Route path="comunicacao/regras" element={<NotificacoesConfig />} />
         <Route path="meu-perfil" element={<MeuPerfil />} />
         <Route path="trocar-senha" element={<TrocarSenha />} />
       </Route>
