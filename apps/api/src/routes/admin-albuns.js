@@ -149,16 +149,22 @@ router.get('/:id', async (req, res) => {
 router.post('/', async (req, res) => {
   try {
     const id = crypto.randomUUID();
-    const TENANT = process.env.TENANT_ID || 'default';
+    const TENANT = req.tenantId || process.env.TENANT_ID || 'default';
 
     // Buscar dias de expiração da configuração de álbuns
     let diasExpiracao = req.body.dias_expiracao || null;
     if (!diasExpiracao) {
       try {
-        const cfgResult = await dynamo.send(new GetCommand({
+        let cfgResult = await dynamo.send(new GetCommand({
           TableName: TABLE,
           Key: { PK: `TENANT#${TENANT}`, SK: 'CONFIG#ALBUM' },
         }));
+        if (!cfgResult.Item && TENANT !== 'default') {
+          cfgResult = await dynamo.send(new GetCommand({
+            TableName: TABLE,
+            Key: { PK: 'TENANT#default', SK: 'CONFIG#ALBUM' },
+          }));
+        }
         diasExpiracao = cfgResult.Item?.prazo_padrao_dias || 180;
       } catch {
         diasExpiracao = 180;
@@ -320,13 +326,20 @@ router.post('/:id/publicar', async (req, res) => {
     }
 
     // Calculate expiration from publish date (not creation date)
-    const TENANT = process.env.TENANT_ID || 'default';
+    const TENANT = req.tenantId || process.env.TENANT_ID || 'default';
     let diasExpiracao = 180;
     try {
-      const cfgResult = await dynamo.send(new GetCommand({
+      // Try tenant ID first, then 'default'
+      let cfgResult = await dynamo.send(new GetCommand({
         TableName: TABLE,
         Key: { PK: `TENANT#${TENANT}`, SK: 'CONFIG#ALBUM' },
       }));
+      if (!cfgResult.Item && TENANT !== 'default') {
+        cfgResult = await dynamo.send(new GetCommand({
+          TableName: TABLE,
+          Key: { PK: 'TENANT#default', SK: 'CONFIG#ALBUM' },
+        }));
+      }
       diasExpiracao = cfgResult.Item?.prazo_padrao_dias || 180;
     } catch {}
     const dataExpiracao = new Date();
