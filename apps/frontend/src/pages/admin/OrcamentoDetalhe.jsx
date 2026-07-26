@@ -69,6 +69,32 @@ export default function OrcamentoDetalhe() {
     } catch {} finally { setActionLoading(''); }
   };
 
+  const handleCriarAlbum = async () => {
+    setActionLoading('album');
+    try {
+      const clienteId = orc.cliente_id || (orc.PK?.startsWith('CLIENTE#') ? orc.PK.replace('CLIENTE#', '') : '');
+      const res = await authFetch('/admin/albuns', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          titulo: orc.titulo || orc.tipo_evento || 'Álbum',
+          cliente_id: clienteId,
+          tipo_evento: orc.tipo_evento || '',
+          data_evento: orc.data_evento || '',
+          orcamento_id: id,
+        }),
+      });
+      const json = await res.json();
+      if (json.success && json.data?.id) {
+        navigate(`/admin/albuns/${json.data.id}`);
+      } else {
+        alert(json.message || 'Erro ao criar álbum');
+      }
+    } catch (err) {
+      alert('Erro ao criar álbum: ' + err.message);
+    } finally { setActionLoading(''); }
+  };
+
   // Validade countdown
   const validadeInfo = useMemo(() => {
     if (!orc?.validade_dias || !orc?.created) return null;
@@ -139,7 +165,7 @@ export default function OrcamentoDetalhe() {
               }
               {orc.album_vinculado
                 ? <Btn icon={Image} label={`Álbum (${orc.album_vinculado.status || 'criado'})`} onClick={() => navigate(`/admin/albuns/${orc.album_vinculado.id}`)} />
-                : <Btn icon={Image} label="Gerar Álbum" accent onClick={() => navigate(`/admin/albuns/novo?orcamento_id=${id}&cliente_id=${orc.cliente_id || ''}`)} />
+                : <Btn icon={Image} label="Gerar Álbum" accent loading={actionLoading === 'album'} onClick={handleCriarAlbum} />
               }
             </>
           )}
