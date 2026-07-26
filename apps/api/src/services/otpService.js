@@ -97,23 +97,19 @@ async function enviarViaWhatsApp(cliente, codigo, contratoId, tokenAssinatura) {
   const numero = cliente.whatsapp_numero || cliente.telefone;
   if (!numero) throw new Error('Cliente não possui número de WhatsApp cadastrado');
 
-  // Montar components: body (código OTP) + button (URL dinâmica com token)
+  // Template AUTHENTICATION: body param {{1}} = código, button URL param = código
   const components = [
     {
       type: 'body',
       parameters: [{ type: 'text', text: codigo }],
     },
-  ];
-
-  // Se tem token de assinatura, adicionar parâmetro do botão URL dinâmico
-  if (tokenAssinatura) {
-    components.push({
+    {
       type: 'button',
       sub_type: 'url',
       index: '0',
-      parameters: [{ type: 'text', text: tokenAssinatura }],
-    });
-  }
+      parameters: [{ type: 'text', text: codigo }],
+    },
+  ];
 
   await enviarWhatsApp({
     numero,
