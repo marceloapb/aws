@@ -71,17 +71,26 @@ export default function OTPInput({ onComplete, disabled, erro, onClear }) {
   const handlePaste = (e) => {
     e.preventDefault();
     const paste = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, OTP_LENGTH);
-    if (paste.length === OTP_LENGTH) {
+    if (paste.length > 0) {
       const chars = paste.split('');
-      setDigits(chars);
-      inputRefs.current[OTP_LENGTH - 1]?.focus();
-      onComplete(paste);
+      const newDigits = [...digits];
+      for (let i = 0; i < chars.length && i < OTP_LENGTH; i++) {
+        newDigits[i] = chars[i];
+      }
+      setDigits(newDigits);
+      // Focar no último preenchido ou no próximo vazio
+      const focusIndex = Math.min(chars.length, OTP_LENGTH - 1);
+      inputRefs.current[focusIndex]?.focus();
+      // Auto-submit se colou 6 dígitos
+      if (newDigits.every(d => d !== '') && newDigits.join('').length === OTP_LENGTH) {
+        onComplete(newDigits.join(''));
+      }
     }
   };
 
   return (
     <div className="flex flex-col items-center gap-4">
-      <div className="flex gap-2 sm:gap-3" onPaste={handlePaste}>
+      <div className="flex gap-2 sm:gap-3">
         {digits.map((digit, i) => (
           <input
             key={i}
@@ -94,6 +103,7 @@ export default function OTPInput({ onComplete, disabled, erro, onClear }) {
             value={digit}
             onChange={e => handleChange(i, e.target.value)}
             onKeyDown={e => handleKeyDown(i, e)}
+            onPaste={handlePaste}
             disabled={disabled}
             className={`
               w-12 h-14 sm:w-14 sm:h-16

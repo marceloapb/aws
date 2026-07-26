@@ -138,19 +138,38 @@ export default function ContratoClienteView() {
 
   // OTP input handlers
   const handleOtpChange = (index, value) => {
-    if (!/^\d*$/.test(value)) return;
+  const handleOtpChange = (index, value) => {
+    // Detectar paste via onChange (alguns browsers mobile)
+    const cleaned = value.replace(/\D/g, '');
+    if (cleaned.length > 1) {
+      // Colaram múltiplos dígitos
+      const chars = cleaned.slice(0, 6).split('');
+      const newCodigo = [...otpCodigo];
+      for (let i = 0; i < chars.length && i < 6; i++) {
+        newCodigo[i] = chars[i];
+      }
+      setOtpCodigo(newCodigo);
+      setOtpErro('');
+      const focusIdx = Math.min(chars.length, 5);
+      inputRefs.current[focusIdx]?.focus();
+      if (newCodigo.every(d => d !== '')) {
+        setTimeout(() => handleVerificarOTP(newCodigo), 100);
+      }
+      return;
+    }
+    if (!/^\d*$/.test(cleaned)) return;
     const newCodigo = [...otpCodigo];
-    newCodigo[index] = value.slice(-1);
+    newCodigo[index] = cleaned.slice(-1);
     setOtpCodigo(newCodigo);
     setOtpErro('');
 
     // Auto-advance
-    if (value && index < 5) {
+    if (cleaned && index < 5) {
       inputRefs.current[index + 1]?.focus();
     }
 
     // Auto-submit when all 6 digits filled
-    if (value && index === 5 && newCodigo.every(d => d !== '')) {
+    if (cleaned && index === 5 && newCodigo.every(d => d !== '')) {
       setTimeout(() => handleVerificarOTP(newCodigo), 100);
     }
   };
@@ -164,11 +183,18 @@ export default function ContratoClienteView() {
   const handleOtpPaste = (e) => {
     e.preventDefault();
     const pasted = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, 6);
-    if (pasted.length === 6) {
-      const newCodigo = pasted.split('');
+    if (pasted.length > 0) {
+      const newCodigo = [...otpCodigo];
+      const chars = pasted.split('');
+      for (let i = 0; i < chars.length && i < 6; i++) {
+        newCodigo[i] = chars[i];
+      }
       setOtpCodigo(newCodigo);
-      inputRefs.current[5]?.focus();
-      setTimeout(() => handleVerificarOTP(newCodigo), 100);
+      const focusIdx = Math.min(chars.length, 5);
+      inputRefs.current[focusIdx]?.focus();
+      if (newCodigo.every(d => d !== '')) {
+        setTimeout(() => handleVerificarOTP(newCodigo), 100);
+      }
     }
   };
 
@@ -397,7 +423,7 @@ export default function ContratoClienteView() {
           </div>
 
           {/* OTP Input — responsivo para mobile */}
-          <div className="flex justify-center gap-1.5 sm:gap-2 mb-4" onPaste={handleOtpPaste}>
+          <div className="flex justify-center gap-1.5 sm:gap-2 mb-4">
             {otpCodigo.map((digit, i) => (
               <input
                 key={i}
@@ -409,6 +435,7 @@ export default function ContratoClienteView() {
                 value={digit}
                 onChange={e => handleOtpChange(i, e.target.value)}
                 onKeyDown={e => handleOtpKeyDown(i, e)}
+                onPaste={handleOtpPaste}
                 className={`w-10 h-12 sm:w-12 sm:h-14 text-center text-lg sm:text-xl font-bold border-2 rounded-lg outline-none transition-colors ${
                   digit ? 'border-orange-400 bg-orange-50' : 'border-gray-300'
                 } focus:border-orange-500 focus:ring-2 focus:ring-orange-200`}
