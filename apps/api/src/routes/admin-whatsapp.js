@@ -424,18 +424,29 @@ router.get('/conversas', async (req, res) => {
     }
 
     // Tentar resolver nomes via clientes cadastrados
+    const TENANT = process.env.TENANT_ID || 'default';
     const clientesResult = await dynamo.send(new QueryCommand({
       TableName: TABLE,
-      IndexName: 'GSI1',
-      KeyConditionExpression: 'GSI1PK = :pk',
-      ExpressionAttributeValues: { ':pk': 'CLIENTE' },
+      KeyConditionExpression: 'PK = :pk AND begins_with(SK, :sk)',
+      ExpressionAttributeValues: { ':pk': `TENANT#${TENANT}`, ':sk': 'CLIENTE#' },
     }));
     const clientesMap = {};
     for (const c of (clientesResult.Items || [])) {
-      const tel = (c.whatsapp_numero || c.telefone || '').replace(/\D/g, '');
-      if (tel) clientesMap[tel] = c.nome;
-      if (tel.startsWith('55')) clientesMap[tel.slice(2)] = c.nome;
-      if (!tel.startsWith('55')) clientesMap[`55${tel}`] = c.nome;
+      const tel = (c.whatsapp_numero || c.whatsapp || c.telefone || c.celular || '').replace(/\D/g, '');
+      if (!tel) continue;
+      // Mapear todas as variações possíveis do número
+      clientesMap[tel] = c.nome;                          // 11994715161
+      clientesMap[`55${tel}`] = c.nome;                   // 5511994715161
+      if (tel.startsWith('55')) {
+        clientesMap[tel.slice(2)] = c.nome;               // sem DDI
+      }
+      if (tel.length === 11) {
+        clientesMap[`55${tel}`] = c.nome;                 // com DDI
+      }
+      if (tel.length === 13 && tel.startsWith('55')) {
+        clientesMap[tel] = c.nome;                        // 5511994715161
+        clientesMap[tel.slice(2)] = c.nome;               // 11994715161
+      }
     }
 
     // Montar lista de conversas
