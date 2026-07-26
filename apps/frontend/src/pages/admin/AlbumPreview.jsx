@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { Eye, X, ChevronLeft, ChevronRight, Camera, Download, Heart, MessageCircle } from 'lucide-react';
@@ -14,6 +14,8 @@ const DEFAULTS_TEMA = {
   logo_posicao: 'top-left',
 };
 
+const PAGE_SIZE = 40;
+
 export default function AlbumPreview() {
   const { id } = useParams();
   const { authFetch } = useAuth();
@@ -22,8 +24,25 @@ export default function AlbumPreview() {
   const [tema, setTema] = useState(DEFAULTS_TEMA);
   const [lightbox, setLightbox] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+  const loaderRef = useRef(null);
 
   useEffect(() => { loadData(); }, [id]);
+
+  // Infinite scroll observer
+  useEffect(() => {
+    if (!loaderRef.current) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && visibleCount < fotos.length) {
+          setVisibleCount(prev => Math.min(prev + PAGE_SIZE, fotos.length));
+        }
+      },
+      { threshold: 0.1 }
+    );
+    observer.observe(loaderRef.current);
+    return () => observer.disconnect();
+  }, [visibleCount, fotos.length]);
 
   const loadData = async () => {
     try {
@@ -44,12 +63,30 @@ export default function AlbumPreview() {
     setLoading(false);
   };
 
+  const openLightbox = useCallback((i) => setLightbox(i), []);
+  const closeLightbox = useCallback(() => setLightbox(null), []);
+  const prevPhoto = useCallback(() => setLightbox(i => Math.max(0, i - 1)), []);
+  const nextPhoto = useCallback(() => setLightbox(i => Math.min(fotos.length - 1, i + 1)), [fotos.length]);
+
+  // Keyboard navigation for lightbox
+  useEffect(() => {
+    if (lightbox === null) return;
+    const handleKey = (e) => {
+      if (e.key === 'Escape') closeLightbox();
+      if (e.key === 'ArrowLeft') prevPhoto();
+      if (e.key === 'ArrowRight') nextPhoto();
+    };
+    window.addEventListener('keydown', handleKey);
+    return () => window.removeEventListener('keydown', handleKey);
+  }, [lightbox, closeLightbox, prevPhoto, nextPhoto]);
+
   if (loading) return <div className="flex items-center justify-center min-h-screen text-gray-400">Carregando pré-visualização...</div>;
   if (!album) return <div className="flex items-center justify-center min-h-screen text-gray-400">Álbum não encontrado</div>;
 
   const cores = tema.cores || DEFAULTS_TEMA.cores;
   const acento = cores.acento || '#EA580C';
   const cota = album.cota_selecao || fotos.length;
+  const fotosVisiveis = fotos.slice(0, visibleCount);
 
   // Foto de capa
   const capaFoto = tema.capa_foto_id ? fotos.find(f => f.id === tema.capa_foto_id || f.SK?.replace('FOTO#', '') === tema.capa_foto_id) : fotos[0];
@@ -62,46 +99,12 @@ export default function AlbumPreview() {
       case 'coluna': return 'grid grid-cols-1 md:grid-cols-2 gap-4';
       case 'ladrilhos': return 'grid grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-1';
       case 'slider': return 'flex overflow-x-auto gap-4 snap-x snap-mandatory pb-4';
-      default: return 'grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3'; // grade
+      default: return 'grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3';
     }
   };
-
-  // Item class por layout
-  const getItemClass = (i) => {
-    switch (tema.layout) {
-      case 'mosaico': return 'break-inside-avoid rounded-lg overflow-hidden bg-gray-200 cursor-pointer';
-      case 'colagem': return 'break-inside-avoid rounded-lg overflow-hidden bg-gray-200 cursor-pointer';
-      case 'coluna': return 'rounded-lg overflow-hidden bg-gray-200 cursor-pointer';
-      case 'ladrilhos': return 'aspect-square overflow-hidden bg-gray-200 cursor-pointer';
-      case 'slider': return 'min-w-[300px] md:min-w-[400px] flex-shrink-0 snap-center rounded-lg overflow-hidden bg-gray-200 cursor-pointer';
-      default: return 'relative aspect-square rounded-lg overflow-hidden bg-gray-200 cursor-pointer'; // grade
-    }
-  };
-
-  // Animação CSS
-  const getAnimClass = () => {
-    switch (tema.animacao) {
-      case 'fade': return 'animate-fade-in';
-      case 'slide': return 'animate-slide-up';
-      case 'zoom': return 'animate-zoom-in';
-      default: return '';
-    }
-  };
-
-  const animClass = getAnimClass();
 
   return (
     <div className="min-h-screen" style={{ backgroundColor: cores.fundo, color: cores.texto, fontFamily: tema.fonte_corpo }}>
-      {/* CSS Animations */}
-      <style>{`
-        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-        @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
-        @keyframes zoomIn { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
-        .animate-fade-in { animation: fadeIn 0.5s ease-out both; }
-        .animate-slide-up { animation: slideUp 0.5s ease-out both; }
-        .animate-zoom-in { animation: zoomIn 0.4s ease-out both; }
-      `}</style>
-
       {/* Banner de Preview */}
       <div className="bg-yellow-50 border-b border-yellow-200 px-4 py-2 text-center sticky top-0 z-20">
         <span className="inline-flex items-center gap-2 text-sm text-yellow-800 font-medium">
@@ -113,13 +116,13 @@ export default function AlbumPreview() {
       {capaFoto && (
         <div className="relative w-full h-[40vh] md:h-[50vh] overflow-hidden">
           <img
-            src={capaFoto.url || capaFoto.url_thumb || ''}
+            src={capaFoto.url || ''}
             alt="Capa"
             className="w-full h-full"
             style={{ objectFit: tema.capa_modo || 'cover' }}
           />
-          <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
-          <div className="absolute bottom-0 left-0 right-0 p-6 md:p-10">
+          <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent pointer-events-none" />
+          <div className="absolute bottom-0 left-0 right-0 p-6 md:p-10 pointer-events-none">
             <h1 className="text-2xl md:text-4xl font-bold text-white drop-shadow-lg" style={{ fontFamily: tema.fonte_titulo }}>
               {album.titulo}
             </h1>
@@ -147,7 +150,6 @@ export default function AlbumPreview() {
       <div className="border-b" style={{ borderColor: `${cores.texto}10` }}>
         <div className="max-w-6xl mx-auto px-4 py-4">
           <div className="flex items-center justify-between flex-wrap gap-3">
-            {/* Info */}
             <div className="flex items-center gap-4 text-sm opacity-70">
               {album.permite_selecao && (
                 <span className="flex items-center gap-1"><Heart size={14} style={{ color: acento }} /> Seleção de fotos habilitada</span>
@@ -159,8 +161,6 @@ export default function AlbumPreview() {
                 <span className="flex items-center gap-1"><MessageCircle size={14} /> Comentários habilitados</span>
               )}
             </div>
-
-            {/* Botões visuais (desabilitados no preview) */}
             <div className="flex items-center gap-2">
               {album.permite_download && (
                 <span className="inline-flex items-center gap-1 px-3 py-2 border rounded-lg text-sm opacity-50 cursor-not-allowed" style={{ borderColor: `${cores.texto}20` }}>
@@ -170,7 +170,6 @@ export default function AlbumPreview() {
             </div>
           </div>
 
-          {/* Barra de seleção */}
           {album.permite_selecao && (
             <div className="mt-3 pt-3" style={{ borderTop: `1px solid ${cores.texto}10` }}>
               <div className="flex items-center justify-between mb-2">
@@ -190,52 +189,46 @@ export default function AlbumPreview() {
       {/* Grid de fotos */}
       <div className="max-w-6xl mx-auto px-4 py-6">
         <div className={getGridClass()}>
-          {fotos.map((foto, i) => (
-            <div
+          {fotosVisiveis.map((foto, i) => (
+            <FotoItem
               key={foto.id || i}
-              className={`${getItemClass(i)} ${animClass}`}
-              style={tema.animacao !== 'none' ? { animationDelay: `${i * 0.05}s` } : {}}
-              onClick={() => setLightbox(i)}
-            >
-              <img
-                src={foto.url_thumb || foto.url || ''}
-                alt={foto.titulo || ''}
-                className={`w-full ${tema.layout === 'grade' || tema.layout === 'ladrilhos' ? 'h-full object-cover' : 'object-cover'}`}
-                loading="lazy"
-                decoding="async"
-                sizes="(max-width: 768px) 50vw, (max-width: 1024px) 33vw, 25vw"
-                style={{ maxHeight: tema.layout === 'coluna' ? '400px' : undefined }}
-              />
-              {/* Overlay hover */}
-              <div className="absolute inset-0 bg-black/0 hover:bg-black/20 transition-colors flex items-end opacity-0 hover:opacity-100">
-                <div className="p-2 w-full flex items-center justify-between">
-                  {album.permite_selecao && (
-                    <span className="w-7 h-7 rounded-full bg-white/80 flex items-center justify-center">
-                      <Heart size={14} style={{ color: acento }} />
-                    </span>
-                  )}
-                  <span className="text-xs bg-black/50 text-white px-1.5 py-0.5 rounded">{i + 1}</span>
-                </div>
-              </div>
-            </div>
+              foto={foto}
+              index={i}
+              layout={tema.layout}
+              acento={acento}
+              permiteSelecao={album.permite_selecao}
+              onOpen={openLightbox}
+            />
           ))}
         </div>
+
+        {/* Loader para infinite scroll */}
+        {visibleCount < fotos.length && (
+          <div ref={loaderRef} className="flex justify-center py-8">
+            <p className="text-sm opacity-50">Carregando mais fotos... ({visibleCount} de {fotos.length})</p>
+          </div>
+        )}
       </div>
 
       {/* Lightbox */}
       {lightbox !== null && (
-        <div className="fixed inset-0 bg-black z-50 flex items-center justify-center">
-          <button onClick={() => setLightbox(null)} className="absolute top-4 right-4 text-white p-2 hover:bg-white/10 rounded-full z-10">
+        <div className="fixed inset-0 bg-black z-50 flex items-center justify-center" onClick={closeLightbox}>
+          <button onClick={(e) => { e.stopPropagation(); closeLightbox(); }} className="absolute top-4 right-4 text-white p-2 hover:bg-white/10 rounded-full z-10">
             <X size={24} />
           </button>
-          <button onClick={() => setLightbox(Math.max(0, lightbox - 1))} className="absolute left-4 text-white p-2 hover:bg-white/10 rounded-full">
+          <button onClick={(e) => { e.stopPropagation(); prevPhoto(); }} className="absolute left-4 text-white p-2 hover:bg-white/10 rounded-full">
             <ChevronLeft size={28} />
           </button>
-          <button onClick={() => setLightbox(Math.min(fotos.length - 1, lightbox + 1))} className="absolute right-4 text-white p-2 hover:bg-white/10 rounded-full">
+          <button onClick={(e) => { e.stopPropagation(); nextPhoto(); }} className="absolute right-4 text-white p-2 hover:bg-white/10 rounded-full">
             <ChevronRight size={28} />
           </button>
-          <img src={fotos[lightbox]?.url_full || fotos[lightbox]?.url || ''} alt="" className="max-h-[90vh] max-w-[90vw] object-contain" />
-          <div className="absolute bottom-4 left-1/2 -translate-x-1/2 text-white text-sm bg-black/50 px-3 py-1 rounded-full">
+          <img
+            src={fotos[lightbox]?.url_full || fotos[lightbox]?.url || ''}
+            alt=""
+            className="max-h-[90vh] max-w-[90vw] object-contain"
+            onClick={(e) => e.stopPropagation()}
+          />
+          <div className="absolute bottom-4 left-1/2 -translate-x-1/2 text-white text-sm bg-black/50 px-3 py-1 rounded-full pointer-events-none">
             {lightbox + 1} / {fotos.length}
             {fotos[lightbox]?.titulo && <span className="ml-2">— {fotos[lightbox].titulo}</span>}
           </div>
@@ -244,3 +237,41 @@ export default function AlbumPreview() {
     </div>
   );
 }
+
+// Componente separado para cada foto — evita re-render do grid inteiro
+const FotoItem = React.memo(function FotoItem({ foto, index, layout, acento, permiteSelecao, onOpen }) {
+  const getItemClass = () => {
+    switch (layout) {
+      case 'mosaico': return 'break-inside-avoid rounded-lg overflow-hidden bg-gray-200 mb-3';
+      case 'colagem': return 'break-inside-avoid rounded-lg overflow-hidden bg-gray-200 mb-2';
+      case 'coluna': return 'rounded-lg overflow-hidden bg-gray-200';
+      case 'ladrilhos': return 'aspect-square overflow-hidden bg-gray-200';
+      case 'slider': return 'min-w-[300px] md:min-w-[400px] flex-shrink-0 snap-center rounded-lg overflow-hidden bg-gray-200';
+      default: return 'aspect-square rounded-lg overflow-hidden bg-gray-200';
+    }
+  };
+
+  return (
+    <div className={`relative group ${getItemClass()}`}>
+      <img
+        src={foto.url || ''}
+        alt={foto.titulo || ''}
+        className={`w-full cursor-pointer ${layout === 'grade' || layout === 'ladrilhos' ? 'h-full object-cover' : 'object-cover'}`}
+        loading="lazy"
+        decoding="async"
+        onClick={() => onOpen(index)}
+        style={{ maxHeight: layout === 'coluna' ? '400px' : undefined }}
+      />
+      {/* Número da foto */}
+      <span className="absolute bottom-1 right-1 text-xs bg-black/50 text-white px-1.5 py-0.5 rounded pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity">
+        {index + 1}
+      </span>
+      {/* Ícone seleção */}
+      {permiteSelecao && (
+        <span className="absolute top-1 right-1 w-6 h-6 rounded-full bg-white/70 flex items-center justify-center pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity">
+          <Heart size={12} style={{ color: acento }} />
+        </span>
+      )}
+    </div>
+  );
+});
