@@ -39,8 +39,15 @@ const adminSections = [
     links: [
       { to: '/admin/feedback', icon: Star, label: 'Feedback' },
       { to: '/admin/instagram', icon: Instagram, label: 'Instagram' },
-      { to: '/admin/whatsapp', icon: MessageCircle, label: 'WhatsApp' },
       { to: '/admin/followup', icon: Zap, label: 'Follow-up' },
+    ],
+  },
+  {
+    label: 'Comunicação',
+    links: [
+      { to: '/admin/whatsapp', icon: MessageCircle, label: 'WhatsApp' },
+      { to: '/admin/config?tab=emails', icon: Mail, label: 'Templates E-mail' },
+      { to: '/admin/notificacoes/config', icon: Zap, label: 'Regras Notificação' },
     ],
   },
   {
