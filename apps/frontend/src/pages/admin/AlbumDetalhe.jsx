@@ -375,8 +375,8 @@ export default function AlbumDetalhe() {
               </button>
             </>
           )}
-          {album.status !== 'publicado' && album.slug && (
-            <button onClick={() => window.open(`/album/${album.slug}?preview=1`, '_blank')}
+          {album.status !== 'publicado' && (
+            <button onClick={() => window.open(`/admin/albuns/${id}/preview`, '_blank')}
               className="flex items-center gap-1 px-3 py-2 rounded text-sm border border-gray-300 hover:bg-gray-100">
               <Eye size={15} /> Pré-visualização
             </button>
