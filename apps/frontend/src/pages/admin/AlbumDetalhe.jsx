@@ -560,37 +560,65 @@ export default function AlbumDetalhe() {
 
               {/* === GALERIA PREVIEW === */}
               {previewMode === 'galeria' && (
-                <div className="w-full h-full min-h-[400px] p-6" style={{ backgroundColor: tema.cores_galerias?.background || '#121212' }}>
-                  <div className={`grid gap-[${tema.espacamento}px] ${
-                    tema.layout === 'coluna' ? 'grid-cols-1' :
-                    tema.layout === 'grade' ? 'grid-cols-3' :
-                    tema.layout === 'mosaico' ? 'grid-cols-4' :
-                    tema.layout === 'slider' ? 'grid-cols-1' :
-                    tema.layout === 'faixa' ? 'grid-cols-1' :
-                    'grid-cols-3'
-                  }`} style={{ gap: `${tema.espacamento}px` }}>
-                    {fotosGaleria.slice(0, 12).map((foto, idx) => (
-                      <div key={foto.id}
-                        className={`relative overflow-hidden group cursor-pointer ${
-                          tema.layout === 'mosaico' && idx === 0 ? 'col-span-2 row-span-2' :
-                          tema.layout === 'coluna' ? 'w-full max-w-lg mx-auto' :
-                          tema.layout === 'slider' ? 'w-full max-w-2xl mx-auto' :
-                          tema.layout === 'faixa' ? 'w-full h-48' :
-                          ''
-                        }`}
-                        style={{
-                          borderRadius: `${tema.cores_galerias?.borda_raio || 0}px`,
-                          border: `${tema.cores_galerias?.borda_largura || 0}px solid ${tema.cores_galerias?.borda_cor || 'transparent'}`,
-                        }}
-                        onClick={() => setLightboxIndex(idx)}>
-                        <img src={foto.thumbnail_url || foto.url} alt="" className={`w-full object-cover ${tema.layout === 'slider' || tema.layout === 'faixa' ? 'h-48' : 'h-40'}`} />
-                        {/* Hover overlay */}
-                        <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
-                          style={{ backgroundColor: (tema.cores_galerias?.overlay_hover || '#000000') + Math.round((tema.cores_galerias?.overlay_opacidade || 30) * 2.55).toString(16).padStart(2, '0') }}>
-                          <span className="text-sm font-medium" style={{ color: tema.cores_galerias?.overlay_texto || '#fff' }}>{foto.titulo || foto.filename || `Foto ${idx + 1}`}</span>
+                <div className="w-full h-full min-h-[400px] p-4 overflow-y-auto" style={{ backgroundColor: tema.cores_galerias?.background || '#121212' }}>
+                  <div className={(() => {
+                    switch (tema.layout) {
+                      case 'mosaico': return 'grid grid-cols-3 lg:grid-cols-4 auto-rows-[120px]';
+                      case 'colagem': return 'grid grid-cols-2 md:grid-cols-3 auto-rows-[110px]';
+                      case 'coluna': return 'grid grid-cols-1 md:grid-cols-2';
+                      case 'ladrilhos': return 'grid grid-cols-3 md:grid-cols-4 lg:grid-cols-5';
+                      case 'slider': return 'flex overflow-x-auto snap-x snap-mandatory pb-2 scrollbar-hide';
+                      case 'faixa': return 'grid grid-cols-1';
+                      case 'grade': return 'grid grid-cols-2 md:grid-cols-3';
+                      default: return 'grid grid-cols-2 md:grid-cols-3';
+                    }
+                  })()} style={{ gap: `${tema.espacamento || 8}px` }}>
+                    {fotosGaleria.slice(0, 12).map((foto, idx) => {
+                      const getItemClass = () => {
+                        switch (tema.layout) {
+                          case 'mosaico': {
+                            const pattern = idx % 5;
+                            return pattern === 0 ? 'row-span-2 col-span-2' : 'row-span-1';
+                          }
+                          case 'colagem': {
+                            const pattern = idx % 7;
+                            return (pattern === 0 || pattern === 3) ? 'row-span-2' : 'row-span-1';
+                          }
+                          case 'coluna': return '';
+                          case 'ladrilhos': return 'aspect-square';
+                          case 'slider': return 'min-w-[60%] flex-shrink-0 snap-center';
+                          case 'faixa': return 'w-full';
+                          default: return 'aspect-square';
+                        }
+                      };
+
+                      return (
+                        <div key={foto.id}
+                          className={`relative overflow-hidden group cursor-pointer ${getItemClass()}`}
+                          style={{
+                            borderRadius: `${tema.cores_galerias?.borda_raio || 0}px`,
+                            border: `${tema.cores_galerias?.borda_largura || 0}px solid ${tema.cores_galerias?.borda_cor || 'transparent'}`,
+                          }}
+                          onClick={() => setLightboxIndex(idx)}>
+                          <img
+                            src={foto.thumbnail_url || foto.url}
+                            alt={foto.titulo || foto.filename || ''}
+                            className={`w-full h-full object-cover ${
+                              tema.layout === 'slider' ? 'h-48' :
+                              tema.layout === 'faixa' ? 'h-36' :
+                              tema.layout === 'coluna' ? 'max-h-[200px]' :
+                              ''
+                            }`}
+                            loading="lazy"
+                          />
+                          {/* Hover overlay */}
+                          <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center justify-center"
+                            style={{ backgroundColor: (tema.cores_galerias?.overlay_hover || '#000000') + Math.round((tema.cores_galerias?.overlay_opacidade || 30) * 2.55).toString(16).padStart(2, '0') }}>
+                            <span className="text-xs font-medium px-2 text-center" style={{ color: tema.cores_galerias?.overlay_texto || '#fff' }}>{foto.titulo || foto.filename || `Foto ${idx + 1}`}</span>
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                   {fotosGaleria.length === 0 && <div className="flex items-center justify-center h-full"><p className="text-gray-500 text-sm">Nenhuma foto na galeria. Faça upload na aba Mídia.</p></div>}
                 </div>
