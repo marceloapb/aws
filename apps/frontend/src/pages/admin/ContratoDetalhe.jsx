@@ -108,16 +108,34 @@ export default function ContratoDetalhe() {
       const json = await res.json();
       if (!json.success || !json.html) { alert(json.message || 'Erro ao gerar PDF'); return; }
 
-      // Abrir em nova janela com todo o HTML (preserva styles) e imprimir como PDF
-      const win = window.open('', '_blank', 'width=900,height=700');
-      win.document.open();
-      win.document.write(json.html);
-      win.document.close();
-      // Aguardar render e abrir diálogo de impressão (Salvar como PDF)
-      setTimeout(() => {
-        win.focus();
-        win.print();
-      }, 800);
+      // Carregar html2pdf.js
+      if (!window.html2pdf) {
+        const script = document.createElement('script');
+        script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js';
+        document.head.appendChild(script);
+        await new Promise(resolve => { script.onload = resolve; });
+      }
+
+      // Usar iframe oculto para renderizar HTML completo (preserva <head><style>)
+      const iframe = document.createElement('iframe');
+      iframe.style.cssText = 'position:fixed;left:-9999px;width:800px;height:1200px;border:none;';
+      document.body.appendChild(iframe);
+      const iDoc = iframe.contentDocument || iframe.contentWindow.document;
+      iDoc.open(); iDoc.write(json.html); iDoc.close();
+
+      await new Promise(resolve => setTimeout(resolve, 600));
+
+      const nomeArquivo = `contrato-${contrato?.numero_contrato || id.slice(-6)}.pdf`;
+      await window.html2pdf().set({
+        margin: [10, 10, 10, 10],
+        filename: nomeArquivo,
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { scale: 2, useCORS: true, scrollY: 0 },
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+        pagebreak: { mode: ['avoid-all', 'css', 'legacy'] },
+      }).from(iDoc.body).save();
+
+      document.body.removeChild(iframe);
     } catch (err) { alert('Erro ao gerar PDF: ' + err.message); }
   }
 
