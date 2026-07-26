@@ -345,9 +345,9 @@ export default function AlbumPreview() {
 
   const getImgClass = () => {
     switch (layout) {
-      case 'mosaico': return 'w-full h-full object-cover';
-      case 'colagem': return 'w-full h-full object-cover';
-      case 'coluna': return 'w-full max-h-[500px] object-cover';
+      case 'mosaico': return 'w-full h-full object-contain bg-black/5';
+      case 'colagem': return 'w-full h-full object-contain bg-black/5';
+      case 'coluna': return 'w-full max-h-[500px] object-contain';
       case 'slider': return 'w-full h-[60vh] object-cover';
       default: return 'w-full h-full object-cover';
     }

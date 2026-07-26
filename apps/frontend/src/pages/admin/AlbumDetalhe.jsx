@@ -623,7 +623,9 @@ export default function AlbumDetalhe() {
                           <img
                             src={foto.thumbnail_url || foto.url}
                             alt={foto.titulo || foto.filename || ''}
-                            className={`w-full h-full object-cover ${
+                            className={`w-full h-full ${
+                              tema.layout === 'mosaico' || tema.layout === 'colagem' ? 'object-contain bg-black/5' : 'object-cover'
+                            } ${
                               tema.layout === 'slider' ? 'h-48' :
                               tema.layout === 'faixa' ? 'h-36' :
                               tema.layout === 'coluna' ? 'max-h-[200px]' :
