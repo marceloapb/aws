@@ -151,18 +151,17 @@ router.post('/', async (req, res) => {
     const id = crypto.randomUUID();
     const TENANT = process.env.TENANT_ID || 'default';
 
-    // Buscar dias de expiração da configuração
+    // Buscar dias de expiração da configuração de álbuns
     let diasExpiracao = req.body.dias_expiracao || null;
     if (!diasExpiracao) {
       try {
         const cfgResult = await dynamo.send(new GetCommand({
           TableName: TABLE,
-          Key: { PK: `TENANT#${TENANT}`, SK: 'CONFIG#dataRetentionMonths' },
+          Key: { PK: `TENANT#${TENANT}`, SK: 'CONFIG#ALBUM' },
         }));
-        const meses = Number(cfgResult.Item?.valor) || 0;
-        diasExpiracao = meses > 0 ? meses * 30 : 30; // default 30 dias se config = 0
+        diasExpiracao = cfgResult.Item?.prazo_padrao_dias || 180;
       } catch {
-        diasExpiracao = 30;
+        diasExpiracao = 180;
       }
     }
 
