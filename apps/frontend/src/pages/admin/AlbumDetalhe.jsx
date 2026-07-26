@@ -364,9 +364,21 @@ export default function AlbumDetalhe() {
           </div>
 
           {album.status === 'publicado' && (
-            <button onClick={() => navigator.clipboard.writeText(`${window.location.origin}/album/${album.slug}`)}
+            <>
+              <button onClick={() => window.open(`/album/${album.slug}`, '_blank')}
+                className="flex items-center gap-1 px-3 py-2 rounded text-sm border border-gray-300 hover:bg-gray-100">
+                <Eye size={15} /> Visualização do Cliente
+              </button>
+              <button onClick={() => navigator.clipboard.writeText(`${window.location.origin}/album/${album.slug}`)}
+                className="flex items-center gap-1 px-3 py-2 rounded text-sm border border-gray-300 hover:bg-gray-100">
+                <Link2 size={15} /> Compartilhar Link
+              </button>
+            </>
+          )}
+          {album.status !== 'publicado' && album.slug && (
+            <button onClick={() => window.open(`/album/${album.slug}?preview=1`, '_blank')}
               className="flex items-center gap-1 px-3 py-2 rounded text-sm border border-gray-300 hover:bg-gray-100">
-              <Link2 size={15} /> Compartilhar Link
+              <Eye size={15} /> Pré-visualização
             </button>
           )}
 
