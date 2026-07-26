@@ -5,7 +5,7 @@
 const { SESClient, SendEmailCommand } = require('@aws-sdk/client-ses');
 
 const ses = new SESClient({});
-const FROM_EMAIL = process.env.SES_FROM_EMAIL || 'noreply@mbfoto.com.br';
+const FROM_EMAIL = process.env.SES_FROM_EMAIL || 'contato@bloise.com.br';
 
 /**
  * Envia email via SES com template interpolation
