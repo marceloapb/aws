@@ -3,11 +3,15 @@ import { useParams } from 'react-router-dom';
 import {
   Upload, Send, Link2, Settings, Plus, Trash2, ChevronUp, ChevronDown,
   X, ChevronLeft, ChevronRight, Download, Clock, CalendarPlus, Eye,
-  MessageSquare, Image, CheckCircle2, Shield, Edit, Palette
+  MessageSquare, Image, CheckCircle2, Shield, Edit, Palette, Type,
+  Layers, LayoutGrid, Grid3X3, Columns, SlidersHorizontal, Move,
+  Sparkles, Monitor, Smartphone
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 
-const ACCENT = '#EA580C';
+const ACCENT = '#3B82F6';
+const ACCENT_LIGHT = '#EFF6FF';
+
 
 const statusColors = {
   rascunho: 'bg-gray-200 text-gray-700',
@@ -16,11 +20,77 @@ const statusColors = {
   expirado: 'bg-red-100 text-red-700',
 };
 
+const LAYOUT_OPTIONS = [
+  { id: 'colagem', label: 'Colagem', icon: '▦' },
+  { id: 'mosaico', label: 'Mosaico', icon: '▧' },
+  { id: 'grade', label: 'Grade', icon: '▤' },
+  { id: 'miniaturas', label: 'Miniaturas', icon: '▥' },
+  { id: 'slider', label: 'Slider', icon: '▬' },
+  { id: 'apresentacao', label: 'Apresentação', icon: '▶' },
+  { id: 'faixa', label: 'Faixa', icon: '═' },
+  { id: 'coluna', label: 'Coluna', icon: '║' },
+  { id: 'ladrilhos', label: 'Ladrilhos', icon: '▩' },
+  { id: 'misto', label: 'Misto', icon: '⊞' },
+  { id: 'alternar', label: 'Alternar', icon: '⇆' },
+  { id: 'magico', label: 'Mágico', icon: '✦' },
+];
+
+
+const CAPA_LAYOUTS = [
+  { id: 'elegante', label: 'Elegante' },
+  { id: 'ousado', label: 'Ousado' },
+  { id: 'jovial', label: 'Jovial' },
+  { id: 'classico', label: 'Clássico' },
+  { id: 'minimalista', label: 'Minimalista' },
+  { id: 'atemporal', label: 'Atemporal' },
+  { id: 'moderno', label: 'Moderno' },
+];
+
+const SCROLL_EFFECTS = [
+  { id: 'none', label: 'Sem efeito' },
+  { id: 'gradual', label: 'Gradualmente' },
+  { id: 'grayscale', label: 'Tons de cinza' },
+  { id: 'slide', label: 'Deslizar' },
+  { id: 'expand', label: 'Expandir' },
+  { id: 'shrink', label: 'Encolher' },
+  { id: 'zoom-out', label: 'Zoom out' },
+  { id: 'one-color', label: 'Uma cor' },
+];
+
+const HOVER_EFFECTS = [
+  { id: 'none', label: 'Sem efeito' },
+  { id: 'zoom', label: 'Aproximar' },
+  { id: 'blur', label: 'Desfocado' },
+  { id: 'grayscale', label: 'Tons de cinza' },
+  { id: 'shrink', label: 'Encolher' },
+  { id: 'invert', label: 'Invertido' },
+  { id: 'color', label: 'Cor' },
+  { id: 'darken', label: 'Escurecer' },
+];
+
+const OVERLAY_ANIMATIONS = [
+  { id: 'none', label: 'Sem efeito' },
+  { id: 'gradual', label: 'Gradualmente' },
+  { id: 'expand', label: 'Expandir' },
+  { id: 'slide', label: 'Deslizar' },
+  { id: 'slide-reverse', label: 'Deslizar p...' },
+];
+
+
+const FONT_PRESETS = [
+  { titulo: 'Playfair Display', corpo: 'Inter' },
+  { titulo: 'Cormorant Garamond', corpo: 'Open Sans' },
+  { titulo: 'Montserrat', corpo: 'Lato' },
+  { titulo: 'Lora', corpo: 'Roboto' },
+  { titulo: 'Poppins', corpo: 'Source Sans Pro' },
+];
+
 export default function AlbumDetalhe() {
   const { id } = useParams();
-  const { authFetch, token } = useAuth();
+  const { authFetch } = useAuth();
   const fileInputRef = useRef(null);
 
+  // Core state
   const [album, setAlbum] = useState(null);
   const [galerias, setGalerias] = useState([]);
   const [galeriaAtiva, setGaleriaAtiva] = useState(null);
@@ -33,29 +103,94 @@ export default function AlbumDetalhe() {
   const [showNovaGaleria, setShowNovaGaleria] = useState(false);
   const [renaming, setRenaming] = useState(null);
   const [renameValue, setRenameValue] = useState('');
-  const [watermark, setWatermark] = useState(true);
-  const [comentario, setComentario] = useState('');
-  const [showProrrogar, setShowProrrogar] = useState(false);
-  const [showConfig, setShowConfig] = useState(false);
-  const [showTema, setShowTema] = useState(false);
-  const [tema, setTema] = useState({ cores: { fundo: '#FFFFFF', texto: '#1A1A1A', acento: '#EA580C' }, layout: 'grade', animacao: 'none' });
-  const [prorrogarData, setProrrogarData] = useState('');
-  const [prorrogarValor, setProrrogarValor] = useState('');
+
+
+  // Sidebar navigation
+  const [activeTab, setActiveTab] = useState('midia');
+  const [designSubTab, setDesignSubTab] = useState('layouts');
+  const [designLayoutTab, setDesignLayoutTab] = useState('galerias');
+  const [designColorTab, setDesignColorTab] = useState('capa');
+  const [textoTab, setTextoTab] = useState('capa');
+
+  // Tema / Design state
+  const [tema, setTema] = useState({
+    layout: 'colagem',
+    capa_layout: 'elegante',
+    orientacao: 'horizontal',
+    espacamento: 10,
+    densidade_colagem: 40,
+    cores_capa: { texto: '#FFFFFF', overlay: '#121212' },
+    cores_galerias: {
+      texto_icones: '#FF3C00',
+      background: '#121212',
+      overlay_texto: '#FF3C00',
+      overlay_hover: '#FF3C00',
+      overlay_opacidade: 30,
+      borda_cor: '#FF3C00',
+      borda_largura: 3,
+      borda_raio: 10,
+    },
+    fonte_titulo: 'Playfair Display',
+    fonte_corpo: 'Inter',
+    animacao_scroll: 'none',
+    animacao_hover: 'none',
+    animacao_overlay: 'none',
+    qualidade_imagem: 90,
+    capa_foto_id: null,
+  });
+
+
+  // Texto state
+  const [textoAlbum, setTextoAlbum] = useState({
+    titulo: '',
+    texto_botao: 'Ver fotos',
+    mais_info: true,
+    data_evento: '',
+    info_negocio: true,
+    info_tipo: 'nome',
+    nome_negocio: '',
+  });
+
+  // Config state
+  const [config, setConfig] = useState({
+    permite_download: true,
+    permite_selecao: true,
+    permite_comentarios: true,
+    cota_selecao: 0,
+    senha_acesso: '',
+    data_expiracao: '',
+  });
+
+  // Gallery media modal
+  const [showGaleriaModal, setShowGaleriaModal] = useState(false);
   const [editingFoto, setEditingFoto] = useState(null);
   const [editFotoForm, setEditFotoForm] = useState({ titulo: '', descricao: '' });
 
+
+  // Fetch album data
   const fetchAlbum = useCallback(async () => {
     try {
       const albumRes = await authFetch(`/admin/albuns/${id}`);
       const albumJson = await albumRes.json();
-
       if (albumJson.success) {
         const data = albumJson.data;
         setAlbum(data);
         setFotos(data.fotos || []);
+        setTextoAlbum(t => ({
+          ...t,
+          titulo: data.titulo || '',
+          data_evento: data.data_evento || '',
+          nome_negocio: data.nome_negocio || '',
+        }));
+        setConfig({
+          permite_download: data.permite_download ?? true,
+          permite_selecao: data.permite_selecao ?? true,
+          permite_comentarios: data.permite_comentarios ?? true,
+          cota_selecao: data.cota_selecao || 0,
+          senha_acesso: data.senha_acesso || '',
+          data_expiracao: data.data_expiracao || '',
+        });
       }
-
-      // Galerias em separado (não bloqueia se falhar)
       try {
         const galeriasRes = await authFetch(`/admin/albuns/${id}/galerias`);
         const galeriasJson = await galeriasRes.json();
@@ -64,58 +199,49 @@ export default function AlbumDetalhe() {
           if (!galeriaAtiva) setGaleriaAtiva(galeriasJson.data[0].id);
         }
       } catch {}
+      try {
+        const temaRes = await authFetch(`/admin/albuns/${id}/tema`);
+        const temaJson = await temaRes.json();
+        if (temaJson.success && temaJson.data) {
+          setTema(t => ({ ...t, ...temaJson.data }));
+        }
+      } catch {}
     } catch {}
   }, [id, authFetch]);
 
   useEffect(() => { fetchAlbum(); }, [fetchAlbum]);
 
+
+  // Computed
   const fotosGaleria = !galeriaAtiva
     ? fotos
     : galeriaAtiva === '__sem_galeria__'
       ? fotos.filter(f => !f.galeria_id)
       : fotos.filter(f => f.galeria_id === galeriaAtiva);
-  const totalFotos = fotos.length;
-  const selecionadasCliente = fotos.filter(f => f.selecionada_cliente).length;
-  const pagamento = album?.pagamento_percentual || 0;
-  const pagamentoBaixo = pagamento < 70;
-  const diasExpiracao = album?.data_expiracao
-    ? Math.max(0, Math.ceil((new Date(album.data_expiracao) - new Date()) / 86400000)) : null;
 
-  // ALB-07 Publicar
-  const handlePublicar = async () => {
-    if (pagamentoBaixo && !window.confirm(`Atenção: pagamento em ${pagamento}% (recomendado mínimo 70%). Deseja publicar mesmo assim?`)) return;
-    const res = await authFetch(`/admin/albuns/${id}/publicar`, { method: 'POST' });
-    const json = await res.json();
-    if (json.success) fetchAlbum();
-    else alert(json.message || 'Erro ao publicar');
-  };
+  const capaFoto = fotos.find(f =>
+    (f.id === tema.capa_foto_id) || (f.SK?.replace('FOTO#', '') === tema.capa_foto_id)
+  );
 
-  // ALB-02 Upload
+  // Upload handler
   const handleUpload = async (e) => {
     const files = Array.from(e.target.files);
     if (!files.length) return;
     setUploading(true);
     setUploadProgress(0);
-
     const BATCH_SIZE = 50;
     const confirmList = [];
     let uploaded = 0;
 
-    // Processar em lotes de 50
     for (let batch = 0; batch < files.length; batch += BATCH_SIZE) {
       const batchFiles = files.slice(batch, batch + BATCH_SIZE);
       const filesData = batchFiles.map(f => ({ filename: f.name, content_type: f.type, size_bytes: f.size }));
-
       const urlsRes = await authFetch(`/admin/albuns/${id}/upload-urls`, {
-        method: 'POST',
-        body: JSON.stringify({ files: filesData }),
+        method: 'POST', body: JSON.stringify({ files: filesData }),
       });
       const urlsJson = await urlsRes.json();
       if (!urlsJson.success) { setUploading(false); alert(urlsJson.message || 'Erro ao gerar URLs'); return; }
-
       const uploads = urlsJson.data;
-
-      // Upload paralelo (5 por vez dentro do lote)
       const CONCURRENT = 5;
       for (let i = 0; i < batchFiles.length; i += CONCURRENT) {
         const chunk = batchFiles.slice(i, i + CONCURRENT);
@@ -131,43 +257,32 @@ export default function AlbumDetalhe() {
         setUploadProgress(Math.round((uploaded / files.length) * 100));
       }
     }
-
-    // Confirmar em lotes de 50
     for (let i = 0; i < confirmList.length; i += BATCH_SIZE) {
-      const batchConfirm = confirmList.slice(i, i + BATCH_SIZE);
       await authFetch(`/admin/albuns/${id}/fotos/confirmar-batch`, {
-        method: 'POST',
-        body: JSON.stringify({ fotos: batchConfirm, galeria_id: galeriaAtiva }),
+        method: 'POST', body: JSON.stringify({ fotos: confirmList.slice(i, i + BATCH_SIZE), galeria_id: galeriaAtiva }),
       });
     }
-
     setUploading(false);
     setUploadProgress(100);
-    await new Promise(r => setTimeout(r, 1000));
+    await new Promise(r => setTimeout(r, 800));
     await fetchAlbum();
   };
 
-  // ALB-05 Galerias
+
+  // Gallery actions
   const criarGaleria = async () => {
     if (!novaGaleria.trim()) return;
     const res = await authFetch(`/admin/albuns/${id}/galerias`, {
-      method: 'POST',
-      body: JSON.stringify({ nome: novaGaleria.trim() }),
+      method: 'POST', body: JSON.stringify({ nome: novaGaleria.trim() }),
     });
     const json = await res.json();
-    if (json.success) {
-      setNovaGaleria('');
-      setShowNovaGaleria(false);
-      fetchAlbum();
-    } else {
-      alert(json.message || 'Erro ao criar galeria');
-    }
+    if (json.success) { setNovaGaleria(''); setShowNovaGaleria(false); fetchAlbum(); }
+    else alert(json.message || 'Erro ao criar galeria');
   };
 
   const renomearGaleria = async (gid) => {
     await authFetch(`/admin/albuns/${id}/galerias/${gid}`, {
-      method: 'PUT',
-      body: JSON.stringify({ nome: renameValue }),
+      method: 'PUT', body: JSON.stringify({ nome: renameValue }),
     });
     setRenaming(null);
     fetchAlbum();
@@ -177,9 +292,7 @@ export default function AlbumDetalhe() {
     const gFotos = fotos.filter(f => f.galeria_id === gid);
     if (gFotos.length > 0) return alert('Só é possível excluir galerias vazias.');
     if (!confirm('Excluir esta galeria?')) return;
-    const res = await authFetch(`/admin/albuns/${id}/galerias/${gid}`, { method: 'DELETE' });
-    const json = await res.json();
-    if (!json.success) { alert(json.message || 'Erro ao excluir'); return; }
+    await authFetch(`/admin/albuns/${id}/galerias/${gid}`, { method: 'DELETE' });
     if (galeriaAtiva === gid) setGaleriaAtiva(galerias[0]?.id || null);
     fetchAlbum();
   };
@@ -191,68 +304,72 @@ export default function AlbumDetalhe() {
     [newArr[idx], newArr[swapIdx]] = [newArr[swapIdx], newArr[idx]];
     setGalerias(newArr);
     await authFetch(`/admin/albuns/${id}/galerias/reorder`, {
-      method: 'PUT',
-      body: JSON.stringify(newArr.map((g, i) => ({ id: g.id, ordem: i }))),
+      method: 'PUT', body: JSON.stringify(newArr.map((g, i) => ({ id: g.id, ordem: i }))),
     });
   };
 
-  // ALB-06 Organização
+
+  // Photo actions
   const toggleSelecionada = (fotoId) => {
     setSelecionadas(prev => prev.includes(fotoId) ? prev.filter(x => x !== fotoId) : [...prev, fotoId]);
   };
 
   const excluirSelecionadas = async () => {
     if (!confirm(`Excluir ${selecionadas.length} fotos?`)) return;
-    await Promise.all(selecionadas.map(fid =>
-      authFetch(`/admin/fotos/${fid}`, { method: 'DELETE' })
-    ));
+    await Promise.all(selecionadas.map(fid => authFetch(`/admin/fotos/${fid}`, { method: 'DELETE' })));
     setSelecionadas([]);
     fetchAlbum();
   };
 
   const moverParaGaleria = async (destino) => {
     for (const fid of selecionadas) {
-      await authFetch(`/admin/fotos/${fid}`, {
-        method: 'PUT',
-        body: JSON.stringify({ galeria_id: destino }),
-      }).catch(() => {});
+      await authFetch(`/admin/fotos/${fid}`, { method: 'PUT', body: JSON.stringify({ galeria_id: destino }) }).catch(() => {});
     }
     setSelecionadas([]);
     fetchAlbum();
   };
 
-  // ALB-09 Download
-  const downloadFoto = async (foto) => {
-    const res = await authFetch(`/admin/fotos/upload-url`, { method: 'POST',
-      body: JSON.stringify({ download: true, foto_id: foto.id }),
-    });
-    const { url } = await res.json();
-    window.open(url, '_blank');
+  const definirComoCapa = async (fotoId) => {
+    const newTema = { ...tema, capa_foto_id: fotoId };
+    setTema(newTema);
+    try { await authFetch(`/admin/albuns/${id}/tema`, { method: 'PUT', body: JSON.stringify(newTema) }); } catch {}
   };
 
-  const downloadTodas = () => fotos.forEach(f => downloadFoto(f));
-
-  // ALB-11 Prorrogar
-  const handleProrrogar = async () => {
-    await authFetch(`/admin/albuns/${id}`, {
-      method: 'PUT', 
-      body: JSON.stringify({ data_expiracao: prorrogarData, valor_prorrogacao: prorrogarValor }),
-    });
-    setShowProrrogar(false);
-    fetchAlbum();
+  // Save tema
+  const saveTema = async () => {
+    try { await authFetch(`/admin/albuns/${id}/tema`, { method: 'PUT', body: JSON.stringify(tema) }); } catch {}
   };
 
-  // ALB-14 Comentários
-  const enviarComentario = async (fotoId) => {
-    await authFetch(`/admin/albuns/${id}`, {
-      method: 'PUT', 
-      body: JSON.stringify({ comentario: { foto_id: fotoId, texto: comentario } }),
-    });
-    setComentario('');
-    fetchAlbum();
+  // Save texto
+  const saveTexto = async () => {
+    try {
+      await authFetch(`/admin/albuns/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify({ titulo: textoAlbum.titulo, data_evento: textoAlbum.data_evento, nome_negocio: textoAlbum.nome_negocio }),
+      });
+    } catch {}
   };
 
-  // G2 - Edit foto titulo/descricao
+  // Save config
+  const saveConfig = async (field, value) => {
+    try {
+      await authFetch(`/admin/albuns/${id}`, { method: 'PUT', body: JSON.stringify({ [field]: value }) });
+      fetchAlbum();
+    } catch {}
+  };
+
+
+  // Publish
+  const handlePublicar = async () => {
+    const pagamento = album?.pagamento_percentual || 0;
+    if (pagamento < 70 && !window.confirm(`Atenção: pagamento em ${pagamento}% (recomendado mínimo 70%). Publicar mesmo assim?`)) return;
+    const res = await authFetch(`/admin/albuns/${id}/publicar`, { method: 'POST' });
+    const json = await res.json();
+    if (json.success) fetchAlbum();
+    else alert(json.message || 'Erro ao publicar');
+  };
+
+  // Edit foto
   const openEditFoto = (foto) => {
     const fotoId = foto.id?.startsWith('FOTO#') ? foto.id.replace('FOTO#', '') : foto.id;
     setEditingFoto({ ...foto, extractedId: fotoId });
@@ -274,7 +391,7 @@ export default function AlbumDetalhe() {
     setEditingFoto(null);
   };
 
-  // ALB-12 Lightbox keyboard
+  // Lightbox keyboard
   useEffect(() => {
     const handler = (e) => {
       if (lightboxIndex === null) return;
@@ -286,425 +403,931 @@ export default function AlbumDetalhe() {
     return () => window.removeEventListener('keydown', handler);
   }, [lightboxIndex, fotosGaleria.length]);
 
-  if (!album) return <div className="p-8 text-center text-gray-500">Carregando álbum...</div>;
+  if (!album) return <div className="h-screen flex items-center justify-center text-gray-400">Carregando álbum...</div>;
 
   const fotoLightbox = lightboxIndex !== null ? fotosGaleria[lightboxIndex] : null;
 
+
+  // ============ RENDER ============
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* HEADER */}
-      <header className="bg-white border-b px-6 py-4">
-        <div className="flex items-center justify-between mb-6 flex-col sm:flex-row gap-3">
-          <div className="flex items-center gap-3">
-            <Image size={24} style={{ color: '#EA580C' }} />
-            <h1 className="text-2xl font-bold text-gray-900">{album.titulo}</h1>
-            <p className="text-gray-600 text-sm">{album.cliente} • {album.data_evento}</p>
-          </div>
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className={`px-3 py-1 rounded-full text-xs font-medium ${statusColors[album.status] || statusColors.rascunho}`}>
-              {album.status}
-            </span>
-            {/* ALB-10 Expiração */}
-            {album.status === 'publicado' && diasExpiracao !== null && (
-              <span className="flex items-center gap-1 text-xs text-orange-600">
-                <Clock size={14} /> Expira em {diasExpiracao} dias
-              </span>
-            )}
-          </div>
+    <div className="h-screen flex flex-col bg-gray-100 overflow-hidden">
+      {/* TOP BAR */}
+      <header className="h-12 bg-white border-b flex items-center justify-between px-4 shrink-0">
+        <div className="flex items-center gap-3">
+          <button onClick={() => window.history.back()} className="text-sm text-gray-500 hover:text-gray-700">← Voltar</button>
+          <span className="text-sm font-semibold text-gray-800">Gerenciar configurações do álbum</span>
         </div>
-
-        {/* ALB-15 Estatísticas */}
-        <div className="flex gap-4 mt-3 text-xs text-gray-500">
-          <span className="flex items-center gap-1"><Image size={13} /> {totalFotos} fotos</span>
-          <span className="flex items-center gap-1"><Eye size={13} /> {album.visualizacoes || 0} views</span>
-          <span className="flex items-center gap-1"><Download size={13} /> {album.downloads || 0} downloads</span>
-          <span>Último acesso: {album.ultimo_acesso || '—'}</span>
+        <div className="flex items-center gap-2">
+          <span className={`px-2 py-0.5 rounded-full text-[11px] font-medium ${statusColors[album.status] || statusColors.rascunho}`}>
+            {album.status}
+          </span>
+          <button onClick={() => window.open(`/admin/albuns/${id}/preview`, '_blank')}
+            className="text-xs px-3 py-1.5 border rounded hover:bg-gray-50 flex items-center gap-1">
+            <Eye size={13} /> Visualizar
+          </button>
+          <button onClick={handlePublicar}
+            className="text-xs px-3 py-1.5 rounded text-white flex items-center gap-1"
+            style={{ backgroundColor: ACCENT }}>
+            <Send size={13} /> Publicar
+          </button>
         </div>
-
-        {/* ALB-08 Seleção */}
-        <div className="flex items-center gap-2 mt-2 text-xs">
-          <CheckCircle2 size={14} className="text-green-600" />
-          <span>Cliente selecionou {selecionadasCliente}/{totalFotos} fotos</span>
-        </div>
-
-        {/* Barra pagamento ALB-04 */}
-        {pagamentoBaixo && (
-          <div className="mt-3 flex items-center gap-2 px-3 py-2 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-800">
-            <span>⚠️ Pagamento: {pagamento}% — recomendado mínimo 70% antes de publicar</span>
-          </div>
-        )}
-        {!pagamentoBaixo && pagamento > 0 && (
-          <div className="mt-3 flex items-center gap-2 px-3 py-2 bg-green-50 border border-green-200 rounded-lg text-xs text-green-700">
-            <span>✅ Pagamento: {pagamento}%</span>
-          </div>
-        )}
-
-        {/* ALB-10 Barra expiração */}
-        {album.status === 'publicado' && album.dias_totais && (
-          <div className="mt-2">
-            <div className="w-full bg-gray-200 rounded-full h-1.5">
-              <div className="h-1.5 rounded-full bg-orange-400" style={{ width: `${Math.max(0, (diasExpiracao / album.dias_totais) * 100)}%` }} />
-            </div>
-          </div>
-        )}
-
-        {/* Botões */}
-        <div className="flex gap-2 mt-4 flex-wrap">
-          <button onClick={() => fileInputRef.current?.click()} className="flex items-center gap-1 px-3 py-2 rounded text-sm text-white" style={{ backgroundColor: ACCENT }}>
-            <Upload size={15} /> Upload Fotos
-          </button>
-          <input ref={fileInputRef} type="file" multiple accept="image/*" className="hidden" onChange={handleUpload} />
-
-          <div className="relative group">
-            <button onClick={handlePublicar}
-              className="flex items-center gap-1 px-3 py-2 rounded text-sm text-white"
-              style={{ backgroundColor: ACCENT }}>
-              <Send size={15} /> Publicar
-            </button>
-          </div>
-
-          {album.status === 'publicado' && (
-            <>
-              <button onClick={() => window.open(`/album/${album.slug}`, '_blank')}
-                className="flex items-center gap-1 px-3 py-2 rounded text-sm border border-gray-300 hover:bg-gray-100">
-                <Eye size={15} /> Visualização do Cliente
-              </button>
-              <button onClick={() => navigator.clipboard.writeText(`${window.location.origin}/album/${album.slug}`)}
-                className="flex items-center gap-1 px-3 py-2 rounded text-sm border border-gray-300 hover:bg-gray-100">
-                <Link2 size={15} /> Compartilhar Link
-              </button>
-            </>
-          )}
-          {album.status !== 'publicado' && (
-            <button onClick={() => window.open(`/admin/albuns/${id}/preview`, '_blank')}
-              className="flex items-center gap-1 px-3 py-2 rounded text-sm border border-gray-300 hover:bg-gray-100">
-              <Eye size={15} /> Pré-visualização
-            </button>
-          )}
-
-          <button onClick={downloadTodas} className="flex items-center gap-1 px-3 py-2 rounded text-sm border border-gray-300 hover:bg-gray-100">
-            <Download size={15} /> Download Todas
-          </button>
-
-          {/* ALB-11 */}
-          {album.status === 'publicado' && (
-            <button onClick={() => setShowProrrogar(true)} className="flex items-center gap-1 px-3 py-2 rounded text-sm border border-gray-300 hover:bg-gray-100">
-              <CalendarPlus size={15} /> Prorrogar
-            </button>
-          )}
-
-          {/* ALB-13 Watermark */}
-          <label className="flex items-center gap-1 px-3 py-2 rounded text-sm border border-gray-300 cursor-pointer select-none">
-            <Shield size={15} />
-            <input type="checkbox" checked={watermark} onChange={() => setWatermark(!watermark)} className="sr-only" />
-            <span className={watermark ? 'font-medium' : 'text-gray-400'}>Watermark {watermark ? 'ativo' : 'inativo'}</span>
-          </label>
-
-          <button onClick={() => setShowConfig(true)} className="flex items-center gap-1 px-3 py-2 rounded text-sm border border-gray-300 hover:bg-gray-100">
-            <Settings size={15} /> Configurações
-          </button>
-          <button onClick={async () => { try { const r = await authFetch(`/admin/albuns/${id}/tema`); const j = await r.json(); if (j.success) setTema(j.data); } catch {} setShowTema(true); }} className="flex items-center gap-1 px-3 py-2 rounded text-sm border border-gray-300 hover:bg-gray-100">
-            <Palette size={15} /> Tema
-          </button>
-          {album.slug && (
-            <a href={`/album/${album.slug}`} target="_blank" rel="noreferrer" className="flex items-center gap-1 px-3 py-2 rounded text-sm text-white hover:opacity-90" style={{ background: ACCENT }}>
-              <Eye size={15} /> Visualização do Cliente
-            </a>
-          )}
-        </div>
-
-        {/* Upload progress */}
-        {uploading && (
-          <div className="mt-3">
-            <div className="w-full bg-gray-200 rounded-full h-2">
-              <div className="h-2 rounded-full transition-all bg-blue-500" style={{ width: `${uploadProgress}%` }} />
-            </div>
-            <p className="text-xs text-gray-500 mt-1">Enviando... {uploadProgress}%</p>
-          </div>
-        )}
-
-        {/* Link público ALB-07 */}
-        {album.status === 'publicado' && album.slug && (
-          <p className="mt-2 text-xs text-green-700 bg-green-50 px-3 py-1 rounded inline-block">
-            Link público: {window.location.origin}/album/{album.slug}
-          </p>
-        )}
       </header>
 
-      {/* CORPO */}
-      <div className="flex">
-        {/* ALB-05 SIDEBAR GALERIAS */}
-        <aside className="w-56 bg-white border-r min-h-[calc(100vh-220px)] p-3">
-          <h3 className="text-xs font-semibold text-gray-500 uppercase mb-2">Galerias</h3>
-          <ul className="space-y-1">
-            <li className={`flex items-center gap-1 px-2 py-1.5 rounded text-sm cursor-pointer ${!galeriaAtiva ? 'bg-orange-50 font-medium' : 'hover:bg-gray-100'}`}
-              onClick={() => { setGaleriaAtiva(null); setSelecionadas([]); }}>
-              <span className="flex-1">Todas ({fotos.length})</span>
-            </li>
-            {fotos.some(f => !f.galeria_id) && (
-              <li className={`flex items-center gap-1 px-2 py-1.5 rounded text-sm cursor-pointer ${galeriaAtiva === '__sem_galeria__' ? 'bg-orange-50 font-medium' : 'hover:bg-gray-100'}`}
-                onClick={() => { setGaleriaAtiva('__sem_galeria__'); setSelecionadas([]); }}>
-                <span className="flex-1 text-gray-500">Sem galeria ({fotos.filter(f => !f.galeria_id).length})</span>
-              </li>
-            )}
-            {galerias.map((g, idx) => (
-              <li key={g.id} className={`flex items-center gap-1 px-2 py-1.5 rounded text-sm cursor-pointer group ${galeriaAtiva === g.id ? 'bg-orange-50 font-medium' : 'hover:bg-gray-100'}`}
-                onClick={() => { setGaleriaAtiva(g.id); setSelecionadas([]); }}
-                onDoubleClick={() => { setRenaming(g.id); setRenameValue(g.nome); }}>
-                {renaming === g.id ? (
-                  <input autoFocus value={renameValue} onChange={e => setRenameValue(e.target.value)}
-                    onBlur={() => renomearGaleria(g.id)} onKeyDown={e => e.key === 'Enter' && renomearGaleria(g.id)}
-                    className="flex-1 text-sm border rounded px-1" />
-                ) : (
-                  <span className="flex-1 truncate">{g.nome}</span>
-                )}
-                <div className="hidden group-hover:flex items-center gap-0.5">
-                  <button onClick={e => { e.stopPropagation(); reordenarGaleria(idx, -1); }} className="p-0.5 hover:bg-gray-200 rounded"><ChevronUp size={12} /></button>
-                  <button onClick={e => { e.stopPropagation(); reordenarGaleria(idx, 1); }} className="p-0.5 hover:bg-gray-200 rounded"><ChevronDown size={12} /></button>
-                  <button onClick={e => { e.stopPropagation(); excluirGaleria(g.id); }} className="p-0.5 hover:bg-red-100 rounded text-red-500"><Trash2 size={12} /></button>
-                </div>
-              </li>
-            ))}
-          </ul>
-          {showNovaGaleria ? (
-            <div className="mt-2 flex gap-1">
-              <input autoFocus value={novaGaleria} onChange={e => setNovaGaleria(e.target.value)}
-                onKeyDown={e => e.key === 'Enter' && criarGaleria()}
-                className="flex-1 text-sm border rounded px-2 py-1" placeholder="Nome..." />
-              <button onClick={criarGaleria} className="text-xs px-2 py-1 rounded text-white" style={{ backgroundColor: ACCENT }}>OK</button>
-            </div>
-          ) : (
-            <button onClick={() => setShowNovaGaleria(true)} className="mt-2 flex items-center gap-1 text-xs hover:underline" style={{ color: ACCENT }}>
-              <Plus size={13} /> Nova Galeria
+
+      {/* MAIN CONTENT */}
+      <div className="flex flex-1 overflow-hidden">
+        {/* ICON SIDEBAR */}
+        <nav className="w-16 bg-white border-r flex flex-col items-center py-4 gap-1 shrink-0">
+          {[
+            { key: 'midia', icon: Image, label: 'Mídia' },
+            { key: 'texto', icon: Type, label: 'Texto' },
+            { key: 'design', icon: Palette, label: 'Design' },
+            { key: 'config', icon: Settings, label: 'Configura...' },
+          ].map(tab => (
+            <button key={tab.key} onClick={() => setActiveTab(tab.key)}
+              className={`flex flex-col items-center gap-0.5 p-2 rounded-lg w-14 transition-colors ${
+                activeTab === tab.key ? 'bg-blue-50 text-blue-600' : 'text-gray-500 hover:bg-gray-50 hover:text-gray-700'
+              }`}>
+              <tab.icon size={20} />
+              <span className="text-[10px] leading-tight">{tab.label}</span>
             </button>
-          )}
-        </aside>
+          ))}
+        </nav>
 
-        {/* ALB-06 GRID DE FOTOS */}
-        <main className="flex-1 p-4">
-          {/* Toolbar */}
-          <div className="flex items-center gap-3 mb-3 flex-wrap">
-            <button onClick={() => {
-              if (selecionadas.length === fotosGaleria.length) setSelecionadas([]);
-              else setSelecionadas(fotosGaleria.map(f => f.id));
-            }} className="text-xs px-2.5 py-1.5 border rounded-lg hover:bg-gray-50">
-              {selecionadas.length === fotosGaleria.length && fotosGaleria.length > 0 ? 'Deselecionar todas' : `Selecionar todas (${fotosGaleria.length})`}
-            </button>
-            <select onChange={e => {
-              const val = e.target.value;
-              if (val === 'nome_asc') setFotos(prev => [...prev].sort((a, b) => (a.filename || a.titulo || a.key || '').localeCompare(b.filename || b.titulo || b.key || '')));
-              else if (val === 'nome_desc') setFotos(prev => [...prev].sort((a, b) => (b.filename || b.titulo || b.key || '').localeCompare(a.filename || a.titulo || a.key || '')));
-              else if (val === 'data_desc') setFotos(prev => [...prev].sort((a, b) => (b.created || '').localeCompare(a.created || '')));
-              else if (val === 'data_asc') setFotos(prev => [...prev].sort((a, b) => (a.created || '').localeCompare(b.created || '')));
-              else if (val === 'exif_desc') setFotos(prev => [...prev].sort((a, b) => (b.exif_date || '').localeCompare(a.exif_date || '')));
-              else if (val === 'exif_asc') setFotos(prev => [...prev].sort((a, b) => (a.exif_date || '').localeCompare(b.exif_date || '')));
-              else if (val === 'ordem') setFotos(prev => [...prev].sort((a, b) => (a.ordem || 0) - (b.ordem || 0)));
-            }} className="text-xs border rounded-lg px-2.5 py-1.5">
-              <option value="ordem">Ordenar: Padrão</option>
-              <option value="nome_asc">Nome original A → Z</option>
-              <option value="nome_desc">Nome original Z → A</option>
-              <option value="exif_asc">Data captura: Mais antiga</option>
-              <option value="exif_desc">Data captura: Mais recente</option>
-              <option value="data_asc">Upload: Mais antigo</option>
-              <option value="data_desc">Upload: Mais recente</option>
-            </select>
-            {selecionadas.length === 1 && (
-              <button onClick={async () => {
-                const fotoId = selecionadas[0];
-                setTema(t => ({ ...t, capa_foto_id: fotoId }));
-                try { await authFetch(`/admin/albuns/${id}/tema`, { method: 'PUT', body: JSON.stringify({ ...tema, capa_foto_id: fotoId }) }); } catch {}
-                alert('Foto definida como capa!');
-              }} className="text-xs px-2.5 py-1.5 border rounded-lg hover:bg-orange-50 text-orange-600 border-orange-200">
-                ⭐ Definir como capa
-              </button>
-            )}
-            <span className="text-xs text-gray-400 ml-auto">{fotosGaleria.length} foto{fotosGaleria.length !== 1 ? 's' : ''}</span>
-          </div>
 
-          {/* Ações em lote */}
-          {selecionadas.length > 0 && (
-            <div className="flex items-center gap-2 mb-3 p-2 bg-orange-50 rounded text-sm">
-              <span>{selecionadas.length} selecionadas</span>
-              <select onChange={e => { if (e.target.value) moverParaGaleria(e.target.value); e.target.value = ''; }}
-                className="border rounded px-2 py-1 text-xs">
-                <option value="">Mover para...</option>
-                {galerias.filter(g => g.id !== galeriaAtiva).map(g => (
-                  <option key={g.id} value={g.id}>{g.nome}</option>
-                ))}
-              </select>
-              <button onClick={excluirSelecionadas} className="flex items-center gap-1 text-red-600 text-xs hover:underline">
-                <Trash2 size={13} /> Excluir
-              </button>
-            </div>
-          )}
+        {/* CONFIG PANEL */}
+        <aside className="w-72 bg-white border-r overflow-y-auto shrink-0">
+          {/* TAB: MÍDIA */}
+          {activeTab === 'midia' && (
+            <div className="p-4">
+              <h2 className="text-sm font-bold text-gray-900 mb-1">Mídia do álbum</h2>
+              <p className="text-xs text-gray-500 mb-4">Escolha uma foto de capa para o seu álbum e gerencie a mídia em cada galeria.</p>
 
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
-            {fotosGaleria.map((foto, idx) => (
-              <div key={foto.id} className="relative group border rounded overflow-hidden bg-white">
-                <div className="relative cursor-pointer" onClick={() => setLightboxIndex(idx)}>
-                  <img src={foto.thumbnail_url || foto.url} alt={foto.nome} className="w-full h-32 object-cover" />
-                  {/* ALB-13 Watermark overlay */}
-                  {watermark && (
-                    <div className="absolute inset-0 flex items-center justify-center bg-black/10 pointer-events-none">
-                      <span className="text-white/40 text-lg font-bold rotate-[-25deg] select-none">WATERMARK</span>
-                    </div>
-                  )}
-                  {/* ALB-08 Badge seleção cliente */}
-                  {foto.selecionada_cliente && (
-                    <span className="absolute top-1 right-1 bg-green-500 text-white text-[10px] px-1.5 py-0.5 rounded">
-                      Selecionada
-                    </span>
-                  )}
+              {/* Capa do álbum */}
+              <div className="mb-4">
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="text-xs font-semibold text-gray-700">Capa do álbum</h3>
+                  <button className="text-gray-400 hover:text-gray-600">•••</button>
                 </div>
-                <div className="p-1.5 flex items-center justify-between">
-                  <label className="flex items-center gap-1 text-xs">
-                    <input type="checkbox" checked={selecionadas.includes(foto.id)}
-                      onChange={() => toggleSelecionada(foto.id)} className="rounded" />
-                    #{idx + 1}
-                  </label>
-                  <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100">
-                    <button onClick={() => openEditFoto(foto)} title="Editar título/descrição"><Edit size={13} /></button>
-                    <button onClick={() => downloadFoto(foto)} title="Download"><Download size={13} /></button>
+                <div className="relative rounded-lg overflow-hidden border-2 border-blue-400 aspect-video bg-gray-100">
+                  {capaFoto ? (
+                    <img src={capaFoto.thumbnail_url || capaFoto.url} alt="Capa" className="w-full h-full object-cover" />
+                  ) : fotos[0] ? (
+                    <img src={fotos[0].thumbnail_url || fotos[0].url} alt="Capa" className="w-full h-full object-cover" />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-gray-400 text-xs">Sem capa</div>
+                  )}
+                  <div className="absolute top-1 right-1 bg-blue-500 text-white rounded-full w-5 h-5 flex items-center justify-center">
+                    <CheckCircle2 size={12} />
                   </div>
                 </div>
               </div>
-            ))}
-          </div>
 
-          {fotosGaleria.length === 0 && (
-            <p className="text-center text-gray-400 mt-12">Nenhuma foto nesta galeria. Faça upload!</p>
+
+              {/* Galeria */}
+              <div className="mb-4">
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="text-xs font-semibold text-gray-700">Galeria</h3>
+                  <button onClick={() => setShowGaleriaModal(true)} className="text-gray-400 hover:text-gray-600">•••</button>
+                </div>
+                {/* Grid thumbnails */}
+                <div className="grid grid-cols-3 gap-1">
+                  {fotosGaleria.slice(0, 5).map((foto, idx) => (
+                    <div key={foto.id} className="aspect-square rounded overflow-hidden bg-gray-100">
+                      <img src={foto.thumbnail_url || foto.url} alt="" className="w-full h-full object-cover" />
+                    </div>
+                  ))}
+                  {fotosGaleria.length > 5 && (
+                    <div className="aspect-square rounded bg-gray-200 flex items-center justify-center text-xs font-medium text-gray-600">
+                      +{fotosGaleria.length - 5}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Galerias list */}
+              <div className="space-y-1 mb-3">
+                {galerias.map((g, idx) => (
+                  <div key={g.id}
+                    className={`flex items-center gap-2 px-2 py-1.5 rounded text-xs cursor-pointer group ${galeriaAtiva === g.id ? 'bg-blue-50 text-blue-700 font-medium' : 'hover:bg-gray-50'}`}
+                    onClick={() => { setGaleriaAtiva(g.id); setSelecionadas([]); }}
+                    onDoubleClick={() => { setRenaming(g.id); setRenameValue(g.nome); }}>
+                    {renaming === g.id ? (
+                      <input autoFocus value={renameValue} onChange={e => setRenameValue(e.target.value)}
+                        onBlur={() => renomearGaleria(g.id)} onKeyDown={e => e.key === 'Enter' && renomearGaleria(g.id)}
+                        className="flex-1 text-xs border rounded px-1 py-0.5" />
+                    ) : (
+                      <span className="flex-1 truncate">{g.nome}</span>
+                    )}
+                    <span className="text-gray-400 text-[10px]">{fotos.filter(f => f.galeria_id === g.id).length}</span>
+                    <div className="hidden group-hover:flex items-center gap-0.5">
+                      <button onClick={e => { e.stopPropagation(); reordenarGaleria(idx, -1); }}><ChevronUp size={10} /></button>
+                      <button onClick={e => { e.stopPropagation(); reordenarGaleria(idx, 1); }}><ChevronDown size={10} /></button>
+                      <button onClick={e => { e.stopPropagation(); excluirGaleria(g.id); }} className="text-red-400"><Trash2 size={10} /></button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+
+              {/* Adicionar nova galeria */}
+              {showNovaGaleria ? (
+                <div className="flex gap-1">
+                  <input autoFocus value={novaGaleria} onChange={e => setNovaGaleria(e.target.value)}
+                    onKeyDown={e => e.key === 'Enter' && criarGaleria()}
+                    className="flex-1 text-xs border rounded px-2 py-1" placeholder="Nome..." />
+                  <button onClick={criarGaleria} className="text-xs px-2 py-1 rounded text-white" style={{ backgroundColor: ACCENT }}>OK</button>
+                  <button onClick={() => setShowNovaGaleria(false)} className="text-xs px-1 text-gray-400">✕</button>
+                </div>
+              ) : (
+                <button onClick={() => setShowNovaGaleria(true)}
+                  className="w-full border-2 border-dashed border-gray-300 rounded-lg py-3 flex flex-col items-center gap-1 text-xs text-gray-500 hover:border-blue-300 hover:text-blue-500 transition">
+                  <Plus size={16} />
+                  <span>Adicionar nova galeria</span>
+                </button>
+              )}
+
+              {/* Upload button */}
+              <button onClick={() => fileInputRef.current?.click()}
+                className="w-full mt-4 flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg text-white text-sm font-medium"
+                style={{ backgroundColor: ACCENT }}>
+                <Upload size={15} /> Upload de mídia
+              </button>
+              <input ref={fileInputRef} type="file" multiple accept="image/*" className="hidden" onChange={handleUpload} />
+
+              {uploading && (
+                <div className="mt-2">
+                  <div className="w-full bg-gray-200 rounded-full h-1.5">
+                    <div className="h-1.5 rounded-full bg-blue-500 transition-all" style={{ width: `${uploadProgress}%` }} />
+                  </div>
+                  <p className="text-[10px] text-gray-400 mt-0.5">{uploadProgress}%</p>
+                </div>
+              )}
+            </div>
           )}
+
+
+          {/* TAB: TEXTO */}
+          {activeTab === 'texto' && (
+            <div className="p-4">
+              <h2 className="text-sm font-bold text-gray-900 mb-1">Texto do álbum</h2>
+              <p className="text-xs text-gray-500 mb-4">Edite a capa e o texto das galerias.</p>
+
+              {/* Tabs Capa / Galerias */}
+              <div className="flex border-b mb-4">
+                <button onClick={() => setTextoTab('capa')}
+                  className={`flex-1 py-2 text-xs font-medium border-b-2 transition ${textoTab === 'capa' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500'}`}>
+                  Capa
+                </button>
+                <button onClick={() => setTextoTab('galerias')}
+                  className={`flex-1 py-2 text-xs font-medium border-b-2 transition ${textoTab === 'galerias' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500'}`}>
+                  Galerias
+                </button>
+              </div>
+
+              {textoTab === 'capa' && (
+                <div className="space-y-4">
+                  <div>
+                    <label className="text-xs font-medium text-gray-700 flex items-center gap-1">
+                      Título do álbum <span className="text-red-500">*</span>
+                    </label>
+                    <input value={textoAlbum.titulo} onChange={e => setTextoAlbum({ ...textoAlbum, titulo: e.target.value })}
+                      onBlur={saveTexto}
+                      className="w-full mt-1 px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-blue-200 outline-none" />
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-gray-700">Texto do botão</label>
+                    <input value={textoAlbum.texto_botao} onChange={e => setTextoAlbum({ ...textoAlbum, texto_botao: e.target.value })}
+                      className="w-full mt-1 px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-blue-200 outline-none" />
+                  </div>
+
+
+                  {/* Mais informações toggle */}
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-medium text-gray-700">Mais informações</label>
+                    <button onClick={() => setTextoAlbum({ ...textoAlbum, mais_info: !textoAlbum.mais_info })}
+                      className={`w-10 h-5 rounded-full relative transition-colors ${textoAlbum.mais_info ? 'bg-blue-500' : 'bg-gray-300'}`}>
+                      <div className={`w-4 h-4 bg-white rounded-full shadow absolute top-0.5 transition-transform ${textoAlbum.mais_info ? 'translate-x-5' : 'translate-x-0.5'}`} />
+                    </button>
+                  </div>
+                  {textoAlbum.mais_info && (
+                    <input value={textoAlbum.data_evento} onChange={e => setTextoAlbum({ ...textoAlbum, data_evento: e.target.value })}
+                      onBlur={saveTexto}
+                      className="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-blue-200 outline-none"
+                      placeholder="Data do evento" />
+                  )}
+
+                  {/* Informações do negócio */}
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-medium text-gray-700">Informações do negócio</label>
+                    <button onClick={() => setTextoAlbum({ ...textoAlbum, info_negocio: !textoAlbum.info_negocio })}
+                      className={`w-10 h-5 rounded-full relative transition-colors ${textoAlbum.info_negocio ? 'bg-blue-500' : 'bg-gray-300'}`}>
+                      <div className={`w-4 h-4 bg-white rounded-full shadow absolute top-0.5 transition-transform ${textoAlbum.info_negocio ? 'translate-x-5' : 'translate-x-0.5'}`} />
+                    </button>
+                  </div>
+                  {textoAlbum.info_negocio && (
+                    <div className="space-y-2">
+                      <label className="flex items-center gap-2 text-xs">
+                        <input type="radio" name="info_tipo" checked={textoAlbum.info_tipo === 'nome'}
+                          onChange={() => setTextoAlbum({ ...textoAlbum, info_tipo: 'nome' })} />
+                        Nome do negócio
+                      </label>
+                      <label className="flex items-center gap-2 text-xs">
+                        <input type="radio" name="info_tipo" checked={textoAlbum.info_tipo === 'logo'}
+                          onChange={() => setTextoAlbum({ ...textoAlbum, info_tipo: 'logo' })} />
+                        Logo
+                      </label>
+                      {textoAlbum.info_tipo === 'nome' && (
+                        <input value={textoAlbum.nome_negocio} onChange={e => setTextoAlbum({ ...textoAlbum, nome_negocio: e.target.value })}
+                          onBlur={saveTexto}
+                          className="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-blue-200 outline-none" />
+                      )}
+                    </div>
+                  )}
+                  <p className="text-[10px] text-gray-400 mt-2">Para alterar as fontes de todo o texto do álbum, vá na aba Design e clique em Fontes.</p>
+                </div>
+              )}
+
+              {textoTab === 'galerias' && (
+                <div className="space-y-3">
+                  {galerias.map(g => (
+                    <div key={g.id} className="p-2 border rounded-lg">
+                      <input value={g.nome} readOnly className="w-full text-sm font-medium text-gray-700 bg-transparent" />
+                      <p className="text-[10px] text-gray-400">{fotos.filter(f => f.galeria_id === g.id).length} fotos</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+
+          {/* TAB: DESIGN */}
+          {activeTab === 'design' && (
+            <div className="p-4">
+              {designSubTab === 'layouts' && (
+                <>
+                  <button onClick={() => setDesignSubTab('main')} className="text-xs text-gray-500 hover:text-gray-700 mb-2">‹ Voltar para design</button>
+                  <h2 className="text-sm font-bold text-gray-900 mb-3">Layouts</h2>
+                  <div className="flex border-b mb-4">
+                    <button onClick={() => setDesignLayoutTab('capa')}
+                      className={`flex-1 py-2 text-xs font-medium border-b-2 transition ${designLayoutTab === 'capa' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500'}`}>
+                      Capa
+                    </button>
+                    <button onClick={() => setDesignLayoutTab('galerias')}
+                      className={`flex-1 py-2 text-xs font-medium border-b-2 transition ${designLayoutTab === 'galerias' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500'}`}>
+                      Galerias
+                    </button>
+                  </div>
+
+                  {designLayoutTab === 'capa' && (
+                    <div className="space-y-3">
+                      {CAPA_LAYOUTS.map(layout => (
+                        <button key={layout.id} onClick={() => { setTema({ ...tema, capa_layout: layout.id }); saveTema(); }}
+                          className={`w-full text-left p-3 rounded-lg border-2 transition ${tema.capa_layout === layout.id ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:border-gray-300'}`}>
+                          <div className="h-16 bg-gray-200 rounded mb-2 flex items-center justify-center text-gray-400 text-xs">
+                            Preview {layout.label}
+                          </div>
+                          <span className="text-xs font-medium text-gray-700">{layout.label}</span>
+                          {tema.capa_layout === layout.id && (
+                            <CheckCircle2 size={14} className="inline ml-2 text-blue-500" />
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+
+
+                  {designLayoutTab === 'galerias' && (
+                    <div className="space-y-4">
+                      {/* Layout grid */}
+                      <div className="grid grid-cols-3 gap-2">
+                        {LAYOUT_OPTIONS.map(layout => (
+                          <button key={layout.id} onClick={() => { setTema({ ...tema, layout: layout.id }); saveTema(); }}
+                            className={`flex flex-col items-center gap-1 p-2 rounded-lg border-2 transition text-center ${
+                              tema.layout === layout.id ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:border-gray-300'
+                            }`}>
+                            <div className="w-8 h-8 bg-gray-100 rounded flex items-center justify-center text-lg">{layout.icon}</div>
+                            <span className="text-[10px] text-gray-600">{layout.label}</span>
+                          </button>
+                        ))}
+                      </div>
+
+                      {/* Orientação */}
+                      <div>
+                        <label className="text-xs font-medium text-gray-700 mb-2 block">Orientação da galeria</label>
+                        <div className="flex gap-4">
+                          <label className="flex items-center gap-2 text-xs">
+                            <input type="radio" name="orientacao" checked={tema.orientacao === 'horizontal'}
+                              onChange={() => setTema({ ...tema, orientacao: 'horizontal' })} />
+                            Horizontal
+                          </label>
+                          <label className="flex items-center gap-2 text-xs">
+                            <input type="radio" name="orientacao" checked={tema.orientacao === 'vertical'}
+                              onChange={() => setTema({ ...tema, orientacao: 'vertical' })} />
+                            Vertical
+                          </label>
+                        </div>
+                      </div>
+
+                      {/* Espaçamento */}
+                      <div>
+                        <label className="text-xs font-medium text-gray-700 mb-1 block">Espaçamento</label>
+                        <div className="flex items-center gap-3">
+                          <input type="range" min="0" max="40" value={tema.espacamento}
+                            onChange={e => setTema({ ...tema, espacamento: Number(e.target.value) })}
+                            onMouseUp={saveTema}
+                            className="flex-1 accent-blue-500" />
+                          <input type="number" value={tema.espacamento}
+                            onChange={e => setTema({ ...tema, espacamento: Number(e.target.value) })}
+                            onBlur={saveTema}
+                            className="w-14 text-xs border rounded px-2 py-1 text-center" />
+                        </div>
+                      </div>
+
+                      {/* Densidade da colagem */}
+                      <div>
+                        <label className="text-xs font-medium text-gray-700 mb-1 block">Densidade da colagem</label>
+                        <div className="flex items-center gap-3">
+                          <input type="range" min="0" max="100" value={tema.densidade_colagem}
+                            onChange={e => setTema({ ...tema, densidade_colagem: Number(e.target.value) })}
+                            onMouseUp={saveTema}
+                            className="flex-1 accent-blue-500" />
+                          <input type="number" value={tema.densidade_colagem}
+                            onChange={e => setTema({ ...tema, densidade_colagem: Number(e.target.value) })}
+                            onBlur={saveTema}
+                            className="w-14 text-xs border rounded px-2 py-1 text-center" />
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
+
+
+              {designSubTab === 'cores' && (
+                <>
+                  <button onClick={() => setDesignSubTab('main')} className="text-xs text-gray-500 hover:text-gray-700 mb-2">‹ Voltar para design</button>
+                  <h2 className="text-sm font-bold text-gray-900 mb-3">Cores</h2>
+                  <div className="flex border-b mb-4">
+                    <button onClick={() => setDesignColorTab('capa')}
+                      className={`flex-1 py-2 text-xs font-medium border-b-2 transition ${designColorTab === 'capa' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500'}`}>
+                      Capa
+                    </button>
+                    <button onClick={() => setDesignColorTab('galerias')}
+                      className={`flex-1 py-2 text-xs font-medium border-b-2 transition ${designColorTab === 'galerias' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500'}`}>
+                      Galerias
+                    </button>
+                  </div>
+
+                  {designColorTab === 'capa' && (
+                    <div className="space-y-4">
+                      <div>
+                        <label className="text-xs font-medium text-gray-700 mb-1 block">Cor do texto</label>
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs text-gray-500">#</span>
+                          <input value={tema.cores_capa?.texto?.replace('#', '') || 'FFFFFF'}
+                            onChange={e => setTema({ ...tema, cores_capa: { ...tema.cores_capa, texto: '#' + e.target.value } })}
+                            onBlur={saveTema}
+                            className="flex-1 px-2 py-1.5 border rounded text-xs" />
+                          <input type="color" value={tema.cores_capa?.texto || '#FFFFFF'}
+                            onChange={e => setTema({ ...tema, cores_capa: { ...tema.cores_capa, texto: e.target.value } })}
+                            onBlur={saveTema}
+                            className="w-8 h-8 rounded border cursor-pointer" />
+                        </div>
+                      </div>
+                      <div>
+                        <label className="text-xs font-medium text-gray-700 mb-1 block">Cor da sobreposição do background</label>
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs text-gray-500">#</span>
+                          <input value={tema.cores_capa?.overlay?.replace('#', '') || '121212'}
+                            onChange={e => setTema({ ...tema, cores_capa: { ...tema.cores_capa, overlay: '#' + e.target.value } })}
+                            onBlur={saveTema}
+                            className="flex-1 px-2 py-1.5 border rounded text-xs" />
+                          <input type="color" value={tema.cores_capa?.overlay || '#121212'}
+                            onChange={e => setTema({ ...tema, cores_capa: { ...tema.cores_capa, overlay: e.target.value } })}
+                            onBlur={saveTema}
+                            className="w-8 h-8 rounded border cursor-pointer" />
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+
+                  {designColorTab === 'galerias' && (
+                    <div className="space-y-4">
+                      <h4 className="text-xs font-semibold text-gray-600">Background e Ícones</h4>
+                      <div>
+                        <label className="text-[11px] text-gray-500 mb-1 block">Cor do texto da página e ícones</label>
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs text-gray-500">#</span>
+                          <input value={tema.cores_galerias?.texto_icones?.replace('#', '') || 'FF3C00'}
+                            onChange={e => setTema({ ...tema, cores_galerias: { ...tema.cores_galerias, texto_icones: '#' + e.target.value } })}
+                            onBlur={saveTema}
+                            className="flex-1 px-2 py-1.5 border rounded text-xs" />
+                          <input type="color" value={tema.cores_galerias?.texto_icones || '#FF3C00'}
+                            onChange={e => setTema({ ...tema, cores_galerias: { ...tema.cores_galerias, texto_icones: e.target.value } })}
+                            onBlur={saveTema}
+                            className="w-8 h-8 rounded border cursor-pointer" />
+                        </div>
+                      </div>
+                      <div>
+                        <label className="text-[11px] text-gray-500 mb-1 block">Cor do background</label>
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs text-gray-500">#</span>
+                          <input value={tema.cores_galerias?.background?.replace('#', '') || '121212'}
+                            onChange={e => setTema({ ...tema, cores_galerias: { ...tema.cores_galerias, background: '#' + e.target.value } })}
+                            onBlur={saveTema}
+                            className="flex-1 px-2 py-1.5 border rounded text-xs" />
+                          <input type="color" value={tema.cores_galerias?.background || '#121212'}
+                            onChange={e => setTema({ ...tema, cores_galerias: { ...tema.cores_galerias, background: e.target.value } })}
+                            onBlur={saveTema}
+                            className="w-8 h-8 rounded border cursor-pointer" />
+                        </div>
+                      </div>
+
+                      <h4 className="text-xs font-semibold text-gray-600 pt-2">Dados e sobreposição</h4>
+                      <div>
+                        <label className="text-[11px] text-gray-500 mb-1 block">Cor do texto e ícones</label>
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs text-gray-500">#</span>
+                          <input value={tema.cores_galerias?.overlay_texto?.replace('#', '') || 'FF3C00'}
+                            onChange={e => setTema({ ...tema, cores_galerias: { ...tema.cores_galerias, overlay_texto: '#' + e.target.value } })}
+                            onBlur={saveTema}
+                            className="flex-1 px-2 py-1.5 border rounded text-xs" />
+                          <input type="color" value={tema.cores_galerias?.overlay_texto || '#FF3C00'}
+                            onChange={e => setTema({ ...tema, cores_galerias: { ...tema.cores_galerias, overlay_texto: e.target.value } })}
+                            onBlur={saveTema}
+                            className="w-8 h-8 rounded border cursor-pointer" />
+                        </div>
+                      </div>
+
+
+                      <div>
+                        <label className="text-[11px] text-gray-500 mb-1 block">Cor ao passar o mouse</label>
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs text-gray-500">#</span>
+                          <input value={tema.cores_galerias?.overlay_hover?.replace('#', '') || 'FF3C00'}
+                            onChange={e => setTema({ ...tema, cores_galerias: { ...tema.cores_galerias, overlay_hover: '#' + e.target.value } })}
+                            onBlur={saveTema}
+                            className="flex-1 px-2 py-1.5 border rounded text-xs" />
+                          <input type="color" value={tema.cores_galerias?.overlay_hover || '#FF3C00'}
+                            onChange={e => setTema({ ...tema, cores_galerias: { ...tema.cores_galerias, overlay_hover: e.target.value } })}
+                            onBlur={saveTema}
+                            className="w-8 h-8 rounded border cursor-pointer" />
+                        </div>
+                      </div>
+                      <div>
+                        <label className="text-[11px] text-gray-500 mb-1 block">Opacidade da sobreposição</label>
+                        <div className="flex items-center gap-3">
+                          <input type="range" min="0" max="100" value={tema.cores_galerias?.overlay_opacidade || 30}
+                            onChange={e => setTema({ ...tema, cores_galerias: { ...tema.cores_galerias, overlay_opacidade: Number(e.target.value) } })}
+                            onMouseUp={saveTema}
+                            className="flex-1 accent-blue-500" />
+                          <input type="number" value={tema.cores_galerias?.overlay_opacidade || 30}
+                            onChange={e => setTema({ ...tema, cores_galerias: { ...tema.cores_galerias, overlay_opacidade: Number(e.target.value) } })}
+                            onBlur={saveTema}
+                            className="w-14 text-xs border rounded px-2 py-1 text-center" />
+                        </div>
+                      </div>
+
+                      <h4 className="text-xs font-semibold text-gray-600 pt-2">Borda</h4>
+                      <div>
+                        <label className="text-[11px] text-gray-500 mb-1 block">Cor da borda da foto</label>
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs text-gray-500">#</span>
+                          <input value={tema.cores_galerias?.borda_cor?.replace('#', '') || 'FF3C00'}
+                            onChange={e => setTema({ ...tema, cores_galerias: { ...tema.cores_galerias, borda_cor: '#' + e.target.value } })}
+                            onBlur={saveTema}
+                            className="flex-1 px-2 py-1.5 border rounded text-xs" />
+                          <input type="color" value={tema.cores_galerias?.borda_cor || '#FF3C00'}
+                            onChange={e => setTema({ ...tema, cores_galerias: { ...tema.cores_galerias, borda_cor: e.target.value } })}
+                            onBlur={saveTema}
+                            className="w-8 h-8 rounded border cursor-pointer" />
+                        </div>
+                      </div>
+
+
+                      <div>
+                        <label className="text-[11px] text-gray-500 mb-1 block">Largura da borda da foto (px)</label>
+                        <div className="flex items-center gap-3">
+                          <input type="range" min="0" max="10" value={tema.cores_galerias?.borda_largura || 3}
+                            onChange={e => setTema({ ...tema, cores_galerias: { ...tema.cores_galerias, borda_largura: Number(e.target.value) } })}
+                            onMouseUp={saveTema}
+                            className="flex-1 accent-blue-500" />
+                          <input type="number" value={tema.cores_galerias?.borda_largura || 3}
+                            onChange={e => setTema({ ...tema, cores_galerias: { ...tema.cores_galerias, borda_largura: Number(e.target.value) } })}
+                            onBlur={saveTema}
+                            className="w-14 text-xs border rounded px-2 py-1 text-center" />
+                        </div>
+                      </div>
+                      <div>
+                        <label className="text-[11px] text-gray-500 mb-1 block">Raio do canto da foto</label>
+                        <div className="flex items-center gap-3">
+                          <input type="range" min="0" max="30" value={tema.cores_galerias?.borda_raio || 10}
+                            onChange={e => setTema({ ...tema, cores_galerias: { ...tema.cores_galerias, borda_raio: Number(e.target.value) } })}
+                            onMouseUp={saveTema}
+                            className="flex-1 accent-blue-500" />
+                          <input type="number" value={tema.cores_galerias?.borda_raio || 10}
+                            onChange={e => setTema({ ...tema, cores_galerias: { ...tema.cores_galerias, borda_raio: Number(e.target.value) } })}
+                            onBlur={saveTema}
+                            className="w-14 text-xs border rounded px-2 py-1 text-center" />
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
+
+
+              {designSubTab === 'fontes' && (
+                <>
+                  <button onClick={() => setDesignSubTab('main')} className="text-xs text-gray-500 hover:text-gray-700 mb-2">‹ Voltar para design</button>
+                  <h2 className="text-sm font-bold text-gray-900 mb-3">Fontes</h2>
+                  <div className="space-y-3">
+                    {FONT_PRESETS.map((preset, idx) => (
+                      <button key={idx} onClick={() => { setTema({ ...tema, fonte_titulo: preset.titulo, fonte_corpo: preset.corpo }); saveTema(); }}
+                        className={`w-full text-left p-4 rounded-lg border-2 transition ${
+                          tema.fonte_titulo === preset.titulo && tema.fonte_corpo === preset.corpo
+                            ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:border-gray-300'
+                        }`}>
+                        <p className="text-lg font-bold" style={{ fontFamily: preset.titulo }}>Fonte do título</p>
+                        <p className="text-xs text-gray-500" style={{ fontFamily: preset.corpo }}>Fonte do texto secundário</p>
+                      </button>
+                    ))}
+                    <button className="w-full py-2 text-xs text-blue-600 border-2 border-dashed border-blue-200 rounded-lg hover:bg-blue-50">
+                      + Novo conjunto de fontes
+                    </button>
+                  </div>
+                </>
+              )}
+
+
+              {designSubTab === 'animacoes' && (
+                <>
+                  <button onClick={() => setDesignSubTab('main')} className="text-xs text-gray-500 hover:text-gray-700 mb-2">‹ Voltar para design</button>
+                  <h2 className="text-sm font-bold text-gray-900 mb-3">Animações</h2>
+                  <div className="space-y-5">
+                    {/* Efeito de rolagem */}
+                    <div>
+                      <label className="text-xs font-medium text-gray-700 mb-2 block">Efeito de rolagem</label>
+                      <div className="grid grid-cols-3 gap-2">
+                        {SCROLL_EFFECTS.map(effect => (
+                          <button key={effect.id} onClick={() => { setTema({ ...tema, animacao_scroll: effect.id }); saveTema(); }}
+                            className={`flex flex-col items-center gap-1 p-2 rounded-lg border-2 transition ${
+                              tema.animacao_scroll === effect.id ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:border-gray-300'
+                            }`}>
+                            <div className="w-8 h-8 bg-gray-100 rounded flex items-center justify-center">
+                              {effect.id === 'none' ? <X size={12} className="text-gray-400" /> : <Sparkles size={12} className="text-blue-400" />}
+                            </div>
+                            <span className="text-[9px] text-gray-600 text-center leading-tight">{effect.label}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Efeito ao passar o mouse */}
+                    <div>
+                      <label className="text-xs font-medium text-gray-700 mb-2 block">Efeito ao passar o mouse</label>
+                      <div className="grid grid-cols-3 gap-2">
+                        {HOVER_EFFECTS.map(effect => (
+                          <button key={effect.id} onClick={() => { setTema({ ...tema, animacao_hover: effect.id }); saveTema(); }}
+                            className={`flex flex-col items-center gap-1 p-2 rounded-lg border-2 transition ${
+                              tema.animacao_hover === effect.id ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:border-gray-300'
+                            }`}>
+                            <div className="w-8 h-8 bg-gray-100 rounded flex items-center justify-center">
+                              {effect.id === 'none' ? <X size={12} className="text-gray-400" /> : <Sparkles size={12} className="text-blue-400" />}
+                            </div>
+                            <span className="text-[9px] text-gray-600 text-center leading-tight">{effect.label}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+
+                    {/* Animação da sobreposição */}
+                    <div>
+                      <label className="text-xs font-medium text-gray-700 mb-2 block">Animação da sobreposição</label>
+                      <div className="grid grid-cols-3 gap-2">
+                        {OVERLAY_ANIMATIONS.map(effect => (
+                          <button key={effect.id} onClick={() => { setTema({ ...tema, animacao_overlay: effect.id }); saveTema(); }}
+                            className={`flex flex-col items-center gap-1 p-2 rounded-lg border-2 transition ${
+                              tema.animacao_overlay === effect.id ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:border-gray-300'
+                            }`}>
+                            <div className="w-8 h-8 bg-gray-100 rounded flex items-center justify-center">
+                              {effect.id === 'none' ? <X size={12} className="text-gray-400" /> : <Sparkles size={12} className="text-blue-400" />}
+                            </div>
+                            <span className="text-[9px] text-gray-600 text-center leading-tight">{effect.label}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Visualizar button */}
+                    <button onClick={() => window.open(`/admin/albuns/${id}/preview`, '_blank')}
+                      className="w-full py-2.5 rounded-lg text-sm font-medium text-white flex items-center justify-center gap-2"
+                      style={{ backgroundColor: ACCENT }}>
+                      <Monitor size={14} /> Visualizar Modo Passar o Mouse
+                    </button>
+                  </div>
+                </>
+              )}
+
+
+              {/* Design Main Menu */}
+              {designSubTab === 'main' && (
+                <div className="space-y-2">
+                  <h2 className="text-sm font-bold text-gray-900 mb-3">Design</h2>
+                  {[
+                    { key: 'layouts', label: 'Layouts', icon: LayoutGrid, desc: 'Capa e galerias' },
+                    { key: 'cores', label: 'Cores', icon: Palette, desc: 'Personalize as cores' },
+                    { key: 'fontes', label: 'Fontes', icon: Type, desc: 'Tipografia do álbum' },
+                    { key: 'animacoes', label: 'Animações', icon: Sparkles, desc: 'Efeitos visuais' },
+                  ].map(item => (
+                    <button key={item.key} onClick={() => setDesignSubTab(item.key)}
+                      className="w-full flex items-center gap-3 p-3 rounded-lg border border-gray-200 hover:border-blue-200 hover:bg-blue-50 transition text-left">
+                      <item.icon size={18} className="text-gray-500" />
+                      <div>
+                        <p className="text-sm font-medium text-gray-800">{item.label}</p>
+                        <p className="text-[10px] text-gray-400">{item.desc}</p>
+                      </div>
+                      <ChevronRight size={14} className="ml-auto text-gray-400" />
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+
+          {/* TAB: CONFIGURAÇÕES */}
+          {activeTab === 'config' && (
+            <div className="p-4">
+              <h2 className="text-sm font-bold text-gray-900 mb-1">Configurações</h2>
+              <p className="text-xs text-gray-500 mb-4">Ajuste as configurações do álbum.</p>
+
+              <div className="space-y-5">
+                {/* Qualidade da imagem */}
+                <div>
+                  <label className="text-xs font-medium text-gray-700 mb-1 flex items-center gap-1">
+                    Qualidade da imagem na galeria
+                    <span className="text-gray-400 cursor-help" title="Quanto maior a qualidade, mais tempo vai demorar para carregar. Isso só afetará as imagens na galeria. O modo expansão, tela cheia e downloads não serão afetados.">ⓘ</span>
+                  </label>
+                  <div className="flex items-center gap-3">
+                    <input type="range" min="10" max="100" value={tema.qualidade_imagem}
+                      onChange={e => setTema({ ...tema, qualidade_imagem: Number(e.target.value) })}
+                      onMouseUp={saveTema}
+                      className="flex-1 accent-blue-500" />
+                    <input type="number" value={tema.qualidade_imagem}
+                      onChange={e => setTema({ ...tema, qualidade_imagem: Number(e.target.value) })}
+                      onBlur={saveTema}
+                      className="w-14 text-xs border rounded px-2 py-1 text-center" />
+                  </div>
+                  <p className="text-[10px] text-gray-400 mt-1">A qualidade recomendada é 90.</p>
+                </div>
+
+                <hr className="border-gray-100" />
+
+                {/* Permitir download */}
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs font-medium text-gray-800">Permitir download</p>
+                    <p className="text-[10px] text-gray-400">Cliente pode baixar fotos originais</p>
+                  </div>
+                  <button onClick={() => { const v = !config.permite_download; setConfig({ ...config, permite_download: v }); saveConfig('permite_download', v); }}
+                    className={`w-10 h-5 rounded-full relative transition-colors ${config.permite_download ? 'bg-blue-500' : 'bg-gray-300'}`}>
+                    <div className={`w-4 h-4 bg-white rounded-full shadow absolute top-0.5 transition-transform ${config.permite_download ? 'translate-x-5' : 'translate-x-0.5'}`} />
+                  </button>
+                </div>
+
+
+                {/* Permitir seleção */}
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs font-medium text-gray-800">Permitir seleção</p>
+                    <p className="text-[10px] text-gray-400">Cliente pode selecionar fotos favoritas</p>
+                  </div>
+                  <button onClick={() => { const v = !config.permite_selecao; setConfig({ ...config, permite_selecao: v }); saveConfig('permite_selecao', v); }}
+                    className={`w-10 h-5 rounded-full relative transition-colors ${config.permite_selecao ? 'bg-blue-500' : 'bg-gray-300'}`}>
+                    <div className={`w-4 h-4 bg-white rounded-full shadow absolute top-0.5 transition-transform ${config.permite_selecao ? 'translate-x-5' : 'translate-x-0.5'}`} />
+                  </button>
+                </div>
+
+                {/* Permitir comentários */}
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs font-medium text-gray-800">Permitir comentários</p>
+                    <p className="text-[10px] text-gray-400">Cliente pode comentar nas fotos</p>
+                  </div>
+                  <button onClick={() => { const v = !config.permite_comentarios; setConfig({ ...config, permite_comentarios: v }); saveConfig('permite_comentarios', v); }}
+                    className={`w-10 h-5 rounded-full relative transition-colors ${config.permite_comentarios ? 'bg-blue-500' : 'bg-gray-300'}`}>
+                    <div className={`w-4 h-4 bg-white rounded-full shadow absolute top-0.5 transition-transform ${config.permite_comentarios ? 'translate-x-5' : 'translate-x-0.5'}`} />
+                  </button>
+                </div>
+
+                <hr className="border-gray-100" />
+
+                {/* Cota de seleção */}
+                <div>
+                  <label className="text-xs font-medium text-gray-700 mb-1 block">Cota de seleção</label>
+                  <input type="number" value={config.cota_selecao} min="0"
+                    onChange={e => setConfig({ ...config, cota_selecao: Number(e.target.value) })}
+                    onBlur={e => saveConfig('cota_selecao', Number(e.target.value))}
+                    className="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-blue-200 outline-none" placeholder="0 = sem limite" />
+                  <p className="text-[10px] text-gray-400 mt-1">0 = ilimitado</p>
+                </div>
+
+                {/* Senha */}
+                <div>
+                  <label className="text-xs font-medium text-gray-700 mb-1 block">Senha de acesso</label>
+                  <input type="text" value={config.senha_acesso}
+                    onChange={e => setConfig({ ...config, senha_acesso: e.target.value })}
+                    onBlur={e => saveConfig('senha_acesso', e.target.value || null)}
+                    className="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-blue-200 outline-none" placeholder="Vazio = acesso livre" />
+                </div>
+
+                {/* Expiração */}
+                <div>
+                  <label className="text-xs font-medium text-gray-700 mb-1 block">Data de expiração</label>
+                  <input type="date" value={config.data_expiracao}
+                    onChange={e => setConfig({ ...config, data_expiracao: e.target.value })}
+                    onBlur={e => saveConfig('data_expiracao', e.target.value || null)}
+                    className="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-blue-200 outline-none" />
+                </div>
+              </div>
+            </div>
+          )}
+        </aside>
+
+
+        {/* PREVIEW AREA */}
+        <main className="flex-1 bg-gray-200 flex items-center justify-center overflow-hidden p-6">
+          <div className="w-full max-w-3xl bg-white rounded-xl shadow-xl overflow-hidden">
+            {/* Browser chrome */}
+            <div className="h-8 bg-gray-100 border-b flex items-center px-3 gap-2">
+              <div className="flex gap-1.5">
+                <div className="w-2.5 h-2.5 rounded-full bg-red-400" />
+                <div className="w-2.5 h-2.5 rounded-full bg-yellow-400" />
+                <div className="w-2.5 h-2.5 rounded-full bg-green-400" />
+              </div>
+              <div className="flex-1 mx-8">
+                <div className="bg-white rounded-full h-5 flex items-center px-3">
+                  <span className="text-[10px] text-gray-400 truncate">mbfoto.com.br/album/{album.slug || '...'}</span>
+                </div>
+              </div>
+              <button className="text-gray-400 hover:text-gray-600">⋮</button>
+            </div>
+
+            {/* Album cover preview */}
+            <div className="relative h-80" style={{ backgroundColor: tema.cores_capa?.overlay || '#121212' }}>
+              {(capaFoto || fotos[0]) && (
+                <img
+                  src={(capaFoto || fotos[0])?.url || (capaFoto || fotos[0])?.thumbnail_url}
+                  alt="Capa"
+                  className="w-full h-full object-cover opacity-60"
+                />
+              )}
+              <div className="absolute inset-0 flex flex-col justify-end p-8"
+                style={{ color: tema.cores_capa?.texto || '#FFFFFF' }}>
+                {textoAlbum.info_negocio && textoAlbum.nome_negocio && (
+                  <p className="text-xs opacity-70 mb-2 tracking-wide uppercase"
+                    style={{ fontFamily: tema.fonte_corpo || 'Inter' }}>
+                    {textoAlbum.nome_negocio}
+                  </p>
+                )}
+                <h1 className="text-4xl font-bold mb-1"
+                  style={{ fontFamily: tema.fonte_titulo || 'Playfair Display' }}>
+                  {textoAlbum.titulo || 'Título do álbum'}
+                </h1>
+                {textoAlbum.mais_info && textoAlbum.data_evento && (
+                  <p className="text-sm opacity-70" style={{ fontFamily: tema.fonte_corpo || 'Inter' }}>
+                    {textoAlbum.data_evento}
+                  </p>
+                )}
+                <div className="flex items-center justify-between mt-4">
+                  <div />
+                  <span className="text-xs opacity-70 flex items-center gap-1"
+                    style={{ fontFamily: tema.fonte_corpo || 'Inter' }}>
+                    {textoAlbum.texto_botao || 'Ver fotos'} →
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
         </main>
       </div>
 
-      {/* ALB-12 LIGHTBOX */}
-      {fotoLightbox && (
-        <div className="fixed inset-0 z-50 bg-black/90 flex flex-col items-center justify-center">
-          <button onClick={() => setLightboxIndex(null)} className="absolute top-4 right-4 text-white hover:text-gray-300"><X size={28} /></button>
-          <button onClick={() => setLightboxIndex(i => Math.max(i - 1, 0))} className="absolute left-4 top-1/2 -translate-y-1/2 text-white hover:text-gray-300"><ChevronLeft size={32} /></button>
-          <button onClick={() => setLightboxIndex(i => Math.min(i + 1, fotosGaleria.length - 1))} className="absolute right-4 top-1/2 -translate-y-1/2 text-white hover:text-gray-300"><ChevronRight size={32} /></button>
 
-          <img src={fotoLightbox.url} alt={fotoLightbox.nome} className="max-h-[70vh] max-w-[90vw] object-contain rounded" />
-
-          {/* Metadados */}
-          <div className="text-white text-xs mt-3 flex gap-4">
-            <span>{fotoLightbox.nome}</span>
-            <span>{fotoLightbox.tamanho || '—'}</span>
-            <span>{fotoLightbox.data_upload || '—'}</span>
-          </div>
-
-          {/* ALB-14 Comentários */}
-          <div className="mt-4 w-full max-w-lg px-4">
-            <div className="bg-white/10 rounded p-3 max-h-32 overflow-y-auto mb-2">
-              {(fotoLightbox.comentarios || []).map((c, i) => (
-                <div key={i} className="text-xs text-gray-200 mb-1">
-                  <span className="font-medium text-white">{c.autor}:</span> {c.texto}
+      {/* MODAL: Organize as fotos dessa galeria */}
+      {showGaleriaModal && (
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-[85vh] flex flex-col">
+            {/* Header */}
+            <div className="flex items-center justify-between p-4 border-b">
+              <div>
+                <h3 className="text-lg font-bold text-gray-900">Organize as fotos dessa galeria</h3>
+                <div className="flex items-center gap-2 mt-1">
+                  <input type="text" placeholder="Buscar" className="px-3 py-1.5 border rounded-lg text-sm w-48" />
                 </div>
-              ))}
-              {(!fotoLightbox.comentarios || fotoLightbox.comentarios.length === 0) && (
-                <p className="text-xs text-gray-400">Nenhum comentário.</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <button onClick={() => fileInputRef.current?.click()}
+                  className="px-4 py-2 rounded-lg text-sm text-white font-medium"
+                  style={{ backgroundColor: ACCENT }}>
+                  <Upload size={14} className="inline mr-1" /> Upload de mídia
+                </button>
+                <button onClick={() => setShowGaleriaModal(false)} className="p-1 rounded hover:bg-gray-100">
+                  <X size={20} />
+                </button>
+              </div>
+            </div>
+
+            {/* Toolbar */}
+            <div className="flex items-center gap-3 px-4 py-2 border-b text-xs">
+              <span className="text-gray-600">{selecionadas.length} selecionados</span>
+              <button onClick={() => setSelecionadas(fotosGaleria.map(f => f.id))} className="text-blue-600 hover:underline">Selecionar tudo</button>
+              <button onClick={() => setSelecionadas([])} className="text-blue-600 hover:underline">Desmarcar</button>
+              {selecionadas.length > 0 && (
+                <button onClick={excluirSelecionadas} className="text-blue-600 hover:underline">Remover</button>
               )}
+              <div className="ml-auto flex items-center gap-2">
+                <span className="text-gray-500">Organizar por</span>
+                <select className="border rounded px-2 py-1 text-xs">
+                  <option>Padrão</option>
+                  <option>Nome</option>
+                  <option>Data</option>
+                </select>
+              </div>
             </div>
-            <div className="flex gap-2">
-              <input value={comentario} onChange={e => setComentario(e.target.value)}
-                onKeyDown={e => e.key === 'Enter' && enviarComentario(fotoLightbox.id)}
-                placeholder="Adicionar comentário..."
-                className="flex-1 rounded px-3 py-1.5 text-sm bg-white/20 text-white placeholder-gray-300 border border-white/20" />
-              <button onClick={() => enviarComentario(fotoLightbox.id)} className="px-3 py-1.5 rounded text-sm text-white" style={{ backgroundColor: ACCENT }}>
-                <MessageSquare size={15} />
-              </button>
+
+
+            {/* Photos grid + Detail panel */}
+            <div className="flex flex-1 overflow-hidden">
+              {/* Grid */}
+              <div className="flex-1 overflow-y-auto p-4">
+                <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 gap-2">
+                  {fotosGaleria.map((foto, idx) => (
+                    <div key={foto.id}
+                      className={`relative aspect-square rounded-lg overflow-hidden cursor-pointer border-2 transition ${
+                        selecionadas.includes(foto.id) ? 'border-blue-500 ring-2 ring-blue-200' : 'border-transparent hover:border-gray-300'
+                      }`}
+                      onClick={() => toggleSelecionada(foto.id)}>
+                      <img src={foto.thumbnail_url || foto.url} alt="" className="w-full h-full object-cover" />
+                      <span className="absolute top-1 left-1 bg-blue-500 text-white text-[9px] w-5 h-5 rounded-full flex items-center justify-center font-medium">
+                        {idx + 1}
+                      </span>
+                      {tema.capa_foto_id === foto.id && (
+                        <span className="absolute top-1 right-1 bg-red-500 text-white text-[8px] px-1.5 py-0.5 rounded font-medium">CAPA</span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Detail panel (when 1 photo selected) */}
+              {selecionadas.length === 1 && (() => {
+                const foto = fotosGaleria.find(f => f.id === selecionadas[0]);
+                if (!foto) return null;
+                return (
+                  <div className="w-64 border-l bg-gray-50 p-4 overflow-y-auto shrink-0">
+                    <img src={foto.thumbnail_url || foto.url} alt="" className="w-full aspect-video object-cover rounded-lg mb-3" />
+                    <p className="text-[10px] text-gray-400 mb-2">{foto.filename || foto.nome || 'Foto'}</p>
+                    <button onClick={() => definirComoCapa(foto.id)}
+                      className="w-full text-xs text-center py-1.5 border rounded-lg text-blue-600 border-blue-200 hover:bg-blue-50 mb-3">
+                      Substituir foto da capa
+                    </button>
+                    <div className="space-y-3">
+                      <div>
+                        <label className="text-[11px] font-medium text-gray-600">Título</label>
+                        <input value={editFotoForm.titulo}
+                          onChange={e => setEditFotoForm({ ...editFotoForm, titulo: e.target.value })}
+                          className="w-full mt-0.5 px-2 py-1.5 border rounded text-sm" placeholder={foto.filename || 'Título'} />
+                      </div>
+                      <div>
+                        <label className="text-[11px] font-medium text-gray-600">Descrição</label>
+                        <textarea value={editFotoForm.descricao}
+                          onChange={e => setEditFotoForm({ ...editFotoForm, descricao: e.target.value })}
+                          className="w-full mt-0.5 px-2 py-1.5 border rounded text-sm resize-none" rows={3} placeholder="Escreva sobre essa foto" />
+                      </div>
+                      <button onClick={() => { openEditFoto(foto); handleSaveFotoEdit(); }}
+                        className="w-full py-2 rounded-lg text-sm text-white font-medium"
+                        style={{ backgroundColor: ACCENT }}>OK</button>
+                    </div>
+                  </div>
+                );
+              })()}
+            </div>
+
+            {/* Footer slider */}
+            <div className="border-t px-4 py-3 flex items-center gap-3">
+              <input type="range" min="60" max="200" defaultValue="100" className="flex-1 accent-blue-500" />
             </div>
           </div>
         </div>
       )}
 
-      {/* ALB-11 Modal Prorrogar */}
-      {showProrrogar && (
-        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center">
-          <div className="bg-white rounded-lg p-6 w-full max-w-sm shadow-xl">
-            <h3 className="text-lg font-bold mb-4">Prorrogar Álbum</h3>
-            <label className="block text-sm mb-1">Nova data de expiração</label>
-            <input type="date" value={prorrogarData} onChange={e => setProrrogarData(e.target.value)}
-              className="w-full border rounded px-3 py-2 mb-3 text-sm" />
-            <label className="block text-sm mb-1">Valor (R$)</label>
-            <input type="number" value={prorrogarValor} onChange={e => setProrrogarValor(e.target.value)}
-              className="w-full border rounded px-3 py-2 mb-4 text-sm" placeholder="0,00" />
-            <div className="flex justify-end gap-2">
-              <button onClick={() => setShowProrrogar(false)} className="px-4 py-2 text-sm rounded border hover:bg-gray-50">Cancelar</button>
-              <button onClick={handleProrrogar} className="px-4 py-2 text-sm rounded text-white" style={{ backgroundColor: ACCENT }}>Confirmar</button>
-            </div>
-          </div>
-        </div>
-      )}
 
-      {/* Modal Configurações do Álbum */}
-      {showConfig && album && (
-        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center">
-          <div className="bg-white rounded-xl p-6 w-full max-w-md shadow-xl mx-4">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-bold">Configurações do Álbum</h3>
-              <button onClick={() => setShowConfig(false)} className="p-1 rounded hover:bg-gray-100"><X size={18} /></button>
-            </div>
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-900">Permitir download</p>
-                  <p className="text-xs text-gray-500">Cliente pode baixar fotos originais</p>
-                </div>
-                <button onClick={async () => { await authFetch(`/admin/albuns/${id}`, { method: 'PUT', body: JSON.stringify({ permite_download: !album.permite_download }) }); fetchAlbum(); }}
-                  className={`w-12 h-6 rounded-full relative transition-colors ${album.permite_download ? 'bg-green-500' : 'bg-gray-300'}`}>
-                  <div className={`w-5 h-5 bg-white rounded-full shadow absolute top-0.5 transition-transform ${album.permite_download ? 'translate-x-6' : 'translate-x-0.5'}`} />
-                </button>
-              </div>
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-900">Permitir seleção</p>
-                  <p className="text-xs text-gray-500">Cliente pode selecionar fotos favoritas</p>
-                </div>
-                <button onClick={async () => { await authFetch(`/admin/albuns/${id}`, { method: 'PUT', body: JSON.stringify({ permite_selecao: !album.permite_selecao }) }); fetchAlbum(); }}
-                  className={`w-12 h-6 rounded-full relative transition-colors ${album.permite_selecao ? 'bg-green-500' : 'bg-gray-300'}`}>
-                  <div className={`w-5 h-5 bg-white rounded-full shadow absolute top-0.5 transition-transform ${album.permite_selecao ? 'translate-x-6' : 'translate-x-0.5'}`} />
-                </button>
-              </div>
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-900">Permitir comentários</p>
-                  <p className="text-xs text-gray-500">Cliente pode comentar nas fotos</p>
-                </div>
-                <button onClick={async () => { await authFetch(`/admin/albuns/${id}`, { method: 'PUT', body: JSON.stringify({ permite_comentarios: !album.permite_comentarios }) }); fetchAlbum(); }}
-                  className={`w-12 h-6 rounded-full relative transition-colors ${album.permite_comentarios ? 'bg-green-500' : 'bg-gray-300'}`}>
-                  <div className={`w-5 h-5 bg-white rounded-full shadow absolute top-0.5 transition-transform ${album.permite_comentarios ? 'translate-x-6' : 'translate-x-0.5'}`} />
-                </button>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Cota de seleção</label>
-                <input type="number" defaultValue={album.cota_selecao || 0} min="0"
-                  onBlur={async (e) => { await authFetch(`/admin/albuns/${id}`, { method: 'PUT', body: JSON.stringify({ cota_selecao: Number(e.target.value) }) }); fetchAlbum(); }}
-                  className="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-orange-200 outline-none" placeholder="0 = sem limite" />
-                <p className="text-xs text-gray-400 mt-1">Quantas fotos o cliente pode selecionar (0 = ilimitado)</p>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Senha de acesso</label>
-                <input type="text" defaultValue={album.senha_acesso || ''}
-                  onBlur={async (e) => { await authFetch(`/admin/albuns/${id}`, { method: 'PUT', body: JSON.stringify({ senha_acesso: e.target.value || null }) }); fetchAlbum(); }}
-                  className="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-orange-200 outline-none" placeholder="Deixe vazio para acesso livre" />
-                <p className="text-xs text-gray-400 mt-1">Senha que o cliente precisa digitar para acessar</p>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Data de expiração</label>
-                <input type="date" defaultValue={album.data_expiracao || ''}
-                  onBlur={async (e) => { await authFetch(`/admin/albuns/${id}`, { method: 'PUT', body: JSON.stringify({ data_expiracao: e.target.value || null }) }); fetchAlbum(); }}
-                  className="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-orange-200 outline-none" />
-              </div>
-            </div>
-            <div className="mt-6 pt-4 border-t">
-              <button onClick={() => setShowConfig(false)} className="w-full px-4 py-2.5 rounded-lg text-sm font-medium text-white" style={{ background: ACCENT }}>Fechar</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* G2 - Modal Editar Foto (titulo/descricao) */}
+      {/* MODAL: Edit foto */}
       {editingFoto && (
         <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center" onClick={() => setEditingFoto(null)}>
           <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm p-5 mx-4 space-y-4" onClick={e => e.stopPropagation()}>
@@ -716,181 +1339,40 @@ export default function AlbumDetalhe() {
             </div>
             <div>
               <label className="block text-xs font-medium text-gray-700 mb-1">Título</label>
-              <input
-                value={editFotoForm.titulo}
+              <input value={editFotoForm.titulo}
                 onChange={e => setEditFotoForm(f => ({ ...f, titulo: e.target.value }))}
-                className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-orange-200"
-                placeholder="Título da foto..."
-              />
+                className="w-full px-3 py-2 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
+                placeholder="Título da foto..." />
             </div>
             <div>
               <label className="block text-xs font-medium text-gray-700 mb-1">Descrição</label>
-              <textarea
-                value={editFotoForm.descricao}
+              <textarea value={editFotoForm.descricao}
                 onChange={e => setEditFotoForm(f => ({ ...f, descricao: e.target.value }))}
-                rows={3}
-                className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-orange-200 resize-none"
-                placeholder="Descrição da foto..."
-              />
+                rows={3} className="w-full px-3 py-2 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-blue-200 resize-none"
+                placeholder="Descrição da foto..." />
             </div>
-            <div className="flex justify-end gap-2 pt-2 border-t border-gray-100">
-              <button onClick={() => setEditingFoto(null)} className="px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-100 rounded-lg transition">Cancelar</button>
-              <button onClick={handleSaveFotoEdit} style={{ background: ACCENT }} className="px-4 py-1.5 text-sm text-white rounded-lg font-medium hover:opacity-90 transition shadow-sm">Salvar</button>
+            <div className="flex justify-end gap-2 pt-2 border-t">
+              <button onClick={() => setEditingFoto(null)} className="px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-100 rounded-lg">Cancelar</button>
+              <button onClick={handleSaveFotoEdit} style={{ background: ACCENT }} className="px-4 py-1.5 text-sm text-white rounded-lg font-medium">Salvar</button>
             </div>
           </div>
         </div>
       )}
-      {/* G3 - Modal Tema do Álbum */}
-      {showTema && (
-        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center" onClick={() => setShowTema(false)}>
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md p-6 mx-4 space-y-5 max-h-[80vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
-            <div className="flex items-center justify-between">
-              <h3 className="text-lg font-semibold flex items-center gap-2"><Palette size={18} style={{ color: ACCENT }} /> Tema do Álbum</h3>
-              <button onClick={() => setShowTema(false)} className="text-gray-400 hover:text-gray-600"><X size={18} /></button>
-            </div>
 
-            {/* Layout */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Layout</label>
-              <div className="flex flex-wrap gap-2">
-                {['grade', 'mosaico', 'colagem', 'slider', 'coluna', 'ladrilhos'].map(l => (
-                  <button key={l} onClick={() => setTema({ ...tema, layout: l })}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors ${tema.layout === l ? 'border-orange-300 bg-orange-50 text-orange-700' : 'border-gray-200 text-gray-500 hover:bg-gray-50'}`}>
-                    {l.charAt(0).toUpperCase() + l.slice(1)}
-                  </button>
-                ))}
-              </div>
-            </div>
 
-            {/* Cores */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Cores</label>
-              <div className="grid grid-cols-3 gap-3">
-                <div>
-                  <label className="text-xs text-gray-500">Fundo</label>
-                  <input type="color" value={tema.cores?.fundo || '#FFFFFF'} onChange={e => setTema({ ...tema, cores: { ...tema.cores, fundo: e.target.value } })}
-                    className="w-full h-9 rounded border cursor-pointer" />
-                </div>
-                <div>
-                  <label className="text-xs text-gray-500">Texto</label>
-                  <input type="color" value={tema.cores?.texto || '#1A1A1A'} onChange={e => setTema({ ...tema, cores: { ...tema.cores, texto: e.target.value } })}
-                    className="w-full h-9 rounded border cursor-pointer" />
-                </div>
-                <div>
-                  <label className="text-xs text-gray-500">Acento</label>
-                  <input type="color" value={tema.cores?.acento || '#EA580C'} onChange={e => setTema({ ...tema, cores: { ...tema.cores, acento: e.target.value } })}
-                    className="w-full h-9 rounded border cursor-pointer" />
-                </div>
-              </div>
-            </div>
-
-            {/* Fontes */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Fontes</label>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-xs text-gray-500">Título</label>
-                  <select value={tema.fonte_titulo || 'Inter'} onChange={e => setTema({ ...tema, fonte_titulo: e.target.value })}
-                    className="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-orange-200 outline-none">
-                    <option value="Inter">Inter</option>
-                    <option value="Playfair Display">Playfair Display</option>
-                    <option value="Montserrat">Montserrat</option>
-                    <option value="Lora">Lora</option>
-                    <option value="Poppins">Poppins</option>
-                    <option value="Cormorant Garamond">Cormorant Garamond</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="text-xs text-gray-500">Corpo</label>
-                  <select value={tema.fonte_corpo || 'Inter'} onChange={e => setTema({ ...tema, fonte_corpo: e.target.value })}
-                    className="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-orange-200 outline-none">
-                    <option value="Inter">Inter</option>
-                    <option value="Open Sans">Open Sans</option>
-                    <option value="Lato">Lato</option>
-                    <option value="Roboto">Roboto</option>
-                    <option value="Source Sans Pro">Source Sans Pro</option>
-                  </select>
-                </div>
-              </div>
-            </div>
-
-            {/* Animação */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Animação</label>
-              <select value={tema.animacao || 'none'} onChange={e => setTema({ ...tema, animacao: e.target.value })}
-                className="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-orange-200 outline-none">
-                <option value="none">Nenhuma</option>
-                <option value="fade">Fade</option>
-                <option value="slide">Slide</option>
-                <option value="zoom">Zoom</option>
-              </select>
-            </div>
-
-            {/* Capa */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Foto de Capa</label>
-              {fotos.length > 0 ? (
-                <div className="grid grid-cols-5 gap-2 max-h-32 overflow-y-auto">
-                  {fotos.map(foto => (
-                    <button key={foto.id || foto.SK} onClick={() => setTema({ ...tema, capa_foto_id: foto.id || foto.SK?.replace('FOTO#', '') })}
-                      className={`relative rounded-lg overflow-hidden border-2 transition-all ${(tema.capa_foto_id === (foto.id || foto.SK?.replace('FOTO#', ''))) ? 'border-orange-500 ring-2 ring-orange-200' : 'border-gray-200 hover:border-gray-300'}`}>
-                      <img src={foto.url || foto.thumbnail_url} alt="" className="w-full h-16 object-cover" />
-                      {(tema.capa_foto_id === (foto.id || foto.SK?.replace('FOTO#', ''))) && (
-                        <div className="absolute inset-0 bg-orange-500/20 flex items-center justify-center">
-                          <CheckCircle2 size={16} className="text-white drop-shadow" />
-                        </div>
-                      )}
-                    </button>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-sm text-gray-400">Nenhuma foto disponível. Faça upload primeiro.</p>
-              )}
-            </div>
-
-            {/* Modo da Capa */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Modo da Capa</label>
-              <div className="flex gap-2">
-                {['cover', 'contain', 'fill'].map(m => (
-                  <button key={m} onClick={() => setTema({ ...tema, capa_modo: m })}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors ${(tema.capa_modo || 'cover') === m ? 'border-orange-300 bg-orange-50 text-orange-700' : 'border-gray-200 text-gray-500 hover:bg-gray-50'}`}>
-                    {m.charAt(0).toUpperCase() + m.slice(1)}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Logo Posição */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Posição do Logo</label>
-              <select value={tema.logo_posicao || 'top-left'} onChange={e => setTema({ ...tema, logo_posicao: e.target.value })}
-                className="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-orange-200 outline-none">
-                <option value="top-left">Topo Esquerda</option>
-                <option value="top-center">Topo Centro</option>
-                <option value="top-right">Topo Direita</option>
-                <option value="bottom-left">Rodapé Esquerda</option>
-                <option value="bottom-center">Rodapé Centro</option>
-                <option value="bottom-right">Rodapé Direita</option>
-              </select>
-            </div>
-
-            {/* Salvar */}
-            <div className="flex justify-end gap-2 pt-3 border-t">
-              <button onClick={() => setShowTema(false)} className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg">Cancelar</button>
-              <button onClick={async () => {
-                try {
-                  await authFetch(`/admin/albuns/${id}/tema`, { method: 'PUT', body: JSON.stringify(tema) });
-                  setShowTema(false);
-                } catch {}
-              }} style={{ background: ACCENT }} className="px-4 py-2 text-sm text-white rounded-lg font-medium hover:opacity-90">
-                Salvar Tema
-              </button>
-            </div>
+      {/* LIGHTBOX */}
+      {fotoLightbox && (
+        <div className="fixed inset-0 z-50 bg-black/90 flex flex-col items-center justify-center">
+          <button onClick={() => setLightboxIndex(null)} className="absolute top-4 right-4 text-white hover:text-gray-300"><X size={28} /></button>
+          <button onClick={() => setLightboxIndex(i => Math.max(i - 1, 0))} className="absolute left-4 top-1/2 -translate-y-1/2 text-white hover:text-gray-300"><ChevronLeft size={32} /></button>
+          <button onClick={() => setLightboxIndex(i => Math.min(i + 1, fotosGaleria.length - 1))} className="absolute right-4 top-1/2 -translate-y-1/2 text-white hover:text-gray-300"><ChevronRight size={32} /></button>
+          <img src={fotoLightbox.url} alt={fotoLightbox.nome} className="max-h-[75vh] max-w-[90vw] object-contain rounded" />
+          <div className="text-white text-xs mt-3 flex gap-4">
+            <span>{fotoLightbox.nome || fotoLightbox.filename}</span>
+            <span>{fotoLightbox.tamanho || ''}</span>
           </div>
         </div>
       )}
     </div>
   );
 }
-
