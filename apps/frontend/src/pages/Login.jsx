@@ -35,7 +35,7 @@ export default function Login() {
     setError('');
     try {
       const data = await login(email, password);
-      navigate(data.user.role === 'admin' ? '/admin' : '/cliente/orcamentos');
+      navigate(data.user.role === 'admin' ? '/admin' : '/cliente');
     } catch (err) {
       setError(err.message);
     }
