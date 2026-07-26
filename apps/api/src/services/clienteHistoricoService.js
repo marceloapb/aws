@@ -51,6 +51,20 @@ async function registrarEvento({ cliente_id, tipo, descricao, metadata = {}, aut
   };
 
   await dynamo.send(new PutCommand({ TableName: TABLE, Item: item }));
+
+  // Disparar notificações via regras configuradas (fire and forget)
+  try {
+    const { processarEvento } = require('./notificationDispatcher');
+    processarEvento({
+      evento_id: id,
+      tipo_evento: tipo,
+      tenant_id: process.env.TENANT_ID || 'default',
+      dados: { cliente_id, descricao, ...metadata },
+    }).catch(err => console.error('[NOTIF_DISPATCH] Erro:', err.message));
+  } catch (err) {
+    console.error('[NOTIF_DISPATCH] Erro ao importar dispatcher:', err.message);
+  }
+
   return item;
 }
 

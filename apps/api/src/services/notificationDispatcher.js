@@ -30,16 +30,21 @@ async function processarEvento(evento) {
   }
 
   // 2) Buscar regras de notificação ativas para o tipo_evento
+  // Normalizar: tipo_evento pode ser 'orcamento_criado' ou 'orcamento.criado'
+  const tipoComPonto = tipo_evento.replace(/_/g, '.');
+  const tipoComUnderscore = tipo_evento.replace(/\./g, '_');
+
   const regrasResult = await dynamo.send(new QueryCommand({
     TableName: TABLE,
     KeyConditionExpression: 'PK = :pk AND begins_with(SK, :sk)',
-    FilterExpression: '#status = :ativa AND contains(tipos_evento, :tipo)',
+    FilterExpression: '#status = :ativa AND (contains(tipos_evento, :tipo1) OR contains(tipos_evento, :tipo2))',
     ExpressionAttributeNames: { '#status': 'status' },
     ExpressionAttributeValues: {
       ':pk': `TENANT#${tenant_id || TENANT}`,
       ':sk': 'REGRA_NTF#',
       ':ativa': 'ativa',
-      ':tipo': tipo_evento,
+      ':tipo1': tipoComPonto,
+      ':tipo2': tipoComUnderscore,
     },
   }));
 
@@ -133,10 +138,31 @@ async function despacharCanal(canal, regra, evento, dados) {
 
     case 'whatsapp': {
       const { enviarWhatsApp } = require('../adapters/notificacoes/whatsappAdapter');
+      const titulo = regra.titulo_template || evento.tipo_evento;
+      const mensagem = regra.mensagem_template || dados.descricao || evento.tipo_evento;
+
+      // Resolver destinatário: regra > dados > config admin
+      let numero = regra.whatsapp_destinatario || dados.whatsapp;
+      if (!numero) {
+        // Buscar número admin das configs
+        try {
+          const configResult = await dynamo.send(new QueryCommand({
+            TableName: TABLE,
+            KeyConditionExpression: 'PK = :pk AND SK = :sk',
+            ExpressionAttributeValues: { ':pk': `TENANT#${evento.tenant_id || TENANT}`, ':sk': 'CONFIG#whatsappBusiness' },
+          }));
+          numero = configResult.Items?.[0]?.valor || '';
+        } catch {}
+      }
+
+      if (!numero) {
+        throw new Error('Número WhatsApp do destinatário não configurado');
+      }
+
       await enviarWhatsApp({
-        numero: regra.whatsapp_destinatario || dados.whatsapp,
+        numero,
         template: regra.whatsapp_template || 'notificacao_geral',
-        parametros: dados.parametros || [dados.titulo || evento.tipo_evento],
+        parametros: [titulo, mensagem],
       });
       break;
     }
