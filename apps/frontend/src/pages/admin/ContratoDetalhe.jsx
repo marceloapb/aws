@@ -116,11 +116,21 @@ export default function ContratoDetalhe() {
         await new Promise(resolve => { script.onload = resolve; });
       }
 
-      // Create temp container
+      // Parse full HTML document to extract styles and body
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(json.html, 'text/html');
+      const styles = doc.querySelectorAll('style');
+      const bodyContent = doc.body.innerHTML;
+
+      // Create temp container with styles injected
       const container = document.createElement('div');
-      container.innerHTML = json.html;
+      styles.forEach(s => container.appendChild(s.cloneNode(true)));
+      const content = document.createElement('div');
+      content.innerHTML = bodyContent;
+      container.appendChild(content);
       container.style.position = 'absolute';
       container.style.left = '-9999px';
+      container.style.width = '800px';
       document.body.appendChild(container);
 
       // Generate PDF

@@ -146,7 +146,7 @@ export default function Contratos() {
   const kpis = useMemo(() => {
     const total = contratos.length;
     const now = new Date();
-    const assinados = contratos.filter(c => c.status === 'assinado' && new Date(c.aceite_em).getMonth() === now.getMonth() && new Date(c.aceite_em).getFullYear() === now.getFullYear()).length;
+    const assinados = contratos.filter(c => c.status === 'assinado' && new Date(c.assinado_em).getMonth() === now.getMonth() && new Date(c.assinado_em).getFullYear() === now.getFullYear()).length;
     const aguardando = contratos.filter(c => c.status === 'enviado').length;
     const expirados = contratos.filter(c => c.status === 'expirado').length;
     const taxa = total > 0 ? Math.round((contratos.filter(c => c.status === 'assinado').length / total) * 100) : 0;
@@ -220,11 +220,20 @@ export default function Contratos() {
         await new Promise(resolve => { script.onload = resolve; });
       }
 
-      // Create temp container
+      // Parse full HTML document to extract styles and body
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(json.html, 'text/html');
+      const styles = doc.querySelectorAll('style');
+      const bodyContent = doc.body.innerHTML;
+
       const container = document.createElement('div');
-      container.innerHTML = json.html;
+      styles.forEach(s => container.appendChild(s.cloneNode(true)));
+      const content = document.createElement('div');
+      content.innerHTML = bodyContent;
+      container.appendChild(content);
       container.style.position = 'absolute';
       container.style.left = '-9999px';
+      container.style.width = '800px';
       document.body.appendChild(container);
 
       // Generate PDF
@@ -407,7 +416,7 @@ export default function Contratos() {
                   <SortableHeader label="Status" field="status" onSort={requestSortContratos} active={getSortIndicatorContratos('status')} />
                   <SortableHeader label="Gerado em" field="gerado_em" onSort={requestSortContratos} active={getSortIndicatorContratos('gerado_em')} />
                   <SortableHeader label="Expira" field="expira_em" onSort={requestSortContratos} active={getSortIndicatorContratos('expira_em')} />
-                  <SortableHeader label="Assinado em" field="aceite_em" onSort={requestSortContratos} active={getSortIndicatorContratos('aceite_em')} />
+                  <SortableHeader label="Assinado em" field="assinado_em" onSort={requestSortContratos} active={getSortIndicatorContratos('assinado_em')} />
                   <th className="px-4 py-3 text-left font-medium text-gray-600 whitespace-nowrap">Ações</th>
                 </tr></thead>
                 <tbody className="divide-y divide-gray-100">
@@ -430,7 +439,7 @@ export default function Contratos() {
                         <td className="px-4 py-3">
                           {dias !== null && dias > 0 ? <span className={dias <= 3 ? 'text-red-600 font-semibold' : 'text-gray-500'}>{dias}d restantes</span> : dias !== null && dias <= 0 ? <span className="text-red-400 text-xs">Expirado</span> : '—'}
                         </td>
-                        <td className="px-4 py-3 text-gray-500">{formatDate(c.aceite_em)}</td>
+                        <td className="px-4 py-3 text-gray-500">{formatDate(c.assinado_em)}</td>
                         <td className="px-4 py-3">
                           <div className="flex gap-1">
                             <button onClick={() => navigate(`/admin/contratos/${c.id}`)} title="Ver" className="p-1.5 rounded hover:bg-gray-100"><Eye size={15} /></button>

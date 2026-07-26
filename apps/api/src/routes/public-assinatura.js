@@ -12,6 +12,8 @@ const {
   verificarIntegridade,
 } = require('../services/assinaturaEletronicaService');
 const { registrarAudit, EVENTOS } = require('../services/auditLogService');
+const { dynamo, TABLE } = require('../config/dynamodb');
+const { UpdateCommand } = require('@aws-sdk/lib-dynamodb');
 const logger = require('../config/logger');
 
 const router = Router();
@@ -51,6 +53,17 @@ router.get('/contrato/:token', async (req, res) => {
       ip_address: ip,
       user_agent: req.headers['user-agent'] || '',
     });
+
+    // Marcar visualizado_em na primeira abertura
+    if (!contrato.visualizado_em) {
+      await dynamo.send(new UpdateCommand({
+        TableName: TABLE,
+        Key: { PK: contrato.PK, SK: contrato.SK },
+        UpdateExpression: 'SET visualizado_em = :v',
+        ConditionExpression: 'attribute_not_exists(visualizado_em)',
+        ExpressionAttributeValues: { ':v': new Date().toISOString() },
+      })).catch(() => {});
+    }
 
     res.json({ success: true, data: dadosPublicos });
   } catch (error) {
