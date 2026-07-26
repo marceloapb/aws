@@ -1,17 +1,15 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
-import { Eye, X, ChevronLeft, ChevronRight, Camera, Download, Heart, MessageCircle } from 'lucide-react';
+import { Eye, X, ChevronLeft, ChevronRight, Download, Share2, ArrowRight, ArrowLeft, ZoomIn } from 'lucide-react';
 
 const DEFAULTS_TEMA = {
   capa_foto_id: null,
   capa_modo: 'cover',
-  cores: { fundo: '#FFFFFF', texto: '#1A1A1A', acento: '#EA580C' },
+  cores: { fundo: '#1A1A1A', texto: '#FFFFFF', acento: '#EA580C' },
   layout: 'grade',
-  fonte_titulo: 'Inter',
+  fonte_titulo: 'Playfair Display',
   fonte_corpo: 'Inter',
-  animacao: 'none',
-  logo_posicao: 'top-left',
 };
 
 const PAGE_SIZE = 40;
@@ -21,37 +19,61 @@ export default function AlbumPreview() {
   const { authFetch } = useAuth();
   const [album, setAlbum] = useState(null);
   const [fotos, setFotos] = useState([]);
+  const [galerias, setGalerias] = useState([]);
   const [tema, setTema] = useState(DEFAULTS_TEMA);
-  const [lightbox, setLightbox] = useState(null);
   const [loading, setLoading] = useState(true);
+
+  // View state: 'cover' | 'sets' | 'gallery'
+  const [view, setView] = useState('cover');
+  const [activeGaleriaId, setActiveGaleriaId] = useState(null);
+  const [lightbox, setLightbox] = useState(null);
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const loaderRef = useRef(null);
 
   useEffect(() => { loadData(); }, [id]);
 
-  // Infinite scroll observer
+  // Infinite scroll
   useEffect(() => {
     if (!loaderRef.current) return;
     const observer = new IntersectionObserver(
       (entries) => {
-        if (entries[0].isIntersecting && visibleCount < fotos.length) {
-          setVisibleCount(prev => Math.min(prev + PAGE_SIZE, fotos.length));
+        if (entries[0].isIntersecting) {
+          const currentFotos = getActiveFotos();
+          if (visibleCount < currentFotos.length) {
+            setVisibleCount(prev => Math.min(prev + PAGE_SIZE, currentFotos.length));
+          }
         }
       },
       { threshold: 0.1 }
     );
     observer.observe(loaderRef.current);
     return () => observer.disconnect();
-  }, [visibleCount, fotos.length]);
+  }, [visibleCount, fotos.length, activeGaleriaId]);
+
+  // Keyboard navigation for lightbox
+  useEffect(() => {
+    if (lightbox === null) return;
+    const currentFotos = getActiveFotos();
+    const handleKey = (e) => {
+      if (e.key === 'Escape') setLightbox(null);
+      if (e.key === 'ArrowLeft') setLightbox(i => Math.max(0, i - 1));
+      if (e.key === 'ArrowRight') setLightbox(i => Math.min(currentFotos.length - 1, i + 1));
+    };
+    window.addEventListener('keydown', handleKey);
+    return () => window.removeEventListener('keydown', handleKey);
+  }, [lightbox, fotos.length, activeGaleriaId]);
 
   const loadData = async () => {
     try {
-      const [albumRes, temaRes] = await Promise.all([
+      const [albumRes, temaRes, galeriasRes] = await Promise.all([
         authFetch(`/admin/albuns/${id}`),
         authFetch(`/admin/albuns/${id}/tema`),
+        authFetch(`/admin/albuns/${id}/galerias`),
       ]);
       const albumJson = await albumRes.json();
       const temaJson = await temaRes.json();
+      const galeriasJson = await galeriasRes.json();
+
       if (albumJson.success) {
         setAlbum(albumJson.data);
         setFotos(albumJson.data.fotos || []);
@@ -59,219 +81,379 @@ export default function AlbumPreview() {
       if (temaJson.success) {
         setTema({ ...DEFAULTS_TEMA, ...temaJson.data });
       }
+      if (galeriasJson.success) {
+        const gals = (galeriasJson.data || []).sort((a, b) => (a.ordem || 0) - (b.ordem || 0));
+        setGalerias(gals);
+      }
     } catch {}
     setLoading(false);
   };
 
-  const openLightbox = useCallback((i) => setLightbox(i), []);
-  const closeLightbox = useCallback(() => setLightbox(null), []);
-  const prevPhoto = useCallback(() => setLightbox(i => Math.max(0, i - 1)), []);
-  const nextPhoto = useCallback(() => setLightbox(i => Math.min(fotos.length - 1, i + 1)), [fotos.length]);
+  const getActiveFotos = useCallback(() => {
+    if (activeGaleriaId && activeGaleriaId !== 'all') {
+      return fotos.filter(f => f.galeria_id === activeGaleriaId);
+    }
+    return fotos;
+  }, [fotos, activeGaleriaId]);
 
-  // Keyboard navigation for lightbox
-  useEffect(() => {
-    if (lightbox === null) return;
-    const handleKey = (e) => {
-      if (e.key === 'Escape') closeLightbox();
-      if (e.key === 'ArrowLeft') prevPhoto();
-      if (e.key === 'ArrowRight') nextPhoto();
-    };
-    window.addEventListener('keydown', handleKey);
-    return () => window.removeEventListener('keydown', handleKey);
-  }, [lightbox, closeLightbox, prevPhoto, nextPhoto]);
+  const getGaleriasComFotos = useCallback(() => {
+    return galerias.map(g => {
+      const fotosGaleria = fotos.filter(f => f.galeria_id === g.id);
+      return {
+        ...g,
+        total_fotos: fotosGaleria.length,
+        thumbnail_url: fotosGaleria[0]?.url || null,
+      };
+    }).filter(g => g.total_fotos > 0);
+  }, [galerias, fotos]);
 
-  if (loading) return <div className="flex items-center justify-center min-h-screen text-gray-400">Carregando pré-visualização...</div>;
-  if (!album) return <div className="flex items-center justify-center min-h-screen text-gray-400">Álbum não encontrado</div>;
+  const handleVerFotos = () => {
+    const galeriasAtivas = getGaleriasComFotos();
+    if (galeriasAtivas.length <= 1) {
+      // Galeria única — vai direto para fotos
+      setActiveGaleriaId(galeriasAtivas.length === 1 ? galeriasAtivas[0].id : 'all');
+      setView('gallery');
+    } else {
+      setView('sets');
+    }
+    setVisibleCount(PAGE_SIZE);
+  };
+
+  const handleSelectGaleria = (galeriaId) => {
+    setActiveGaleriaId(galeriaId);
+    setView('gallery');
+    setVisibleCount(PAGE_SIZE);
+    setLightbox(null);
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-black flex items-center justify-center">
+        <div className="w-8 h-8 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  if (!album) {
+    return (
+      <div className="min-h-screen bg-black flex items-center justify-center text-white/60">
+        Álbum não encontrado
+      </div>
+    );
+  }
 
   const cores = tema.cores || DEFAULTS_TEMA.cores;
   const acento = cores.acento || '#EA580C';
-  const cota = album.cota_selecao || fotos.length;
-  const fotosVisiveis = fotos.slice(0, visibleCount);
+  const fonteTitulo = tema.fonte_titulo || 'Playfair Display';
 
   // Foto de capa
-  const capaFoto = tema.capa_foto_id ? fotos.find(f => f.id === tema.capa_foto_id || f.SK?.replace('FOTO#', '') === tema.capa_foto_id) : fotos[0];
+  const capaFoto = tema.capa_foto_id
+    ? fotos.find(f => f.id === tema.capa_foto_id || f.SK?.replace('FOTO#', '') === tema.capa_foto_id)
+    : fotos[0];
 
-  // Grid classes por layout
-  const getGridClass = () => {
-    switch (tema.layout) {
-      case 'mosaico': return 'columns-2 md:columns-3 lg:columns-4 gap-3 space-y-3';
-      case 'colagem': return 'columns-2 md:columns-3 gap-2 space-y-2';
-      case 'coluna': return 'grid grid-cols-1 md:grid-cols-2 gap-4';
-      case 'ladrilhos': return 'grid grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-1';
-      case 'slider': return 'flex overflow-x-auto gap-4 snap-x snap-mandatory pb-4';
-      default: return 'grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3';
-    }
+  const formatDate = (dateStr) => {
+    if (!dateStr) return '';
+    const [y, m, d] = dateStr.split('-');
+    if (!d) return dateStr;
+    return `${d}/${m}/${y}`;
   };
 
+  // ═══════════════════════════════════════════════════════════
+  // VIEW: COVER (Capa full-screen estilo Wix)
+  // ═══════════════════════════════════════════════════════════
+  if (view === 'cover') {
+    return (
+      <div className="min-h-screen relative overflow-hidden" style={{ backgroundColor: cores.fundo }}>
+        {/* Banner de preview */}
+        <div className="absolute top-0 left-0 right-0 z-30 bg-yellow-50 border-b border-yellow-200 px-4 py-2 text-center">
+          <span className="inline-flex items-center gap-2 text-sm text-yellow-800 font-medium">
+            <Eye size={14} /> Pré-visualização — é assim que o cliente verá o álbum
+          </span>
+        </div>
+
+        {/* Background cover image */}
+        {capaFoto && (
+          <div className="absolute inset-0">
+            <img
+              src={capaFoto.url || capaFoto.url_full || ''}
+              alt=""
+              className="w-full h-full object-cover"
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-black/10" />
+            <div className="absolute inset-0 bg-gradient-to-r from-black/40 to-transparent" />
+          </div>
+        )}
+
+        {/* Content */}
+        <div className="relative z-10 min-h-screen flex flex-col justify-between p-6 md:p-12 pt-16">
+          {/* Top - Brand */}
+          <div>
+            <p className="text-white/60 text-xs md:text-sm tracking-widest uppercase font-medium">
+              Marcelo Bloise Fotografia
+            </p>
+          </div>
+
+          {/* Bottom */}
+          <div className="flex items-end justify-between flex-wrap gap-6">
+            <div className="max-w-lg">
+              <h1
+                className="text-4xl md:text-6xl lg:text-7xl font-bold leading-tight"
+                style={{ fontFamily: fonteTitulo, color: acento }}
+              >
+                {album.titulo}
+              </h1>
+              {album.data_evento && (
+                <p className="mt-3 text-lg md:text-xl" style={{ color: acento, opacity: 0.8 }}>
+                  {formatDate(album.data_evento)}
+                </p>
+              )}
+            </div>
+
+            <button
+              onClick={handleVerFotos}
+              className="group flex items-center gap-2 text-white/80 hover:text-white transition-colors text-sm md:text-base"
+            >
+              <span>Ver fotos</span>
+              <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // VIEW: SETS (Seleção de galerias)
+  // ═══════════════════════════════════════════════════════════
+  if (view === 'sets') {
+    const galeriasAtivas = getGaleriasComFotos();
+
+    return (
+      <div className="min-h-screen bg-[#1A1A1A] text-white">
+        {/* Banner preview */}
+        <div className="bg-yellow-50 border-b border-yellow-200 px-4 py-2 text-center">
+          <span className="inline-flex items-center gap-2 text-sm text-yellow-800 font-medium">
+            <Eye size={14} /> Pré-visualização — Seleção de galerias
+          </span>
+        </div>
+
+        {/* Header */}
+        <header className="sticky top-0 z-20 bg-[#1A1A1A]/95 backdrop-blur-sm border-b border-white/5">
+          <div className="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
+            <button onClick={() => setView('cover')} className="p-2 -ml-2 text-white/60 hover:text-white transition-colors">
+              <ArrowLeft size={20} />
+            </button>
+            <h1 className="text-base md:text-lg font-medium">{album.titulo}</h1>
+            <div className="flex items-center gap-2">
+              <Share2 size={18} className="text-white/40" />
+            </div>
+          </div>
+        </header>
+
+        {/* Gallery cards */}
+        <main className="max-w-6xl mx-auto px-4 py-8">
+          <div className={`grid gap-6 ${galeriasAtivas.length === 2 ? 'grid-cols-1 md:grid-cols-2' : 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3'}`}>
+            {galeriasAtivas.map((galeria) => (
+              <button
+                key={galeria.id}
+                onClick={() => handleSelectGaleria(galeria.id)}
+                className="group relative aspect-[4/3] rounded-xl overflow-hidden bg-gray-800 text-left transition-transform hover:scale-[1.02] focus:outline-none focus:ring-2 focus:ring-white/30"
+              >
+                {galeria.thumbnail_url ? (
+                  <img
+                    src={galeria.thumbnail_url}
+                    alt={galeria.nome}
+                    className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                    loading="lazy"
+                  />
+                ) : (
+                  <div className="w-full h-full bg-gradient-to-br from-gray-700 to-gray-900" />
+                )}
+                <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent" />
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <span className="text-white text-xl md:text-2xl font-semibold drop-shadow-lg px-4 text-center"
+                    style={{ textShadow: '0 2px 8px rgba(0,0,0,0.6)' }}>
+                    {galeria.nome}
+                  </span>
+                </div>
+                <div className="absolute bottom-3 right-3">
+                  <span className="text-xs bg-black/50 text-white/80 px-2 py-1 rounded-full backdrop-blur-sm">
+                    {galeria.total_fotos} fotos
+                  </span>
+                </div>
+              </button>
+            ))}
+          </div>
+        </main>
+      </div>
+    );
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // VIEW: GALLERY (Grid de fotos)
+  // ═══════════════════════════════════════════════════════════
+  const activeFotos = getActiveFotos();
+  const fotosVisiveis = activeFotos.slice(0, visibleCount);
+  const activeGaleria = galerias.find(g => g.id === activeGaleriaId);
+  const galeriaNome = activeGaleria?.nome || 'Galeria';
+  const galeriasAtivas = getGaleriasComFotos();
+
   return (
-    <div className="min-h-screen" style={{ backgroundColor: cores.fundo, color: cores.texto, fontFamily: tema.fonte_corpo }}>
-      {/* Banner de Preview */}
-      <div className="bg-yellow-50 border-b border-yellow-200 px-4 py-2 text-center sticky top-0 z-20">
+    <div className="min-h-screen bg-[#1A1A1A] text-white">
+      {/* Banner preview */}
+      <div className="bg-yellow-50 border-b border-yellow-200 px-4 py-2 text-center">
         <span className="inline-flex items-center gap-2 text-sm text-yellow-800 font-medium">
-          <Eye size={14} /> Modo pré-visualização — é assim que o cliente verá o álbum
+          <Eye size={14} /> Pré-visualização — {galeriaNome}
         </span>
       </div>
 
-      {/* Capa */}
-      {capaFoto && (
-        <div className="relative w-full h-[40vh] md:h-[50vh] overflow-hidden">
-          <img
-            src={capaFoto.url || ''}
-            alt="Capa"
-            className="w-full h-full"
-            style={{ objectFit: tema.capa_modo || 'cover' }}
-          />
-          <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent pointer-events-none" />
-          <div className="absolute bottom-0 left-0 right-0 p-6 md:p-10 pointer-events-none">
-            <h1 className="text-2xl md:text-4xl font-bold text-white drop-shadow-lg" style={{ fontFamily: tema.fonte_titulo }}>
-              {album.titulo}
-            </h1>
-            <p className="text-sm md:text-base text-white/80 mt-1">{fotos.length} fotos</p>
+      {/* Header */}
+      <header className="sticky top-0 z-20 bg-[#1A1A1A]/95 backdrop-blur-sm border-b border-white/5">
+        <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
+          <button
+            onClick={() => galeriasAtivas.length > 1 ? setView('sets') : setView('cover')}
+            className="p-2 -ml-2 text-white/60 hover:text-white transition-colors"
+          >
+            <ArrowLeft size={20} />
+          </button>
+          <div className="text-center">
+            <h1 className="text-sm md:text-base font-medium">{galeriaNome}</h1>
+            {album.titulo !== galeriaNome && (
+              <p className="text-xs text-white/40">{album.titulo}</p>
+            )}
+          </div>
+          <div className="flex items-center gap-1">
+            <Share2 size={18} className="text-white/40" />
+            {album.permite_download && <Download size={18} className="text-white/40" />}
           </div>
         </div>
-      )}
+      </header>
 
-      {/* Header (sem capa) */}
-      {!capaFoto && (
-        <div className="border-b" style={{ borderColor: `${cores.texto}15` }}>
-          <div className="max-w-6xl mx-auto px-4 py-6">
-            <div className="flex items-center gap-3">
-              <Camera size={24} style={{ color: acento }} />
-              <div>
-                <h1 className="text-xl font-bold" style={{ fontFamily: tema.fonte_titulo }}>{album.titulo}</h1>
-                <p className="text-sm opacity-60">{fotos.length} fotos</p>
+      {/* Photo Grid */}
+      <main className="max-w-7xl mx-auto px-2 md:px-4 py-4">
+        {/* Featured layout: first photo large + 2 side */}
+        {fotosVisiveis.length > 0 && (
+          <div className="mb-2 md:mb-3">
+            <div className="grid grid-cols-3 gap-2 md:gap-3">
+              {/* Main featured photo */}
+              <div
+                className="col-span-2 row-span-2 relative group cursor-pointer rounded-lg overflow-hidden"
+                style={{ aspectRatio: '4/3' }}
+                onClick={() => setLightbox(0)}
+              >
+                <img
+                  src={fotosVisiveis[0]?.url || ''}
+                  alt=""
+                  className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-[1.02]"
+                />
+                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors" />
+                <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                  <ZoomIn size={32} className="text-white drop-shadow-lg" />
+                </div>
+                <div className="absolute inset-0 border-2 border-transparent group-hover:border-orange-500 rounded-lg transition-colors pointer-events-none" />
               </div>
-            </div>
-          </div>
-        </div>
-      )}
 
-      {/* Barra de ações do cliente */}
-      <div className="border-b" style={{ borderColor: `${cores.texto}10` }}>
-        <div className="max-w-6xl mx-auto px-4 py-4">
-          <div className="flex items-center justify-between flex-wrap gap-3">
-            <div className="flex items-center gap-4 text-sm opacity-70">
-              {album.permite_selecao && (
-                <span className="flex items-center gap-1"><Heart size={14} style={{ color: acento }} /> Seleção de fotos habilitada</span>
-              )}
-              {album.permite_download && (
-                <span className="flex items-center gap-1"><Download size={14} /> Download disponível</span>
-              )}
-              {album.permite_comentarios && (
-                <span className="flex items-center gap-1"><MessageCircle size={14} /> Comentários habilitados</span>
-              )}
+              {/* Side photos */}
+              {fotosVisiveis.slice(1, 3).map((foto, i) => (
+                <div
+                  key={foto.id || i}
+                  className="relative group cursor-pointer rounded-lg overflow-hidden"
+                  style={{ aspectRatio: '1' }}
+                  onClick={() => setLightbox(i + 1)}
+                >
+                  <img
+                    src={foto.url || ''}
+                    alt=""
+                    className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-[1.02]"
+                    loading="lazy"
+                  />
+                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors" />
+                  <div className="absolute inset-0 border-2 border-transparent group-hover:border-orange-500 rounded-lg transition-colors pointer-events-none" />
+                </div>
+              ))}
             </div>
-            <div className="flex items-center gap-2">
-              {album.permite_download && (
-                <span className="inline-flex items-center gap-1 px-3 py-2 border rounded-lg text-sm opacity-50 cursor-not-allowed" style={{ borderColor: `${cores.texto}20` }}>
-                  <Download size={14} /> Baixar Todas
-                </span>
-              )}
-            </div>
-          </div>
-
-          {album.permite_selecao && (
-            <div className="mt-3 pt-3" style={{ borderTop: `1px solid ${cores.texto}10` }}>
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-sm opacity-70">0 de {cota} selecionadas</span>
-                <span className="px-4 py-1.5 text-white text-sm rounded-lg opacity-50 cursor-not-allowed" style={{ background: acento }}>
-                  Confirmar Seleção
-                </span>
-              </div>
-              <div className="w-full rounded-full h-2" style={{ background: `${cores.texto}15` }}>
-                <div className="h-full rounded-full" style={{ width: '0%', background: acento }} />
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Grid de fotos */}
-      <div className="max-w-6xl mx-auto px-4 py-6">
-        <div className={getGridClass()}>
-          {fotosVisiveis.map((foto, i) => (
-            <FotoItem
-              key={foto.id || i}
-              foto={foto}
-              index={i}
-              layout={tema.layout}
-              acento={acento}
-              permiteSelecao={album.permite_selecao}
-              onOpen={openLightbox}
-            />
-          ))}
-        </div>
-
-        {/* Loader para infinite scroll */}
-        {visibleCount < fotos.length && (
-          <div ref={loaderRef} className="flex justify-center py-8">
-            <p className="text-sm opacity-50">Carregando mais fotos... ({visibleCount} de {fotos.length})</p>
           </div>
         )}
-      </div>
+
+        {/* Remaining photos grid */}
+        {fotosVisiveis.length > 3 && (
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 md:gap-3">
+            {fotosVisiveis.slice(3).map((foto, i) => (
+              <div
+                key={foto.id || i}
+                className="relative group cursor-pointer rounded-lg overflow-hidden aspect-square"
+                onClick={() => setLightbox(i + 3)}
+              >
+                <img
+                  src={foto.url || ''}
+                  alt=""
+                  className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-[1.02]"
+                  loading="lazy"
+                  decoding="async"
+                />
+                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors" />
+                <div className="absolute inset-0 border-2 border-transparent group-hover:border-orange-500 rounded-lg transition-colors pointer-events-none" />
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Infinite scroll loader */}
+        {visibleCount < activeFotos.length && (
+          <div ref={loaderRef} className="flex justify-center py-8">
+            <div className="w-6 h-6 border-2 border-white/20 border-t-white/60 rounded-full animate-spin" />
+          </div>
+        )}
+
+        {/* Photo count */}
+        <div className="text-center py-6 text-white/30 text-sm">
+          {activeFotos.length} fotos
+        </div>
+      </main>
 
       {/* Lightbox */}
       {lightbox !== null && (
-        <div className="fixed inset-0 bg-black z-50 flex items-center justify-center" onClick={closeLightbox}>
-          <button onClick={(e) => { e.stopPropagation(); closeLightbox(); }} className="absolute top-4 right-4 text-white p-2 hover:bg-white/10 rounded-full z-10">
+        <div className="fixed inset-0 bg-black z-50 flex items-center justify-center" onClick={() => setLightbox(null)}>
+          <button
+            onClick={(e) => { e.stopPropagation(); setLightbox(null); }}
+            className="absolute top-4 right-4 text-white/70 hover:text-white p-2 hover:bg-white/10 rounded-full z-10 transition-colors"
+          >
             <X size={24} />
           </button>
-          <button onClick={(e) => { e.stopPropagation(); prevPhoto(); }} className="absolute left-4 text-white p-2 hover:bg-white/10 rounded-full">
-            <ChevronLeft size={28} />
-          </button>
-          <button onClick={(e) => { e.stopPropagation(); nextPhoto(); }} className="absolute right-4 text-white p-2 hover:bg-white/10 rounded-full">
-            <ChevronRight size={28} />
-          </button>
+
+          {lightbox > 0 && (
+            <button
+              onClick={(e) => { e.stopPropagation(); setLightbox(i => Math.max(0, i - 1)); }}
+              className="absolute left-2 md:left-4 text-white/70 hover:text-white p-2 hover:bg-white/10 rounded-full transition-colors"
+            >
+              <ChevronLeft size={32} />
+            </button>
+          )}
+
+          {lightbox < activeFotos.length - 1 && (
+            <button
+              onClick={(e) => { e.stopPropagation(); setLightbox(i => Math.min(activeFotos.length - 1, i + 1)); }}
+              className="absolute right-2 md:right-4 text-white/70 hover:text-white p-2 hover:bg-white/10 rounded-full transition-colors"
+            >
+              <ChevronRight size={32} />
+            </button>
+          )}
+
           <img
-            src={fotos[lightbox]?.url_full || fotos[lightbox]?.url || ''}
+            src={activeFotos[lightbox]?.url_full || activeFotos[lightbox]?.url || ''}
             alt=""
-            className="max-h-[90vh] max-w-[90vw] object-contain"
+            className="max-h-[90vh] max-w-[90vw] object-contain select-none"
             onClick={(e) => e.stopPropagation()}
+            draggable={false}
           />
-          <div className="absolute bottom-4 left-1/2 -translate-x-1/2 text-white text-sm bg-black/50 px-3 py-1 rounded-full pointer-events-none">
-            {lightbox + 1} / {fotos.length}
-            {fotos[lightbox]?.titulo && <span className="ml-2">— {fotos[lightbox].titulo}</span>}
+
+          <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-4">
+            <span className="text-white/60 text-sm bg-black/60 px-3 py-1.5 rounded-full backdrop-blur-sm">
+              {lightbox + 1} / {activeFotos.length}
+            </span>
           </div>
         </div>
       )}
     </div>
   );
 }
-
-// Componente separado para cada foto — evita re-render do grid inteiro
-const FotoItem = React.memo(function FotoItem({ foto, index, layout, acento, permiteSelecao, onOpen }) {
-  const getItemClass = () => {
-    switch (layout) {
-      case 'mosaico': return 'break-inside-avoid rounded-lg overflow-hidden bg-gray-200 mb-3';
-      case 'colagem': return 'break-inside-avoid rounded-lg overflow-hidden bg-gray-200 mb-2';
-      case 'coluna': return 'rounded-lg overflow-hidden bg-gray-200';
-      case 'ladrilhos': return 'aspect-square overflow-hidden bg-gray-200';
-      case 'slider': return 'min-w-[300px] md:min-w-[400px] flex-shrink-0 snap-center rounded-lg overflow-hidden bg-gray-200';
-      default: return 'aspect-square rounded-lg overflow-hidden bg-gray-200';
-    }
-  };
-
-  return (
-    <div className={`relative group ${getItemClass()}`}>
-      <img
-        src={foto.url || ''}
-        alt={foto.titulo || ''}
-        className={`w-full cursor-pointer ${layout === 'grade' || layout === 'ladrilhos' ? 'h-full object-cover' : 'object-cover'}`}
-        loading="lazy"
-        decoding="async"
-        onClick={() => onOpen(index)}
-        style={{ maxHeight: layout === 'coluna' ? '400px' : undefined }}
-      />
-      {/* Número da foto */}
-      <span className="absolute bottom-1 right-1 text-xs bg-black/50 text-white px-1.5 py-0.5 rounded pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity">
-        {index + 1}
-      </span>
-      {/* Ícone seleção */}
-      {permiteSelecao && (
-        <span className="absolute top-1 right-1 w-6 h-6 rounded-full bg-white/70 flex items-center justify-center pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity">
-          <Heart size={12} style={{ color: acento }} />
-        </span>
-      )}
-    </div>
-  );
-});
