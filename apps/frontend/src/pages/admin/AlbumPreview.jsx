@@ -302,7 +302,7 @@ export default function AlbumPreview() {
 
   const getGridClass = () => {
     switch (layout) {
-      case 'mosaico': return 'grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 auto-rows-[200px]';
+      case 'mosaico': return 'grid grid-cols-4 gap-3 auto-rows-[140px]';
       case 'colagem': return 'grid grid-cols-2 md:grid-cols-3 gap-2 auto-rows-[180px]';
       case 'coluna': return 'grid grid-cols-1 md:grid-cols-2 gap-4';
       case 'ladrilhos': return 'grid grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-1';
@@ -314,10 +314,22 @@ export default function AlbumPreview() {
   const getItemClass = (i) => {
     switch (layout) {
       case 'mosaico': {
-        // Variação de alturas para efeito mosaico (por linha)
-        const pattern = i % 5;
-        if (pattern === 0) return 'row-span-2 rounded-lg overflow-hidden';
-        return 'row-span-1 rounded-lg overflow-hidden';
+        // Padrão variado para efeito mosaico real com fotos grandes e pequenas
+        const patterns = [
+          'col-span-2 row-span-2 rounded-lg overflow-hidden', // 0 - grande
+          'row-span-2 rounded-lg overflow-hidden',            // 1 - alto
+          'row-span-1 rounded-lg overflow-hidden',            // 2 - pequeno
+          'row-span-1 rounded-lg overflow-hidden',            // 3 - pequeno
+          'col-span-2 row-span-1 rounded-lg overflow-hidden', // 4 - largo
+          'row-span-2 rounded-lg overflow-hidden',            // 5 - alto
+          'row-span-1 rounded-lg overflow-hidden',            // 6 - pequeno
+          'row-span-1 rounded-lg overflow-hidden',            // 7 - pequeno
+          'col-span-2 row-span-1 rounded-lg overflow-hidden', // 8 - largo
+          'row-span-1 rounded-lg overflow-hidden',            // 9 - pequeno
+          'row-span-2 rounded-lg overflow-hidden',            // 10 - alto
+          'row-span-1 rounded-lg overflow-hidden',            // 11 - pequeno
+        ];
+        return patterns[i % patterns.length];
       }
       case 'colagem': {
         const pattern = i % 7;
@@ -333,8 +345,8 @@ export default function AlbumPreview() {
 
   const getImgClass = () => {
     switch (layout) {
-      case 'mosaico': return 'w-full object-cover';
-      case 'colagem': return 'w-full object-cover';
+      case 'mosaico': return 'w-full h-full object-cover';
+      case 'colagem': return 'w-full h-full object-cover';
       case 'coluna': return 'w-full max-h-[500px] object-cover';
       case 'slider': return 'w-full h-[60vh] object-cover';
       default: return 'w-full h-full object-cover';

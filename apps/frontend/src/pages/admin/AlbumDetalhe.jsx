@@ -65,14 +65,18 @@ const OVERLAY_ANIMATIONS = [
 ];
 
 const FONT_PRESETS = [
-  { titulo: 'Playfair Display', corpo: 'Inter' },
-  { titulo: 'Cormorant Garamond', corpo: 'Open Sans' },
-  { titulo: 'Montserrat', corpo: 'Lato' },
-  { titulo: 'Lora', corpo: 'Roboto' },
-  { titulo: 'Poppins', corpo: 'Source Sans Pro' },
-  { titulo: 'Raleway', corpo: 'Nunito' },
-  { titulo: 'Oswald', corpo: 'Merriweather' },
-  { titulo: 'Dancing Script', corpo: 'Quicksand' },
+  { titulo: 'Playfair Display', corpo: 'Inter', estilo: 'Elegante' },
+  { titulo: 'Great Vibes', corpo: 'Lato', estilo: 'Caligráfico' },
+  { titulo: 'Cinzel', corpo: 'Raleway', estilo: 'Clássico' },
+  { titulo: 'Pacifico', corpo: 'Open Sans', estilo: 'Divertido' },
+  { titulo: 'Cormorant Garamond', corpo: 'Nunito', estilo: 'Refinado' },
+  { titulo: 'Satisfy', corpo: 'Roboto', estilo: 'Romântico' },
+  { titulo: 'Bebas Neue', corpo: 'Source Sans 3', estilo: 'Moderno' },
+  { titulo: 'Sacramento', corpo: 'Quicksand', estilo: 'Delicado' },
+  { titulo: 'Abril Fatface', corpo: 'Poppins', estilo: 'Impactante' },
+  { titulo: 'Dancing Script', corpo: 'Montserrat', estilo: 'Artístico' },
+  { titulo: 'Lobster', corpo: 'Merriweather Sans', estilo: 'Criativo' },
+  { titulo: 'Josefin Sans', corpo: 'Lora', estilo: 'Minimalista' },
 ];
 
 
@@ -436,11 +440,10 @@ export default function AlbumDetalhe() {
                     {FONT_PRESETS.map((preset, idx) => (
                       <button key={idx} onClick={() => updateTema({ fonte_titulo: preset.titulo, fonte_corpo: preset.corpo })}
                         className={`w-full text-left p-4 rounded-lg border-2 transition ${tema.fonte_titulo === preset.titulo && tema.fonte_corpo === preset.corpo ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:border-gray-300'}`}>
-                        <p className="text-xl font-bold leading-tight" style={{ fontFamily: preset.titulo }}>Fonte do título</p>
-                        <p className="text-xs text-gray-500 mt-1" style={{ fontFamily: preset.corpo }}>Fonte do texto secundário</p>
+                        <p className="text-2xl font-bold leading-tight" style={{ fontFamily: `'${preset.titulo}', cursive` }}>{preset.estilo || 'Fonte do título'}</p>
+                        <p className="text-xs text-gray-500 mt-1.5" style={{ fontFamily: `'${preset.corpo}', sans-serif` }}>{preset.titulo} + {preset.corpo}</p>
                       </button>
                     ))}
-                    <button className="w-full py-2.5 text-xs text-blue-600 border-2 border-dashed border-blue-200 rounded-lg hover:bg-blue-50 font-medium">+ Novo conjunto de fontes</button>
                   </div>
                 </div>
               )}
@@ -563,8 +566,8 @@ export default function AlbumDetalhe() {
                 <div className="w-full h-full min-h-[400px] p-4 overflow-y-auto" style={{ backgroundColor: tema.cores_galerias?.background || '#121212' }}>
                   <div className={(() => {
                     switch (tema.layout) {
-                      case 'mosaico': return 'grid grid-cols-3 lg:grid-cols-4 auto-rows-[120px]';
-                      case 'colagem': return 'grid grid-cols-2 md:grid-cols-3 auto-rows-[110px]';
+                      case 'mosaico': return 'grid grid-cols-4 auto-rows-[100px]';
+                      case 'colagem': return 'grid grid-cols-3 auto-rows-[110px]';
                       case 'coluna': return 'grid grid-cols-1 md:grid-cols-2';
                       case 'ladrilhos': return 'grid grid-cols-3 md:grid-cols-4 lg:grid-cols-5';
                       case 'slider': return 'flex overflow-x-auto snap-x snap-mandatory pb-2 scrollbar-hide';
@@ -577,8 +580,25 @@ export default function AlbumDetalhe() {
                       const getItemClass = () => {
                         switch (tema.layout) {
                           case 'mosaico': {
-                            const pattern = idx % 5;
-                            return pattern === 0 ? 'row-span-2 col-span-2' : 'row-span-1';
+                            // Padrão variado para criar efeito mosaico real:
+                            // 0: grande (2x2), 1: medio-h (1x2), 2-3: pequeno (1x1),
+                            // 4: largo (2x1), 5: alto (1x2), 6-7: pequeno (1x1),
+                            // 8: largo (2x1), 9: medio (1x1), 10: alto (1x2), 11: pequeno (1x1)
+                            const patterns = [
+                              'col-span-2 row-span-2', // 0 - grande
+                              'row-span-2',            // 1 - alto
+                              'row-span-1',            // 2 - pequeno
+                              'row-span-1',            // 3 - pequeno
+                              'col-span-2 row-span-1', // 4 - largo
+                              'row-span-2',            // 5 - alto
+                              'row-span-1',            // 6 - pequeno
+                              'row-span-1',            // 7 - pequeno
+                              'col-span-2 row-span-1', // 8 - largo
+                              'row-span-1',            // 9 - pequeno
+                              'row-span-2',            // 10 - alto
+                              'row-span-1',            // 11 - pequeno
+                            ];
+                            return patterns[idx % patterns.length];
                           }
                           case 'colagem': {
                             const pattern = idx % 7;
