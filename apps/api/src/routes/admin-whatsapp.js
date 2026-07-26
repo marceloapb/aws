@@ -1,7 +1,7 @@
 const { Router } = require('express');
 const { enviarTemplate, enviarNotificacaoOrcamento, enviarNotificacaoAlbum } = require('../services/whatsappService');
 const { dynamo, TABLE } = require('../config/dynamodb');
-const { QueryCommand, ScanCommand, PutCommand } = require('@aws-sdk/lib-dynamodb');
+const { QueryCommand, ScanCommand, PutCommand, UpdateCommand } = require('@aws-sdk/lib-dynamodb');
 
 const router = Router();
 
@@ -555,6 +555,36 @@ router.get('/conversas/:clienteId', async (req, res) => {
   } catch (error) {
     console.error('[WHATSAPP] Erro ao buscar mensagens:', error.message);
     res.json({ success: true, data: [] });
+  }
+});
+
+// POST /api/admin/whatsapp/conversas/:clienteId/marcar-lida - Marcar msgs como lidas
+router.post('/conversas/:clienteId/marcar-lida', async (req, res) => {
+  try {
+    const numero = req.params.clienteId;
+
+    // Buscar mensagens não lidas
+    const msgResult = await dynamo.send(new QueryCommand({
+      TableName: TABLE,
+      KeyConditionExpression: 'PK = :pk AND begins_with(SK, :sk)',
+      ExpressionAttributeValues: { ':pk': `WHATSAPP#${numero}`, ':sk': 'MSG#' },
+    }));
+
+    // Marcar cada uma como lida
+    const naoLidas = (msgResult.Items || []).filter(m => !m.lida);
+    const promises = naoLidas.map(m =>
+      dynamo.send(new UpdateCommand({
+        TableName: TABLE,
+        Key: { PK: m.PK, SK: m.SK },
+        UpdateExpression: 'SET lida = :true',
+        ExpressionAttributeValues: { ':true': true },
+      })).catch(() => {})
+    );
+    await Promise.all(promises);
+
+    res.json({ success: true, marcadas: naoLidas.length });
+  } catch (error) {
+    res.json({ success: true, marcadas: 0 });
   }
 });
 

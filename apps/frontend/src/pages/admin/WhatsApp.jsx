@@ -443,12 +443,54 @@ export default function WhatsApp() {
 
 
   // === Conversas handlers ===
+  // Auto-refresh conversas a cada 8s quando na aba Conversas
+  useEffect(() => {
+    if (tab !== 2) return;
+    const interval = setInterval(async () => {
+      try {
+        const r = await authFetch(`${API}/conversas`);
+        const d = await r.json();
+        setConversas(d.data || []);
+        // Se tem conversa aberta, recarregar mensagens
+        if (selectedCliente) {
+          const mr = await authFetch(`${API}/conversas/${selectedCliente}`);
+          const md = await mr.json();
+          const novasMsgs = md.data || [];
+          if (novasMsgs.length !== mensagens.length) {
+            setMensagens(novasMsgs);
+            setTimeout(() => chatRef.current?.scrollTo(0, chatRef.current.scrollHeight), 100);
+          }
+        }
+      } catch {}
+    }, 8000);
+    return () => clearInterval(interval);
+  }, [tab, selectedCliente, mensagens.length]);
+
   const loadMensagens = async (clienteId) => {
     setSelectedCliente(clienteId);
     const r = await authFetch(`${API}/conversas/${clienteId}`);
     const d = await r.json();
     setMensagens(d.data || []);
     setTimeout(() => chatRef.current?.scrollTo(0, chatRef.current.scrollHeight), 100);
+    // Marcar como lida (zerar contador local)
+    setConversas(prev => prev.map(c => c.clienteId === clienteId ? { ...c, naoLidas: 0 } : c));
+    // Marcar como lida no backend (fire and forget)
+    authFetch(`${API}/conversas/${clienteId}/marcar-lida`, { method: 'POST' }).catch(() => {});
+  };
+  const refreshConversas = async () => {
+    setLoading(true);
+    try {
+      const r = await authFetch(`${API}/conversas`);
+      const d = await r.json();
+      setConversas(d.data || []);
+      if (selectedCliente) {
+        const mr = await authFetch(`${API}/conversas/${selectedCliente}`);
+        const md = await mr.json();
+        setMensagens(md.data || []);
+        setTimeout(() => chatRef.current?.scrollTo(0, chatRef.current.scrollHeight), 100);
+      }
+    } catch {}
+    setLoading(false);
   };
   const enviarResposta = async () => {
     if (!resposta.trim() || !selectedCliente) return;
@@ -462,7 +504,12 @@ export default function WhatsApp() {
     const janelaAberta = clienteSel?.janelaAberta;
     const janelaAte = clienteSel?.janelaAte;
     return (
-      <div className="flex border rounded-lg bg-white overflow-hidden" style={{ height: 480 }}>
+      <div className="space-y-3">
+        {/* Botão atualizar */}
+        <div className="flex justify-end">
+          <button onClick={refreshConversas} className="flex items-center gap-1 text-sm text-gray-600 hover:text-gray-800 px-3 py-1.5 border rounded"><RefreshCw size={14} /> Atualizar</button>
+        </div>
+        <div className="flex border rounded-lg bg-white overflow-hidden" style={{ height: 480 }}>
         {/* Sidebar */}
         <div className="w-52 border-r overflow-y-auto">
           {conversas.map(c => (
@@ -483,8 +530,14 @@ export default function WhatsApp() {
             <>
               {/* Header */}
               <div className="px-4 py-2 border-b flex items-center justify-between bg-gray-50">
-                <span className="text-sm font-medium">{clienteSel?.nome}</span>
-                {janelaAberta ? <Badge color="green">Janela aberta até {janelaAte}</Badge> : <Badge color="gray">Janela fechada</Badge>}
+                <div>
+                  <span className="text-sm font-medium">{clienteSel?.nome}</span>
+                  <span className="text-xs text-gray-400 ml-2">+{clienteSel?.telefone}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  {janelaAberta ? <Badge color="green">Janela até {janelaAte}</Badge> : <Badge color="gray">Janela fechada</Badge>}
+                  <button onClick={() => loadMensagens(selectedCliente)} className="text-gray-400 hover:text-gray-600"><RefreshCw size={14} /></button>
+                </div>
               </div>
               {/* Messages */}
               <div ref={chatRef} className="flex-1 overflow-y-auto p-4 space-y-2">
@@ -549,6 +602,7 @@ export default function WhatsApp() {
             <div className="flex-1 flex items-center justify-center text-sm text-gray-400">Selecione uma conversa à esquerda</div>
           )}
         </div>
+      </div>
       </div>
     );
   };
