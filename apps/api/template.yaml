@@ -47,6 +47,7 @@ Globals:
         SSM_PREFIX: !Sub '/mbf/${Stage}'
         AWS_NODEJS_CONNECTION_REUSE_ENABLED: '1'
         MEDIA_QUEUE_URL: !Sub 'https://sqs.${AWS::Region}.amazonaws.com/${AWS::AccountId}/mbf-${Stage}-foto-processamento'
+        TENANT_ID: '3438a468-a031-7040-2d21-abc059a80915'
 
 Resources:
   # ═══ API ═══
