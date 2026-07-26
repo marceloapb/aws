@@ -95,39 +95,52 @@ export default function AlbumDetalhe() {
     setUploading(true);
     setUploadProgress(0);
 
-    // Batch upload URLs
-    const filesData = files.map(f => ({ filename: f.name, content_type: f.type, size_bytes: f.size }));
-    const urlsRes = await authFetch(`/admin/albuns/${id}/upload-urls`, {
-      method: 'POST',
-      body: JSON.stringify({ files: filesData }),
-    });
-    const urlsJson = await urlsRes.json();
-    if (!urlsJson.success) { setUploading(false); alert(urlsJson.message || 'Erro ao gerar URLs'); return; }
-
-    const uploads = urlsJson.data;
+    const BATCH_SIZE = 50;
     const confirmList = [];
+    let uploaded = 0;
 
-    for (let i = 0; i < files.length; i++) {
-      const file = files[i];
-      const upload = uploads[i];
-      try {
-        await fetch(upload.upload_url, { method: 'PUT', body: file, headers: { 'Content-Type': file.type } });
-        confirmList.push({ foto_id: upload.foto_id, key: upload.key, content_type: file.type });
-      } catch {}
-      setUploadProgress(Math.round(((i + 1) / files.length) * 100));
+    // Processar em lotes de 50
+    for (let batch = 0; batch < files.length; batch += BATCH_SIZE) {
+      const batchFiles = files.slice(batch, batch + BATCH_SIZE);
+      const filesData = batchFiles.map(f => ({ filename: f.name, content_type: f.type, size_bytes: f.size }));
+
+      const urlsRes = await authFetch(`/admin/albuns/${id}/upload-urls`, {
+        method: 'POST',
+        body: JSON.stringify({ files: filesData }),
+      });
+      const urlsJson = await urlsRes.json();
+      if (!urlsJson.success) { setUploading(false); alert(urlsJson.message || 'Erro ao gerar URLs'); return; }
+
+      const uploads = urlsJson.data;
+
+      // Upload paralelo (5 por vez dentro do lote)
+      const CONCURRENT = 5;
+      for (let i = 0; i < batchFiles.length; i += CONCURRENT) {
+        const chunk = batchFiles.slice(i, i + CONCURRENT);
+        await Promise.all(chunk.map(async (file, j) => {
+          const idx = i + j;
+          const upload = uploads[idx];
+          try {
+            await fetch(upload.upload_url, { method: 'PUT', body: file, headers: { 'Content-Type': file.type } });
+            confirmList.push({ foto_id: upload.foto_id, key: upload.key, content_type: file.type });
+          } catch {}
+        }));
+        uploaded += chunk.length;
+        setUploadProgress(Math.round((uploaded / files.length) * 100));
+      }
     }
 
-    // Confirm batch
-    if (confirmList.length > 0) {
+    // Confirmar em lotes de 50
+    for (let i = 0; i < confirmList.length; i += BATCH_SIZE) {
+      const batchConfirm = confirmList.slice(i, i + BATCH_SIZE);
       await authFetch(`/admin/albuns/${id}/fotos/confirmar-batch`, {
         method: 'POST',
-        body: JSON.stringify({ fotos: confirmList, galeria_id: galeriaAtiva }),
+        body: JSON.stringify({ fotos: batchConfirm, galeria_id: galeriaAtiva }),
       });
     }
 
     setUploading(false);
     setUploadProgress(100);
-    // Pequeno delay para garantir consistência do S3
     await new Promise(r => setTimeout(r, 1000));
     await fetchAlbum();
   };
