@@ -174,15 +174,28 @@ export default function WhatsApp() {
 
   // === Templates handlers ===
   const openNewTpl = () => { setTplForm({ nome: '', categoria: 'UTILITY', idioma: 'pt_BR', corpo: '', variaveis: [], evento: '', header: '' }); setEditTplId(null); setTplModal(true); };
-  const openEditTpl = (t) => { setTplForm({ nome: t.nome, categoria: t.categoria, idioma: t.idioma, corpo: t.corpo, variaveis: t.variaveis || [], evento: t.evento || '', header: '' }); setEditTplId(t.id); setTplModal(true); };
+  const openEditTpl = (t) => {
+    setTplForm({ nome: t.nome, categoria: t.categoria, idioma: t.idioma, corpo: t.corpo, variaveis: t.variaveis || [], evento: '', header: '' });
+    setEditTplId(t.id);
+    setTplModal(true);
+  };
   const saveTpl = async () => {
     try {
-      const resp = await authFetch(`${API}/templates`, { method: 'POST', body: JSON.stringify(tplForm) });
-      const data = await resp.json();
-      if (!data.success) { alert(data.message || 'Erro ao criar template'); return; }
-      alert(`Template criado! Status: ${data.data?.status || 'PENDING'}`);
+      if (editTplId) {
+        // Editar template existente na Meta
+        const resp = await authFetch(`${API}/templates/${editTplId}`, { method: 'PUT', body: JSON.stringify(tplForm) });
+        const data = await resp.json();
+        if (!data.success) { alert(data.message || 'Erro ao editar template'); return; }
+        alert('Template atualizado! Ficará pendente de re-aprovação pela Meta.');
+      } else {
+        // Criar novo
+        const resp = await authFetch(`${API}/templates`, { method: 'POST', body: JSON.stringify(tplForm) });
+        const data = await resp.json();
+        if (!data.success) { alert(data.message || 'Erro ao criar template'); return; }
+        alert(`Template criado! Status: ${data.data?.status || 'PENDING'}`);
+      }
       setTplModal(false); loadTab();
-    } catch (err) { alert('Erro ao criar template: ' + err.message); }
+    } catch (err) { alert('Erro: ' + err.message); }
   };
   const deleteTpl = async (nome) => {
     if (!window.confirm(`Deletar template "${nome}"? O nome ficará indisponível por 4 semanas.`)) return;
@@ -219,6 +232,7 @@ export default function WhatsApp() {
                   <span className="text-xs text-gray-400">{t.idioma}</span>
                 </div>
                 <div className="flex items-center gap-1">
+                  {t.categoria !== 'authentication' && <button onClick={() => openEditTpl(t)} className="p-1 text-gray-400 hover:text-blue-600" title="Editar texto"><Edit size={14} /></button>}
                   <button onClick={() => deleteTpl(t.nome)} className="p-1 text-gray-400 hover:text-red-600" title="Deletar"><Trash2 size={14} /></button>
                 </div>
               </div>
@@ -237,12 +251,14 @@ export default function WhatsApp() {
         </div>
 
         {/* Modal Template */}
-        <Modal open={tplModal} onClose={() => setTplModal(false)} title="Novo Template (Meta WhatsApp)">
+        <Modal open={tplModal} onClose={() => setTplModal(false)} title={editTplId ? 'Editar Template' : 'Novo Template (Meta WhatsApp)'}>
           <div className="space-y-3">
-            <p className="text-xs text-gray-500 bg-yellow-50 border border-yellow-200 rounded p-2">O template será criado diretamente na Meta e ficará pendente de aprovação (normalmente em minutos).</p>
+            <p className="text-xs text-gray-500 bg-yellow-50 border border-yellow-200 rounded p-2">
+              {editTplId ? 'Ao salvar, o template voltará para pendente de aprovação pela Meta.' : 'O template será criado diretamente na Meta e ficará pendente de aprovação (normalmente em minutos).'}
+            </p>
             <div>
               <label className="text-xs text-gray-500">Nome (slug, apenas letras minúsculas e _)</label>
-              <input value={tplForm.nome} onChange={e => setTplForm({ ...tplForm, nome: e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, '_') })} className="w-full border rounded px-2 py-1.5 text-sm mt-1" placeholder="ex: lembrete_sessao" />
+              <input value={tplForm.nome} onChange={e => setTplForm({ ...tplForm, nome: e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, '_') })} disabled={!!editTplId} className="w-full border rounded px-2 py-1.5 text-sm mt-1 disabled:bg-gray-100" placeholder="ex: lembrete_sessao" />
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
@@ -277,7 +293,7 @@ export default function WhatsApp() {
               ))}
               <button onClick={addVariavel} className="text-xs mt-1" style={{ color: ACCENT }}>+ Adicionar variável</button>
             </div>
-            <button onClick={saveTpl} disabled={!tplForm.nome || !tplForm.corpo} className="w-full py-2 rounded text-sm text-white font-medium mt-2 disabled:opacity-50" style={{ background: ACCENT }}>Criar Template na Meta</button>
+            <button onClick={saveTpl} disabled={!tplForm.nome || !tplForm.corpo} className="w-full py-2 rounded text-sm text-white font-medium mt-2 disabled:opacity-50" style={{ background: ACCENT }}>{editTplId ? 'Salvar Alterações' : 'Criar Template na Meta'}</button>
           </div>
         </Modal>
       </div>

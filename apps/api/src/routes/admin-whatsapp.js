@@ -320,6 +320,59 @@ router.delete('/templates/:name', async (req, res) => {
   }
 });
 
+// PUT /api/admin/whatsapp/templates/:id - Editar template na Meta
+router.put('/templates/:id', async (req, res) => {
+  try {
+    const { loadParams } = require('../config/env');
+    const params = await loadParams();
+    const token = params.WHATSAPP_ACCESS_TOKEN;
+
+    if (!token) return res.status(400).json({ success: false, message: 'Token WhatsApp não configurado' });
+
+    const { corpo, variaveis, header } = req.body;
+    const templateId = req.params.id;
+
+    if (!corpo) return res.status(400).json({ success: false, message: 'Corpo é obrigatório' });
+
+    // Montar components para update
+    const components = [];
+
+    if (header) {
+      components.push({ type: 'HEADER', format: 'TEXT', text: header });
+    }
+
+    const bodyComponent = { type: 'BODY', text: corpo };
+    const varMatches = corpo.match(/\{\{\d+\}\}/g) || [];
+    if (varMatches.length > 0) {
+      const examples = variaveis?.map(v => v.exemplo || 'exemplo') || varMatches.map(() => 'exemplo');
+      bodyComponent.example = { body_text: [examples] };
+    }
+    components.push(bodyComponent);
+
+    // Meta Graph API: editar template por ID
+    const response = await fetch(
+      `https://graph.facebook.com/v20.0/${templateId}`,
+      {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ components }),
+        signal: AbortSignal.timeout(15000),
+      }
+    );
+    const result = await response.json();
+
+    if (!response.ok) {
+      const errMsg = result.error?.error_user_msg || result.error?.message || 'Erro ao editar template';
+      return res.status(400).json({ success: false, message: errMsg });
+    }
+
+    res.json({ success: true, data: result });
+  } catch (error) {
+    console.error('[WHATSAPP] Erro ao editar template:', error.message);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
 // GET /api/admin/whatsapp/conversas - Conversas reais (do webhook)
 router.get('/conversas', async (req, res) => {
   try {
