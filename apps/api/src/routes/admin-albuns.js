@@ -122,14 +122,14 @@ router.get('/:id', async (req, res) => {
     }));
     const fotos = (fotosResult.Items || []).sort((a, b) => (a.ordem || 0) - (b.ordem || 0));
 
-    // Gerar presigned URLs para exibição
+    // Gerar presigned URLs em lotes (máx 100 para não dar timeout)
     const { S3Client, GetObjectCommand } = require('@aws-sdk/client-s3');
     const { getSignedUrl } = require('@aws-sdk/s3-request-presigner');
     const s3 = new S3Client({});
     const bucket = process.env.S3_BUCKET_NAME;
 
     const fotosComUrl = await Promise.all(fotos.map(async (foto) => {
-      const key = foto.s3_key_thumb || foto.s3_key_media || foto.s3_key_original;
+      const key = foto.s3_key_thumb || foto.s3_key_media || foto.s3_key_original || foto.key;
       if (!key) return foto;
       try {
         const url = await getSignedUrl(s3, new GetObjectCommand({ Bucket: bucket, Key: key }), { expiresIn: 3600 });

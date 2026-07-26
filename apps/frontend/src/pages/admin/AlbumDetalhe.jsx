@@ -286,7 +286,7 @@ export default function AlbumDetalhe() {
     return () => window.removeEventListener('keydown', handler);
   }, [lightboxIndex, fotosGaleria.length]);
 
-  if (!album) return <div className="p-8 text-center">Carregando...</div>;
+  if (!album) return <div className="p-8 text-center text-gray-500">Carregando álbum...</div>;
 
   const fotoLightbox = lightboxIndex !== null ? fotosGaleria[lightboxIndex] : null;
 
