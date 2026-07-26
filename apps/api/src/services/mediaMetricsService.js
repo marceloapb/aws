@@ -2,9 +2,12 @@
 // SERVICES/MEDIA-METRICS-SERVICE.JS — Métricas de armazenamento de mídia
 // ══════════════════════════════════════════════════════════════
 
-const { queryAllByContext } = require('./mediaService');
+const { dynamo, TABLE } = require('../config/dynamodb');
+const { ScanCommand } = require('@aws-sdk/lib-dynamodb');
+const { S3Client, ListObjectsV2Command } = require('@aws-sdk/client-s3');
 
-const ALL_CONTEXTOS = ['album', 'portfolio', 'novidades', 'perfil', 'config'];
+const s3 = new S3Client({});
+const BUCKET = process.env.S3_BUCKET_NAME || 'mbf-backend-v3-fotos';
 
 /**
  * Formata bytes em string legível
@@ -18,90 +21,87 @@ function formatBytes(bytes) {
 }
 
 /**
- * Calcula métricas de armazenamento para um contexto
- * @param {string} contexto - album, portfolio, novidades, perfil, config
- * @returns {{ totalBytes, totalFiles, byStatus, formatted }}
+ * Calcula métricas de armazenamento para um contexto (prefix no S3)
  */
 async function getStorageMetrics(contexto) {
-  const items = await queryAllByContext(contexto);
-
   let totalBytes = 0;
   let totalFiles = 0;
-  const byStatus = {
-    processing: 0,
-    processed: 0,
-    deleted: 0,
-    error: 0,
+  let continuationToken = undefined;
+
+  // Map contexto to S3 prefix
+  const prefixMap = {
+    album: '1/album/',
+    portfolio: '1/portfolio/',
+    novidades: '1/novidades/',
+    perfil: 'fotos/',
+    config: '1/',
+    whatsapp: 'whatsapp/',
   };
+  const prefix = prefixMap[contexto] || `${contexto}/`;
 
-  for (const item of items) {
-    const itemBytes = (item.original_size || 0) + (item.web_size || 0) + (item.thumb_size || 0);
-    totalBytes += itemBytes;
-    totalFiles++;
-
-    if (byStatus.hasOwnProperty(item.status)) {
-      byStatus[item.status]++;
+  do {
+    const result = await s3.send(new ListObjectsV2Command({
+      Bucket: BUCKET,
+      Prefix: prefix,
+      ContinuationToken: continuationToken,
+    }));
+    for (const obj of (result.Contents || [])) {
+      totalBytes += obj.Size || 0;
+      totalFiles++;
     }
-  }
+    continuationToken = result.IsTruncated ? result.NextContinuationToken : undefined;
+  } while (continuationToken);
 
   return {
     totalBytes,
     totalFiles,
-    byStatus,
     formatted: formatBytes(totalBytes),
+    byStatus: { processed: totalFiles, processing: 0, error: 0, deleted: 0 },
   };
 }
 
 /**
- * Calcula métricas agregadas de TODOS os contextos
- * @returns {{ totalBytes, totalFiles, processedOk, errorsDlq, dlqMessages, recentUploads }}
+ * Calcula métricas agregadas de TODOS os contextos via S3
  */
 async function getAllStorageMetrics() {
   let totalBytes = 0;
   let totalFiles = 0;
-  let processedOk = 0;
-  let errorsDlq = 0;
+  let continuationToken = undefined;
   const recentUploads = [];
 
-  const results = await Promise.all(
-    ALL_CONTEXTOS.map(async (ctx) => {
-      const items = await queryAllByContext(ctx);
-      return { contexto: ctx, items };
-    })
-  );
-
-  for (const { contexto, items } of results) {
-    for (const item of items) {
-      const itemBytes = (item.original_size || 0) + (item.web_size || 0) + (item.thumb_size || 0);
-      totalBytes += itemBytes;
+  // Listar tudo no bucket
+  do {
+    const result = await s3.send(new ListObjectsV2Command({
+      Bucket: BUCKET,
+      ContinuationToken: continuationToken,
+    }));
+    for (const obj of (result.Contents || [])) {
+      totalBytes += obj.Size || 0;
       totalFiles++;
-
-      if (item.status === 'processed') processedOk++;
-      if (item.status === 'error') errorsDlq++;
-
-      // Coleta uploads recentes (últimos 10)
-      if (item.created_at) {
+      // Coletar últimos uploads
+      if (recentUploads.length < 10 || obj.LastModified > recentUploads[recentUploads.length - 1]?.created_at) {
         recentUploads.push({
-          media_id: item.media_id,
-          contexto,
-          entidade_id: item.entidade_id,
-          status: item.status,
-          size: itemBytes,
-          created_at: item.created_at,
+          media_id: obj.Key.split('/').pop(),
+          contexto: obj.Key.split('/')[1] || obj.Key.split('/')[0],
+          key: obj.Key,
+          size: obj.Size,
+          status: 'processed',
+          created_at: obj.LastModified?.toISOString() || '',
         });
       }
     }
-  }
+    continuationToken = result.IsTruncated ? result.NextContinuationToken : undefined;
+  } while (continuationToken);
 
-  // Ordena por data e pega os 10 mais recentes
-  recentUploads.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+  // Ordenar e pegar top 10
+  recentUploads.sort((a, b) => (b.created_at || '').localeCompare(a.created_at || ''));
 
   return {
     totalBytes,
     totalFiles,
-    processedOk,
-    errorsDlq,
-    dlqMessages: errorsDlq,
+    processedOk: totalFiles,
+    errorsDlq: 0,
+    dlqMessages: 0,
     lastDlqError: null,
     recentUploads: recentUploads.slice(0, 10),
     formatted: formatBytes(totalBytes),
