@@ -447,10 +447,12 @@ async function buscarOTPAtivo(contratoId) {
       ':pk': `CONTRATO#${contratoId}`,
       ':sk': 'OTP#',
     },
-    ScanIndexForward: false, // Mais recente primeiro
   }));
-  // Retornar o OTP mais recente que esteja pendente
-  return (result.Items || []).find(item => item.status === 'pendente');
+  // Retornar o OTP mais recente que esteja pendente (ordenar por criadoEm desc)
+  const pendentes = (result.Items || [])
+    .filter(item => item.status === 'pendente')
+    .sort((a, b) => (b.criadoEm || '').localeCompare(a.criadoEm || ''));
+  return pendentes[0] || null;
 }
 
 async function marcarOTPExpirado(otp) {
