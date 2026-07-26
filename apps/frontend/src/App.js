@@ -28,6 +28,7 @@ import ContratoDetalhe from './pages/admin/ContratoDetalhe';
 import Financeiro from './pages/admin/Financeiro';
 import Albuns from './pages/admin/Albuns';
 import AlbumDetalhe from './pages/admin/AlbumDetalhe';
+import AlbumPreview from './pages/admin/AlbumPreview';
 import Clientes from './pages/admin/Clientes';
 import ClienteForm from './pages/admin/ClienteForm';
 import ClienteDetalhe from './pages/admin/ClienteDetalhe';
@@ -157,6 +158,7 @@ function App() {
         {/* Álbuns */}
         <Route path="albuns" element={<Albuns />} />
         <Route path="albuns/:id" element={<AlbumDetalhe />} />
+        <Route path="albuns/:id/preview" element={<AlbumPreview />} />
         <Route path="albuns/config" element={<Navigate to="/admin/config?tab=albuns" replace />} />
 
         {/* Portfólio */}
