@@ -28,13 +28,15 @@ async function getStorageMetrics(contexto) {
   let totalFiles = 0;
   let continuationToken = undefined;
 
-  // Map contexto to S3 prefix
+  const TENANT = process.env.TENANT_ID || '3438a468-a031-7040-2d21-abc059a80915';
+
+  // Map contexto to S3 prefix (estrutura real do bucket)
   const prefixMap = {
-    album: '1/album/',
+    album: `${TENANT}/album/`,
     portfolio: '1/portfolio/',
-    novidades: '1/novidades/',
     perfil: 'fotos/',
-    config: '1/',
+    avatars: 'avatars/',
+    backups: 'backups/',
     whatsapp: 'whatsapp/',
   };
   const prefix = prefixMap[contexto] || `${contexto}/`;

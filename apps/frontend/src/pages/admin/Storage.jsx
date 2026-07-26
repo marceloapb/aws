@@ -15,7 +15,7 @@ const fmtSize = (bytes) => {
   return `${bytes} B`;
 };
 
-const CONTEXTOS = ['album', 'portfolio', 'novidades', 'perfil', 'config'];
+const CONTEXTOS = ['album', 'portfolio', 'perfil', 'whatsapp', 'backups'];
 
 const CONTEXTO_LABELS = {
   album: 'Álbuns',
