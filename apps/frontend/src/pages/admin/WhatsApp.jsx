@@ -173,17 +173,25 @@ export default function WhatsApp() {
 
 
   // === Templates handlers ===
-  const openNewTpl = () => { setTplForm({ nome: '', categoria: 'utility', idioma: 'pt_BR', corpo: '', variaveis: [], evento: '' }); setEditTplId(null); setTplModal(true); };
-  const openEditTpl = (t) => { setTplForm({ nome: t.nome, categoria: t.categoria, idioma: t.idioma, corpo: t.corpo, variaveis: t.variaveis || [], evento: t.evento || '' }); setEditTplId(t.id); setTplModal(true); };
+  const openNewTpl = () => { setTplForm({ nome: '', categoria: 'UTILITY', idioma: 'pt_BR', corpo: '', variaveis: [], evento: '', header: '' }); setEditTplId(null); setTplModal(true); };
+  const openEditTpl = (t) => { setTplForm({ nome: t.nome, categoria: t.categoria, idioma: t.idioma, corpo: t.corpo, variaveis: t.variaveis || [], evento: t.evento || '', header: '' }); setEditTplId(t.id); setTplModal(true); };
   const saveTpl = async () => {
-    const method = editTplId ? 'PUT' : 'POST';
-    const url = editTplId ? `${API}/templates/${editTplId}` : `${API}/templates`;
-    await authFetch(url, { method, body: JSON.stringify(tplForm) });
-    setTplModal(false); loadTab();
+    try {
+      const resp = await authFetch(`${API}/templates`, { method: 'POST', body: JSON.stringify(tplForm) });
+      const data = await resp.json();
+      if (!data.success) { alert(data.message || 'Erro ao criar template'); return; }
+      alert(`Template criado! Status: ${data.data?.status || 'PENDING'}`);
+      setTplModal(false); loadTab();
+    } catch (err) { alert('Erro ao criar template: ' + err.message); }
   };
-  const deleteTpl = async (id) => { await authFetch(`${API}/templates/${id}`, { method: 'DELETE' }); loadTab(); };
-  const submeterMeta = async (id) => { await authFetch(`${API}/templates/${id}/submeter`, { method: 'POST' }); loadTab(); };
-  const syncTodos = async () => { await authFetch(`${API}/templates/sync`, { method: 'POST' }); loadTab(); };
+  const deleteTpl = async (nome) => {
+    if (!window.confirm(`Deletar template "${nome}"? O nome ficará indisponível por 4 semanas.`)) return;
+    const resp = await authFetch(`${API}/templates/${nome}`, { method: 'DELETE' });
+    const data = await resp.json();
+    if (!data.success) { alert(data.message || 'Erro ao deletar'); return; }
+    loadTab();
+  };
+  const syncTodos = () => { loadTab(); };
   const addVariavel = () => { setTplForm({ ...tplForm, variaveis: [...tplForm.variaveis, { indice: tplForm.variaveis.length + 1, descricao: '', exemplo: '' }] }); };
 
   const highlightVars = (text) => {
@@ -192,12 +200,12 @@ export default function WhatsApp() {
   };
 
   const renderTemplates = () => {
-    const catColor = { utility: 'blue', marketing: 'orange' };
+    const catColor = { utility: 'blue', marketing: 'orange', authentication: 'green' };
     const stColor = { aprovado: 'green', pendente: 'yellow', rejeitado: 'red' };
     return (
       <div className="space-y-4">
         <div className="flex justify-between items-center">
-          <button onClick={syncTodos} className="flex items-center gap-1 text-sm text-gray-600 hover:text-gray-800"><RefreshCw size={14} /> Sincronizar todos</button>
+          <button onClick={syncTodos} className="flex items-center gap-1 text-sm text-gray-600 hover:text-gray-800"><RefreshCw size={14} /> Atualizar</button>
           <button onClick={openNewTpl} className="flex items-center gap-1 px-3 py-2 rounded text-sm text-white font-medium" style={{ background: ACCENT }}><Plus size={14} /> Novo Template</button>
         </div>
         <div className="grid gap-3">
@@ -205,67 +213,71 @@ export default function WhatsApp() {
             <div key={t.id} className="bg-white border rounded-lg p-4">
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-2">
-                  <span className="font-medium text-sm">{t.nome}</span>
+                  <span className="font-medium text-sm font-mono">{t.nome}</span>
                   <Badge color={catColor[t.categoria] || 'gray'}>{t.categoria}</Badge>
                   <Badge color={stColor[t.status] || 'gray'}>{t.status}</Badge>
                   <span className="text-xs text-gray-400">{t.idioma}</span>
                 </div>
                 <div className="flex items-center gap-1">
-                  <button onClick={() => openEditTpl(t)} className="p-1 text-gray-400 hover:text-gray-600"><Edit size={14} /></button>
-                  <button onClick={() => submeterMeta(t.id)} className="p-1 text-gray-400 hover:text-blue-600" title="Submeter à Meta"><Upload size={14} /></button>
-                  <button onClick={() => deleteTpl(t.id)} className="p-1 text-gray-400 hover:text-red-600"><Trash2 size={14} /></button>
+                  <button onClick={() => deleteTpl(t.nome)} className="p-1 text-gray-400 hover:text-red-600" title="Deletar"><Trash2 size={14} /></button>
                 </div>
               </div>
               <p className="text-sm text-gray-600">{highlightVars(t.corpo)}</p>
+              {t.footer && <p className="text-xs text-gray-400 mt-1">{t.footer}</p>}
+              {t.botoes?.length > 0 && (
+                <div className="flex gap-2 mt-2">
+                  {t.botoes.map((b, i) => (
+                    <span key={i} className="text-xs bg-gray-100 px-2 py-1 rounded">{b.text || b.otp_type || b.type}</span>
+                  ))}
+                </div>
+              )}
             </div>
           ))}
-          {templates.length === 0 && <p className="text-sm text-gray-400 text-center py-8">Nenhum template cadastrado</p>}
+          {templates.length === 0 && <p className="text-sm text-gray-400 text-center py-8">Nenhum template encontrado na Meta</p>}
         </div>
 
         {/* Modal Template */}
-        <Modal open={tplModal} onClose={() => setTplModal(false)} title={editTplId ? 'Editar Template' : 'Novo Template'}>
+        <Modal open={tplModal} onClose={() => setTplModal(false)} title="Novo Template (Meta WhatsApp)">
           <div className="space-y-3">
+            <p className="text-xs text-gray-500 bg-yellow-50 border border-yellow-200 rounded p-2">O template será criado diretamente na Meta e ficará pendente de aprovação (normalmente em minutos).</p>
             <div>
-              <label className="text-xs text-gray-500">Nome (slug)</label>
-              <input value={tplForm.nome} onChange={e => setTplForm({ ...tplForm, nome: e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, '_') })} className="w-full border rounded px-2 py-1.5 text-sm mt-1" />
+              <label className="text-xs text-gray-500">Nome (slug, apenas letras minúsculas e _)</label>
+              <input value={tplForm.nome} onChange={e => setTplForm({ ...tplForm, nome: e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, '_') })} className="w-full border rounded px-2 py-1.5 text-sm mt-1" placeholder="ex: lembrete_sessao" />
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="text-xs text-gray-500">Categoria</label>
                 <select value={tplForm.categoria} onChange={e => setTplForm({ ...tplForm, categoria: e.target.value })} className="w-full border rounded px-2 py-1.5 text-sm mt-1">
-                  <option value="utility">Utility</option><option value="marketing">Marketing</option>
+                  <option value="UTILITY">Utility</option><option value="MARKETING">Marketing</option>
                 </select>
               </div>
               <div>
                 <label className="text-xs text-gray-500">Idioma</label>
                 <select value={tplForm.idioma} onChange={e => setTplForm({ ...tplForm, idioma: e.target.value })} className="w-full border rounded px-2 py-1.5 text-sm mt-1">
-                  <option value="pt_BR">pt_BR</option>
+                  <option value="pt_BR">Português (BR)</option><option value="en_US">English (US)</option>
                 </select>
               </div>
             </div>
             <div>
-              <label className="text-xs text-gray-500">Corpo</label>
-              <textarea value={tplForm.corpo} onChange={e => setTplForm({ ...tplForm, corpo: e.target.value })} rows={4} className="w-full border rounded px-2 py-1.5 text-sm mt-1" placeholder="Olá {{1}}, seu {{2}} está pronto!" />
+              <label className="text-xs text-gray-500">Cabeçalho (opcional, texto fixo)</label>
+              <input value={tplForm.header} onChange={e => setTplForm({ ...tplForm, header: e.target.value })} className="w-full border rounded px-2 py-1.5 text-sm mt-1" placeholder="ex: MBFoto - Notificação" />
             </div>
             <div>
-              <label className="text-xs text-gray-500">Variáveis</label>
+              <label className="text-xs text-gray-500">Corpo da mensagem</label>
+              <textarea value={tplForm.corpo} onChange={e => setTplForm({ ...tplForm, corpo: e.target.value })} rows={5} className="w-full border rounded px-2 py-1.5 text-sm mt-1 font-mono" placeholder={"Olá {{1}}, seu orçamento de {{2}} está pronto!\n\nAcesse: {{3}}"} />
+              <p className="text-xs text-gray-400 mt-1">Use {'{{1}}'}, {'{{2}}'}, etc. para variáveis dinâmicas. Mantenha proporção de texto fixo {'>'} variáveis.</p>
+            </div>
+            <div>
+              <label className="text-xs text-gray-500">Exemplos das variáveis (obrigatório para aprovação)</label>
               {tplForm.variaveis.map((v, i) => (
                 <div key={i} className="flex gap-2 mt-1">
-                  <span className="text-xs text-gray-400 pt-2">{`{{${v.indice}}}`}</span>
-                  <input placeholder="Descrição" value={v.descricao} onChange={e => { const vars = [...tplForm.variaveis]; vars[i].descricao = e.target.value; setTplForm({ ...tplForm, variaveis: vars }); }} className="flex-1 border rounded px-2 py-1 text-sm" />
+                  <span className="text-xs text-gray-400 pt-2 whitespace-nowrap">{`{{${v.indice}}}`}</span>
                   <input placeholder="Exemplo" value={v.exemplo} onChange={e => { const vars = [...tplForm.variaveis]; vars[i].exemplo = e.target.value; setTplForm({ ...tplForm, variaveis: vars }); }} className="flex-1 border rounded px-2 py-1 text-sm" />
                 </div>
               ))}
               <button onClick={addVariavel} className="text-xs mt-1" style={{ color: ACCENT }}>+ Adicionar variável</button>
             </div>
-            <div>
-              <label className="text-xs text-gray-500">Evento vinculado</label>
-              <select value={tplForm.evento} onChange={e => setTplForm({ ...tplForm, evento: e.target.value })} className="w-full border rounded px-2 py-1.5 text-sm mt-1">
-                <option value="">Nenhum</option>
-                {EVENTOS.map(ev => <option key={ev} value={ev}>{ev}</option>)}
-              </select>
-            </div>
-            <button onClick={saveTpl} className="w-full py-2 rounded text-sm text-white font-medium mt-2" style={{ background: ACCENT }}>Salvar</button>
+            <button onClick={saveTpl} disabled={!tplForm.nome || !tplForm.corpo} className="w-full py-2 rounded text-sm text-white font-medium mt-2 disabled:opacity-50" style={{ background: ACCENT }}>Criar Template na Meta</button>
           </div>
         </Modal>
       </div>
