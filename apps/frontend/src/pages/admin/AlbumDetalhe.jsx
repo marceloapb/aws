@@ -124,7 +124,7 @@ export default function AlbumDetalhe() {
           const upload = uploads[idx];
           try {
             await fetch(upload.upload_url, { method: 'PUT', body: file, headers: { 'Content-Type': file.type } });
-            confirmList.push({ foto_id: upload.foto_id, key: upload.key, content_type: file.type });
+            confirmList.push({ foto_id: upload.foto_id, key: upload.key, content_type: file.type, filename: file.name });
           } catch {}
         }));
         uploaded += chunk.length;
@@ -492,17 +492,21 @@ export default function AlbumDetalhe() {
             </button>
             <select onChange={e => {
               const val = e.target.value;
-              if (val === 'nome_asc') setFotos(prev => [...prev].sort((a, b) => (a.titulo || a.nome || a.key || '').localeCompare(b.titulo || b.nome || b.key || '')));
-              else if (val === 'nome_desc') setFotos(prev => [...prev].sort((a, b) => (b.titulo || b.nome || b.key || '').localeCompare(a.titulo || a.nome || a.key || '')));
+              if (val === 'nome_asc') setFotos(prev => [...prev].sort((a, b) => (a.filename || a.titulo || a.key || '').localeCompare(b.filename || b.titulo || b.key || '')));
+              else if (val === 'nome_desc') setFotos(prev => [...prev].sort((a, b) => (b.filename || b.titulo || b.key || '').localeCompare(a.filename || a.titulo || a.key || '')));
               else if (val === 'data_desc') setFotos(prev => [...prev].sort((a, b) => (b.created || '').localeCompare(a.created || '')));
               else if (val === 'data_asc') setFotos(prev => [...prev].sort((a, b) => (a.created || '').localeCompare(b.created || '')));
+              else if (val === 'exif_desc') setFotos(prev => [...prev].sort((a, b) => (b.exif_date || '').localeCompare(a.exif_date || '')));
+              else if (val === 'exif_asc') setFotos(prev => [...prev].sort((a, b) => (a.exif_date || '').localeCompare(b.exif_date || '')));
               else if (val === 'ordem') setFotos(prev => [...prev].sort((a, b) => (a.ordem || 0) - (b.ordem || 0)));
             }} className="text-xs border rounded-lg px-2.5 py-1.5">
               <option value="ordem">Ordenar: Padrão</option>
-              <option value="nome_asc">Nome A → Z</option>
-              <option value="nome_desc">Nome Z → A</option>
-              <option value="data_desc">Data: Mais recente</option>
-              <option value="data_asc">Data: Mais antiga</option>
+              <option value="nome_asc">Nome original A → Z</option>
+              <option value="nome_desc">Nome original Z → A</option>
+              <option value="exif_asc">Data captura: Mais antiga</option>
+              <option value="exif_desc">Data captura: Mais recente</option>
+              <option value="data_asc">Upload: Mais antigo</option>
+              <option value="data_desc">Upload: Mais recente</option>
             </select>
             {selecionadas.length === 1 && (
               <button onClick={async () => {

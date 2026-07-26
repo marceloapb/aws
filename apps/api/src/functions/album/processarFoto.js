@@ -139,7 +139,24 @@ async function processAlbumFoto(message) {
 
       // 3. Ler metadados
       const metadata = await sharp(buffer).metadata();
-      const { width, height } = metadata;
+      const { width, height, exif: exifBuffer } = metadata;
+
+      // 3b. Extrair data EXIF (DateTimeOriginal)
+      let exif_date = null;
+      if (exifBuffer) {
+        try {
+          // EXIF DateTimeOriginal está no IFD do EXIF (tag 0x9003)
+          // Formato: "YYYY:MM:DD HH:MM:SS"
+          const exifStr = exifBuffer.toString('binary');
+          const dateMatch = exifStr.match(/(\d{4}):(\d{2}):(\d{2}) (\d{2}):(\d{2}):(\d{2})/);
+          if (dateMatch) {
+            const [, y, m, d, h, min, s] = dateMatch;
+            exif_date = `${y}-${m}-${d}T${h}:${min}:${s}`;
+          }
+        } catch (exifErr) {
+          console.warn(`[FOTO] EXIF extraction failed for ${foto_id}:`, exifErr.message);
+        }
+      }
 
       // 4. Gerar versões
       const basePath = originalKey.replace(/\.[^.]+$/, '');
@@ -200,7 +217,7 @@ async function processAlbumFoto(message) {
       }
 
       // 5. Atualizar DynamoDB
-      await updateFoto(tenant_id, album_id, foto_id, {
+      const updateData = {
         status_processamento: 'completo',
         s3_key_media: urls.s3_key_media || originalKey,
         s3_key_thumb: urls.s3_key_thumb || originalKey,
@@ -208,7 +225,10 @@ async function processAlbumFoto(message) {
         height,
         tamanho_bytes: buffer.length,
         processado_em: new Date().toISOString(),
-      });
+      };
+      if (exif_date) updateData.exif_date = exif_date;
+
+      await updateFoto(tenant_id, album_id, foto_id, updateData);
 
       console.log(`[FOTO] Processado: ${foto_id} (${width}x${height}) → web+thumb WebP`);
     } catch (error) {

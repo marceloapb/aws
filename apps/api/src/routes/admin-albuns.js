@@ -525,6 +525,7 @@ router.post('/:id/fotos/confirmar-batch', async (req, res) => {
         s3_key_original: foto.key,
         s3_key_thumb: null,
         s3_key_media: null,
+        filename: foto.filename || null,
         content_type: foto.content_type || 'image/jpeg',
         status_processamento: 'pendente',
         ordem,
