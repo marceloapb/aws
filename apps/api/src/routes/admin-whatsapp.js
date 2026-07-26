@@ -1,7 +1,7 @@
 const { Router } = require('express');
 const { enviarTemplate, enviarNotificacaoOrcamento, enviarNotificacaoAlbum } = require('../services/whatsappService');
 const { dynamo, TABLE } = require('../config/dynamodb');
-const { QueryCommand } = require('@aws-sdk/lib-dynamodb');
+const { QueryCommand, ScanCommand, PutCommand } = require('@aws-sdk/lib-dynamodb');
 
 const router = Router();
 
@@ -320,68 +320,261 @@ router.delete('/templates/:name', async (req, res) => {
   }
 });
 
-// GET /api/admin/whatsapp/conversas - Conversas recentes
+// GET /api/admin/whatsapp/conversas - Conversas reais (do webhook)
 router.get('/conversas', async (req, res) => {
   try {
-    const result = await dynamo.send(new QueryCommand({
+    // Buscar todas as mensagens WHATSAPP# (scan com filtro — ok pra volume pequeno)
+    const result = await dynamo.send(new ScanCommand({
+      TableName: TABLE,
+      FilterExpression: 'begins_with(PK, :prefix) AND begins_with(SK, :msgPrefix)',
+      ExpressionAttributeValues: { ':prefix': 'WHATSAPP#', ':msgPrefix': 'MSG#' },
+      Limit: 500,
+    }));
+
+    const items = result.Items || [];
+
+    // Agrupar por número (PK)
+    const conversasMap = {};
+    for (const msg of items) {
+      const numero = msg.PK.replace('WHATSAPP#', '');
+      if (!conversasMap[numero]) {
+        conversasMap[numero] = { clienteId: numero, nome: '', telefone: numero, mensagens: [], naoLidas: 0 };
+      }
+      conversasMap[numero].mensagens.push(msg);
+    }
+
+    // Buscar envios (mensagens de saída)
+    const enviosResult = await dynamo.send(new ScanCommand({
+      TableName: TABLE,
+      FilterExpression: 'begins_with(PK, :prefix) AND begins_with(SK, :outPrefix)',
+      ExpressionAttributeValues: { ':prefix': 'WHATSAPP#', ':outPrefix': 'OUT#' },
+      Limit: 500,
+    }));
+    for (const msg of (enviosResult.Items || [])) {
+      const numero = msg.PK.replace('WHATSAPP#', '');
+      if (!conversasMap[numero]) {
+        conversasMap[numero] = { clienteId: numero, nome: '', telefone: numero, mensagens: [], naoLidas: 0 };
+      }
+      conversasMap[numero].mensagens.push({ ...msg, direcao: 'saida' });
+    }
+
+    // Tentar resolver nomes via clientes cadastrados
+    const clientesResult = await dynamo.send(new QueryCommand({
       TableName: TABLE,
       IndexName: 'GSI1',
       KeyConditionExpression: 'GSI1PK = :pk',
-      ExpressionAttributeValues: { ':pk': 'WA_CONVERSA' },
-      ScanIndexForward: false,
-      Limit: 50,
+      ExpressionAttributeValues: { ':pk': 'CLIENTE' },
     }));
-    res.json({ success: true, data: result.Items || [] });
+    const clientesMap = {};
+    for (const c of (clientesResult.Items || [])) {
+      const tel = (c.whatsapp_numero || c.telefone || '').replace(/\D/g, '');
+      if (tel) clientesMap[tel] = c.nome;
+      if (tel.startsWith('55')) clientesMap[tel.slice(2)] = c.nome;
+      if (!tel.startsWith('55')) clientesMap[`55${tel}`] = c.nome;
+    }
+
+    // Montar lista de conversas
+    const conversas = Object.values(conversasMap).map(c => {
+      // Resolver nome
+      c.nome = clientesMap[c.telefone] || clientesMap[c.telefone.replace(/^55/, '')] || `+${c.telefone}`;
+
+      // Ordenar mensagens por timestamp
+      c.mensagens.sort((a, b) => (a.timestamp || a.createdAt || '').localeCompare(b.timestamp || b.createdAt || ''));
+      const ultima = c.mensagens[c.mensagens.length - 1];
+
+      // Janela 24h: última mensagem recebida (entrada) dentro de 24h
+      const ultimaEntrada = [...c.mensagens].reverse().find(m => m.direcao !== 'saida');
+      let janelaAberta = false;
+      let janelaAte = '';
+      if (ultimaEntrada) {
+        const ts = ultimaEntrada.timestamp ? new Date(Number(ultimaEntrada.timestamp) * 1000) : new Date(ultimaEntrada.createdAt);
+        const expira = new Date(ts.getTime() + 24 * 60 * 60 * 1000);
+        janelaAberta = expira > new Date();
+        janelaAte = janelaAberta ? expira.toLocaleString('pt-BR', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit' }) : '';
+      }
+
+      return {
+        clienteId: c.telefone,
+        nome: c.nome,
+        telefone: c.telefone,
+        ultimaMensagem: ultima?.text || ultima?.type || '(mídia)',
+        naoLidas: c.mensagens.filter(m => m.direcao !== 'saida' && !m.lida).length,
+        janelaAberta,
+        janelaAte,
+        ultimoTimestamp: ultima?.timestamp || ultima?.createdAt || '',
+      };
+    });
+
+    // Ordenar por mais recente
+    conversas.sort((a, b) => (b.ultimoTimestamp || '').localeCompare(a.ultimoTimestamp || ''));
+
+    res.json({ success: true, data: conversas });
   } catch (error) {
+    console.error('[WHATSAPP] Erro ao listar conversas:', error.message);
     res.json({ success: true, data: [] });
   }
 });
 
-// GET /api/admin/whatsapp/custos - Custos do mês
+// GET /api/admin/whatsapp/conversas/:clienteId - Mensagens de uma conversa
+router.get('/conversas/:clienteId', async (req, res) => {
+  try {
+    const numero = req.params.clienteId;
+
+    // Buscar mensagens recebidas
+    const msgResult = await dynamo.send(new QueryCommand({
+      TableName: TABLE,
+      KeyConditionExpression: 'PK = :pk AND begins_with(SK, :sk)',
+      ExpressionAttributeValues: { ':pk': `WHATSAPP#${numero}`, ':sk': 'MSG#' },
+      ScanIndexForward: true,
+    }));
+
+    // Buscar mensagens enviadas
+    const outResult = await dynamo.send(new QueryCommand({
+      TableName: TABLE,
+      KeyConditionExpression: 'PK = :pk AND begins_with(SK, :sk)',
+      ExpressionAttributeValues: { ':pk': `WHATSAPP#${numero}`, ':sk': 'OUT#' },
+      ScanIndexForward: true,
+    }));
+
+    const todas = [
+      ...(msgResult.Items || []).map(m => ({
+        id: m.SK,
+        direcao: 'entrada',
+        texto: m.text || `[${m.type || 'mídia'}]`,
+        tipo: m.type,
+        timestamp: m.timestamp,
+        hora: m.timestamp ? new Date(Number(m.timestamp) * 1000).toLocaleString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : '',
+        status: 'recebido',
+      })),
+      ...(outResult.Items || []).map(m => ({
+        id: m.SK,
+        direcao: 'saida',
+        texto: m.text || m.templateNome || '[template]',
+        tipo: m.type || 'text',
+        timestamp: m.timestamp || m.createdAt,
+        hora: m.createdAt ? new Date(m.createdAt).toLocaleString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : '',
+        status: m.status || 'enviado',
+      })),
+    ];
+
+    // Ordenar por timestamp
+    todas.sort((a, b) => {
+      const ta = a.timestamp ? (String(a.timestamp).length <= 10 ? Number(a.timestamp) * 1000 : Number(a.timestamp)) : new Date(a.timestamp).getTime();
+      const tb = b.timestamp ? (String(b.timestamp).length <= 10 ? Number(b.timestamp) * 1000 : Number(b.timestamp)) : new Date(b.timestamp).getTime();
+      return ta - tb;
+    });
+
+    res.json({ success: true, data: todas });
+  } catch (error) {
+    console.error('[WHATSAPP] Erro ao buscar mensagens:', error.message);
+    res.json({ success: true, data: [] });
+  }
+});
+
+// POST /api/admin/whatsapp/enviar-texto - Enviar texto livre (dentro da janela 24h)
+router.post('/enviar-texto', async (req, res) => {
+  try {
+    const { clienteId, texto } = req.body;
+    if (!clienteId || !texto) return res.status(400).json({ success: false, message: 'clienteId e texto são obrigatórios' });
+
+    const whatsapp = require('../lib/whatsapp/client');
+
+    // Enviar via WhatsApp Cloud API
+    const result = await whatsapp.enviarTexto({ telefone: clienteId, texto });
+
+    // Salvar mensagem de saída no DynamoDB
+    const now = new Date();
+    await dynamo.send(new PutCommand({
+      TableName: TABLE,
+      Item: {
+        PK: `WHATSAPP#${result.phone || clienteId.replace(/\D/g, '')}`,
+        SK: `OUT#${now.toISOString()}#${result.message_id || Date.now()}`,
+        type: 'text',
+        text: texto,
+        status: 'enviado',
+        messageId: result.message_id,
+        createdAt: now.toISOString(),
+        timestamp: Math.floor(now.getTime() / 1000).toString(),
+      },
+    }));
+
+    res.json({ success: true, data: result });
+  } catch (error) {
+    res.status(400).json({ success: false, message: error.message });
+  }
+});
+
+// GET /api/admin/whatsapp/custos - Custos do mês (baseado em mensagens reais)
 router.get('/custos', async (req, res) => {
   try {
     const now = new Date();
     const mesAtual = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
 
-    const result = await dynamo.send(new QueryCommand({
+    // Buscar mensagens de saída do mês
+    const outResult = await dynamo.send(new ScanCommand({
       TableName: TABLE,
-      IndexName: 'GSI1',
-      KeyConditionExpression: 'GSI1PK = :pk AND begins_with(GSI1SK, :mes)',
-      ExpressionAttributeValues: { ':pk': 'WA_ENVIO', ':mes': `WA_ENVIO#${mesAtual}` },
+      FilterExpression: 'begins_with(PK, :prefix) AND begins_with(SK, :outPrefix) AND begins_with(createdAt, :mes)',
+      ExpressionAttributeValues: { ':prefix': 'WHATSAPP#', ':outPrefix': 'OUT#', ':mes': mesAtual },
+      Limit: 1000,
     }));
 
-    const envios = result.Items || [];
-    const totalMes = envios.length;
+    // Buscar mensagens recebidas do mês
+    const inResult = await dynamo.send(new ScanCommand({
+      TableName: TABLE,
+      FilterExpression: 'begins_with(PK, :prefix) AND begins_with(SK, :msgPrefix) AND begins_with(createdAt, :mes)',
+      ExpressionAttributeValues: { ':prefix': 'WHATSAPP#', ':msgPrefix': 'MSG#', ':mes': mesAtual },
+      Limit: 1000,
+    }));
 
+    const envios = outResult.Items || [];
+    const recebidas = inResult.Items || [];
+    const totalMes = envios.length;
+    const totalRecebidas = recebidas.length;
+
+    // Custos WhatsApp Cloud API (por categoria)
+    // Utility: ~R$0,035 | Marketing: ~R$0,0625 | Authentication: ~R$0,0345
     let custoTotal = 0;
-    let templates = 0;
+    let templateCount = 0;
     let textoLivre = 0;
     const porTipoMap = {};
 
     for (const e of envios) {
-      const tipo = e.categoria || e.tipo || 'utility';
-      const custo = tipo === 'marketing' ? 0.0625 : 0.035;
+      const tipo = e.categoria || (e.templateNome ? 'utility' : 'service');
+      const custo = tipo === 'marketing' ? 0.0625 : tipo === 'authentication' ? 0.0345 : tipo === 'utility' ? 0.035 : 0;
       custoTotal += custo;
-      if (e.templateNome) templates++; else textoLivre++;
+      if (e.templateNome) templateCount++; else textoLivre++;
       if (!porTipoMap[tipo]) porTipoMap[tipo] = { tipo, qtd: 0, custoUnitario: custo, total: 0 };
       porTipoMap[tipo].qtd++;
       porTipoMap[tipo].total += custo;
     }
 
+    // Gráfico por dia
     const porDia = [];
     for (let i = 29; i >= 0; i--) {
       const d = new Date(now); d.setDate(d.getDate() - i);
       const diaStr = d.toISOString().slice(0, 10);
-      const qtd = envios.filter(e => e.data?.startsWith(diaStr)).length;
-      porDia.push({ dia: diaStr.slice(5), qtd });
+      const qtdOut = envios.filter(e => e.createdAt?.startsWith(diaStr)).length;
+      const qtdIn = recebidas.filter(e => e.createdAt?.startsWith(diaStr)).length;
+      porDia.push({ dia: diaStr.slice(5), qtd: qtdOut, recebidas: qtdIn });
     }
 
     res.json({
       success: true,
-      data: { totalMes, custoTotal, mediaDia: totalMes / 30, templates, textoLivre, porDia, porTipo: Object.values(porTipoMap), budget: 50 },
+      data: {
+        totalMes,
+        totalRecebidas,
+        custoTotal,
+        mediaDia: totalMes / 30,
+        templates: templateCount,
+        textoLivre,
+        porDia,
+        porTipo: Object.values(porTipoMap),
+        budget: 50,
+      },
     });
   } catch (error) {
-    res.json({ success: true, data: { totalMes: 0, custoTotal: 0, mediaDia: 0, templates: 0, textoLivre: 0, porDia: [], porTipo: [], budget: 50 } });
+    console.error('[WHATSAPP] Erro ao calcular custos:', error.message);
+    res.json({ success: true, data: { totalMes: 0, totalRecebidas: 0, custoTotal: 0, mediaDia: 0, templates: 0, textoLivre: 0, porDia: [], porTipo: [], budget: 50 } });
   }
 });
 
