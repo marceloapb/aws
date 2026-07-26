@@ -376,15 +376,20 @@ router.put('/templates/:id', async (req, res) => {
 // GET /api/admin/whatsapp/conversas - Conversas reais (do webhook)
 router.get('/conversas', async (req, res) => {
   try {
-    // Buscar todas as mensagens WHATSAPP# (scan com filtro — ok pra volume pequeno)
-    const result = await dynamo.send(new ScanCommand({
-      TableName: TABLE,
-      FilterExpression: 'begins_with(PK, :prefix) AND begins_with(SK, :msgPrefix)',
-      ExpressionAttributeValues: { ':prefix': 'WHATSAPP#', ':msgPrefix': 'MSG#' },
-      Limit: 500,
-    }));
-
-    const items = result.Items || [];
+    // Buscar todas as mensagens WHATSAPP# (scan paginado)
+    let items = [];
+    let lastKey = undefined;
+    do {
+      const params = {
+        TableName: TABLE,
+        FilterExpression: 'begins_with(PK, :prefix) AND begins_with(SK, :msgPrefix)',
+        ExpressionAttributeValues: { ':prefix': 'WHATSAPP#', ':msgPrefix': 'MSG#' },
+      };
+      if (lastKey) params.ExclusiveStartKey = lastKey;
+      const result = await dynamo.send(new ScanCommand(params));
+      items = items.concat(result.Items || []);
+      lastKey = result.LastEvaluatedKey;
+    } while (lastKey);
 
     // Agrupar por número (PK)
     const conversasMap = {};
@@ -396,14 +401,21 @@ router.get('/conversas', async (req, res) => {
       conversasMap[numero].mensagens.push(msg);
     }
 
-    // Buscar envios (mensagens de saída)
-    const enviosResult = await dynamo.send(new ScanCommand({
-      TableName: TABLE,
-      FilterExpression: 'begins_with(PK, :prefix) AND begins_with(SK, :outPrefix)',
-      ExpressionAttributeValues: { ':prefix': 'WHATSAPP#', ':outPrefix': 'OUT#' },
-      Limit: 500,
-    }));
-    for (const msg of (enviosResult.Items || [])) {
+    // Buscar envios (mensagens de saída) - paginado
+    let outItems = [];
+    lastKey = undefined;
+    do {
+      const params = {
+        TableName: TABLE,
+        FilterExpression: 'begins_with(PK, :prefix) AND begins_with(SK, :outPrefix)',
+        ExpressionAttributeValues: { ':prefix': 'WHATSAPP#', ':outPrefix': 'OUT#' },
+      };
+      if (lastKey) params.ExclusiveStartKey = lastKey;
+      const result = await dynamo.send(new ScanCommand(params));
+      outItems = outItems.concat(result.Items || []);
+      lastKey = result.LastEvaluatedKey;
+    } while (lastKey);
+    for (const msg of outItems) {
       const numero = msg.PK.replace('WHATSAPP#', '');
       if (!conversasMap[numero]) {
         conversasMap[numero] = { clienteId: numero, nome: '', telefone: numero, mensagens: [], naoLidas: 0 };
@@ -563,24 +575,36 @@ router.get('/custos', async (req, res) => {
     const now = new Date();
     const mesAtual = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
 
-    // Buscar mensagens de saída do mês
-    const outResult = await dynamo.send(new ScanCommand({
-      TableName: TABLE,
-      FilterExpression: 'begins_with(PK, :prefix) AND begins_with(SK, :outPrefix) AND begins_with(createdAt, :mes)',
-      ExpressionAttributeValues: { ':prefix': 'WHATSAPP#', ':outPrefix': 'OUT#', ':mes': mesAtual },
-      Limit: 1000,
-    }));
+    // Buscar mensagens de saída do mês (paginado)
+    let envios = [];
+    let lastKey = undefined;
+    do {
+      const params = {
+        TableName: TABLE,
+        FilterExpression: 'begins_with(PK, :prefix) AND begins_with(SK, :outPrefix) AND begins_with(createdAt, :mes)',
+        ExpressionAttributeValues: { ':prefix': 'WHATSAPP#', ':outPrefix': 'OUT#', ':mes': mesAtual },
+      };
+      if (lastKey) params.ExclusiveStartKey = lastKey;
+      const result = await dynamo.send(new ScanCommand(params));
+      envios = envios.concat(result.Items || []);
+      lastKey = result.LastEvaluatedKey;
+    } while (lastKey);
 
-    // Buscar mensagens recebidas do mês
-    const inResult = await dynamo.send(new ScanCommand({
-      TableName: TABLE,
-      FilterExpression: 'begins_with(PK, :prefix) AND begins_with(SK, :msgPrefix) AND begins_with(createdAt, :mes)',
-      ExpressionAttributeValues: { ':prefix': 'WHATSAPP#', ':msgPrefix': 'MSG#', ':mes': mesAtual },
-      Limit: 1000,
-    }));
+    // Buscar mensagens recebidas do mês (paginado)
+    let recebidas = [];
+    lastKey = undefined;
+    do {
+      const params = {
+        TableName: TABLE,
+        FilterExpression: 'begins_with(PK, :prefix) AND begins_with(SK, :msgPrefix) AND begins_with(createdAt, :mes)',
+        ExpressionAttributeValues: { ':prefix': 'WHATSAPP#', ':msgPrefix': 'MSG#', ':mes': mesAtual },
+      };
+      if (lastKey) params.ExclusiveStartKey = lastKey;
+      const result = await dynamo.send(new ScanCommand(params));
+      recebidas = recebidas.concat(result.Items || []);
+      lastKey = result.LastEvaluatedKey;
+    } while (lastKey);
 
-    const envios = outResult.Items || [];
-    const recebidas = inResult.Items || [];
     const totalMes = envios.length;
     const totalRecebidas = recebidas.length;
 
