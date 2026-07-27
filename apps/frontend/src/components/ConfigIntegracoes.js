@@ -347,7 +347,7 @@ export default function ConfigIntegracoes({ form, setForm }) {
           <div className="flex items-center justify-between p-4 rounded-lg bg-gray-50 border">
             <div>
               <p className="text-sm font-medium text-gray-900">Sincronização Automática</p>
-              <p className="text-xs text-gray-500">Eventos criados no MBF aparecem automaticamente no Google Calendar</p>
+              <p className="text-xs text-gray-500">Eventos criados no sistema aparecem automaticamente no Google Calendar</p>
             </div>
             <button type="button" onClick={() => {
               const newVal = !form.calendarAutoSync;
@@ -361,7 +361,7 @@ export default function ConfigIntegracoes({ form, setForm }) {
 
           <div className="p-4 rounded-lg bg-blue-50 border border-blue-200">
             <p className="text-sm text-blue-700">
-              💡 A sincronização é MBF → Google (mão única). Eventos criados no MBF aparecem no Google Calendar. Alterações no Google não voltam para o MBF.
+              💡 A sincronização é unidirecional (sistema → Google). Eventos criados no sistema aparecem no Google Calendar. Alterações no Google não voltam para o sistema.
             </p>
           </div>
 

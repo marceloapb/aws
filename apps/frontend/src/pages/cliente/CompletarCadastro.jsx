@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
-import { Camera, MapPin, Instagram, FileText, ArrowRight } from 'lucide-react';
+import { MapPin, Instagram, FileText, ArrowRight } from 'lucide-react';
 
 const ACCENT = '#EA580C';
 
@@ -111,8 +111,7 @@ export default function CompletarCadastro() {
         {/* Header */}
         <div className="text-center mb-6">
           <div className="inline-flex items-center gap-2 mb-3">
-            <Camera size={32} style={{ color: ACCENT }} />
-            <span className="text-2xl font-bold text-gray-900">MBFoto</span>
+            <img src="/logo.svg" alt="Marcelo Bloise Fotografia" className="h-12 object-contain" />
           </div>
           <h1 className="text-xl font-bold text-gray-900">Complete seu perfil</h1>
           <p className="text-gray-500 text-sm mt-1">Esses dados ajudam no seu atendimento (opcional)</p>

@@ -276,7 +276,7 @@ export default function WhatsApp() {
             </div>
             <div>
               <label className="text-xs text-gray-500">Cabeçalho (opcional, texto fixo)</label>
-              <input value={tplForm.header} onChange={e => setTplForm({ ...tplForm, header: e.target.value })} className="w-full border rounded px-2 py-1.5 text-sm mt-1" placeholder="ex: MBFoto - Notificação" />
+              <input value={tplForm.header} onChange={e => setTplForm({ ...tplForm, header: e.target.value })} className="w-full border rounded px-2 py-1.5 text-sm mt-1" placeholder="ex: Marcelo Bloise Fotografia - Notificação" />
             </div>
             <div>
               <label className="text-xs text-gray-500">Corpo da mensagem</label>

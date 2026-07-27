@@ -12,8 +12,7 @@ export default function Home() {
         <div className="absolute inset-0 bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900" />
         <nav className="relative z-10 flex items-center justify-between max-w-6xl mx-auto px-6 py-5">
           <div className="flex items-center gap-2">
-            <Camera size={28} style={{ color: ACCENT }} />
-            <span className="text-xl font-bold">MBFoto</span>
+            <img src="/logo.svg" alt="Marcelo Bloise Fotografia" className="h-8 w-auto object-contain brightness-0 invert" />
           </div>
           <div className="flex items-center gap-4">
             <Link to="/login" className="text-sm text-gray-300 hover:text-white transition-colors">Entrar</Link>
@@ -78,10 +77,9 @@ export default function Home() {
       <footer className="border-t border-gray-800 py-8">
         <div className="max-w-6xl mx-auto px-6 flex flex-col md:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-2">
-            <Camera size={20} style={{ color: ACCENT }} />
-            <span className="font-semibold">MBFoto</span>
+            <img src="/logo.svg" alt="Marcelo Bloise Fotografia" className="h-6 w-auto object-contain brightness-0 invert" />
           </div>
-          <p className="text-sm text-gray-500">© 2026 MBFoto. Todos os direitos reservados.</p>
+          <p className="text-sm text-gray-500">© 2026 Marcelo Bloise Fotografia. Todos os direitos reservados.</p>
         </div>
       </footer>
     </div>

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { Camera, Eye, EyeOff, User, Phone, Building2, Mail, Lock, CreditCard } from 'lucide-react';
+import { Eye, EyeOff, User, Phone, Building2, Mail, Lock, CreditCard } from 'lucide-react';
 
 const ACCENT = '#EA580C';
 
@@ -160,8 +160,7 @@ export default function Cadastro() {
       <div className="w-full max-w-sm">
         <div className="text-center mb-6">
           <div className="inline-flex items-center gap-2 mb-2">
-            <Camera size={32} style={{ color: ACCENT }} />
-            <span className="text-2xl font-bold text-gray-900">MBFoto</span>
+            <img src="/logo.svg" alt="Marcelo Bloise Fotografia" className="h-12 object-contain" />
           </div>
           <p className="text-gray-500 text-sm">Crie sua conta de cliente</p>
         </div>

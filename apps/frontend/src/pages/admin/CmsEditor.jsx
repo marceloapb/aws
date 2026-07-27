@@ -269,7 +269,7 @@ export default function CmsEditor() {
               value={configData.nome || ''}
               onChange={e => setConfigData(prev => ({ ...prev, nome: e.target.value }))}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#EA580C]/20 focus:border-[#EA580C]"
-              placeholder="MBFoto"
+              placeholder="Marcelo Bloise Fotografia"
             />
           </div>
 

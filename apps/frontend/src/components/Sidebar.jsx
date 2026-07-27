@@ -131,7 +131,7 @@ export default function Sidebar({ onClose }) {
           ) : (
             <>
               <Camera size={24} style={{ color: ACCENT }} />
-              <span className="font-bold text-lg">{empresaNome || 'MBFoto'}</span>
+              <span className="font-bold text-lg">{empresaNome || 'Marcelo Bloise Fotografia'}</span>
             </>
           )}
         </div>

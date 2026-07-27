@@ -40,7 +40,7 @@ export default function SiteLayout() {
     setMenuOpen(false);
   }, [location.pathname]);
 
-  const nome = config?.nome || 'MBFoto';
+  const nome = config?.nome || 'Marcelo Bloise Fotografia';
   // Site tem fundo escuro — prioriza logo para fundo escuro, com fallback para o padrão
   const logoUrl = config?.logo_dark_url || config?.logo_url;
   const redes = config?.redes || {};
