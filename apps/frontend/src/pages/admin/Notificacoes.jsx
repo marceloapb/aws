@@ -30,16 +30,17 @@ export default function Notificacoes() {
   };
 
   const marcarLida = async (id) => {
-    await authFetch(`/admin/notificacoes/${id}/lida`, { method: 'PUT' });
-    setNotificacoes(prev => prev.map(n => n.id === id ? { ...n, lida: true } : n));
+    try {
+      await authFetch(`/admin/notificacoes/${id}/lida`, { method: 'PATCH' });
+      setNotificacoes(prev => prev.map(n => n.id === id ? { ...n, lida: true } : n));
+    } catch {}
   };
 
   const marcarTodasLidas = async () => {
-    const naoLidas = notificacoes.filter(n => !n.lida);
-    for (const n of naoLidas) {
-      await authFetch(`/admin/notificacoes/${n.id}/lida`, { method: 'PUT' });
-    }
-    setNotificacoes(prev => prev.map(n => ({ ...n, lida: true })));
+    try {
+      await authFetch('/admin/notificacoes/marcar-todas-lidas', { method: 'POST' });
+      setNotificacoes(prev => prev.map(n => ({ ...n, lida: true })));
+    } catch {}
   };
 
   const naoLidas = notificacoes.filter(n => !n.lida).length;
