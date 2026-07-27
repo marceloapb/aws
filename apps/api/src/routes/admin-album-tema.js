@@ -10,7 +10,7 @@ const { GetCommand, PutCommand } = require('@aws-sdk/lib-dynamodb');
 
 const router = Router({ mergeParams: true });
 
-const LAYOUTS = ['grade', 'mosaico', 'colagem', 'slider', 'coluna', 'ladrilhos'];
+const LAYOUTS = ['grade', 'mosaico', 'colagem', 'slider', 'coluna', 'ladrilhos', 'miniaturas', 'apresentacao', 'faixa', 'misto', 'alternar', 'magico'];
 const ANIMACOES = ['none', 'fade', 'slide', 'zoom'];
 const CAPA_MODOS = ['cover', 'contain', 'fill'];
 const LOGO_POSICOES = ['top-left', 'top-center', 'top-right', 'bottom-left', 'bottom-center', 'bottom-right'];
@@ -89,6 +89,7 @@ router.put('/', async (req, res) => {
       PK: `ALBUM#${albumId}`,
       SK: 'TEMA',
       album_id: albumId,
+      // Campos base com defaults
       capa_foto_id: body.capa_foto_id ?? DEFAULTS.capa_foto_id,
       capa_modo: body.capa_modo ?? DEFAULTS.capa_modo,
       cores: {
@@ -101,6 +102,17 @@ router.put('/', async (req, res) => {
       fonte_corpo: body.fonte_corpo ?? DEFAULTS.fonte_corpo,
       animacao: body.animacao ?? DEFAULTS.animacao,
       logo_posicao: body.logo_posicao ?? DEFAULTS.logo_posicao,
+      // Campos extras do redesign (salvos como vieram)
+      ...(body.cores_capa && { cores_capa: body.cores_capa }),
+      ...(body.cores_galerias && { cores_galerias: body.cores_galerias }),
+      ...(body.capa_layout && { capa_layout: body.capa_layout }),
+      ...(body.espacamento !== undefined && { espacamento: body.espacamento }),
+      ...(body.densidade_colagem !== undefined && { densidade_colagem: body.densidade_colagem }),
+      ...(body.orientacao && { orientacao: body.orientacao }),
+      ...(body.qualidade_imagem !== undefined && { qualidade_imagem: body.qualidade_imagem }),
+      ...(body.scroll_effect && { scroll_effect: body.scroll_effect }),
+      ...(body.hover_effect && { hover_effect: body.hover_effect }),
+      ...(body.overlay_animation && { overlay_animation: body.overlay_animation }),
       updated_at: new Date().toISOString(),
     };
 

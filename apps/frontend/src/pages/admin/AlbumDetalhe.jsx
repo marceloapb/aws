@@ -135,6 +135,7 @@ export default function AlbumDetalhe() {
     permite_download: true, permite_selecao: true, permite_comentarios: true,
     cota_selecao: 0, senha_acesso: '', data_expiracao: '',
   });
+  const [saveStatus, setSaveStatus] = useState('idle'); // 'idle' | 'saving' | 'saved'
 
 
   // Fetch
@@ -169,6 +170,31 @@ export default function AlbumDetalhe() {
   const updateTemaGalerias = (patch) => { const next = { ...tema, cores_galerias: { ...tema.cores_galerias, ...patch } }; setTema(next); saveTema(next); };
 
   const handlePublicar = async () => { const p = album?.pagamento_percentual || 0; if (p < 70 && !window.confirm(`Pagamento em ${p}%. Publicar mesmo assim?`)) return; const r = await authFetch(`/admin/albuns/${id}/publicar`, { method: 'POST' }); const j = await r.json(); if (j.success) fetchAlbum(); else alert(j.message || 'Erro'); };
+
+  const handleSaveAll = async () => {
+    setSaveStatus('saving');
+    try {
+      // Salvar tema (cores, layout, fontes, animações, etc.)
+      await authFetch(`/admin/albuns/${id}/tema`, { method: 'PUT', body: JSON.stringify(tema) });
+      // Salvar configurações (download, seleção, comentários, cota, senha, expiração)
+      await authFetch(`/admin/albuns/${id}`, { method: 'PUT', body: JSON.stringify({
+        permite_download: config.permite_download,
+        permite_selecao: config.permite_selecao,
+        permite_comentarios: config.permite_comentarios,
+        cota_selecao: config.cota_selecao,
+        senha_acesso: config.senha_acesso || null,
+        data_expiracao: config.data_expiracao || null,
+        titulo: textoAlbum.titulo,
+        data_evento: textoAlbum.data_evento,
+        nome_negocio: textoAlbum.nome_negocio,
+      }) });
+      setSaveStatus('saved');
+      setTimeout(() => setSaveStatus('idle'), 2000);
+    } catch (err) {
+      setSaveStatus('idle');
+      alert('Erro ao salvar: ' + (err.message || 'tente novamente'));
+    }
+  };
 
   const handleUpload = async (e) => {
     const files = Array.from(e.target.files); if (!files.length) return;
@@ -230,7 +256,9 @@ export default function AlbumDetalhe() {
           <button onClick={() => window.history.back()} className="text-xs text-gray-500 hover:text-gray-700">← Gerenciar configurações do álbum</button>
         </div>
         <div className="flex items-center gap-2">
-          <span className="text-[11px] text-gray-400">Todas as alterações foram salvas</span>
+          <button onClick={handleSaveAll} className={`text-xs px-3 py-1.5 border rounded font-medium flex items-center gap-1 transition-colors ${saveStatus === 'saved' ? 'border-green-300 text-green-600 bg-green-50' : saveStatus === 'saving' ? 'border-blue-300 text-blue-600 bg-blue-50' : 'border-gray-300 text-gray-700 hover:bg-gray-50'}`}>
+            {saveStatus === 'saving' ? '⏳ Salvando...' : saveStatus === 'saved' ? '✓ Salvo' : '💾 Salvar'}
+          </button>
           <button onClick={() => window.open(`/admin/albuns/${id}/preview`, '_blank')} className="text-xs px-3 py-1.5 border rounded hover:bg-gray-50 flex items-center gap-1"><Eye size={12} /> Visualizar</button>
           <button onClick={handlePublicar} className="text-xs px-3 py-1.5 rounded text-white flex items-center gap-1" style={{ backgroundColor: ACCENT }}><Send size={12} /> Publicar já</button>
         </div>
