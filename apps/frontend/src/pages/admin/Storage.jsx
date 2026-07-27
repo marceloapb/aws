@@ -23,6 +23,8 @@ const CONTEXTO_LABELS = {
   novidades: 'Novidades',
   perfil: 'Perfil',
   config: 'Configurações',
+  whatsapp: 'WhatsApp',
+  backups: 'Backups',
 };
 
 const CONTEXTO_COLORS = {
@@ -31,6 +33,8 @@ const CONTEXTO_COLORS = {
   novidades: '#10b981',
   perfil: '#f59e0b',
   config: '#6b7280',
+  whatsapp: '#25d366',
+  backups: '#64748b',
 };
 
 const STATUS_BADGE = {
