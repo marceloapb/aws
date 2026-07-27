@@ -66,7 +66,7 @@ export default function AlbumPreview() {
     ro.observe(gridContainerRef.current);
     setGridWidth(gridContainerRef.current.clientWidth);
     return () => ro.disconnect();
-  }, []);
+  }, [view, activeGaleriaId]);
 
   // Keyboard navigation for lightbox
   useEffect(() => {
@@ -367,22 +367,22 @@ export default function AlbumPreview() {
             )}
           </div>
           <div className="flex items-center gap-2">
-            {album.permite_download && <Download size={18} className="opacity-40" />}
+            {album.permite_download && (
+              <span className="flex items-center gap-1 text-xs opacity-60"><Download size={16} /> Download</span>
+            )}
           </div>
         </div>
       </header>
 
       {/* Photo Grid */}
       <main ref={gridContainerRef} className="max-w-7xl mx-auto px-2 md:px-4 py-4">
-        {gridWidth > 0 && (
-          <GalleryGrid
-            layout={layout}
-            fotos={fotosVisiveis}
-            containerWidth={gridWidth}
-            onPhotoClick={(i) => setLightbox(i)}
-            tema={tema}
-          />
-        )}
+        <GalleryGrid
+          layout={layout}
+          fotos={fotosVisiveis}
+          containerWidth={gridWidth || (typeof window !== 'undefined' ? Math.min(window.innerWidth - 48, 1280) : 1200)}
+          onPhotoClick={(i) => setLightbox(i)}
+          tema={tema}
+        />
 
         {/* Infinite scroll loader */}
         {visibleCount < activeFotos.length && (
