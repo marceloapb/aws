@@ -32,6 +32,8 @@ export default function AlbumPreview() {
   const [lightbox, setLightbox] = useState(null);
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const loaderRef = useRef(null);
+  const gridContainerRef = useRef(null);
+  const [gridWidth, setGridWidth] = useState(0);
 
   useEffect(() => { loadData(); }, [id]);
 
@@ -52,6 +54,19 @@ export default function AlbumPreview() {
     observer.observe(loaderRef.current);
     return () => observer.disconnect();
   }, [visibleCount, fotos.length, activeGaleriaId]);
+
+  // Measure grid container width
+  useEffect(() => {
+    if (!gridContainerRef.current) return;
+    const ro = new ResizeObserver(entries => {
+      for (const entry of entries) {
+        setGridWidth(entry.contentRect.width);
+      }
+    });
+    ro.observe(gridContainerRef.current);
+    setGridWidth(gridContainerRef.current.clientWidth);
+    return () => ro.disconnect();
+  }, []);
 
   // Keyboard navigation for lightbox
   useEffect(() => {
@@ -358,14 +373,16 @@ export default function AlbumPreview() {
       </header>
 
       {/* Photo Grid */}
-      <main className="max-w-7xl mx-auto px-2 md:px-4 py-4">
-        <GalleryGrid
-          layout={layout}
-          fotos={fotosVisiveis}
-          containerWidth={typeof window !== 'undefined' ? Math.min(window.innerWidth - 32, 1280) : 1200}
-          onPhotoClick={(i) => setLightbox(i)}
-          tema={tema}
-        />
+      <main ref={gridContainerRef} className="max-w-7xl mx-auto px-2 md:px-4 py-4">
+        {gridWidth > 0 && (
+          <GalleryGrid
+            layout={layout}
+            fotos={fotosVisiveis}
+            containerWidth={gridWidth}
+            onPhotoClick={(i) => setLightbox(i)}
+            tema={tema}
+          />
+        )}
 
         {/* Infinite scroll loader */}
         {visibleCount < activeFotos.length && (
