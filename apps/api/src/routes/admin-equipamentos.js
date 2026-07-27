@@ -108,6 +108,27 @@ router.delete('/:id', async (req, res) => {
   }
 });
 
+// POST /api/admin/equipamentos/identificar-nome — IA identifica equipamento por nome
+router.post('/identificar-nome', async (req, res) => {
+  try {
+    const { identificarPorNome } = require('../services/aiService');
+    const { nome } = req.body;
+
+    if (!nome || nome.trim().length < 3) {
+      return res.status(400).json({ success: false, message: 'Nome deve ter pelo menos 3 caracteres' });
+    }
+
+    console.log(`[identificar-nome] Buscando: "${nome.trim()}"`);
+
+    const resultado = await identificarPorNome(nome);
+    res.json({ success: true, data: resultado });
+  } catch (error) {
+    console.error('[identificar-nome] Erro:', error.message);
+    const status = error.message?.includes('não está habilitado') ? 503 : 500;
+    res.status(status).json({ success: false, message: error.message || 'Erro ao identificar equipamento' });
+  }
+});
+
 // POST /api/admin/equipamentos/identificar-foto — IA identifica equipamento por foto
 router.post('/identificar-foto', async (req, res) => {
   try {

@@ -165,4 +165,56 @@ Se não conseguir identificar com certeza, use seu melhor palpite baseado na apa
   }
 }
 
-module.exports = { gerarCaption, gerarTextoStory, identificarEquipamento };
+/**
+ * Identifica equipamento fotográfico a partir do nome digitado pelo usuário
+ */
+async function identificarPorNome(nome) {
+  if (!nome || nome.trim().length < 3) {
+    throw new Error('Nome deve ter pelo menos 3 caracteres.');
+  }
+
+  const prompt = `Você é um especialista em equipamentos fotográficos e de vídeo. O usuário digitou o seguinte nome/descrição de equipamento:
+
+"${nome.trim()}"
+
+Com base no seu conhecimento, identifique o equipamento e retorne APENAS um JSON válido (sem markdown, sem \`\`\`) com estes campos:
+{
+  "nome": "Nome completo e correto do equipamento",
+  "marca": "Marca (Canon, Nikon, Sony, Fujifilm, Sigma, Tamron, DJI, Godox, etc)",
+  "modelo": "Modelo específico",
+  "categoria": "Uma de: Câmeras, Lentes, Flash, Iluminação, Tripés, Drones, Estabilizadores, Áudio, Acessórios, Outros",
+  "descricao": "Breve descrição do equipamento, suas características principais e uso recomendado",
+  "valor_estimado": número estimado em reais (sem R$, apenas o número, baseado no preço médio de mercado no Brasil)
+}
+
+Se não conseguir identificar com certeza, use seu melhor palpite. Se o texto for muito genérico, tente inferir o equipamento mais provável.`;
+
+  const command = new ConverseCommand({
+    modelId: MODEL_ID,
+    messages: [{ role: 'user', content: [{ text: prompt }] }],
+    inferenceConfig: { maxTokens: 500, temperature: 0.3 },
+  });
+
+  let response;
+  try {
+    response = await bedrock.send(command);
+  } catch (err) {
+    if (err.name === 'AccessDeniedException' || err.message?.includes('not authorized')) {
+      throw new Error('Modelo de IA não está habilitado na conta AWS. Verifique se o modelo está ativado no Amazon Bedrock (região us-east-1).');
+    } else if (err.name === 'ThrottlingException') {
+      throw new Error('Limite de requisições da IA atingido. Tente novamente em alguns segundos.');
+    }
+    throw new Error(`Erro ao chamar IA: ${err.message || err.name || 'desconhecido'}`);
+  }
+
+  const text = response.output.message.content[0].text.trim();
+
+  try {
+    const clean = text.replace(/```json?\n?/g, '').replace(/```/g, '').trim();
+    return JSON.parse(clean);
+  } catch {
+    return { nome: text, marca: '', modelo: '', categoria: 'Outros', descricao: '', valor_estimado: 0 };
+  }
+}
+
+module.exports = { gerarCaption, gerarTextoStory, identificarEquipamento, identificarPorNome };
