@@ -2,6 +2,9 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { Eye, X, ChevronLeft, ChevronRight, Download, ArrowRight, ArrowLeft } from 'lucide-react';
+import { JustifiedGallery } from '../../utils/galleryLayouts/justifiedRows';
+import { MasonryGallery } from '../../utils/galleryLayouts/masonry';
+import { CollageGallery } from '../../utils/galleryLayouts/collageGroups';
 
 const DEFAULTS_TEMA = {
   capa_foto_id: null,
@@ -300,45 +303,6 @@ export default function AlbumPreview() {
   // Layout do tema
   const layout = tema.layout || 'grade';
 
-  const getGridClass = () => {
-    switch (layout) {
-      case 'mosaico': return 'flex flex-wrap gap-3 justify-center';
-      case 'colagem': return 'flex flex-wrap gap-2 justify-center';
-      case 'coluna': return 'grid grid-cols-1 md:grid-cols-2 gap-4';
-      case 'ladrilhos': return 'grid grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-1';
-      case 'slider': return 'flex overflow-x-auto gap-4 snap-x snap-mandatory pb-4 scrollbar-hide';
-      default: return 'grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3';
-    }
-  };
-
-  const getItemClass = (i) => {
-    switch (layout) {
-      case 'mosaico': {
-        // Tamanhos variados — a foto manda, a moldura acompanha
-        const sizes = ['h-48', 'h-64', 'h-56', 'h-40', 'h-72', 'h-52', 'h-60', 'h-44'];
-        return `${sizes[i % sizes.length]} rounded-lg overflow-hidden`;
-      }
-      case 'colagem': {
-        const sizes = ['h-52', 'h-64', 'h-48', 'h-56', 'h-60', 'h-44', 'h-72'];
-        return `${sizes[i % sizes.length]} rounded-lg overflow-hidden`;
-      }
-      case 'coluna': return 'rounded-lg overflow-hidden';
-      case 'ladrilhos': return 'aspect-square overflow-hidden';
-      case 'slider': return 'min-w-[70vw] md:min-w-[45vw] lg:min-w-[30vw] flex-shrink-0 snap-center rounded-lg overflow-hidden';
-      default: return 'aspect-square rounded-lg overflow-hidden';
-    }
-  };
-
-  const getImgClass = () => {
-    switch (layout) {
-      case 'mosaico': return 'h-full w-auto max-w-none object-cover rounded-lg';
-      case 'colagem': return 'h-full w-auto max-w-none object-cover rounded-lg';
-      case 'coluna': return 'w-full max-h-[500px] object-contain';
-      case 'slider': return 'w-full h-[60vh] object-cover';
-      default: return 'w-full h-full object-cover';
-    }
-  };
-
   // Animação
   const animStyle = (i) => {
     if (tema.animacao === 'none' || !tema.animacao) return {};
@@ -395,25 +359,13 @@ export default function AlbumPreview() {
 
       {/* Photo Grid */}
       <main className="max-w-7xl mx-auto px-2 md:px-4 py-4">
-        <div className={getGridClass()}>
-          {fotosVisiveis.map((foto, i) => (
-            <div
-              key={foto.id || i}
-              className={`relative group cursor-pointer ${getItemClass(i)} ${animClass}`}
-              style={animStyle(i)}
-              onClick={() => setLightbox(i)}
-            >
-              <img
-                src={foto.url || ''}
-                alt={foto.titulo || foto.filename || ''}
-                className={`${getImgClass()} transition-transform duration-300 group-hover:scale-[1.03]`}
-                loading="lazy"
-                decoding="async"
-              />
-              <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors pointer-events-none" />
-            </div>
-          ))}
-        </div>
+        <GalleryGrid
+          layout={layout}
+          fotos={fotosVisiveis}
+          containerWidth={typeof window !== 'undefined' ? Math.min(window.innerWidth - 32, 1280) : 1200}
+          onPhotoClick={(i) => setLightbox(i)}
+          tema={tema}
+        />
 
         {/* Infinite scroll loader */}
         {visibleCount < activeFotos.length && (
@@ -472,5 +424,97 @@ export default function AlbumPreview() {
         </div>
       )}
     </div>
+  );
+}
+
+
+// ═══════════════════════════════════════════════════════════
+// Componente interno que escolhe o layout correto
+// ═══════════════════════════════════════════════════════════
+function GalleryGrid({ layout, fotos, containerWidth, onPhotoClick, tema }) {
+  // Preparar array de photos no formato esperado pelos layouts
+  const photos = fotos.map(f => ({
+    id: f.id || f.SK?.replace('FOTO#', ''),
+    url: f.url || '',
+    width: f.width || 1600,
+    height: f.height || 1200,
+  }));
+
+  if (photos.length === 0) return null;
+
+  // Mosaico → Masonry (colunas, foto inteira sem corte)
+  if (layout === 'mosaico') {
+    return (
+      <MasonryGallery
+        photos={photos}
+        containerWidth={containerWidth}
+        options={{ columnCount: 3, gapX: 8, gapY: 8, placement: 'shortestColumn', crop: false }}
+        onPhotoClick={onPhotoClick}
+      />
+    );
+  }
+
+  // Colagem → Colagem por Grupos (estilo Wix)
+  if (layout === 'colagem') {
+    return (
+      <CollageGallery
+        photos={photos}
+        containerWidth={containerWidth}
+        options={{ targetCellRatio: 1.33, targetRowHeight: 260, gapX: 8, gapY: 8, gapInner: 4 }}
+        onPhotoClick={onPhotoClick}
+      />
+    );
+  }
+
+  // Grade → Linhas Justificadas
+  if (layout === 'grade' || layout === 'ladrilhos') {
+    return (
+      <JustifiedGallery
+        photos={photos}
+        containerWidth={containerWidth}
+        options={{ targetRowHeight: layout === 'ladrilhos' ? 180 : 240, gapX: 8, gapY: 8 }}
+        onPhotoClick={onPhotoClick}
+      />
+    );
+  }
+
+  // Slider — mantém implementação simples com flex
+  if (layout === 'slider') {
+    return (
+      <div className="flex overflow-x-auto gap-4 snap-x snap-mandatory pb-4" style={{ scrollbarWidth: 'none' }}>
+        {fotos.map((foto, i) => (
+          <div
+            key={foto.id || i}
+            className="min-w-[70vw] md:min-w-[45vw] lg:min-w-[30vw] flex-shrink-0 snap-center rounded-lg overflow-hidden cursor-pointer"
+            onClick={() => onPhotoClick(i)}
+          >
+            <img src={foto.url || ''} alt="" className="w-full h-[60vh] object-cover" loading="lazy" decoding="async" />
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  // Coluna — grid simples
+  if (layout === 'coluna') {
+    return (
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {fotos.map((foto, i) => (
+          <div key={foto.id || i} className="rounded-lg overflow-hidden cursor-pointer" onClick={() => onPhotoClick(i)}>
+            <img src={foto.url || ''} alt="" className="w-full max-h-[500px] object-cover" loading="lazy" decoding="async" />
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  // Fallback: Linhas Justificadas
+  return (
+    <JustifiedGallery
+      photos={photos}
+      containerWidth={containerWidth}
+      options={{ targetRowHeight: 240, gapX: 8, gapY: 8 }}
+      onPhotoClick={onPhotoClick}
+    />
   );
 }
