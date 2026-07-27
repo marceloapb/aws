@@ -6,6 +6,9 @@ import {
   Image, CheckCircle2, Edit, Palette, Type, Sparkles, Monitor
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
+import { JustifiedGallery } from '../../utils/galleryLayouts/justifiedRows';
+import { MasonryGallery } from '../../utils/galleryLayouts/masonry';
+import { CollageGallery } from '../../utils/galleryLayouts/collageGroups';
 
 const ACCENT = '#3B82F6';
 
@@ -564,67 +567,11 @@ export default function AlbumDetalhe() {
               {/* === GALERIA PREVIEW === */}
               {previewMode === 'galeria' && (
                 <div className="w-full h-full min-h-[400px] p-4 overflow-y-auto" style={{ backgroundColor: tema.cores_galerias?.background || '#121212' }}>
-                  <div className={(() => {
-                    switch (tema.layout) {
-                      case 'mosaico': return 'flex flex-wrap justify-center';
-                      case 'colagem': return 'flex flex-wrap justify-center';
-                      case 'coluna': return 'grid grid-cols-1 md:grid-cols-2';
-                      case 'ladrilhos': return 'grid grid-cols-3 md:grid-cols-4 lg:grid-cols-5';
-                      case 'slider': return 'flex overflow-x-auto snap-x snap-mandatory pb-2 scrollbar-hide';
-                      case 'faixa': return 'grid grid-cols-1';
-                      case 'grade': return 'grid grid-cols-2 md:grid-cols-3';
-                      default: return 'grid grid-cols-2 md:grid-cols-3';
-                    }
-                  })()} style={{ gap: `${tema.espacamento || 8}px` }}>
-                    {fotosGaleria.slice(0, 12).map((foto, idx) => {
-                      const getItemClass = () => {
-                        switch (tema.layout) {
-                          case 'mosaico': {
-                            const sizes = ['h-28', 'h-36', 'h-32', 'h-24', 'h-40', 'h-28', 'h-34', 'h-26'];
-                            return sizes[idx % sizes.length];
-                          }
-                          case 'colagem': {
-                            const sizes = ['h-32', 'h-36', 'h-28', 'h-34', 'h-30', 'h-26', 'h-38'];
-                            return sizes[idx % sizes.length];
-                          }
-                          case 'coluna': return '';
-                          case 'ladrilhos': return 'aspect-square';
-                          case 'slider': return 'min-w-[60%] flex-shrink-0 snap-center';
-                          case 'faixa': return 'w-full';
-                          default: return 'aspect-square';
-                        }
-                      };
-
-                      return (
-                        <div key={foto.id}
-                          className={`relative overflow-hidden group cursor-pointer ${getItemClass()}`}
-                          style={{
-                            borderRadius: `${tema.cores_galerias?.borda_raio || 0}px`,
-                            border: `${tema.cores_galerias?.borda_largura || 0}px solid ${tema.cores_galerias?.borda_cor || 'transparent'}`,
-                          }}
-                          onClick={() => setLightboxIndex(idx)}>
-                          <img
-                            src={foto.thumbnail_url || foto.url}
-                            alt={foto.titulo || foto.filename || ''}
-                            className={`${
-                              tema.layout === 'mosaico' || tema.layout === 'colagem' ? 'h-full w-auto object-cover rounded-lg' : 'w-full h-full object-cover'
-                            } ${
-                              tema.layout === 'slider' ? 'h-48' :
-                              tema.layout === 'faixa' ? 'h-36' :
-                              tema.layout === 'coluna' ? 'max-h-[200px]' :
-                              ''
-                            }`}
-                            loading="lazy"
-                          />
-                          {/* Hover overlay */}
-                          <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center justify-center"
-                            style={{ backgroundColor: (tema.cores_galerias?.overlay_hover || '#000000') + Math.round((tema.cores_galerias?.overlay_opacidade || 30) * 2.55).toString(16).padStart(2, '0') }}>
-                            <span className="text-xs font-medium px-2 text-center" style={{ color: tema.cores_galerias?.overlay_texto || '#fff' }}>{foto.titulo || foto.filename || `Foto ${idx + 1}`}</span>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
+                  <PreviewGalleryGrid
+                    layout={tema.layout}
+                    fotos={fotosGaleria.slice(0, 20)}
+                    onPhotoClick={(i) => setLightboxIndex(i)}
+                  />
                   {fotosGaleria.length === 0 && <div className="flex items-center justify-center h-full"><p className="text-gray-500 text-sm">Nenhuma foto na galeria. Faça upload na aba Mídia.</p></div>}
                 </div>
               )}
@@ -695,6 +642,56 @@ export default function AlbumDetalhe() {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+
+// ═══════════════════════════════════════════════════════════
+// Componente interno: preview de galeria com layouts reais
+// ═══════════════════════════════════════════════════════════
+function PreviewGalleryGrid({ layout, fotos, onPhotoClick }) {
+  const containerRef = useRef(null);
+  const [width, setWidth] = useState(600);
+
+  useEffect(() => {
+    if (!containerRef.current) return;
+    const observer = new ResizeObserver(entries => {
+      for (const entry of entries) {
+        setWidth(entry.contentRect.width);
+      }
+    });
+    observer.observe(containerRef.current);
+    setWidth(containerRef.current.clientWidth);
+    return () => observer.disconnect();
+  }, []);
+
+  const photos = fotos.map(f => ({
+    id: f.id,
+    url: f.thumbnail_url || f.url || '',
+    width: f.width || 1600,
+    height: f.height || 1200,
+  }));
+
+  if (photos.length === 0) return <div ref={containerRef} />;
+
+  const renderLayout = () => {
+    switch (layout) {
+      case 'mosaico':
+        return <MasonryGallery photos={photos} containerWidth={width} options={{ columnCount: 3, gapX: 6, gapY: 6, crop: false }} onPhotoClick={onPhotoClick} />;
+      case 'colagem':
+        return <CollageGallery photos={photos} containerWidth={width} options={{ targetRowHeight: 180, gapX: 6, gapY: 6, gapInner: 3 }} onPhotoClick={onPhotoClick} />;
+      case 'grade':
+      case 'ladrilhos':
+        return <JustifiedGallery photos={photos} containerWidth={width} options={{ targetRowHeight: layout === 'ladrilhos' ? 120 : 160, gapX: 6, gapY: 6 }} onPhotoClick={onPhotoClick} />;
+      default:
+        return <JustifiedGallery photos={photos} containerWidth={width} options={{ targetRowHeight: 160, gapX: 6, gapY: 6 }} onPhotoClick={onPhotoClick} />;
+    }
+  };
+
+  return (
+    <div ref={containerRef} className="w-full">
+      {width > 0 && renderLayout()}
     </div>
   );
 }
