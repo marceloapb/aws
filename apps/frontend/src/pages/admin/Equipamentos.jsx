@@ -68,7 +68,9 @@ export default function Equipamentos() {
       const evJson = evRes?.ok ? await evRes.json().catch(() => ({})) : {};
       
       const eqData = Array.isArray(eqJson.data) ? eqJson.data : (Array.isArray(eqJson) ? eqJson : []);
-      const catData = Array.isArray(catJson.data) ? catJson.data : (Array.isArray(catJson) ? catJson : DEFAULT_CATEGORIES.map((n, i) => ({ id: String(i+1), nome: n, cor: PRESET_COLORS[i] })));
+      const catRaw = Array.isArray(catJson.data) ? catJson.data : (Array.isArray(catJson) ? catJson : DEFAULT_CATEGORIES);
+      // Normalizar categorias: a API pode retornar strings simples ou objetos {id, nome, cor}
+      const catData = catRaw.map((c, i) => typeof c === 'string' ? { id: String(i+1), nome: c, cor: PRESET_COLORS[i % PRESET_COLORS.length] } : c);
       const chkData = Array.isArray(chkJson.data) ? chkJson.data : (Array.isArray(chkJson) ? chkJson : []);
       const evData = Array.isArray(evJson.data) ? evJson.data : (Array.isArray(evJson) ? evJson : []);
       
