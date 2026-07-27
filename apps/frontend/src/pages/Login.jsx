@@ -11,7 +11,7 @@ export default function Login() {
   const [password, setPassword] = useState('');
   const [showPw, setShowPw] = useState(false);
   const [error, setError] = useState('');
-  const [logoUrl, setLogoUrl] = useState('');
+  const [logoUrl, setLogoUrl] = useState(null); // null = loading, '' = no logo from API
   const [nomeSite, setNomeSite] = useState('Marcelo Bloise Fotografia');
   const { login, loading } = useAuth();
   const navigate = useNavigate();
@@ -22,10 +22,15 @@ export default function Login() {
         const res = await fetch(`${API_URL}/public/site/config`);
         const json = await res.json();
         if (json.success && json.data) {
-          if (json.data.logo_url) setLogoUrl(json.data.logo_url);
+          // Tela de login tem fundo claro → usar logo_url (fundo claro)
+          setLogoUrl(json.data.logo_url || '');
           if (json.data.nome) setNomeSite(json.data.nome);
+        } else {
+          setLogoUrl('');
         }
-      } catch {}
+      } catch {
+        setLogoUrl('');
+      }
     };
     loadSiteConfig();
   }, []);
@@ -45,7 +50,9 @@ export default function Login() {
     <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
-          {logoUrl ? (
+          {logoUrl === null ? (
+            <div className="h-16 mb-2" /> 
+          ) : logoUrl ? (
             <img src={logoUrl} alt={nomeSite} className="h-16 mx-auto mb-2 object-contain" />
           ) : (
             <img src="/logo.svg" alt="Marcelo Bloise Fotografia" className="h-16 mx-auto mb-2 object-contain" />

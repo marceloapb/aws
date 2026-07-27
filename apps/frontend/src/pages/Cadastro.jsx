@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { Eye, EyeOff, User, Phone, Building2, Mail, Lock, CreditCard } from 'lucide-react';
 
 const ACCENT = '#EA580C';
+const API_URL = process.env.REACT_APP_API_URL || 'https://setvwal0cd.execute-api.us-east-1.amazonaws.com/prod';
 
 function validarCPF(cpf) {
   const nums = cpf.replace(/\D/g, '');
@@ -70,8 +71,22 @@ export default function Cadastro() {
   const [success, setSuccess] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
+  const [logoUrl, setLogoUrl] = useState(null);
   const { register, loading } = useAuth();
   const navigate = useNavigate();
+
+  useEffect(() => {
+    const loadSiteConfig = async () => {
+      try {
+        const res = await fetch(`${API_URL}/public/site/config`);
+        const json = await res.json();
+        setLogoUrl(json.success && json.data?.logo_url ? json.data.logo_url : '');
+      } catch {
+        setLogoUrl('');
+      }
+    };
+    loadSiteConfig();
+  }, []);
 
   const handleChange = (e) => setForm({ ...form, [e.target.name]: e.target.value });
 
@@ -160,7 +175,13 @@ export default function Cadastro() {
       <div className="w-full max-w-sm">
         <div className="text-center mb-6">
           <div className="inline-flex items-center gap-2 mb-2">
-            <img src="/logo.svg" alt="Marcelo Bloise Fotografia" className="h-12 object-contain" />
+            {logoUrl === null ? (
+              <div className="h-12" />
+            ) : logoUrl ? (
+              <img src={logoUrl} alt="Marcelo Bloise Fotografia" className="h-12 object-contain" />
+            ) : (
+              <img src="/logo.svg" alt="Marcelo Bloise Fotografia" className="h-12 object-contain" />
+            )}
           </div>
           <p className="text-gray-500 text-sm">Crie sua conta de cliente</p>
         </div>

@@ -1,14 +1,29 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { MapPin, Instagram, FileText, ArrowRight } from 'lucide-react';
 
 const ACCENT = '#EA580C';
+const API_URL = process.env.REACT_APP_API_URL || 'https://setvwal0cd.execute-api.us-east-1.amazonaws.com/prod';
 
 export default function CompletarCadastro() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { authFetch, setUser, user } = useAuth();
+  const [logoUrl, setLogoUrl] = useState(null);
+
+  useEffect(() => {
+    const loadSiteConfig = async () => {
+      try {
+        const res = await fetch(`${API_URL}/public/site/config`);
+        const json = await res.json();
+        setLogoUrl(json.success && json.data?.logo_url ? json.data.logo_url : '');
+      } catch {
+        setLogoUrl('');
+      }
+    };
+    loadSiteConfig();
+  }, []);
 
   const [form, setForm] = useState({
     cep: '',
@@ -111,7 +126,13 @@ export default function CompletarCadastro() {
         {/* Header */}
         <div className="text-center mb-6">
           <div className="inline-flex items-center gap-2 mb-3">
-            <img src="/logo.svg" alt="Marcelo Bloise Fotografia" className="h-12 object-contain" />
+            {logoUrl === null ? (
+              <div className="h-12" />
+            ) : logoUrl ? (
+              <img src={logoUrl} alt="Marcelo Bloise Fotografia" className="h-12 object-contain" />
+            ) : (
+              <img src="/logo.svg" alt="Marcelo Bloise Fotografia" className="h-12 object-contain" />
+            )}
           </div>
           <h1 className="text-xl font-bold text-gray-900">Complete seu perfil</h1>
           <p className="text-gray-500 text-sm mt-1">Esses dados ajudam no seu atendimento (opcional)</p>
