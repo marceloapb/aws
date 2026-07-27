@@ -129,7 +129,7 @@ export default function CompletarCadastro() {
             {logoUrl === null ? (
               <div className="h-12" />
             ) : logoUrl ? (
-              <img src={logoUrl} alt="Marcelo Bloise Fotografia" className="h-12 object-contain" />
+              <img src={logoUrl} alt="Marcelo Bloise Fotografia" className="h-12 object-contain" onError={(e) => { e.target.onerror = null; e.target.src = '/logo.svg'; }} />
             ) : (
               <img src="/logo.svg" alt="Marcelo Bloise Fotografia" className="h-12 object-contain" />
             )}

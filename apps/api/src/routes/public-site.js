@@ -58,11 +58,16 @@ router.get('/config', async (req, res) => {
           adminConfig[item.chave] = item.valor;
         }
         if (adminConfig.logoDarkKey || adminConfig.logoKey) {
+          const { loadParams } = require('../config/env');
+          const params = await loadParams();
+          const cdnDomain = params.CF_DOMAIN || process.env.CDN_DOMAIN || process.env.CLOUDFRONT_DOMAIN || '';
           const bucket = process.env.S3_BUCKET_NAME || 'mbf-backend-v3-fotos';
           const logoKey = adminConfig.logoDarkKey || adminConfig.logoKey;
-          data.logo_dark_url = `https://${bucket}.s3.us-east-1.amazonaws.com/${logoKey}`;
+          // Prefer CloudFront CDN URL (public access) over direct S3 (private bucket)
+          const baseUrl = cdnDomain ? `https://${cdnDomain}` : `https://${bucket}.s3.us-east-1.amazonaws.com`;
+          data.logo_dark_url = `${baseUrl}/${logoKey}`;
           if (adminConfig.logoKey) {
-            data.logo_url = `https://${bucket}.s3.us-east-1.amazonaws.com/${adminConfig.logoKey}`;
+            data.logo_url = `${baseUrl}/${adminConfig.logoKey}`;
           }
         }
         if (adminConfig.tradeName) data.nome = adminConfig.tradeName;
@@ -72,8 +77,12 @@ router.get('/config', async (req, res) => {
 
     // Add favicon URL
     if (faviconKey) {
+      const { loadParams } = require('../config/env');
+      const params = await loadParams();
+      const cdnDomain = params.CF_DOMAIN || process.env.CDN_DOMAIN || process.env.CLOUDFRONT_DOMAIN || '';
       const bucket = process.env.S3_BUCKET_NAME || 'mbf-backend-v3-fotos';
-      data.favicon_url = `https://${bucket}.s3.us-east-1.amazonaws.com/${faviconKey}`;
+      const baseUrl = cdnDomain ? `https://${cdnDomain}` : `https://${bucket}.s3.us-east-1.amazonaws.com`;
+      data.favicon_url = `${baseUrl}/${faviconKey}`;
     }
 
     res.set('Cache-Control', 'public, max-age=300');
