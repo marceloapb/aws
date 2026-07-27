@@ -566,8 +566,8 @@ export default function AlbumDetalhe() {
                 <div className="w-full h-full min-h-[400px] p-4 overflow-y-auto" style={{ backgroundColor: tema.cores_galerias?.background || '#121212' }}>
                   <div className={(() => {
                     switch (tema.layout) {
-                      case 'mosaico': return 'grid grid-cols-4 auto-rows-[100px]';
-                      case 'colagem': return 'grid grid-cols-3 auto-rows-[110px]';
+                      case 'mosaico': return 'flex flex-wrap justify-center';
+                      case 'colagem': return 'flex flex-wrap justify-center';
                       case 'coluna': return 'grid grid-cols-1 md:grid-cols-2';
                       case 'ladrilhos': return 'grid grid-cols-3 md:grid-cols-4 lg:grid-cols-5';
                       case 'slider': return 'flex overflow-x-auto snap-x snap-mandatory pb-2 scrollbar-hide';
@@ -580,29 +580,12 @@ export default function AlbumDetalhe() {
                       const getItemClass = () => {
                         switch (tema.layout) {
                           case 'mosaico': {
-                            // Padrão variado para criar efeito mosaico real:
-                            // 0: grande (2x2), 1: medio-h (1x2), 2-3: pequeno (1x1),
-                            // 4: largo (2x1), 5: alto (1x2), 6-7: pequeno (1x1),
-                            // 8: largo (2x1), 9: medio (1x1), 10: alto (1x2), 11: pequeno (1x1)
-                            const patterns = [
-                              'col-span-2 row-span-2', // 0 - grande
-                              'row-span-2',            // 1 - alto
-                              'row-span-1',            // 2 - pequeno
-                              'row-span-1',            // 3 - pequeno
-                              'col-span-2 row-span-1', // 4 - largo
-                              'row-span-2',            // 5 - alto
-                              'row-span-1',            // 6 - pequeno
-                              'row-span-1',            // 7 - pequeno
-                              'col-span-2 row-span-1', // 8 - largo
-                              'row-span-1',            // 9 - pequeno
-                              'row-span-2',            // 10 - alto
-                              'row-span-1',            // 11 - pequeno
-                            ];
-                            return patterns[idx % patterns.length];
+                            const sizes = ['h-28', 'h-36', 'h-32', 'h-24', 'h-40', 'h-28', 'h-34', 'h-26'];
+                            return sizes[idx % sizes.length];
                           }
                           case 'colagem': {
-                            const pattern = idx % 7;
-                            return (pattern === 0 || pattern === 3) ? 'row-span-2' : 'row-span-1';
+                            const sizes = ['h-32', 'h-36', 'h-28', 'h-34', 'h-30', 'h-26', 'h-38'];
+                            return sizes[idx % sizes.length];
                           }
                           case 'coluna': return '';
                           case 'ladrilhos': return 'aspect-square';
@@ -623,8 +606,8 @@ export default function AlbumDetalhe() {
                           <img
                             src={foto.thumbnail_url || foto.url}
                             alt={foto.titulo || foto.filename || ''}
-                            className={`w-full h-full ${
-                              tema.layout === 'mosaico' || tema.layout === 'colagem' ? 'object-contain bg-black/5' : 'object-cover'
+                            className={`${
+                              tema.layout === 'mosaico' || tema.layout === 'colagem' ? 'h-full w-auto object-cover rounded-lg' : 'w-full h-full object-cover'
                             } ${
                               tema.layout === 'slider' ? 'h-48' :
                               tema.layout === 'faixa' ? 'h-36' :

@@ -302,8 +302,8 @@ export default function AlbumPreview() {
 
   const getGridClass = () => {
     switch (layout) {
-      case 'mosaico': return 'grid grid-cols-4 gap-3 auto-rows-[140px]';
-      case 'colagem': return 'grid grid-cols-2 md:grid-cols-3 gap-2 auto-rows-[180px]';
+      case 'mosaico': return 'flex flex-wrap gap-3 justify-center';
+      case 'colagem': return 'flex flex-wrap gap-2 justify-center';
       case 'coluna': return 'grid grid-cols-1 md:grid-cols-2 gap-4';
       case 'ladrilhos': return 'grid grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-1';
       case 'slider': return 'flex overflow-x-auto gap-4 snap-x snap-mandatory pb-4 scrollbar-hide';
@@ -314,27 +314,13 @@ export default function AlbumPreview() {
   const getItemClass = (i) => {
     switch (layout) {
       case 'mosaico': {
-        // Padrão variado para efeito mosaico real com fotos grandes e pequenas
-        const patterns = [
-          'col-span-2 row-span-2 rounded-lg overflow-hidden', // 0 - grande
-          'row-span-2 rounded-lg overflow-hidden',            // 1 - alto
-          'row-span-1 rounded-lg overflow-hidden',            // 2 - pequeno
-          'row-span-1 rounded-lg overflow-hidden',            // 3 - pequeno
-          'col-span-2 row-span-1 rounded-lg overflow-hidden', // 4 - largo
-          'row-span-2 rounded-lg overflow-hidden',            // 5 - alto
-          'row-span-1 rounded-lg overflow-hidden',            // 6 - pequeno
-          'row-span-1 rounded-lg overflow-hidden',            // 7 - pequeno
-          'col-span-2 row-span-1 rounded-lg overflow-hidden', // 8 - largo
-          'row-span-1 rounded-lg overflow-hidden',            // 9 - pequeno
-          'row-span-2 rounded-lg overflow-hidden',            // 10 - alto
-          'row-span-1 rounded-lg overflow-hidden',            // 11 - pequeno
-        ];
-        return patterns[i % patterns.length];
+        // Tamanhos variados — a foto manda, a moldura acompanha
+        const sizes = ['h-48', 'h-64', 'h-56', 'h-40', 'h-72', 'h-52', 'h-60', 'h-44'];
+        return `${sizes[i % sizes.length]} rounded-lg overflow-hidden`;
       }
       case 'colagem': {
-        const pattern = i % 7;
-        if (pattern === 0 || pattern === 3) return 'row-span-2 rounded-lg overflow-hidden';
-        return 'row-span-1 rounded-lg overflow-hidden';
+        const sizes = ['h-52', 'h-64', 'h-48', 'h-56', 'h-60', 'h-44', 'h-72'];
+        return `${sizes[i % sizes.length]} rounded-lg overflow-hidden`;
       }
       case 'coluna': return 'rounded-lg overflow-hidden';
       case 'ladrilhos': return 'aspect-square overflow-hidden';
@@ -345,8 +331,8 @@ export default function AlbumPreview() {
 
   const getImgClass = () => {
     switch (layout) {
-      case 'mosaico': return 'w-full h-full object-contain bg-black/5';
-      case 'colagem': return 'w-full h-full object-contain bg-black/5';
+      case 'mosaico': return 'h-full w-auto max-w-none object-cover rounded-lg';
+      case 'colagem': return 'h-full w-auto max-w-none object-cover rounded-lg';
       case 'coluna': return 'w-full max-h-[500px] object-contain';
       case 'slider': return 'w-full h-[60vh] object-cover';
       default: return 'w-full h-full object-cover';
