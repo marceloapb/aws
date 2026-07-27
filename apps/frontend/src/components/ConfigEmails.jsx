@@ -215,7 +215,7 @@ export default function ConfigEmails() {
               <label className="block text-sm font-medium text-gray-700 mb-1">Nome do Remetente</label>
               <input type="text" value={config.remetente_nome} onChange={e => setConfig({ ...config, remetente_nome: e.target.value })}
                 className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-orange-200 focus:border-orange-400"
-                placeholder="Ex: MBFoto - Marcelo Bloise" />
+                placeholder="Ex: Marcelo Bloise Fotografia - Marcelo Bloise" />
               <p className="text-xs text-gray-400 mt-1">Este nome aparece como remetente nos e-mails. O endereço será: {config.remetente_email}</p>
             </div>
 
@@ -260,7 +260,7 @@ export default function ConfigEmails() {
               <label className="block text-sm font-medium text-gray-700 mb-1">Texto do Rodapé</label>
               <textarea value={config.rodape_texto} onChange={e => setConfig({ ...config, rodape_texto: e.target.value })}
                 className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm h-20 focus:ring-2 focus:ring-orange-200 focus:border-orange-400"
-                placeholder="Ex: Você recebeu este email pois está cadastrado no sistema MBFoto." />
+                placeholder="Ex: Você recebeu este email pois está cadastrado no sistema Marcelo Bloise Fotografia." />
             </div>
 
             <button onClick={handleSaveConfig} disabled={savingConfig} style={{ background: ACCENT }}

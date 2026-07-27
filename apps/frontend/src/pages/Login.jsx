@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { Camera, Eye, EyeOff } from 'lucide-react';
+import { Eye, EyeOff } from 'lucide-react';
 
 const ACCENT = '#EA580C';
 const API_URL = process.env.REACT_APP_API_URL || 'https://setvwal0cd.execute-api.us-east-1.amazonaws.com/prod';
@@ -12,7 +12,7 @@ export default function Login() {
   const [showPw, setShowPw] = useState(false);
   const [error, setError] = useState('');
   const [logoUrl, setLogoUrl] = useState('');
-  const [nomeSite, setNomeSite] = useState('MBFoto');
+  const [nomeSite, setNomeSite] = useState('Marcelo Bloise Fotografia');
   const { login, loading } = useAuth();
   const navigate = useNavigate();
 
@@ -48,10 +48,7 @@ export default function Login() {
           {logoUrl ? (
             <img src={logoUrl} alt={nomeSite} className="h-16 mx-auto mb-2 object-contain" />
           ) : (
-            <div className="inline-flex items-center gap-2 mb-2">
-              <Camera size={32} style={{ color: ACCENT }} />
-              <span className="text-2xl font-bold text-gray-900">{nomeSite}</span>
-            </div>
+            <img src="/logo.svg" alt="Marcelo Bloise Fotografia" className="h-16 mx-auto mb-2 object-contain" />
           )}
           <p className="text-gray-500 text-sm">Acesse sua conta</p>
         </div>
