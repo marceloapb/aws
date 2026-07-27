@@ -599,6 +599,7 @@ export default function AlbumDetalhe() {
                     layout={tema.layout}
                     fotos={fotosGaleria.slice(0, 20)}
                     onPhotoClick={(i) => setLightboxIndex(i)}
+                    tema={tema}
                   />
                   {fotosGaleria.length === 0 && <div className="flex items-center justify-center h-full"><p className="text-gray-500 text-sm">Nenhuma foto na galeria. Faça upload na aba Mídia.</p></div>}
                 </div>
@@ -678,7 +679,7 @@ export default function AlbumDetalhe() {
 // ═══════════════════════════════════════════════════════════
 // Componente interno: preview de galeria com layouts reais
 // ═══════════════════════════════════════════════════════════
-function PreviewGalleryGrid({ layout, fotos, onPhotoClick }) {
+function PreviewGalleryGrid({ layout, fotos, onPhotoClick, tema = {} }) {
   const containerRef = useRef(null);
   const [width, setWidth] = useState(600);
 
@@ -694,6 +695,9 @@ function PreviewGalleryGrid({ layout, fotos, onPhotoClick }) {
     return () => observer.disconnect();
   }, []);
 
+  const coresGalerias = tema.cores_galerias || {};
+  const gap = tema.espacamento || 8;
+
   const photos = fotos.map(f => ({
     id: f.id,
     url: f.thumbnail_url || f.url || '',
@@ -703,22 +707,34 @@ function PreviewGalleryGrid({ layout, fotos, onPhotoClick }) {
 
   if (photos.length === 0) return <div ref={containerRef} />;
 
+  // Custom style para as fotos dentro do layout
+  const photoStyle = `
+    .preview-gallery-grid img {
+      border-radius: ${coresGalerias.borda_raio || 0}px;
+      border: ${coresGalerias.borda_largura || 0}px solid ${coresGalerias.borda_cor || 'transparent'};
+    }
+    .preview-gallery-grid > div > div {
+      border-radius: ${coresGalerias.borda_raio || 0}px;
+    }
+  `;
+
   const renderLayout = () => {
     switch (layout) {
       case 'mosaico':
-        return <MasonryGallery photos={photos} containerWidth={width} options={{ columnCount: 3, gapX: 6, gapY: 6, crop: false }} onPhotoClick={onPhotoClick} />;
+        return <MasonryGallery photos={photos} containerWidth={width} options={{ columnCount: 3, gapX: gap, gapY: gap, crop: false }} onPhotoClick={onPhotoClick} />;
       case 'colagem':
-        return <CollageGallery photos={photos} containerWidth={width} options={{ targetRowHeight: 180, gapX: 6, gapY: 6, gapInner: 3 }} onPhotoClick={onPhotoClick} />;
+        return <CollageGallery photos={photos} containerWidth={width} options={{ targetRowHeight: 180, gapX: gap, gapY: gap, gapInner: Math.max(2, gap / 2) }} onPhotoClick={onPhotoClick} />;
       case 'grade':
       case 'ladrilhos':
-        return <JustifiedGallery photos={photos} containerWidth={width} options={{ targetRowHeight: layout === 'ladrilhos' ? 120 : 160, gapX: 6, gapY: 6 }} onPhotoClick={onPhotoClick} />;
+        return <JustifiedGallery photos={photos} containerWidth={width} options={{ targetRowHeight: layout === 'ladrilhos' ? 120 : 160, gapX: gap, gapY: gap }} onPhotoClick={onPhotoClick} />;
       default:
-        return <JustifiedGallery photos={photos} containerWidth={width} options={{ targetRowHeight: 160, gapX: 6, gapY: 6 }} onPhotoClick={onPhotoClick} />;
+        return <JustifiedGallery photos={photos} containerWidth={width} options={{ targetRowHeight: 160, gapX: gap, gapY: gap }} onPhotoClick={onPhotoClick} />;
     }
   };
 
   return (
-    <div ref={containerRef} className="w-full">
+    <div ref={containerRef} className="w-full preview-gallery-grid">
+      <style>{photoStyle}</style>
       {width > 0 && renderLayout()}
     </div>
   );
