@@ -42,6 +42,7 @@ export default function Equipamentos() {
   const [iaResults, setIaResults] = useState([]);
   const [iaProcessing, setIaProcessing] = useState(false);
   const [iaProgress, setIaProgress] = useState({ current: 0, total: 0 });
+  const [iaBuscandoNome, setIaBuscandoNome] = useState(false);
 
   // Conferência state
   const [selectedEvento, setSelectedEvento] = useState('');
@@ -160,6 +161,44 @@ export default function Equipamentos() {
       }
     }
     fetchAll();
+  };
+
+  // IA: buscar equipamento pelo nome
+  const buscarEquipPorNome = async () => {
+    if (!modalEquip) return;
+    const nomeInput = document.querySelector('[name="nome"]');
+    const nome = nomeInput?.value || modalEquip.nome || '';
+    if (!nome || nome.trim().length < 3) {
+      alert('Digite pelo menos 3 caracteres no nome para buscar com IA.');
+      return;
+    }
+    setIaBuscandoNome(true);
+    try {
+      const res = await authFetch('/admin/equipamentos/identificar-nome', {
+        method: 'POST',
+        body: JSON.stringify({ nome: nome.trim() }),
+      });
+      const json = await res.json();
+      if (json.success && json.data) {
+        const r = json.data;
+        // Preenche o modal com os dados da IA
+        setModalEquip(prev => ({
+          ...prev,
+          nome: r.nome || prev.nome,
+          marca: r.marca || prev.marca,
+          modelo: r.modelo || prev.modelo,
+          categoria: r.categoria || prev.categoria,
+          descricao: r.descricao || prev.descricao,
+          valor_estimado: r.valor_estimado || prev.valor_estimado,
+        }));
+      } else {
+        alert(json.message || 'Não foi possível identificar o equipamento.');
+      }
+    } catch (err) {
+      alert('Erro ao buscar com IA: ' + (err.message || 'erro de rede'));
+    } finally {
+      setIaBuscandoNome(false);
+    }
   };
 
   async function saveEquip(data) {
@@ -591,9 +630,22 @@ export default function Equipamentos() {
               <h2 className="text-lg font-bold">{modalEquip.id ? 'Editar Equipamento' : 'Novo Equipamento'}</h2>
               <button onClick={() => setModalEquip(null)} className="p-1 hover:bg-gray-200 rounded"><X className="h-5 w-5" /></button>
             </div>
-            <form onSubmit={e => { e.preventDefault(); const fd = new FormData(e.target); const data = { ...modalEquip, ...Object.fromEntries(fd.entries()), padrao: e.target.padrao.checked, ativo: e.target.ativo.checked }; saveEquip(data); }} className="space-y-3">
+            <form key={JSON.stringify(modalEquip)} onSubmit={e => { e.preventDefault(); const fd = new FormData(e.target); const data = { ...modalEquip, ...Object.fromEntries(fd.entries()), padrao: e.target.padrao.checked, ativo: e.target.ativo.checked }; saveEquip(data); }} className="space-y-3">
               <div className="grid grid-cols-2 gap-3">
-                <div className="col-span-2"><label className="block text-xs font-medium text-gray-600 mb-1">Nome *</label><input name="nome" defaultValue={modalEquip.nome} required className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" /></div>
+                <div className="col-span-2">
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Nome *</label>
+                  <div className="flex gap-2">
+                    <input name="nome" defaultValue={modalEquip.nome} required className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm" />
+                    <button type="button" onClick={buscarEquipPorNome} disabled={iaBuscandoNome} className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap" style={{ backgroundColor: ACCENT }} title="Buscar informações com IA a partir do nome">
+                      {iaBuscandoNome ? (
+                        <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>
+                      ) : (
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2a4 4 0 0 1 4 4c0 1.95-1.4 3.26-2.67 4.43l-.33.31v1.26h-2v-1.26l-.33-.31C9.4 9.26 8 7.95 8 6a4 4 0 0 1 4-4z"/><path d="M10 17h4"/><path d="M10 20h4"/><path d="M12 17v3"/></svg>
+                      )}
+                      {iaBuscandoNome ? 'Buscando...' : 'Buscar IA'}
+                    </button>
+                  </div>
+                </div>
                 <div><label className="block text-xs font-medium text-gray-600 mb-1">Categoria *</label><select name="categoria" defaultValue={modalEquip.categoria} required className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">{categorias.map(c => <option key={c.id} value={c.nome}>{c.nome}</option>)}</select></div>
                 <div><label className="block text-xs font-medium text-gray-600 mb-1">Status</label><select name="status" defaultValue={modalEquip.status || 'disponivel'} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">{STATUS_OPTIONS.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}</select></div>
                 <div><label className="block text-xs font-medium text-gray-600 mb-1">Marca</label><input name="marca" defaultValue={modalEquip.marca} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" /></div>
