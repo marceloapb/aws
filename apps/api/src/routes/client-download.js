@@ -53,6 +53,21 @@ router.get('/:fotoId', async (req, res) => {
     // Generate presigned GET URL (60 minutes)
     const url = await getSignedDownloadUrl(key, 3600);
 
+    // Disparar evento album_baixado para regras de notificação (fire-and-forget)
+    if (album.cliente_id) {
+      try {
+        const { registrarEvento } = require('../services/clienteHistoricoService');
+        await registrarEvento({
+          cliente_id: album.cliente_id,
+          tipo: 'album_baixado',
+          descricao: `Foto baixada do álbum – ${album.titulo || 'Álbum'}`,
+          metadata: { album_id: album.id, foto_id: fotoId, slug },
+        });
+      } catch (evtErr) {
+        console.error('[DOWNLOAD] Erro ao registrar evento album_baixado:', evtErr.message);
+      }
+    }
+
     res.json({ success: true, data: { url, foto_id: fotoId, filename: foto.filename || key.split('/').pop() } });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });

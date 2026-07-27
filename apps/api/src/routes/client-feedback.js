@@ -81,6 +81,22 @@ router.post('/:token', async (req, res) => {
       ReturnValues: 'ALL_NEW'
     }));
 
+    // Disparar evento feedback_respondido para regras de notificação
+    const clienteId = feedback.cliente_id || feedback.clienteId;
+    if (clienteId) {
+      try {
+        const { registrarEvento } = require('../services/clienteHistoricoService');
+        await registrarEvento({
+          cliente_id: clienteId,
+          tipo: 'feedback_respondido',
+          descricao: `Feedback respondido – nota ${nota}/5`,
+          metadata: { feedback_id: feedback.id, nota: Number(nota), comentario: comentario || '' },
+        });
+      } catch (evtErr) {
+        logger.error({ action: 'evento_feedback_respondido_erro', error: evtErr.message });
+      }
+    }
+
     logger.info({ action: 'client_feedback_submit', feedbackId: feedback.id, nota });
     res.json({ success: true, data: { message: 'Obrigado pela sua avaliação!' } });
   } catch (error) {

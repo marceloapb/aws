@@ -95,6 +95,19 @@ async function handleNotification(event) {
             createdAt: new Date().toISOString(),
           },
         }));
+
+        // Disparar evento mensagem_recebida para regras de notificação
+        try {
+          const { processarEvento } = require('../../services/notificationDispatcher');
+          await processarEvento({
+            evento_id: msg.id,
+            tipo_evento: 'mensagem_recebida',
+            tenant_id: process.env.TENANT_ID || 'default',
+            dados: { telefone: msg.from, tipo_mensagem: msg.type, texto: msg.text?.body || '' },
+          });
+        } catch (evtErr) {
+          console.log(JSON.stringify({ level: 'warn', message: 'Erro ao disparar evento mensagem_recebida', error: evtErr.message }));
+        }
       }
 
       for (const status of (value.statuses || [])) {

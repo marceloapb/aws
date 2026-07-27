@@ -363,6 +363,22 @@ router.post('/:id/publicar', async (req, res) => {
       ReturnValues: 'ALL_NEW',
     }));
 
+    // Disparar evento album_publicado para regras de notificação
+    const clienteId = album.cliente_id;
+    if (clienteId) {
+      try {
+        const { registrarEvento } = require('../services/clienteHistoricoService');
+        await registrarEvento({
+          cliente_id: clienteId,
+          tipo: 'album_publicado',
+          descricao: `Álbum publicado – ${album.titulo || 'Álbum'}`,
+          metadata: { album_id: req.params.id, titulo: album.titulo, slug },
+        });
+      } catch (evtErr) {
+        console.error('[ALBUM] Erro ao registrar evento album_publicado:', evtErr.message);
+      }
+    }
+
     res.json({ success: true, data: result.Attributes });
   } catch (error) {
     res.status(400).json({ success: false, message: error.message });

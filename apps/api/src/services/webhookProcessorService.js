@@ -82,6 +82,19 @@ async function processWebhookEvent({ gateway, payload, headers }) {
         console.error('[WEBHOOK] Erro WhatsApp:', e.message);
       }
     }
+
+    // Disparar evento pagamento_confirmado para regras de notificação
+    try {
+      const { registrarEvento } = require('./clienteHistoricoService');
+      await registrarEvento({
+        cliente_id: cobranca.cliente_id,
+        tipo: 'pagamento_confirmado',
+        descricao: `Pagamento confirmado – R$ ${(cobranca.valor || 0).toFixed(2)}`,
+        metadata: { cobranca_id: cobranca.id || cobranca.SK, valor: cobranca.valor, gateway },
+      });
+    } catch (evtErr) {
+      console.error('[WEBHOOK] Erro ao registrar evento pagamento_confirmado:', evtErr.message);
+    }
   }
 }
 

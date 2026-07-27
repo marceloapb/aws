@@ -145,6 +145,28 @@ router.post('/gerar', async (req, res) => {
 router.post('/:id/enviar', async (req, res) => {
   try {
     const resultado = await enviarParaAssinatura(req.params.id);
+
+    // Disparar evento contrato_enviado para regras de notificação
+    try {
+      const found = await dynamo.send(new QueryCommand({
+        TableName: TABLE,
+        IndexName: 'GSI1',
+        KeyConditionExpression: 'GSI1PK = :pk AND GSI1SK = :sk',
+        ExpressionAttributeValues: { ':pk': 'CONTRATO', ':sk': `CONTRATO#${req.params.id}` },
+      }));
+      const contrato = found.Items?.[0];
+      if (contrato?.cliente_id) {
+        await registrarEvento({
+          cliente_id: contrato.cliente_id,
+          tipo: 'contrato_enviado',
+          descricao: `Contrato enviado para assinatura`,
+          metadata: { contrato_id: req.params.id },
+        });
+      }
+    } catch (evtErr) {
+      console.error('[CONTRATO] Erro ao registrar evento contrato_enviado:', evtErr.message);
+    }
+
     res.json({ success: true, data: resultado });
   } catch (error) {
     res.status(400).json({ success: false, message: error.message });
