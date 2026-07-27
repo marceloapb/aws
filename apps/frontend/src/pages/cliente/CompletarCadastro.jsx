@@ -1,14 +1,23 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { MapPin, Instagram, FileText, ArrowRight } from 'lucide-react';
 
 const ACCENT = '#EA580C';
+const API_URL = process.env.REACT_APP_API_URL || 'https://setvwal0cd.execute-api.us-east-1.amazonaws.com/prod';
 
 export default function CompletarCadastro() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { authFetch, setUser, user } = useAuth();
+  const [logoUrl, setLogoUrl] = useState('');
+
+  useEffect(() => {
+    fetch(`${API_URL}/public/site/config`)
+      .then(r => r.json())
+      .then(json => { if (json.success && json.data?.logo_url) setLogoUrl(json.data.logo_url); })
+      .catch(() => {});
+  }, []);
 
   const [form, setForm] = useState({
     cep: '',
@@ -111,7 +120,7 @@ export default function CompletarCadastro() {
         {/* Header */}
         <div className="text-center mb-6">
           <div className="inline-flex items-center gap-2 mb-3">
-            <img src="/logo.svg" alt="Marcelo Bloise Fotografia" className="h-12 object-contain" />
+            <img src={logoUrl || '/logo.svg'} alt="Marcelo Bloise Fotografia" className="h-12 object-contain" onError={(e) => { e.target.onerror = null; e.target.src = '/logo.svg'; }} />
           </div>
           <h1 className="text-xl font-bold text-gray-900">Complete seu perfil</h1>
           <p className="text-gray-500 text-sm mt-1">Esses dados ajudam no seu atendimento (opcional)</p>

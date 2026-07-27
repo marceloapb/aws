@@ -46,7 +46,7 @@ export default function Login() {
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
           {logoUrl ? (
-            <img src={logoUrl} alt={nomeSite} className="h-16 mx-auto mb-2 object-contain" />
+            <img src={logoUrl} alt={nomeSite} className="h-16 mx-auto mb-2 object-contain" onError={(e) => { e.target.onerror = null; e.target.src = '/logo.svg'; }} />
           ) : (
             <img src="/logo.svg" alt="Marcelo Bloise Fotografia" className="h-16 mx-auto mb-2 object-contain" />
           )}
