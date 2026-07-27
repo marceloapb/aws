@@ -331,9 +331,9 @@ app.get('/admin/dashboard/badges', adminAuth, async (req, res) => {
       ddb.send(new QueryCommand({
         TableName: TABLE,
         IndexName: 'GSI1',
-        KeyConditionExpression: 'GSI1PK = :pk',
+        KeyConditionExpression: 'GSI1PK = :pk AND begins_with(GSI1SK, :sk)',
         FilterExpression: 'lida = :false',
-        ExpressionAttributeValues: { ':pk': `NOTIF#${tenantId}`, ':false': false },
+        ExpressionAttributeValues: { ':pk': `TENANT#${process.env.TENANT_ID || 'default'}`, ':sk': 'NTF#', ':false': false },
         Select: 'COUNT',
       })).catch(() => ({ Count: 0 })),
     ]);
