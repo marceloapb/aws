@@ -114,6 +114,21 @@ router.post('/', async (req, res) => {
       }
     }
 
+    // Disparar evento evento_criado para regras de notificação
+    if (dados.cliente_id) {
+      try {
+        const { registrarEvento } = require('../services/clienteHistoricoService');
+        await registrarEvento({
+          cliente_id: dados.cliente_id,
+          tipo: 'evento_criado',
+          descricao: `Evento criado – ${dados.tipo_evento || dados.titulo || 'Sessão'} em ${dados.data_evento || ''}`,
+          metadata: { evento_id: id, tipo_evento: dados.tipo_evento, data_evento: dados.data_evento },
+        });
+      } catch (evtErr) {
+        console.error('[AGENDA] Erro ao registrar evento_criado:', evtErr.message);
+      }
+    }
+
     res.status(201).json({ success: true, data: item });
   } catch (error) {
     res.status(400).json({ success: false, message: error.message });
@@ -153,6 +168,31 @@ router.put('/:id', async (req, res) => {
         }));
       } catch (syncError) {
         console.error('[AGENDA] Erro sync update:', syncError.message);
+      }
+    }
+
+    // Disparar eventos de mudança de status (confirmado/realizado)
+    const clienteId = evento.cliente_id || dados.cliente_id;
+    if (clienteId && dados.status && dados.status !== evento.status) {
+      try {
+        const { registrarEvento } = require('../services/clienteHistoricoService');
+        if (dados.status === 'confirmado') {
+          await registrarEvento({
+            cliente_id: clienteId,
+            tipo: 'evento_confirmado',
+            descricao: `Evento confirmado – ${evento.tipo_evento || evento.titulo || 'Sessão'} em ${evento.data_evento || ''}`,
+            metadata: { evento_id: evento.id, tipo_evento: evento.tipo_evento, data_evento: evento.data_evento },
+          });
+        } else if (dados.status === 'realizado' || dados.status === 'concluido') {
+          await registrarEvento({
+            cliente_id: clienteId,
+            tipo: 'evento_realizado',
+            descricao: `Evento realizado – ${evento.tipo_evento || evento.titulo || 'Sessão'} em ${evento.data_evento || ''}`,
+            metadata: { evento_id: evento.id, tipo_evento: evento.tipo_evento, data_evento: evento.data_evento },
+          });
+        }
+      } catch (evtErr) {
+        console.error('[AGENDA] Erro ao registrar evento de status:', evtErr.message);
       }
     }
 

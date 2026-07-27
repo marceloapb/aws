@@ -96,6 +96,22 @@ async function checkCobrancasAtrasadas(photographerId, hoje) {
         referenciaId,
         prioridade: 'alta'
       });
+
+      // Disparar evento pagamento_vencido para regras de notificação
+      if (cobranca.cliente_id) {
+        try {
+          const { registrarEvento } = require('../services/clienteHistoricoService');
+          await registrarEvento({
+            cliente_id: cobranca.cliente_id,
+            tipo: 'pagamento_vencido',
+            descricao: `Pagamento vencido – R$ ${(cobranca.valor || 0).toFixed(2)} (venc: ${cobranca.vencimento})`,
+            metadata: { cobranca_id: referenciaId, valor: cobranca.valor, vencimento: cobranca.vencimento },
+          });
+        } catch (evtErr) {
+          logger.error({ action: 'evento_pagamento_vencido_erro', error: evtErr.message });
+        }
+      }
+
       created++;
     }
   }
