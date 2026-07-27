@@ -159,9 +159,28 @@ async function despacharCanal(canal, regra, evento, dados) {
         throw new Error('Número WhatsApp do destinatário não configurado');
       }
 
+      // Resolver template: regra > mapeamento por evento > fallback genérico
+      const templatePorEvento = {
+        'orcamento_solicitado': 'novo_orcamento',
+        'orcamento_criado': 'novo_orcamento',
+        'contrato_enviado': 'contrato_assinatura',
+        'contrato_assinado': 'contrato_assinado_aviso',
+        'pagamento_confirmado': 'pagamento_confirmado',
+        'pagamento_vencido': 'pagamento_vencido',
+        'album_publicado': 'album_pronto',
+        'evento_confirmado': 'evento_confirmado',
+        'evento_criado': 'notificacao_geral',
+        'evento_realizado': 'notificacao_geral',
+        'album_baixado': 'notificacao_geral',
+        'feedback_respondido': 'notificacao_geral',
+        'mensagem_recebida': 'notificacao_geral',
+      };
+
+      const templateName = regra.whatsapp_template || templatePorEvento[evento.tipo_evento] || 'notificacao_geral';
+
       await enviarWhatsApp({
         numero,
-        template: regra.whatsapp_template || 'notificacao_geral',
+        template: templateName,
         parametros: [titulo, mensagem],
       });
       break;

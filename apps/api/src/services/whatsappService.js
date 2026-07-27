@@ -58,10 +58,31 @@ async function enviarNotificacaoPagamento(numero, nomeCliente, valor, status) {
   return enviarTemplate(numero, 'pagamento_confirmado', [nomeCliente, `R$ ${valor.toFixed(2)}`, status]);
 }
 
+async function enviarNotificacaoPagamentoVencido(numero, nomeCliente, valor, dataVencimento) {
+  return enviarTemplate(numero, 'pagamento_vencido', [nomeCliente, `R$ ${valor.toFixed(2)}`, dataVencimento]);
+}
+
+async function enviarConfirmacaoEvento(numero, nomeCliente, tipoEvento, dataEvento) {
+  return enviarTemplate(numero, 'evento_confirmado', [nomeCliente, tipoEvento, dataEvento]);
+}
+
+async function enviarSolicitacaoFeedback(numero, nomeCliente, link) {
+  return enviarTemplate(numero, 'feedback_solicitacao', [nomeCliente, link]);
+}
+
 function formatarNumero(numero) {
   let limpo = numero.replace(/\D/g, '');
   if (!limpo.startsWith('55')) limpo = '55' + limpo;
   return limpo;
 }
 
-module.exports = { enviarTemplate, enviarLembreteEvento, enviarNotificacaoOrcamento, enviarNotificacaoAlbum, enviarNotificacaoPagamento };
+module.exports = {
+  enviarTemplate,
+  enviarLembreteEvento,
+  enviarNotificacaoOrcamento,
+  enviarNotificacaoAlbum,
+  enviarNotificacaoPagamento,
+  enviarNotificacaoPagamentoVencido,
+  enviarConfirmacaoEvento,
+  enviarSolicitacaoFeedback,
+};
