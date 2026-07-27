@@ -44,32 +44,48 @@ router.get('/config', async (req, res) => {
       Object.assign(data, { nome, logo_url, logo_dark_url, redes, whatsapp_pessoal });
     }
 
-    // If no site config, try to get logo from admin config (TENANT#default)
+    // If no logo in site config, try to get from admin config (same TENANT, then TENANT#default)
     if (!data.logo_dark_url && !data.logo_url) {
       try {
         const { QueryCommand: QC } = require('@aws-sdk/lib-dynamodb');
-        const configResult = await dynamo.send(new QC({
-          TableName: TABLE,
-          KeyConditionExpression: 'PK = :pk AND begins_with(SK, :sk)',
-          ExpressionAttributeValues: { ':pk': 'TENANT#default', ':sk': 'CONFIG#' },
-        }));
-        const adminConfig = {};
-        for (const item of (configResult.Items || [])) {
-          adminConfig[item.chave] = item.valor;
+
+        // Try the same TENANT first, then fallback to TENANT#default
+        const tenantsToTry = [TENANT];
+        if (TENANT !== 'TENANT#default') tenantsToTry.push('TENANT#default');
+
+        let adminConfig = {};
+        for (const tenantPk of tenantsToTry) {
+          const configResult = await dynamo.send(new QC({
+            TableName: TABLE,
+            KeyConditionExpression: 'PK = :pk AND begins_with(SK, :sk)',
+            ExpressionAttributeValues: { ':pk': tenantPk, ':sk': 'CONFIG#' },
+          }));
+          for (const item of (configResult.Items || [])) {
+            if (!adminConfig[item.chave]) {
+              adminConfig[item.chave] = item.valor;
+            }
+          }
+          // Stop if we found logo keys
+          if (adminConfig.logoDarkKey || adminConfig.logoKey) break;
         }
+
         if (adminConfig.logoDarkKey || adminConfig.logoKey) {
           const { loadParams } = require('../config/env');
           const params = await loadParams();
           const cdnDomain = params.CF_DOMAIN || process.env.CDN_DOMAIN || process.env.CLOUDFRONT_DOMAIN || '';
           const bucket = process.env.S3_BUCKET_NAME || 'mbf-backend-v3-fotos';
-          const logoKey = adminConfig.logoDarkKey || adminConfig.logoKey;
           const baseUrl = cdnDomain ? `https://${cdnDomain}` : `https://${bucket}.s3.us-east-1.amazonaws.com`;
-          data.logo_dark_url = `${baseUrl}/${logoKey}`;
           if (adminConfig.logoKey) {
             data.logo_url = `${baseUrl}/${adminConfig.logoKey}`;
           }
+          if (adminConfig.logoDarkKey) {
+            data.logo_dark_url = `${baseUrl}/${adminConfig.logoDarkKey}`;
+          }
+          // If only one exists, use it for both
+          if (!data.logo_url && data.logo_dark_url) data.logo_url = data.logo_dark_url;
+          if (!data.logo_dark_url && data.logo_url) data.logo_dark_url = data.logo_url;
         }
-        if (adminConfig.tradeName) data.nome = adminConfig.tradeName;
+        if (!data.nome && adminConfig.tradeName) data.nome = adminConfig.tradeName;
         if (!faviconKey && adminConfig.faviconKey) faviconKey = adminConfig.faviconKey;
       } catch {}
     }
