@@ -199,25 +199,25 @@ export default function Dashboard() {
   );
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       {/* 1. Saudação */}
-      <div className="flex items-center justify-between mb-6 flex-col sm:flex-row gap-3">
-        <div className="flex items-center gap-3">
-          <LayoutDashboard size={24} style={{ color: '#EA580C' }} />
-          <h1 className="text-2xl font-bold text-gray-900">{getGreeting()}, {capitalize(user?.name?.split(' ')[0]) || 'Usuário'} 👋</h1>
+      <div className="flex items-center justify-between mb-3 sm:mb-6 flex-col sm:flex-row gap-2 sm:gap-3">
+        <div className="flex items-center gap-2 sm:gap-3">
+          <LayoutDashboard size={20} className="sm:w-6 sm:h-6" style={{ color: '#EA580C' }} />
+          <h1 className="text-lg sm:text-2xl font-bold text-gray-900">{getGreeting()}, {capitalize(user?.name?.split(' ')[0]) || 'Usuário'} 👋</h1>
         </div>
         <div className="flex gap-2">
-          <button onClick={() => setShowPrefsModal(!showPrefsModal)} className="p-2 rounded-lg border border-gray-200 hover:bg-gray-50" title="Personalizar Dashboard">
-            <Settings2 size={18} className="text-gray-500" />
+          <button onClick={() => setShowPrefsModal(!showPrefsModal)} className="p-1.5 sm:p-2 rounded-lg border border-gray-200 hover:bg-gray-50" title="Personalizar Dashboard">
+            <Settings2 size={16} className="text-gray-500 sm:w-[18px] sm:h-[18px]" />
           </button>
         </div>
       </div>
 
       {/* Modal Preferências (DSH-09) */}
       {showPrefsModal && (
-        <div className="bg-white rounded-xl border border-gray-200 p-5 mb-6">
-          <h3 className="text-sm font-semibold text-gray-900 mb-3">Personalizar Dashboard</h3>
-          <div className="space-y-2">
+        <div className="bg-white rounded-xl border border-gray-200 p-3 sm:p-5 mb-4 sm:mb-6">
+          <h3 className="text-xs sm:text-sm font-semibold text-gray-900 mb-2 sm:mb-3">Personalizar Dashboard</h3>
+          <div className="space-y-1.5 sm:space-y-2">
             {[
               { key: 'showAcoesRapidas', label: 'Ações Rápidas' },
               { key: 'showKPIs', label: 'Indicadores (KPIs)' },
@@ -225,19 +225,19 @@ export default function Dashboard() {
               { key: 'showProximasSessiones', label: 'Próximas Sessões' },
               { key: 'showAtividade', label: 'Atividade Recente' },
             ].map(item => (
-              <label key={item.key} className="flex items-center gap-3 text-sm text-gray-700 cursor-pointer">
-                <input type="checkbox" checked={prefs[item.key]} onChange={e => updatePref(item.key, e.target.checked)} className="w-4 h-4 rounded border-gray-300 text-orange-600 focus:ring-orange-500" />
+              <label key={item.key} className="flex items-center gap-2 sm:gap-3 text-xs sm:text-sm text-gray-700 cursor-pointer">
+                <input type="checkbox" checked={prefs[item.key]} onChange={e => updatePref(item.key, e.target.checked)} className="w-3.5 h-3.5 sm:w-4 sm:h-4 rounded border-gray-300 text-orange-600 focus:ring-orange-500" />
                 {item.label}
               </label>
             ))}
           </div>
-          <button onClick={() => setShowPrefsModal(false)} className="mt-3 text-xs text-gray-500 hover:text-gray-700">Fechar</button>
+          <button onClick={() => setShowPrefsModal(false)} className="mt-2 sm:mt-3 text-xs text-gray-500 hover:text-gray-700">Fechar</button>
         </div>
       )}
 
       {/* 2. Ações Rápidas */}
       {prefs.showAcoesRapidas && (
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3">
         {[
           { label: 'Novo Orçamento', icon: PlusCircle, to: '/admin/orcamentos/novo' },
           { label: 'Novo Cliente', icon: Users, to: '/admin/clientes/novo' },
@@ -245,9 +245,9 @@ export default function Dashboard() {
           { label: 'Ver Agenda', icon: Calendar, to: '/admin/agenda' },
         ].map(a => (
           <button key={a.label} onClick={() => navigate(a.to)}
-            className="flex flex-col items-center gap-2 p-4 rounded-xl border border-gray-200 bg-white hover:border-orange-300 hover:shadow-sm transition-all group">
-            <a.icon size={22} className="text-gray-400 group-hover:text-orange-600 transition-colors" />
-            <span className="text-xs font-medium text-gray-700 group-hover:text-gray-900">{a.label}</span>
+            className="flex flex-col items-center gap-1 sm:gap-2 p-2.5 sm:p-4 rounded-xl border border-gray-200 bg-white hover:border-orange-300 hover:shadow-sm transition-all group">
+            <a.icon size={18} className="sm:w-[22px] sm:h-[22px] text-gray-400 group-hover:text-orange-600 transition-colors" />
+            <span className="text-[10px] sm:text-xs font-medium text-gray-700 group-hover:text-gray-900">{a.label}</span>
           </button>
         ))}
       </div>
@@ -255,22 +255,22 @@ export default function Dashboard() {
 
       {/* 3. KPIs */}
       {prefs.showKPIs && (
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4">
         {[
           { label: 'Sessões Hoje / Semana', value: `${sessionsToday} / ${sessionsWeek}`, icon: Calendar, bg: 'bg-blue-50', fg: 'text-blue-600' },
           { label: 'Orçamentos Pendentes', value: pendingQuotes.length, sub: pendingQuotes[0] ? timeAgo(pendingQuotes[0].createdAt || pendingQuotes[0].created) + ' parado' : '', icon: FileText, bg: 'bg-amber-50', fg: 'text-amber-600' },
           { label: 'Receita do Mês', value: formatBRL(summary.receitaMesAtual || summary.received || summary.revenue || 0), icon: TrendingUp, bg: 'bg-green-50', fg: 'text-green-600' },
           { label: 'Cobranças Atrasadas', value: overdueCharges.length, sub: overdueCharges[0] ? timeAgo(overdueCharges[0].data_vencimento || overdueCharges[0].dueDate) : '', icon: AlertCircle, bg: 'bg-red-50', fg: 'text-red-600' },
         ].map(k => (
-          <div key={k.label} className="bg-white rounded-xl border border-gray-200 p-4">
+          <div key={k.label} className="bg-white rounded-xl border border-gray-200 p-2.5 sm:p-4">
             <div className="flex items-start justify-between">
               <div>
-                <p className="text-xs text-gray-500 mb-1">{k.label}</p>
-                <p className="text-xl font-bold text-gray-900">{k.value}</p>
-                {k.sub && <p className="text-[11px] text-gray-400 mt-0.5">{k.sub}</p>}
+                <p className="text-[10px] sm:text-xs text-gray-500 mb-0.5 sm:mb-1">{k.label}</p>
+                <p className="text-base sm:text-xl font-bold text-gray-900">{k.value}</p>
+                {k.sub && <p className="text-[10px] sm:text-[11px] text-gray-400 mt-0.5">{k.sub}</p>}
               </div>
-              <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${k.bg} ${k.fg}`}>
-                <k.icon size={18} />
+              <div className={`w-7 h-7 sm:w-9 sm:h-9 rounded-lg flex items-center justify-center ${k.bg} ${k.fg}`}>
+                <k.icon size={14} className="sm:w-[18px] sm:h-[18px]" />
               </div>
             </div>
           </div>
@@ -280,20 +280,20 @@ export default function Dashboard() {
 
       {/* 4. Pendências com Ação Direta */}
       {prefs.showPendencias && pendencies.length > 0 && (
-        <div className="bg-white rounded-xl border border-gray-200 p-5">
-          <h2 className="text-base font-semibold text-gray-900 mb-3 flex items-center gap-2">
-            <AlertCircle size={16} style={{ color: ACCENT }} /> Pendências
+        <div className="bg-white rounded-xl border border-gray-200 p-3 sm:p-5">
+          <h2 className="text-sm sm:text-base font-semibold text-gray-900 mb-2 sm:mb-3 flex items-center gap-2">
+            <AlertCircle size={14} className="sm:w-4 sm:h-4" style={{ color: ACCENT }} /> Pendências
           </h2>
-          <div className="space-y-2">
+          <div className="space-y-1.5 sm:space-y-2">
             {pendencies.slice(0, 6).map(p => (
-              <div key={p.id} className="flex items-center gap-3 p-3 rounded-lg border border-gray-100 hover:bg-gray-50">
-                <p.icon size={18} className="text-gray-400 shrink-0" />
+              <div key={p.id} className="flex items-center gap-2 sm:gap-3 p-2 sm:p-3 rounded-lg border border-gray-100 hover:bg-gray-50">
+                <p.icon size={15} className="text-gray-400 shrink-0 sm:w-[18px] sm:h-[18px]" />
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-gray-800 truncate">{p.title}</p>
-                  <p className="text-[11px] text-gray-400">{timeAgo(p.date)} parado</p>
+                  <p className="text-xs sm:text-sm font-medium text-gray-800 truncate">{p.title}</p>
+                  <p className="text-[10px] sm:text-[11px] text-gray-400">{timeAgo(p.date)} parado</p>
                 </div>
                 <button onClick={p.onClick}
-                  className={`${p.color} text-white text-xs font-medium px-3 py-1.5 rounded-lg hover:opacity-90 transition-opacity shrink-0`}>
+                  className={`${p.color} text-white text-[10px] sm:text-xs font-medium px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg hover:opacity-90 transition-opacity shrink-0`}>
                   {p.action}
                 </button>
               </div>
@@ -304,36 +304,36 @@ export default function Dashboard() {
 
       {/* 5. Próximas Sessões */}
       {prefs.showProximasSessiones && (
-      <div className="bg-white rounded-xl border border-gray-200 p-5">
-        <h2 className="text-base font-semibold text-gray-900 mb-3 flex items-center gap-2">
-          <Calendar size={16} style={{ color: ACCENT }} /> Próximas Sessões
+      <div className="bg-white rounded-xl border border-gray-200 p-3 sm:p-5">
+        <h2 className="text-sm sm:text-base font-semibold text-gray-900 mb-2 sm:mb-3 flex items-center gap-2">
+          <Calendar size={14} className="sm:w-4 sm:h-4" style={{ color: ACCENT }} /> Próximas Sessões
         </h2>
         {upcoming.length === 0 ? (
-          <p className="text-sm text-gray-400 text-center py-4">Nenhuma sessão agendada</p>
+          <p className="text-xs sm:text-sm text-gray-400 text-center py-3 sm:py-4">Nenhuma sessão agendada</p>
         ) : (
-          <div className="space-y-2">
+          <div className="space-y-1.5 sm:space-y-2">
             {upcoming.map(ev => {
               const evDate = getEventDate(ev);
               if (!evDate) return null;
               return (
-              <div key={ev.id} className="flex items-center gap-3 p-3 rounded-lg border border-gray-100 hover:bg-gray-50">
-                <div className="text-center shrink-0 w-10">
-                  <p className="text-[10px] text-gray-400 uppercase">{evDate.toLocaleDateString('pt-BR', { weekday: 'short' })}</p>
-                  <p className="text-sm font-bold text-gray-800">{evDate.getDate()}</p>
+              <div key={ev.id} className="flex items-center gap-2 sm:gap-3 p-2 sm:p-3 rounded-lg border border-gray-100 hover:bg-gray-50">
+                <div className="text-center shrink-0 w-8 sm:w-10">
+                  <p className="text-[9px] sm:text-[10px] text-gray-400 uppercase">{evDate.toLocaleDateString('pt-BR', { weekday: 'short' })}</p>
+                  <p className="text-xs sm:text-sm font-bold text-gray-800">{evDate.getDate()}</p>
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-gray-800 truncate">{ev.cliente_nome || ev.clientName || ev.titulo || ev.title || 'Sessão'}</p>
-                  <div className="flex items-center gap-2 text-[11px] text-gray-400 mt-0.5">
-                    {(ev.horario_inicio || ev.time) && <span className="flex items-center gap-0.5"><Clock size={10} />{ev.horario_inicio || ev.time}</span>}
+                  <p className="text-xs sm:text-sm font-medium text-gray-800 truncate">{ev.cliente_nome || ev.clientName || ev.titulo || ev.title || 'Sessão'}</p>
+                  <div className="flex items-center gap-1.5 sm:gap-2 text-[10px] sm:text-[11px] text-gray-400 mt-0.5">
+                    {(ev.horario_inicio || ev.time) && <span className="flex items-center gap-0.5"><Clock size={9} className="sm:w-[10px] sm:h-[10px]" />{ev.horario_inicio || ev.time}</span>}
                     {(ev.tipo_evento || ev.type) && <span>• {ev.tipo_evento || ev.type}</span>}
-                    {(ev.local || ev.location) && <span className="flex items-center gap-0.5"><MapPin size={10} />{ev.local || ev.location}</span>}
+                    {(ev.local || ev.location) && <span className="flex items-center gap-0.5"><MapPin size={9} className="sm:w-[10px] sm:h-[10px]" />{ev.local || ev.location}</span>}
                   </div>
                 </div>
                 <button
                   onClick={() => enviarLembrete(ev)}
                   disabled={!temTelefoneValido(ev) || lembreteLoading[ev.id]}
                   title={!temTelefoneValido(ev) ? 'Cliente sem telefone cadastrado' : lembreteEnviado[ev.id] ? 'Lembrete já enviado' : 'Enviar lembrete via WhatsApp'}
-                  className={`text-xs font-medium px-3 py-1.5 rounded-lg border transition-colors shrink-0 flex items-center gap-1
+                  className={`text-[10px] sm:text-xs font-medium px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg border transition-colors shrink-0 flex items-center gap-1
                     ${!temTelefoneValido(ev)
                       ? 'border-gray-100 text-gray-300 cursor-not-allowed'
                       : lembreteEnviado[ev.id]
@@ -342,9 +342,9 @@ export default function Dashboard() {
                     }`}
                 >
                   {lembreteLoading[ev.id] ? (
-                    <RefreshCw size={12} className="animate-spin" />
+                    <RefreshCw size={10} className="animate-spin sm:w-3 sm:h-3" />
                   ) : (
-                    <Bell size={12} />
+                    <Bell size={10} className="sm:w-3 sm:h-3" />
                   )}
                   {lembreteEnviado[ev.id] ? 'Enviado' : 'Lembrete'}
                 </button>
@@ -358,17 +358,17 @@ export default function Dashboard() {
 
       {/* 6. Atividade Recente */}
       {prefs.showAtividade && recentActivity.length > 0 && (
-        <div className="bg-white rounded-xl border border-gray-200 p-5">
-          <h2 className="text-base font-semibold text-gray-900 mb-3 flex items-center gap-2">
-            <Clock size={16} style={{ color: ACCENT }} /> Atividade Recente
+        <div className="bg-white rounded-xl border border-gray-200 p-3 sm:p-5">
+          <h2 className="text-sm sm:text-base font-semibold text-gray-900 mb-2 sm:mb-3 flex items-center gap-2">
+            <Clock size={14} className="sm:w-4 sm:h-4" style={{ color: ACCENT }} /> Atividade Recente
           </h2>
-          <div className="relative pl-4 border-l-2 border-gray-100 space-y-3">
+          <div className="relative pl-3 sm:pl-4 border-l-2 border-gray-100 space-y-2 sm:space-y-3">
             {recentActivity.map((a, i) => (
-              <div key={i} className="flex items-start gap-3 relative">
-                <div className="absolute -left-[21px] top-1 w-3 h-3 rounded-full bg-white border-2 border-gray-300" />
+              <div key={i} className="flex items-start gap-2 sm:gap-3 relative">
+                <div className="absolute -left-[17px] sm:-left-[21px] top-1 w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full bg-white border-2 border-gray-300" />
                 <div className="flex-1">
-                  <p className="text-sm text-gray-700">{a.text}</p>
-                  <p className="text-[11px] text-gray-400">{new Date(a.date).toLocaleDateString('pt-BR')} às {new Date(a.date).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</p>
+                  <p className="text-xs sm:text-sm text-gray-700">{a.text}</p>
+                  <p className="text-[10px] sm:text-[11px] text-gray-400">{new Date(a.date).toLocaleDateString('pt-BR')} às {new Date(a.date).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</p>
                 </div>
               </div>
             ))}

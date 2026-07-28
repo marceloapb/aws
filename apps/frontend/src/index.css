@@ -8,6 +8,35 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
+/* ========================================
+   MOBILE UX OPTIMIZATIONS
+   Reduz tamanhos, espaçamentos e densifica
+   informações para melhor aproveitamento
+   da tela em dispositivos móveis.
+   ======================================== */
+
+@media (max-width: 768px) {
+  /* Base font-size reduction for mobile */
+  html {
+    font-size: 14px;
+  }
+
+  /* Compact main content area */
+  main {
+    padding: 0.75rem !important;
+  }
+
+  /* Reduce card padding globally */
+  .mobile-compact .bg-white {
+    padding: 0.75rem;
+  }
+
+  /* Smaller headings on mobile */
+  h1 { font-size: 1.25rem !important; }
+  h2 { font-size: 0.9rem !important; }
+  h3 { font-size: 0.85rem !important; }
+}
+
 @keyframes slide-in {
   from { transform: translateX(100%); opacity: 0; }
   to { transform: translateX(0); opacity: 1; }
