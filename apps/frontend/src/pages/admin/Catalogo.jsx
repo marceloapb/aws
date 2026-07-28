@@ -233,7 +233,7 @@ export default function Catalogo() {
           {abaAtiva === 'itens' && (
             <div>
               {/* KPIs */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 sm:gap-4 mb-4 sm:mb-6">
                 <KPICard icon={Package} label="Total" value={kpis.total} accent="text-orange-600 bg-orange-50" />
                 <KPICard icon={Check} label="Ativos" value={kpis.ativos} accent="text-green-600 bg-green-50" />
                 <KPICard icon={ShoppingBag} label="Serviços" value={kpis.servicos} accent="text-blue-600 bg-blue-50" />
@@ -266,8 +266,8 @@ export default function Catalogo() {
               </div>
 
               {/* Tabela */}
-              <div className="bg-white border rounded-lg overflow-hidden">
-                <table className="w-full text-sm">
+              <div className="bg-white border rounded-lg overflow-x-auto">
+                <table className="w-full text-sm min-w-[700px]">
                   <thead className="bg-gray-50 border-b">
                     <tr>
                       <SortableHeader label="Nome" field="nome" onSort={requestSort} active={getSortIndicator('nome')} />
