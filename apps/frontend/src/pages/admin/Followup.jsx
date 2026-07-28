@@ -434,7 +434,7 @@ function TabMetricas({ metricas }) {
   return (
     <div className="space-y-6">
       {/* KPIs */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4">
         <KPI icon={Send} label="Total de Disparos" value={data.total_disparos} />
         <KPI icon={CheckCircle} label="Taxa de Resolução" value={`${data.taxa_resolucao}%`} sub="Follow-ups que resultaram em ação" />
         <KPI icon={Mail} label="Disparos por E-mail" value={data.por_canal?.email || 0} />

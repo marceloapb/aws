@@ -15,18 +15,18 @@ const ACCENT = '#EA580C';
  */
 export default function KPICard({ icon: Icon, label, value, accent = 'text-orange-600 bg-orange-50', trend }) {
   return (
-    <div className="bg-white rounded-xl border border-gray-200 p-4 flex items-center gap-4">
+    <div className="bg-white rounded-xl border border-gray-200 p-2.5 sm:p-4 flex items-center gap-2 sm:gap-4">
       {Icon && (
-        <div className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${accent}`}>
-          <Icon size={20} />
+        <div className={`w-8 h-8 sm:w-10 sm:h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${accent}`}>
+          <Icon size={16} className="sm:w-5 sm:h-5" />
         </div>
       )}
       <div className="min-w-0 flex-1">
-        <p className="text-xs text-gray-500 uppercase tracking-wide truncate">{label}</p>
+        <p className="text-[10px] sm:text-xs text-gray-500 uppercase tracking-wide truncate">{label}</p>
         <div className="flex items-baseline gap-2">
-          <p className="text-lg font-bold text-gray-900">{value}</p>
+          <p className="text-base sm:text-lg font-bold text-gray-900">{value}</p>
           {trend && (
-            <span className={`text-xs font-medium ${trend.startsWith('+') ? 'text-green-600' : 'text-red-500'}`}>
+            <span className={`text-[10px] sm:text-xs font-medium ${trend.startsWith('+') ? 'text-green-600' : 'text-red-500'}`}>
               {trend}
             </span>
           )}
