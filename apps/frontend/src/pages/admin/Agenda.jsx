@@ -108,7 +108,7 @@ export default function Agenda() {
 
   // KPI Cards
   const KPICards = () => (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+    <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4 mb-4 sm:mb-6">
       {[
         { icon: Calendar, label: 'Sessões este mês', value: kpis.total },
         { icon: Clock, label: 'Próxima sessão', value: kpis.countdown },
