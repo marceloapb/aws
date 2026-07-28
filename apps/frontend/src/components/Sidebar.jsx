@@ -124,28 +124,28 @@ export default function Sidebar({ onClose }) {
   return (
     <div className="h-full bg-sidebar text-white flex flex-col">
       {/* Logo */}
-      <div className="h-16 flex items-center justify-center px-4 border-b border-gray-700 relative">
+      <div className="h-12 lg:h-16 flex items-center justify-center px-3 lg:px-4 border-b border-gray-700 relative">
         <div className="flex items-center gap-2">
           {logoUrl ? (
-            <img src={logoUrl} alt={empresaNome || 'Logo'} className="h-8 w-auto max-w-[160px] object-contain" />
+            <img src={logoUrl} alt={empresaNome || 'Logo'} className="h-6 lg:h-8 w-auto max-w-[140px] lg:max-w-[160px] object-contain" />
           ) : (
             <>
-              <Camera size={24} style={{ color: ACCENT }} />
-              <span className="font-bold text-lg">{empresaNome || 'Marcelo Bloise Fotografia'}</span>
+              <Camera size={20} className="lg:w-6 lg:h-6" style={{ color: ACCENT }} />
+              <span className="font-bold text-sm lg:text-lg">{empresaNome || 'Marcelo Bloise Fotografia'}</span>
             </>
           )}
         </div>
-        <button onClick={onClose} className="lg:hidden absolute right-4 p-1 rounded hover:bg-sidebar-hover">
-          <X size={18} />
+        <button onClick={onClose} className="lg:hidden absolute right-3 p-1 rounded hover:bg-sidebar-hover">
+          <X size={16} />
         </button>
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 py-4 px-3 overflow-y-auto">
+      <nav className="flex-1 py-2 lg:py-4 px-2 lg:px-3 overflow-y-auto">
         {isAdmin ? (
           adminSections.map(section => (
-            <div key={section.label} className="mb-3">
-              <p className="px-3 mb-1 text-xs font-semibold text-gray-500 uppercase tracking-wider">{section.label}</p>
+            <div key={section.label} className="mb-2 lg:mb-3">
+              <p className="px-2 lg:px-3 mb-0.5 lg:mb-1 text-[10px] lg:text-xs font-semibold text-gray-500 uppercase tracking-wider">{section.label}</p>
               {section.links.map(({ to, icon: Icon, label, end: endProp }) => (
                 <NavLink
                   key={to}
@@ -153,15 +153,15 @@ export default function Sidebar({ onClose }) {
                   end={to === '/admin' || endProp}
                   onClick={onClose}
                   className={({ isActive }) =>
-                    `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors ${
+                    `flex items-center gap-2 lg:gap-3 px-2 lg:px-3 py-1.5 lg:py-2.5 rounded-lg text-xs lg:text-sm transition-colors ${
                       isActive ? 'bg-accent text-white' : 'text-gray-300 hover:bg-sidebar-hover hover:text-white'
                     }`
                   }
                 >
-                  <Icon size={18} />
+                  <Icon size={15} className="lg:w-[18px] lg:h-[18px]" />
                   <span className="flex-1">{label}</span>
                   {badgeMap[to] > 0 && (
-                    <span className="min-w-[20px] h-5 flex items-center justify-center px-1.5 text-[10px] font-bold bg-red-500 text-white rounded-full">
+                    <span className="min-w-[18px] h-4 lg:min-w-[20px] lg:h-5 flex items-center justify-center px-1 lg:px-1.5 text-[9px] lg:text-[10px] font-bold bg-red-500 text-white rounded-full">
                       {badgeMap[to] > 99 ? '99+' : badgeMap[to]}
                     </span>
                   )}
@@ -170,15 +170,15 @@ export default function Sidebar({ onClose }) {
             </div>
           ))
         ) : (
-          <div className="space-y-1">
+          <div className="space-y-0.5 lg:space-y-1">
             <NavLink
               to="/cliente/orcamentos"
               state={{ openModal: true }}
               onClick={onClose}
-              className="flex items-center justify-center gap-2 mx-1 mb-3 px-3 py-2.5 rounded-lg text-sm font-medium text-white transition-colors hover:opacity-90"
+              className="flex items-center justify-center gap-2 mx-1 mb-2 lg:mb-3 px-2 lg:px-3 py-2 lg:py-2.5 rounded-lg text-xs lg:text-sm font-medium text-white transition-colors hover:opacity-90"
               style={{ background: ACCENT }}
             >
-              <PlusCircle size={18} />
+              <PlusCircle size={15} className="lg:w-[18px] lg:h-[18px]" />
               Solicitar Orçamento
             </NavLink>
             {clienteLinks.map(({ to, icon: Icon, label, end: endProp }) => (
@@ -188,12 +188,12 @@ export default function Sidebar({ onClose }) {
                 end={endProp}
                 onClick={onClose}
                 className={({ isActive }) =>
-                  `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors ${
+                  `flex items-center gap-2 lg:gap-3 px-2 lg:px-3 py-1.5 lg:py-2.5 rounded-lg text-xs lg:text-sm transition-colors ${
                     isActive ? 'bg-accent text-white' : 'text-gray-300 hover:bg-sidebar-hover hover:text-white'
                   }`
                 }
               >
-                <Icon size={18} />
+                <Icon size={15} className="lg:w-[18px] lg:h-[18px]" />
                 {label}
               </NavLink>
             ))}
@@ -202,9 +202,9 @@ export default function Sidebar({ onClose }) {
       </nav>
 
       {/* Footer */}
-      <div className="p-3 border-t border-gray-700">
-        <button onClick={handleLogout} className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-gray-300 hover:bg-sidebar-hover hover:text-white w-full">
-          <LogOut size={18} />
+      <div className="p-2 lg:p-3 border-t border-gray-700">
+        <button onClick={handleLogout} className="flex items-center gap-2 lg:gap-3 px-2 lg:px-3 py-1.5 lg:py-2.5 rounded-lg text-xs lg:text-sm text-gray-300 hover:bg-sidebar-hover hover:text-white w-full">
+          <LogOut size={15} className="lg:w-[18px] lg:h-[18px]" />
           Sair
         </button>
       </div>
