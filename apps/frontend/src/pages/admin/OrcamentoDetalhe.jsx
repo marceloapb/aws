@@ -73,15 +73,17 @@ export default function OrcamentoDetalhe() {
     setActionLoading('album');
     try {
       const clienteId = orc.cliente_id || (orc.PK?.startsWith('CLIENTE#') ? orc.PK.replace('CLIENTE#', '') : '');
+      const tipoEvento = orc.tipo_evento || orc.eventType || orc.nome_evento || orc.tipo || '';
       const res = await authFetch('/admin/albuns', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          titulo: orc.titulo || orc.tipo_evento || 'Álbum',
+          titulo: orc.titulo || orc.nome_evento || orc.tipo_evento || 'Álbum',
           cliente_id: clienteId,
-          tipo_evento: orc.tipo_evento || '',
-          data_evento: orc.data_evento || '',
+          tipo_evento: tipoEvento,
+          data_evento: orc.data_evento || orc.eventDate || '',
           orcamento_id: id,
+          local: orc.local || orc.endereco || '',
         }),
       });
       const json = await res.json();
