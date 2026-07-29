@@ -225,7 +225,7 @@ async function validarOTPEAssinar(contratoId, codigoInformado, metadados) {
 
   // Notificar admin (WhatsApp + email + in_app)
   try {
-    const TENANT = process.env.TENANT_ID || 'default';
+    const TENANT = process.env.TENANT_ID || '1';
     const configResult = await dynamo.send(new QueryCommand({
       TableName: TABLE,
       KeyConditionExpression: 'PK = :pk AND begins_with(SK, :sk)',
@@ -428,8 +428,8 @@ async function buscarCliente(clienteId) {
   }));
   if (cli2.Item) return { ...cli2.Item, id: clienteId };
 
-  // Padrão 3: TENANT#default / CLIENTE#<id> (clientes criados pelo admin)
-  const TENANT = process.env.TENANT_ID || 'default';
+  // Padrão 3: TENANT#1 / CLIENTE#<id> (clientes criados pelo admin)
+  const TENANT = process.env.TENANT_ID || '1';
   const cli3 = await dynamo.send(new GetCommand({
     TableName: TABLE,
     Key: { PK: `TENANT#${TENANT}`, SK: `CLIENTE#${clienteId}` },

@@ -10,7 +10,7 @@ const BUCKET = process.env.S3_BUCKET_NAME;
 // GET /admin/nfse/config — Buscar configuração do prestador
 router.get('/config', async (req, res) => {
   try {
-    const tenantId = req.tenantId || req.user?.sub || 'default';
+    const tenantId = req.tenantId || req.user?.sub || '1';
     const result = await dynamo.send(new GetCommand({
       TableName: TABLE,
       Key: { PK: `TENANT#${tenantId}`, SK: 'CONFIG#NFSE' },
@@ -31,7 +31,7 @@ router.get('/config', async (req, res) => {
 // PUT /admin/nfse/config — Salvar dados do prestador
 router.put('/config', async (req, res) => {
   try {
-    const tenantId = req.tenantId || req.user?.sub || 'default';
+    const tenantId = req.tenantId || req.user?.sub || '1';
     const body = req.body;
 
     // Validações básicas
@@ -76,7 +76,7 @@ router.put('/config', async (req, res) => {
 // POST /admin/nfse/upload-certificado — Upload do certificado A1
 router.post('/upload-certificado', async (req, res) => {
   try {
-    const tenantId = req.tenantId || req.user?.sub || 'default';
+    const tenantId = req.tenantId || req.user?.sub || '1';
     const { certificado_base64, senha, filename } = req.body;
 
     if (!certificado_base64 || !senha) {
@@ -147,7 +147,7 @@ router.post('/upload-certificado', async (req, res) => {
 // POST /admin/nfse/emitir — Emitir NFS-e
 router.post('/emitir', async (req, res) => {
   try {
-    const tenantId = req.tenantId || req.user?.sub || 'default';
+    const tenantId = req.tenantId || req.user?.sub || '1';
     const { valor, descricao_servico, tomador } = req.body;
 
     if (!valor || !tomador) {

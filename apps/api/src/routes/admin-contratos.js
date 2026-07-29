@@ -94,7 +94,7 @@ router.get('/:id', async (req, res) => {
         const cli = await dynamo.send(new GetCommand({ TableName: TABLE, Key: { PK: `CLIENT#${contrato.cliente_id}`, SK: 'PROFILE' } }));
         if (cli.Item) contrato.cliente_nome = cli.Item.nome || cli.Item.nome_completo || '';
         if (!contrato.cliente_nome) {
-          const TENANT = process.env.TENANT_ID || 'default';
+          const TENANT = process.env.TENANT_ID || '1';
           const cli2 = await dynamo.send(new GetCommand({ TableName: TABLE, Key: { PK: `TENANT#${TENANT}`, SK: `CLIENTE#${contrato.cliente_id}` } }));
           if (cli2.Item) contrato.cliente_nome = cli2.Item.nome || '';
         }
@@ -116,7 +116,7 @@ router.get('/:id', async (req, res) => {
     // Enrich with modelo_nome
     if (contrato.modelo_id && !contrato.modelo_nome) {
       try {
-        const TENANT = req.tenantId || process.env.TENANT_ID || 'default';
+        const TENANT = req.tenantId || process.env.TENANT_ID || '1';
         const { GetCommand } = require('@aws-sdk/lib-dynamodb');
         const mod = await dynamo.send(new GetCommand({ TableName: TABLE, Key: { PK: `TENANT#${TENANT}`, SK: `MODELO_CONTRATO#${contrato.modelo_id}` } }));
         if (mod.Item) contrato.modelo_nome = mod.Item.nome || '';
@@ -218,7 +218,7 @@ router.put('/:id', async (req, res) => {
       // Notificar admin via WhatsApp + email
       try {
         const { QueryCommand: QCmd } = require('@aws-sdk/lib-dynamodb');
-        const TENANT = req.tenantId || process.env.TENANT_ID || 'default';
+        const TENANT = req.tenantId || process.env.TENANT_ID || '1';
         const configResult = await dynamo.send(new QCmd({
           TableName: TABLE,
           KeyConditionExpression: 'PK = :pk AND begins_with(SK, :sk)',
@@ -258,11 +258,11 @@ router.post('/:id/pdf', async (req, res) => {
 router.post('/:id/assinar-contratado', async (req, res) => {
   try {
     // Buscar nome fantasia das configurações da empresa
-    const TENANT = req.tenantId || process.env.TENANT_ID || 'default';
+    const TENANT = req.tenantId || process.env.TENANT_ID || '1';
     let nomeContratado = req.user?.email || 'Admin';
     try {
       // Buscar configs — tenta no tenant do usuário E em default
-      const tenants = TENANT === 'default' ? ['default'] : [TENANT, 'default'];
+      const tenants = TENANT === '1' ? ['1'] : [TENANT, '1'];
       let configs = {};
       for (const t of tenants) {
         const cfgResult = await dynamo.send(new QueryCommand({

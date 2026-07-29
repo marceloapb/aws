@@ -7,7 +7,7 @@ const { dynamo, TABLE } = require('../config/dynamodb');
 const { QueryCommand, UpdateCommand } = require('@aws-sdk/lib-dynamodb');
 const { criarEvento, atualizarEvento, excluirEvento } = require('./googleCalendarService');
 
-const TENANT = process.env.TENANT_ID || 'default';
+const TENANT = process.env.TENANT_ID || '1';
 
 async function sincronizarBidirecional() {
   const logs = [];

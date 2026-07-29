@@ -11,7 +11,7 @@ async function gerarNumeroContrato(tenantId) {
   const ano = new Date().getFullYear();
   const result = await dynamo.send(new UpdateCommand({
     TableName: TABLE,
-    Key: { PK: `TENANT#${tenantId || 'default'}`, SK: `COUNTER#contrato_${ano}` },
+    Key: { PK: `TENANT#${tenantId || '1'}`, SK: `COUNTER#contrato_${ano}` },
     UpdateExpression: 'ADD #seq :inc',
     ExpressionAttributeNames: { '#seq': 'seq' },
     ExpressionAttributeValues: { ':inc': 1 },
@@ -76,9 +76,9 @@ async function gerarContrato(orcamentoId, modeloId, tenantId) {
     }
   }
 
-  // Padrão 3: TENANT#default / CLIENTE#<id>
+  // Padrão 3: TENANT#1 / CLIENTE#<id>
   if (!cliente) {
-    const TENANT = process.env.TENANT_ID || 'default';
+    const TENANT = process.env.TENANT_ID || '1';
     const { GetCommand } = require('@aws-sdk/lib-dynamodb');
     const cli3 = await dynamo.send(new GetCommand({
       TableName: TABLE,
@@ -89,7 +89,7 @@ async function gerarContrato(orcamentoId, modeloId, tenantId) {
 
   if (!cliente) throw new Error('Cliente não encontrado no orçamento');
 
-  const TENANT = tenantId || process.env.TENANT_ID || 'default';
+  const TENANT = tenantId || process.env.TENANT_ID || '1';
   let conteudo = null;
 
   // Se modelo_id fornecido, buscar o MODELO_CONTRATO cadastrado
@@ -119,18 +119,18 @@ async function gerarContrato(orcamentoId, modeloId, tenantId) {
   // Buscar dados da empresa para variáveis {{empresa_*}}
   let empresa = {};
   try {
-    // Try tenant-specific first, then fallback to TENANT#default
+    // Try tenant-specific first, then fallback to TENANT#1
     let cfgResult = await dynamo.send(new QueryCommand({
       TableName: TABLE,
       KeyConditionExpression: 'PK = :pk AND begins_with(SK, :sk)',
       ExpressionAttributeValues: { ':pk': `TENANT#${TENANT}`, ':sk': 'CONFIG#' },
     }));
     let items = (cfgResult.Items || []).filter(i => i.chave);
-    if (items.length === 0 && TENANT !== 'default') {
+    if (items.length === 0 && TENANT !== '1') {
       cfgResult = await dynamo.send(new QueryCommand({
         TableName: TABLE,
         KeyConditionExpression: 'PK = :pk AND begins_with(SK, :sk)',
-        ExpressionAttributeValues: { ':pk': 'TENANT#default', ':sk': 'CONFIG#' },
+        ExpressionAttributeValues: { ':pk': 'TENANT#1', ':sk': 'CONFIG#' },
       }));
       items = (cfgResult.Items || []).filter(i => i.chave);
     }
@@ -247,7 +247,7 @@ async function enviarParaAssinatura(contratoId) {
     if (cli2.Item) cliente = { ...cli2.Item, id: contrato.cliente_id };
   }
   if (!cliente) {
-    const TENANT = process.env.TENANT_ID || 'default';
+    const TENANT = process.env.TENANT_ID || '1';
     const { GetCommand } = require('@aws-sdk/lib-dynamodb');
     const cli3 = await dynamo.send(new GetCommand({ TableName: TABLE, Key: { PK: `TENANT#${TENANT}`, SK: `CLIENTE#${contrato.cliente_id}` } }));
     if (cli3.Item) cliente = cli3.Item;

@@ -26,13 +26,13 @@ router.get('/config', async (req, res) => {
       })).catch(() => ({ Item: null })),
     ]);
 
-    // Fallback: also check TENANT#default if TENANT is different
+    // Fallback: also check TENANT#1 for favicon
     let faviconKey = faviconResult.Item?.valor;
-    if (!faviconKey && TENANT !== 'TENANT#default') {
+    if (!faviconKey && TENANT !== 'TENANT#1') {
       try {
         const fallback = await dynamo.send(new GetCommand({
           TableName: TABLE,
-          Key: { PK: 'TENANT#default', SK: 'CONFIG#faviconKey' },
+          Key: { PK: 'TENANT#1', SK: 'CONFIG#faviconKey' },
         }));
         faviconKey = fallback.Item?.valor;
       } catch {}
@@ -41,17 +41,19 @@ router.get('/config', async (req, res) => {
     const data = {};
     if (siteResult.Item) {
       const { nome, logo_url, logo_dark_url, redes, whatsapp_pessoal } = siteResult.Item;
-      Object.assign(data, { nome, logo_url, logo_dark_url, redes, whatsapp_pessoal });
+      Object.assign(data, { nome, redes, whatsapp_pessoal });
+      if (logo_url) data.logo_url = logo_url;
+      if (logo_dark_url) data.logo_dark_url = logo_dark_url;
     }
 
-    // If no logo in site config, try to get from admin config (same TENANT, then TENANT#default)
+    // If no logo in site config, try to get from admin config (TENANT#1)
     if (!data.logo_dark_url && !data.logo_url) {
       try {
         const { QueryCommand: QC } = require('@aws-sdk/lib-dynamodb');
 
-        // Try the same TENANT first, then fallback to TENANT#default
+        // Try TENANT#1 to find the logo config
         const tenantsToTry = [TENANT];
-        if (TENANT !== 'TENANT#default') tenantsToTry.push('TENANT#default');
+        if (TENANT !== 'TENANT#1') tenantsToTry.push('TENANT#1');
 
         let adminConfig = {};
         for (const tenantPk of tenantsToTry) {
