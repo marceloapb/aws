@@ -578,6 +578,16 @@ router.get('/:id', async (req, res) => {
       orcamento.titulo = orcamento.title || orcamento.nome_evento || orcamento.tipo_evento || null;
     }
 
+    // Ensure tipo_evento exists (normalize from different field names)
+    if (!orcamento.tipo_evento) {
+      orcamento.tipo_evento = orcamento.eventType || orcamento.nome_evento || orcamento.tipo || null;
+    }
+
+    // Ensure data_evento exists
+    if (!orcamento.data_evento) {
+      orcamento.data_evento = orcamento.eventDate || null;
+    }
+
     // Ensure valor_total exists
     if (!orcamento.valor_total) {
       orcamento.valor_total = orcamento.total || orcamento.valor || 0;

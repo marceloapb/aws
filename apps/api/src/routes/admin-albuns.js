@@ -202,6 +202,7 @@ router.post('/', async (req, res) => {
       GSI1PK: 'ALBUM',
       GSI1SK: `ALBUM#${id}`,
       tipo: req.body.tipo || (clienteId ? 'evento' : 'avulso'),
+      tipo_evento: req.body.tipo_evento || '',
       cliente_id: clienteId,
       status: ALBUM_STATUS.ATIVO,
       dias_expiracao: diasExpiracao,
