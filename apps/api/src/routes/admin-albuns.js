@@ -60,12 +60,23 @@ router.get('/', async (req, res) => {
       let cliente_nome = album.cliente_nome || null;
       if (!cliente_nome && album.cliente_id) {
         try {
-          const clienteResult = await dynamo.send(new GetCommand({
+          // Padrão 1: TENANT#1 / CLIENTE#<id>
+          const result1 = await dynamo.send(new GetCommand({
             TableName: TABLE,
-            Key: { PK: `CLIENTE#${album.cliente_id}`, SK: 'PERFIL' },
+            Key: { PK: 'TENANT#1', SK: `CLIENTE#${album.cliente_id}` },
           }));
-          if (clienteResult.Item) {
-            cliente_nome = clienteResult.Item.nome || clienteResult.Item.name || null;
+          if (result1.Item) {
+            cliente_nome = result1.Item.nome || result1.Item.nome_completo || null;
+          }
+          // Padrão 2: CLIENT#<id> / PROFILE (self-signup)
+          if (!cliente_nome) {
+            const result2 = await dynamo.send(new GetCommand({
+              TableName: TABLE,
+              Key: { PK: `CLIENT#${album.cliente_id}`, SK: 'PROFILE' },
+            }));
+            if (result2.Item) {
+              cliente_nome = result2.Item.nome_completo || result2.Item.nome || null;
+            }
           }
         } catch {}
       }

@@ -41,17 +41,21 @@ router.get('/config', async (req, res) => {
     const data = {};
     if (siteResult.Item) {
       const { nome, logo_url, logo_dark_url, redes, whatsapp_pessoal } = siteResult.Item;
-      Object.assign(data, { nome, logo_url, logo_dark_url, redes, whatsapp_pessoal });
+      Object.assign(data, { nome, redes, whatsapp_pessoal });
+      // Só atribuir logo se realmente tiver valor
+      if (logo_url) data.logo_url = logo_url;
+      if (logo_dark_url) data.logo_dark_url = logo_dark_url;
     }
 
-    // If no logo in site config, try to get from admin config (same TENANT, then TENANT#default)
+    // If no logo in site config, try to get from admin config (same TENANT, then TENANT#default, then TENANT#1)
     if (!data.logo_dark_url && !data.logo_url) {
       try {
         const { QueryCommand: QC } = require('@aws-sdk/lib-dynamodb');
 
-        // Try the same TENANT first, then fallback to TENANT#default
+        // Try multiple tenant patterns to find the logo
         const tenantsToTry = [TENANT];
         if (TENANT !== 'TENANT#default') tenantsToTry.push('TENANT#default');
+        if (TENANT !== 'TENANT#1') tenantsToTry.push('TENANT#1');
 
         let adminConfig = {};
         for (const tenantPk of tenantsToTry) {
