@@ -7,13 +7,14 @@ import {
 } from 'lucide-react';
 
 const ACCENT = '#EA580C';
-const STATUS_TABS = ['todos', 'publicado', 'em_edicao', 'rascunho', 'expirado'];
-const STATUS_LABELS = { todos: 'Todos', publicado: 'Publicados', em_edicao: 'Em Edição', rascunho: 'Rascunho', expirado: 'Expirados' };
+const STATUS_TABS = ['todos', 'publicado', 'ativo', 'expirado'];
+const STATUS_LABELS = { todos: 'Todos', publicado: 'Publicados', ativo: 'Em Edição', expirado: 'Expirados' };
 const BADGE_STYLES = {
   publicado: 'bg-green-100 text-green-700',
-  rascunho: 'bg-gray-100 text-gray-600',
+  ativo: 'bg-blue-100 text-blue-700',
   expirado: 'bg-red-100 text-red-700',
-  em_edicao: 'bg-blue-100 text-blue-700',
+  em_graca: 'bg-yellow-100 text-yellow-700',
+  pronto_exclusao: 'bg-red-100 text-red-700',
 };
 
 function diasRestantes(dataExp) {
@@ -77,8 +78,8 @@ export default function Albuns() {
   const kpis = useMemo(() => ({
     total: albuns.length,
     publicados: albuns.filter(a => a.status === 'publicado').length,
-    em_edicao: albuns.filter(a => a.status === 'em_edicao').length,
-    expirados: albuns.filter(a => a.status === 'expirado').length,
+    em_edicao: albuns.filter(a => a.status === 'ativo').length,
+    expirados: albuns.filter(a => a.status === 'expirado' || a.status === 'em_graca').length,
     fotos: albuns.reduce((s, a) => s + (a.total_fotos || 0), 0),
   }), [albuns]);
 
@@ -206,7 +207,7 @@ export default function Albuns() {
       ) : (
         <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-5">
           {filtrados.map(album => {
-            const dias = diasRestantes(album.data_expiracao);
+            const dias = album.disponivel_em ? diasRestantes(album.data_expiracao) : null;
             const pct = album.percentual_pago ?? album.pagamento_pct ?? 100;
             const bloqueado = pct < 70;
             return (
@@ -218,7 +219,7 @@ export default function Albuns() {
                   ) : (
                     <Image size={36} className="text-orange-200" />
                   )}
-                  <span className={`absolute top-3 right-3 px-2.5 py-0.5 rounded-full text-xs font-semibold ${BADGE_STYLES[album.status] || BADGE_STYLES.rascunho}`}>
+                  <span className={`absolute top-3 right-3 px-2.5 py-0.5 rounded-full text-xs font-semibold ${BADGE_STYLES[album.status] || 'bg-gray-100 text-gray-600'}`}>
                     {STATUS_LABELS[album.status] || album.status}
                   </span>
                   {/* Countdown expiração */}
@@ -265,7 +266,7 @@ export default function Albuns() {
                     <button onClick={() => navigate(`/admin/albuns/${album.id}`)} title="Ver fotos" className="p-1.5 rounded hover:bg-gray-100 text-gray-500 hover:text-gray-700"><Eye size={16} /></button>
                     <button onClick={() => navigate(`/admin/albuns/${album.id}/upload`)} title="Upload" className="p-1.5 rounded hover:bg-gray-100 text-gray-500 hover:text-gray-700"><Upload size={16} /></button>
                     <button onClick={() => { setEditModal(album); setForm({ titulo: album.titulo || '', cliente_id: album.cliente_id || '', tipo_evento: album.tipo_evento || '', data_evento: album.data_evento || '', data_expiracao: album.data_expiracao || '', tipo: album.tipo || 'evento' }); }} title="Editar" className="p-1.5 rounded hover:bg-gray-100 text-gray-500 hover:text-gray-700"><Edit size={16} /></button>
-                    {(album.status === 'rascunho' || album.status === 'em_edicao') && (
+                    {(album.status === 'ativo') && (
                       <button onClick={() => handlePublicar(album)} title={bloqueado ? 'Pagamento insuficiente' : 'Publicar'} disabled={bloqueado}
                         className={`p-1.5 rounded ${bloqueado ? 'text-gray-300 cursor-not-allowed' : 'hover:bg-green-50 text-gray-500 hover:text-green-600'}`}><Send size={16} /></button>
                     )}

@@ -56,6 +56,20 @@ router.get('/', async (req, res) => {
     const bucket = process.env.S3_BUCKET_NAME;
 
     const dataEnriquecida = await Promise.all(data.map(async (album) => {
+      // Buscar nome do cliente se existir cliente_id
+      let cliente_nome = album.cliente_nome || null;
+      if (!cliente_nome && album.cliente_id) {
+        try {
+          const clienteResult = await dynamo.send(new GetCommand({
+            TableName: TABLE,
+            Key: { PK: `CLIENTE#${album.cliente_id}`, SK: 'PERFIL' },
+          }));
+          if (clienteResult.Item) {
+            cliente_nome = clienteResult.Item.nome || clienteResult.Item.name || null;
+          }
+        } catch {}
+      }
+
       // Buscar primeira foto para thumbnail
       let thumbnail_url = null;
       try {
@@ -75,7 +89,7 @@ router.get('/', async (req, res) => {
       } catch {}
 
       if (!album.orcamento_id) {
-        return { ...album, percentual_pago: null, pode_publicar: true, thumbnail_url };
+        return { ...album, cliente_nome, percentual_pago: null, pode_publicar: true, thumbnail_url };
       }
       try {
         const cobrancasResult = await dynamo.send(new QueryCommand({
@@ -91,9 +105,9 @@ router.get('/', async (req, res) => {
           .filter(c => c.status === COBRANCA_STATUS.PAGO)
           .reduce((sum, c) => sum + (c.valor || 0), 0);
         const percentual_pago = totalValor > 0 ? Math.round((totalPago / totalValor) * 100) : 0;
-        return { ...album, percentual_pago, pode_publicar: percentual_pago >= 70, thumbnail_url };
+        return { ...album, cliente_nome, percentual_pago, pode_publicar: percentual_pago >= 70, thumbnail_url };
       } catch {
-        return { ...album, percentual_pago: null, pode_publicar: true, thumbnail_url };
+        return { ...album, cliente_nome, percentual_pago: null, pode_publicar: true, thumbnail_url };
       }
     }));
 
@@ -157,7 +171,8 @@ router.post('/', async (req, res) => {
     const id = crypto.randomUUID();
     const TENANT = req.tenantId || process.env.TENANT_ID || 'default';
 
-    // Buscar dias de expiração da configuração de álbuns
+    // Validade do álbum só começa a contar a partir da publicação.
+    // Aqui apenas armazena dias_expiracao para usar no momento da publicação.
     let diasExpiracao = req.body.dias_expiracao || null;
     if (!diasExpiracao) {
       try {
@@ -177,8 +192,6 @@ router.post('/', async (req, res) => {
       }
     }
 
-    const dataExpiracao = new Date();
-    dataExpiracao.setDate(dataExpiracao.getDate() + diasExpiracao);
     const clienteId = req.body.cliente_id || null;
 
     const item = {
@@ -189,9 +202,10 @@ router.post('/', async (req, res) => {
       GSI1PK: 'ALBUM',
       GSI1SK: `ALBUM#${id}`,
       tipo: req.body.tipo || (clienteId ? 'evento' : 'avulso'),
+      tipo_evento: req.body.tipo_evento || '',
       cliente_id: clienteId,
       status: ALBUM_STATUS.ATIVO,
-      data_expiracao: dataExpiracao.toISOString().split('T')[0],
+      dias_expiracao: diasExpiracao,
       created: new Date().toISOString(),
     };
     await dynamo.send(new PutCommand({ TableName: TABLE, Item: item }));
@@ -328,22 +342,24 @@ router.post('/:id/publicar', async (req, res) => {
     }
 
     // Calculate expiration from publish date (not creation date)
+    // Validade do álbum começa a contar SOMENTE a partir da publicação
     const TENANT = req.tenantId || process.env.TENANT_ID || 'default';
-    let diasExpiracao = 180;
-    try {
-      // Try tenant ID first, then 'default'
-      let cfgResult = await dynamo.send(new GetCommand({
-        TableName: TABLE,
-        Key: { PK: `TENANT#${TENANT}`, SK: 'CONFIG#ALBUM' },
-      }));
-      if (!cfgResult.Item && TENANT !== 'default') {
-        cfgResult = await dynamo.send(new GetCommand({
+    let diasExpiracao = album.dias_expiracao || 180;
+    if (!album.dias_expiracao) {
+      try {
+        let cfgResult = await dynamo.send(new GetCommand({
           TableName: TABLE,
-          Key: { PK: 'TENANT#default', SK: 'CONFIG#ALBUM' },
+          Key: { PK: `TENANT#${TENANT}`, SK: 'CONFIG#ALBUM' },
         }));
-      }
-      diasExpiracao = cfgResult.Item?.prazo_padrao_dias || 180;
-    } catch {}
+        if (!cfgResult.Item && TENANT !== 'default') {
+          cfgResult = await dynamo.send(new GetCommand({
+            TableName: TABLE,
+            Key: { PK: 'TENANT#default', SK: 'CONFIG#ALBUM' },
+          }));
+        }
+        diasExpiracao = cfgResult.Item?.prazo_padrao_dias || 180;
+      } catch {}
+    }
     const dataExpiracao = new Date();
     dataExpiracao.setDate(dataExpiracao.getDate() + diasExpiracao);
 

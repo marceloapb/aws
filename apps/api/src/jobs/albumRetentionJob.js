@@ -27,8 +27,8 @@ async function processarRetencao() {
   }));
   const albuns = result.Items || [];
 
-  // 1. Ativos → Expirado
-  for (const album of albuns.filter(a => a.status === ALBUM_STATUS.ATIVO && !a.protegido && a.data_expiracao && a.data_expiracao <= hoje.toISOString().split('T')[0])) {
+  // 1. Ativos → Expirado (só álbuns publicados — que têm disponivel_em e data_expiracao)
+  for (const album of albuns.filter(a => a.status === ALBUM_STATUS.ATIVO && !a.protegido && a.disponivel_em && a.data_expiracao && a.data_expiracao <= hoje.toISOString().split('T')[0])) {
     await dynamo.send(new UpdateCommand({ TableName: TABLE, Key: { PK: album.PK, SK: album.SK }, UpdateExpression: 'SET #s = :s', ExpressionAttributeNames: { '#s': 'status' }, ExpressionAttributeValues: { ':s': ALBUM_STATUS.EXPIRADO } }));
   }
 

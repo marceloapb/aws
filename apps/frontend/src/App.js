@@ -136,6 +136,7 @@ function App() {
 
       {/* Admin */}
       <Route path="/admin/onboarding" element={<PrivateRoute role="admin"><Onboarding /></PrivateRoute>} />
+      <Route path="/admin/albuns/:id/preview" element={<PrivateRoute role="admin"><AlbumPreview /></PrivateRoute>} />
       <Route path="/admin" element={<PrivateRoute role="admin"><Layout /></PrivateRoute>}>
         <Route index element={<Dashboard />} />
         <Route path="config" element={<ConfigEmpresa />} />
@@ -166,7 +167,6 @@ function App() {
         {/* Álbuns */}
         <Route path="albuns" element={<Albuns />} />
         <Route path="albuns/:id" element={<AlbumDetalhe />} />
-        <Route path="albuns/:id/preview" element={<AlbumPreview />} />
         <Route path="albuns/config" element={<Navigate to="/admin/config?tab=albuns" replace />} />
 
         {/* Portfólio */}
