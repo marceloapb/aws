@@ -2,7 +2,7 @@ const { dynamo, TABLE } = require('../config/dynamodb');
 const { QueryCommand, UpdateCommand } = require('@aws-sdk/lib-dynamodb');
 const { enviarLembreteEvento } = require('../services/whatsappService');
 
-const TENANT = process.env.TENANT_ID || 'default';
+const TENANT = process.env.TENANT_ID || '1';
 
 async function verificarLembretes() {
   const agora = new Date();

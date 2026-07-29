@@ -44,8 +44,8 @@ async function notificar({
       if (profileCheck.Item?.bloquear_notificacoes) {
         return { bloqueado: true, motivo: 'Cliente com notificações bloqueadas' };
       }
-      // Check TENANT#default/CLIENTE# pattern
-      const TENANT = process.env.TENANT_ID || 'default';
+      // Check TENANT#1/CLIENTE# pattern
+      const TENANT = process.env.TENANT_ID || '1';
       const clienteCheck = await ddb.send(new GetCommand({
         TableName: TABLE,
         Key: { PK: `TENANT#${TENANT}`, SK: `CLIENTE#${destinatario_id}` },
@@ -63,9 +63,9 @@ async function notificar({
       await ddb.send(new PutCommand({
         TableName: TABLE,
         Item: {
-          PK: `TENANT#${destinatario_id || 'default'}`,
+          PK: `TENANT#${destinatario_id || '1'}`,
           SK: `NTF#${notifId}`,
-          GSI1PK: `TENANT#${destinatario_id || 'default'}`,
+          GSI1PK: `TENANT#${destinatario_id || '1'}`,
           GSI1SK: `NTF#${now}#${notifId}`,
           id: notifId,
           tipo,

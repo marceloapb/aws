@@ -8,7 +8,7 @@ const { QueryCommand, GetCommand, PutCommand, UpdateCommand, DeleteCommand, Batc
 const { dynamo, TABLE } = require('../config/dynamodb');
 
 const router = Router();
-const TENANT = process.env.TENANT_ID || 'default';
+const TENANT = process.env.TENANT_ID || '1';
 
 // ─── NOTIFICAÇÕES IN-APP ─────────────────────────────────────
 

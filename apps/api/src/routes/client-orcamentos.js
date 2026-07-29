@@ -6,7 +6,7 @@ const { excluirEvento } = require('../services/googleCalendarService');
 const { features } = require('../config/env');
 
 const router = Router();
-const TENANT = process.env.TENANT_ID || 'default';
+const TENANT = process.env.TENANT_ID || '1';
 
 router.get('/', async (req, res) => {
   try {

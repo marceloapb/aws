@@ -8,7 +8,7 @@ const crypto = require('crypto');
 const { dynamo, TABLE } = require('../config/dynamodb');
 const { PutCommand, UpdateCommand, GetCommand, QueryCommand } = require('@aws-sdk/lib-dynamodb');
 
-const TENANT = process.env.TENANT_ID || 'default';
+const TENANT = process.env.TENANT_ID || '1';
 
 // Pipeline de status com ordem de progressão
 const STATUS_PIPELINE = ['Lead', 'Contato', 'Negociação', 'Cliente', 'Inativo'];
@@ -58,7 +58,7 @@ async function registrarEvento({ cliente_id, tipo, descricao, metadata = {}, aut
     processarEvento({
       evento_id: id,
       tipo_evento: tipo,
-      tenant_id: process.env.TENANT_ID || 'default',
+      tenant_id: process.env.TENANT_ID || '1',
       dados: { cliente_id, descricao, ...metadata },
     }).catch(err => console.error('[NOTIF_DISPATCH] Erro:', err.message));
   } catch (err) {

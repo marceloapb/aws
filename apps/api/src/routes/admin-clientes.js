@@ -4,7 +4,7 @@ const { QueryCommand, GetCommand, PutCommand, UpdateCommand, DeleteCommand, Scan
 const { registrarEvento, registrarMudancaStatusManual, buscarHistorico } = require('../services/clienteHistoricoService');
 
 const router = Router();
-const TENANT = process.env.TENANT_ID || 'default';
+const TENANT = process.env.TENANT_ID || '1';
 
 // GET /api/admin/clientes
 // Busca clientes de todas as origens:
@@ -214,7 +214,7 @@ router.put('/:id', async (req, res) => {
     const names = Object.fromEntries(keys.map((k, i) => [`#f${i}`, k]));
     const vals = Object.fromEntries(keys.map((k, i) => [`:v${i}`, updates[k]]));
 
-    // Try TENANT#default / CLIENTE#<id> first
+    // Try TENANT#1 / CLIENTE#<id> first
     try {
       const check = await dynamo.send(new GetCommand({
         TableName: TABLE,

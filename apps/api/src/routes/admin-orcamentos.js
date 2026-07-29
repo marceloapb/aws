@@ -9,7 +9,7 @@ const { SYNC_STATUS } = require('../config/constants');
 const { registrarEvento, avancarStatusAutomatico } = require('../services/clienteHistoricoService');
 
 const router = Router();
-const TENANT = process.env.TENANT_ID || 'default';
+const TENANT = process.env.TENANT_ID || '1';
 
 async function findOrcamento(id) {
   const result = await dynamo.send(new QueryCommand({
@@ -76,7 +76,7 @@ router.get('/', async (req, res) => {
     // Resolve client names for items that don't have clientName
     const clienteIds = [...new Set(pageItems.filter(i => i.cliente_id && !i.clientName && !i.nome_completo && !i.cliente_nome).map(i => i.cliente_id))];
     const clienteNomes = {};
-    const TENANT = process.env.TENANT_ID || 'default';
+    const TENANT = process.env.TENANT_ID || '1';
     for (const cid of clienteIds.slice(0, 20)) {
       try {
         // Try TENANT#<tenant> / CLIENTE#<id> (admin-clientes pattern)
@@ -247,7 +247,7 @@ router.get('/:id/editar', async (req, res) => {
     }
 
     // ─── Normalizar cliente ───
-    const TENANT = process.env.TENANT_ID || 'default';
+    const TENANT = process.env.TENANT_ID || '1';
     const clienteIdFromPK = orcamento.PK && orcamento.PK.startsWith('CLIENTE#') ? orcamento.PK.replace('CLIENTE#', '') : null;
     const resolvedClienteId = orcamento.cliente_id || clienteIdFromPK;
 
@@ -304,7 +304,7 @@ router.get('/:id/editar', async (req, res) => {
     // Calculate distance for edit page too
     if ((orcamento.local_evento || orcamento.local) && !orcamento.distancia_km) {
       try {
-        const tenantCfg = process.env.TENANT_ID || 'default';
+        const tenantCfg = process.env.TENANT_ID || '1';
         const configResult2 = await dynamo.send(new QueryCommand({
           TableName: TABLE,
           KeyConditionExpression: 'PK = :pk AND begins_with(SK, :sk)',
@@ -434,7 +434,7 @@ router.get('/:id', async (req, res) => {
     if (!orcamento) return res.status(404).json({ success: false, message: 'Orçamento não encontrado' });
 
     // Normalize: ensure 'cliente' object exists for OrcamentoDetalhe.jsx
-    const TENANT = process.env.TENANT_ID || 'default';
+    const TENANT = process.env.TENANT_ID || '1';
     const clienteIdFromPK = orcamento.PK && orcamento.PK.startsWith('CLIENTE#') ? orcamento.PK.replace('CLIENTE#', '') : null;
     const resolvedClienteId = orcamento.cliente_id || clienteIdFromPK;
 
@@ -492,7 +492,7 @@ router.get('/:id', async (req, res) => {
     if ((orcamento.local_evento || orcamento.local) && !orcamento.distancia_km) {
       try {
         // Get company address from config
-        const tenantCfg = process.env.TENANT_ID || 'default';
+        const tenantCfg = process.env.TENANT_ID || '1';
         const configResult = await dynamo.send(new QueryCommand({
           TableName: TABLE,
           KeyConditionExpression: 'PK = :pk AND begins_with(SK, :sk)',

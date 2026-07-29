@@ -424,7 +424,7 @@ router.get('/conversas', async (req, res) => {
     }
 
     // Tentar resolver nomes via clientes cadastrados
-    const TENANT = process.env.TENANT_ID || 'default';
+    const TENANT = process.env.TENANT_ID || '1';
     const clientesResult = await dynamo.send(new QueryCommand({
       TableName: TABLE,
       KeyConditionExpression: 'PK = :pk AND begins_with(SK, :sk)',

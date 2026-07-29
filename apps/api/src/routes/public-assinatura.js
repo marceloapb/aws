@@ -283,9 +283,9 @@ router.get('/contrato/:token/canais-otp', async (req, res) => {
       if (cli2?.Item) cliente = cli2.Item;
     }
 
-    // Padrão 3: TENANT#default / CLIENTE#<id> (clientes criados pelo admin)
+    // Padrão 3: TENANT#1 / CLIENTE#<id> (clientes criados pelo admin)
     if (!cliente) {
-      const TENANT = process.env.TENANT_ID || 'default';
+      const TENANT = process.env.TENANT_ID || '1';
       const cli3 = await dynamo.send(new GetCommand({
         TableName: TABLE,
         Key: { PK: `TENANT#${TENANT}`, SK: `CLIENTE#${contrato.cliente_id}` },

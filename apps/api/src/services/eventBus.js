@@ -21,7 +21,7 @@ async function emitirEvento(source, detailType, detail) {
 
   const payload = {
     evento_id,
-    tenant_id: detail.tenant_id || process.env.TENANT_ID || 'default',
+    tenant_id: detail.tenant_id || process.env.TENANT_ID || '1',
     dominio: detail.dominio || source.split('.').pop(),
     acao: detail.acao || detailType,
     recurso_id: detail.recurso_id,

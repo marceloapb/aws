@@ -5,7 +5,7 @@ const { ALBUM_STATUS } = require('../config/constants');
 const { enviarAvisosExpiracao } = require('../services/albumExpiracaoService');
 
 const DIAS_GRACA = 7;
-const TENANT = process.env.TENANT_ID || 'default';
+const TENANT = process.env.TENANT_ID || '1';
 
 async function processarRetencao() {
   const hoje = new Date();

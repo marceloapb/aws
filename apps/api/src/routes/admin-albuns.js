@@ -180,7 +180,7 @@ router.get('/:id', async (req, res) => {
 router.post('/', async (req, res) => {
   try {
     const id = crypto.randomUUID();
-    const TENANT = req.tenantId || process.env.TENANT_ID || 'default';
+    const TENANT = req.tenantId || process.env.TENANT_ID || '1';
 
     // Validade do álbum só começa a contar a partir da publicação.
     // Aqui apenas armazena dias_expiracao para usar no momento da publicação.
@@ -191,12 +191,6 @@ router.post('/', async (req, res) => {
           TableName: TABLE,
           Key: { PK: `TENANT#${TENANT}`, SK: 'CONFIG#ALBUM' },
         }));
-        if (!cfgResult.Item && TENANT !== 'default') {
-          cfgResult = await dynamo.send(new GetCommand({
-            TableName: TABLE,
-            Key: { PK: 'TENANT#default', SK: 'CONFIG#ALBUM' },
-          }));
-        }
         diasExpiracao = cfgResult.Item?.prazo_padrao_dias || 180;
       } catch {
         diasExpiracao = 180;
@@ -354,7 +348,7 @@ router.post('/:id/publicar', async (req, res) => {
 
     // Calculate expiration from publish date (not creation date)
     // Validade do álbum começa a contar SOMENTE a partir da publicação
-    const TENANT = req.tenantId || process.env.TENANT_ID || 'default';
+    const TENANT = req.tenantId || process.env.TENANT_ID || '1';
     let diasExpiracao = album.dias_expiracao || 180;
     if (!album.dias_expiracao) {
       try {
@@ -362,12 +356,6 @@ router.post('/:id/publicar', async (req, res) => {
           TableName: TABLE,
           Key: { PK: `TENANT#${TENANT}`, SK: 'CONFIG#ALBUM' },
         }));
-        if (!cfgResult.Item && TENANT !== 'default') {
-          cfgResult = await dynamo.send(new GetCommand({
-            TableName: TABLE,
-            Key: { PK: 'TENANT#default', SK: 'CONFIG#ALBUM' },
-          }));
-        }
         diasExpiracao = cfgResult.Item?.prazo_padrao_dias || 180;
       } catch {}
     }
