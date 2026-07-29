@@ -206,7 +206,7 @@ export default function Albuns() {
       ) : (
         <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-5">
           {filtrados.map(album => {
-            const dias = diasRestantes(album.data_expiracao);
+            const dias = album.disponivel_em ? diasRestantes(album.data_expiracao) : null;
             const pct = album.percentual_pago ?? album.pagamento_pct ?? 100;
             const bloqueado = pct < 70;
             return (
