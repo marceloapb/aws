@@ -14,15 +14,17 @@ const router = Router({ mergeParams: true });
 async function assinarFoto(foto) {
   const key = foto.s3_key_media || foto.s3_key || '';
   const thumbKey = foto.s3_key_thumb || '';
+  const originalKey = foto.s3_key_original || foto.s3_key || '';
   return {
     id: foto.id,
     album_id: foto.album_id,
     galeria_id: foto.galeria_id,
     titulo: foto.titulo || null,
     ordem: foto.ordem || 0,
-    filename: foto.filename || null,
+    filename: foto.filename || foto.original_filename || null,
     url: key ? await getSignedDownloadUrl(key, 86400) : null,
     url_thumb: thumbKey ? await getSignedDownloadUrl(thumbKey, 86400) : (key ? await getSignedDownloadUrl(key, 86400) : null),
+    url_original: originalKey ? await getSignedDownloadUrl(originalKey, 86400) : null,
   };
 }
 

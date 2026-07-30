@@ -77,17 +77,37 @@ export default function AlbumGaleria() {
   };
 
   const handleDownload = async (foto) => {
-    if (!foto?.url) return;
+    const url = foto?.url_original || foto?.url;
+    if (!url) return;
     try {
+      const response = await fetch(url);
+      const blob = await response.blob();
+      const blobUrl = URL.createObjectURL(blob);
       const a = document.createElement('a');
-      a.href = foto.url;
+      a.href = blobUrl;
       a.download = foto.filename || `foto-${foto.id}.jpg`;
-      a.target = '_blank';
-      a.rel = 'noopener noreferrer';
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
+      URL.revokeObjectURL(blobUrl);
+    } catch {
+      // Fallback: open in new tab
+      window.open(url, '_blank');
+    }
+  };
+
+  const [downloading, setDownloading] = useState(false);
+  const handleDownloadAll = async () => {
+    if (downloading || !fotos.length) return;
+    setDownloading(true);
+    try {
+      for (let i = 0; i < fotos.length; i++) {
+        await handleDownload(fotos[i]);
+        // Small delay between downloads to avoid browser blocking
+        if (i < fotos.length - 1) await new Promise(r => setTimeout(r, 500));
+      }
     } catch {}
+    setDownloading(false);
   };
 
   if (loading) {
@@ -140,8 +160,8 @@ export default function AlbumGaleria() {
               <Share2 size={18} />
             </button>
             {data.permite_download && (
-              <button className="p-2 text-white/60 hover:text-white transition-colors">
-                <Download size={18} />
+              <button onClick={handleDownloadAll} disabled={downloading} className="p-2 text-white/60 hover:text-white transition-colors disabled:opacity-30" title="Baixar todas as fotos">
+                {downloading ? <div className="w-[18px] h-[18px] border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <Download size={18} />}
               </button>
             )}
           </div>
