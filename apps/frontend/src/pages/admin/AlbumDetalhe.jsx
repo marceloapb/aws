@@ -622,13 +622,13 @@ export default function AlbumDetalhe() {
                   ) : tema.capa_layout === 'editorial' ? (
                     /* EDITORIAL layout */
                     <div className="flex flex-col h-full min-h-[400px]">
-                      <div className="px-8 py-6 bg-white border-b" style={{ color: '#1a1a1a' }}>
+                      <div className="px-8 py-6 bg-white border-b" style={{ color: tema.cores_capa?.texto || '#1a1a1a' }}>
                         {textoAlbum.info_negocio && textoAlbum.nome_negocio && (
-                          <p className="text-xs text-gray-400 mb-1 tracking-widest uppercase" style={{ fontFamily: tema.fonte_corpo }}>{textoAlbum.nome_negocio}</p>
+                          <p className="text-xs opacity-50 mb-1 tracking-widest uppercase" style={{ fontFamily: tema.fonte_corpo }}>{textoAlbum.nome_negocio}</p>
                         )}
                         <h1 className="text-4xl font-bold" style={{ fontFamily: tema.fonte_titulo }}>{textoAlbum.titulo || 'Título do álbum'}</h1>
                         {textoAlbum.mais_info && textoAlbum.data_evento && (
-                          <p className="text-sm text-gray-500 mt-2" style={{ fontFamily: tema.fonte_corpo }}>{textoAlbum.data_evento}</p>
+                          <p className="text-sm opacity-60 mt-2" style={{ fontFamily: tema.fonte_corpo }}>{textoAlbum.data_evento}</p>
                         )}
                       </div>
                       <div className="flex-1 overflow-hidden relative">
@@ -661,13 +661,13 @@ export default function AlbumDetalhe() {
                           {!coverImg && <div className="w-full h-full bg-gray-200" />}
                         </div>
                       </div>
-                      <div className="text-center mt-6" style={{ color: '#1a1a1a' }}>
+                      <div className="text-center mt-6" style={{ color: tema.cores_capa?.texto || '#1a1a1a' }}>
                         <h1 className="text-2xl font-bold" style={{ fontFamily: tema.fonte_titulo }}>{textoAlbum.titulo || 'Título do álbum'}</h1>
                         {textoAlbum.mais_info && textoAlbum.data_evento && (
-                          <p className="text-sm text-gray-500 mt-2" style={{ fontFamily: tema.fonte_corpo }}>{textoAlbum.data_evento}</p>
+                          <p className="text-sm opacity-60 mt-2" style={{ fontFamily: tema.fonte_corpo }}>{textoAlbum.data_evento}</p>
                         )}
                       </div>
-                      <span className="text-xs text-gray-500 mt-6 flex items-center gap-1" style={{ fontFamily: tema.fonte_corpo }}>{textoAlbum.texto_botao || 'Ver fotos'} →</span>
+                      <span className="text-xs opacity-60 mt-6 flex items-center gap-1" style={{ color: tema.cores_capa?.texto || '#1a1a1a', fontFamily: tema.fonte_corpo }}>{textoAlbum.texto_botao || 'Ver fotos'} →</span>
                     </div>
                   ) : tema.capa_layout === 'full' ? (
                     /* FULL PHOTO layout */
@@ -685,14 +685,14 @@ export default function AlbumDetalhe() {
                         {coverImg && <img src={coverImg.url || coverImg.thumbnail_url} alt="Capa" className="w-full h-full object-cover" />}
                         {!coverImg && <div className="w-full h-full bg-gray-200" />}
                       </div>
-                      <h1 className="text-3xl font-bold text-gray-900 mb-1" style={{ fontFamily: tema.fonte_titulo }}>{textoAlbum.titulo || 'Título do álbum'}</h1>
+                      <h1 className="text-3xl font-bold mb-1" style={{ fontFamily: tema.fonte_titulo, color: tema.cores_capa?.texto || '#1a1a1a' }}>{textoAlbum.titulo || 'Título do álbum'}</h1>
                       {textoAlbum.info_negocio && textoAlbum.nome_negocio && (
-                        <p className="text-xs text-gray-400 tracking-widest uppercase" style={{ fontFamily: tema.fonte_corpo }}>{textoAlbum.nome_negocio}</p>
+                        <p className="text-xs opacity-60 tracking-widest uppercase" style={{ fontFamily: tema.fonte_corpo, color: tema.cores_capa?.texto || '#1a1a1a' }}>{textoAlbum.nome_negocio}</p>
                       )}
                       {textoAlbum.mais_info && textoAlbum.data_evento && (
-                        <p className="text-sm text-gray-500 mt-2" style={{ fontFamily: tema.fonte_corpo }}>{textoAlbum.data_evento}</p>
+                        <p className="text-sm opacity-60 mt-2" style={{ fontFamily: tema.fonte_corpo, color: tema.cores_capa?.texto || '#1a1a1a' }}>{textoAlbum.data_evento}</p>
                       )}
-                      <span className="text-xs text-gray-500 mt-8 flex items-center gap-1" style={{ fontFamily: tema.fonte_corpo }}>{textoAlbum.texto_botao || 'Ver fotos'} →</span>
+                      <span className="text-xs opacity-60 mt-8 flex items-center gap-1" style={{ fontFamily: tema.fonte_corpo, color: tema.cores_capa?.texto || '#1a1a1a' }}>{textoAlbum.texto_botao || 'Ver fotos'} →</span>
                     </div>
                   ) : (
                     /* ELEGANTE / OUSADO (default) */
