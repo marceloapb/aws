@@ -7,7 +7,7 @@ const { dynamo, TABLE } = require('../config/dynamodb');
 const { GetCommand, PutCommand } = require('@aws-sdk/lib-dynamodb');
 
 const router = Router();
-const TENANT = 'TENANT#1';
+const TENANT = process.env.TENANT_ID || 'default';
 const VALID_TIPOS = ['home', 'sobre', 'contato'];
 
 // ─── PUT /config — Atualizar configuração do site ───────────
@@ -37,7 +37,7 @@ router.put('/config', async (req, res) => {
     const now = new Date().toISOString();
 
     const item = {
-      PK: TENANT,
+      PK: `TENANT#${TENANT}`,
       SK: 'CONFIG#SITE',
       logo_url: logo_url || '',
       logo_dark_url: logo_dark_url || '',
@@ -61,7 +61,7 @@ router.get('/config', async (req, res) => {
   try {
     const result = await dynamo.send(new GetCommand({
       TableName: TABLE,
-      Key: { PK: TENANT, SK: 'CONFIG#SITE' },
+      Key: { PK: `TENANT#${TENANT}`, SK: 'CONFIG#SITE' },
     }));
 
     if (!result.Item) {
@@ -86,7 +86,7 @@ router.get('/paginas/:tipo', async (req, res) => {
 
     const result = await dynamo.send(new GetCommand({
       TableName: TABLE,
-      Key: { PK: TENANT, SK: `PAGE#${tipo}` },
+      Key: { PK: `TENANT#${TENANT}`, SK: `PAGE#${tipo}` },
     }));
 
     if (!result.Item) {
@@ -125,7 +125,7 @@ router.put('/paginas/:tipo', async (req, res) => {
     const now = new Date().toISOString();
 
     const item = {
-      PK: TENANT,
+      PK: `TENANT#${TENANT}`,
       SK: `PAGE#${tipo}`,
       tipo,
       blocos,

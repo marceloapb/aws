@@ -246,7 +246,7 @@ router.get('/portfolio', async (req, res) => {
       TableName: TABLE_NAME,
       KeyConditionExpression: 'PK = :pk AND begins_with(SK, :sk)',
       ExpressionAttributeValues: {
-        ':pk': 'TENANT#1',
+        ':pk': `TENANT#${process.env.TENANT_ID || 'default'}`,
         ':sk': 'CATPORTFOLIO#',
       },
     }));
@@ -262,7 +262,7 @@ router.get('/portfolio', async (req, res) => {
           TableName: TABLE_NAME,
           KeyConditionExpression: 'PK = :pk AND begins_with(SK, :sk)',
           ExpressionAttributeValues: {
-            ':pk': 'TENANT#1',
+            ':pk': `TENANT#${process.env.TENANT_ID || 'default'}`,
             ':sk': `FOTOPORT#${cat.id}#`,
           },
         }));

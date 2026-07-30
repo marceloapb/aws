@@ -35,7 +35,7 @@ async function deletarFotosCategoria(categoriaId) {
     TableName: TABLE,
     KeyConditionExpression: 'PK = :pk AND begins_with(SK, :sk)',
     ExpressionAttributeValues: {
-      ':pk': 'TENANT#1',
+      ':pk': `TENANT#${process.env.TENANT_ID || 'default'}`,
       ':sk': `FOTOPORT#${categoriaId}#`,
     },
   }));
@@ -99,7 +99,7 @@ async function processarFotoPortfolio(s3Key, fotoId, categoriaId) {
   await dynamo.send(new UpdateCommand({
     TableName: TABLE,
     Key: {
-      PK: 'TENANT#1',
+      PK: `TENANT#${process.env.TENANT_ID || 'default'}`,
       SK: `FOTOPORT#${categoriaId}#${fotoId}`,
     },
     UpdateExpression: 'SET #status = :status, processadoEm = :now',

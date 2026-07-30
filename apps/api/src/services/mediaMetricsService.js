@@ -28,7 +28,7 @@ async function getStorageMetrics(contexto) {
   let totalFiles = 0;
   let continuationToken = undefined;
 
-  const TENANT = process.env.TENANT_ID || '3438a468-a031-7040-2d21-abc059a80915';
+  const TENANT = process.env.TENANT_ID || 'default';
 
   // Map contexto to S3 prefix (estrutura real do bucket)
   const prefixMap = {

@@ -30,7 +30,7 @@ const DEFAULTS = {
 // GET /admin/album/config — retorna config ou defaults
 router.get('/', async (req, res) => {
   try {
-    const tenantId = req.tenantId || '1';
+    const tenantId = req.tenantId || 'default';
     const result = await dynamo.send(new GetCommand({
       TableName: TABLE,
       Key: { PK: `TENANT#${tenantId}`, SK: 'CONFIG#ALBUM' },
@@ -49,7 +49,7 @@ router.get('/', async (req, res) => {
 // PUT /admin/album/config — valida e grava config
 router.put('/', async (req, res) => {
   try {
-    const tenantId = req.tenantId || '1';
+    const tenantId = req.tenantId || 'default';
     const body = req.body;
 
     // Validações

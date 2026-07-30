@@ -45,7 +45,7 @@ router.post('/', async (req, res) => {
     }
 
     // Buscar config global do tenant
-    const tenantId = album.tenant_id || '1';
+    const tenantId = album.tenant_id || 'default';
     const configResult = await dynamo.send(new GetCommand({
       TableName: TABLE,
       Key: { PK: `TENANT#${tenantId}`, SK: 'CONFIG#ALBUM' },

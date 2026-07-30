@@ -7,7 +7,7 @@ const { dynamo, TABLE } = require('../config/dynamodb');
 const { QueryCommand, ScanCommand } = require('@aws-sdk/lib-dynamodb');
 
 const router = Router();
-const TENANT = 'TENANT#1';
+const TENANT = process.env.TENANT_ID || 'default';
 
 // ─── GET / — Listar posts publicados ────────────────────────
 
@@ -27,7 +27,7 @@ router.get('/', async (req, res) => {
         FilterExpression: 'PK = :pk AND begins_with(SK, :sk) AND #s = :status AND contains(titulo, :q)',
         ExpressionAttributeNames: { '#s': 'status' },
         ExpressionAttributeValues: {
-          ':pk': TENANT,
+          ':pk': `TENANT#${TENANT}`,
           ':sk': 'NOVIDADE#',
           ':status': 'publicado',
           ':q': q,
@@ -56,7 +56,7 @@ router.get('/', async (req, res) => {
         FilterExpression: '#s = :status',
         ExpressionAttributeNames: { '#s': 'status' },
         ExpressionAttributeValues: {
-          ':pk': TENANT,
+          ':pk': `TENANT#${TENANT}`,
           ':sk': 'NOVIDADE#',
           ':status': 'publicado',
         },
@@ -112,7 +112,7 @@ router.get('/:slug', async (req, res) => {
       IndexName: 'GSI1',
       KeyConditionExpression: 'GSI1PK = :pk AND GSI1SK = :sk',
       ExpressionAttributeValues: {
-        ':pk': TENANT,
+        ':pk': `TENANT#${TENANT}`,
         ':sk': `SLUG#${slug}`,
       },
     }));

@@ -13,7 +13,7 @@ router.post('/upload-url', async (req, res) => {
     const { albumId, contentType, filename } = req.body;
     if (!albumId || !contentType) return res.status(400).json({ success: false, message: 'albumId e contentType são obrigatórios' });
 
-    const tenant_id = req.tenantId || '1';
+    const tenant_id = req.tenantId || 'default';
     const ext = contentType.split('/')[1] || 'jpg';
     const name = filename || `foto.${ext}`;
 
@@ -38,7 +38,7 @@ router.post('/confirmar', async (req, res) => {
     const { albumId, fotoId, key, contentType } = req.body;
     if (!albumId || !fotoId || !key) return res.status(400).json({ success: false, message: 'albumId, fotoId e key são obrigatórios' });
 
-    const tenant_id = req.tenantId || '1';
+    const tenant_id = req.tenantId || 'default';
     const id = fotoId;
     const now = new Date().toISOString();
 

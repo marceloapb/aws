@@ -7,7 +7,7 @@ const { dynamo, TABLE } = require('../config/dynamodb');
 const { GetCommand, QueryCommand } = require('@aws-sdk/lib-dynamodb');
 
 const router = Router();
-const TENANT = 'TENANT#1';
+const TENANT = process.env.TENANT_ID || 'default';
 const VALID_TIPOS = ['home', 'sobre', 'contato'];
 const BASE_URL = 'https://www.mbfoto.com.br';
 
@@ -18,17 +18,17 @@ router.get('/config', async (req, res) => {
     const [siteResult, faviconResult] = await Promise.all([
       dynamo.send(new GetCommand({
         TableName: TABLE,
-        Key: { PK: TENANT, SK: 'CONFIG#SITE' },
+        Key: { PK: `TENANT#${TENANT}`, SK: 'CONFIG#SITE' },
       })),
       dynamo.send(new GetCommand({
         TableName: TABLE,
-        Key: { PK: TENANT, SK: 'CONFIG#faviconKey' },
+        Key: { PK: `TENANT#${TENANT}`, SK: 'CONFIG#faviconKey' },
       })).catch(() => ({ Item: null })),
     ]);
 
     // Fallback: also check TENANT#default if TENANT is different
     let faviconKey = faviconResult.Item?.valor;
-    if (!faviconKey && TENANT !== 'TENANT#default') {
+    if (!faviconKey && TENANT !== 'default') {
       try {
         const fallback = await dynamo.send(new GetCommand({
           TableName: TABLE,
@@ -150,7 +150,7 @@ router.get('/paginas/:tipo', async (req, res) => {
 
     const result = await dynamo.send(new GetCommand({
       TableName: TABLE,
-      Key: { PK: TENANT, SK: `PAGE#${tipo}` },
+      Key: { PK: `TENANT#${TENANT}`, SK: `PAGE#${tipo}` },
     }));
 
     if (!result.Item) {
@@ -189,7 +189,7 @@ router.get('/sitemap.xml', async (req, res) => {
       FilterExpression: '#s = :status',
       ExpressionAttributeNames: { '#s': 'status' },
       ExpressionAttributeValues: {
-        ':pk': TENANT,
+        ':pk': `TENANT#${TENANT}`,
         ':sk': 'NOVIDADE#',
         ':status': 'publicado',
       },
@@ -207,7 +207,7 @@ router.get('/sitemap.xml', async (req, res) => {
       TableName: TABLE,
       KeyConditionExpression: 'PK = :pk AND begins_with(SK, :sk)',
       ExpressionAttributeValues: {
-        ':pk': TENANT,
+        ':pk': `TENANT#${TENANT}`,
         ':sk': 'CATPORTFOLIO#',
       },
     }));

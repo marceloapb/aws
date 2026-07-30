@@ -1,4 +1,4 @@
-const TENANT = (id = '1') => `TENANT#${id}`;
+const TENANT = (id = 'default') => `TENANT#${id}`;
 const PHOTOGRAPHER = (id) => `PHOTOGRAPHER#${id}`;
 const CONFIG = () => 'CONFIG';
 const CLIENTE = (id) => `CLIENTE#${id}`;

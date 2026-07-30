@@ -197,7 +197,7 @@ router.post('/', async (req, res) => {
     const item = {
       ...req.body,
       id,
-      PK: clienteId ? `CLIENTE#${clienteId}` : `TENANT#1`,
+      PK: clienteId ? `CLIENTE#${clienteId}` : `TENANT#${process.env.TENANT_ID || 'default'}`,
       SK: `ALBUM#${id}`,
       GSI1PK: 'ALBUM',
       GSI1SK: `ALBUM#${id}`,
@@ -433,7 +433,7 @@ router.post('/:id/despublicar', async (req, res) => {
 router.post('/:id/reprocessar', async (req, res) => {
   try {
     const albumId = req.params.id;
-    const tenant_id = req.tenantId || '1';
+    const tenant_id = req.tenantId || 'default';
     const QUEUE_URL = process.env.MEDIA_QUEUE_URL;
     if (!QUEUE_URL) return res.status(400).json({ success: false, message: 'MEDIA_QUEUE_URL não configurada' });
 
@@ -490,7 +490,7 @@ router.post('/:id/upload-urls', async (req, res) => {
     }
 
     const MAX_SIZE = 30 * 1024 * 1024; // 30MB
-    const tenant_id = req.tenantId || '1';
+    const tenant_id = req.tenantId || 'default';
     const albumId = req.params.id;
 
     const results = [];
@@ -526,7 +526,7 @@ router.post('/:id/fotos/confirmar-batch', async (req, res) => {
   try {
     const { fotos, galeria_id } = req.body;
     const albumId = req.params.id;
-    const tenant_id = req.tenantId || '1';
+    const tenant_id = req.tenantId || 'default';
 
     if (!Array.isArray(fotos) || fotos.length === 0) {
       return res.status(400).json({ success: false, message: 'fotos é obrigatório (array de {foto_id, key, content_type})' });

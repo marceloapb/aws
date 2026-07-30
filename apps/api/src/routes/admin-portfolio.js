@@ -14,8 +14,8 @@ const sqs = new SQSClient({});
 const BUCKET = process.env.S3_BUCKET_NAME;
 const PUBLIC_BUCKET = process.env.MEDIA_PUBLIC_BUCKET || process.env.S3_BUCKET_NAME;
 const CDN_DOMAIN = process.env.CDN_DOMAIN || '';
-const TENANT_ID = '1';
-const PK_TENANT = 'TENANT#1';
+const TENANT_ID = process.env.TENANT_ID || 'default';
+const PK_TENANT = `TENANT#${TENANT_ID}`;
 
 // ─────────────────────────────────────────────────────────────
 // CATEGORIAS

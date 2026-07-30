@@ -11,7 +11,7 @@ const { getSignedUrl } = require('@aws-sdk/s3-request-presigner');
 const { slugify } = require('../utils/slugify');
 
 const router = Router();
-const TENANT = 'TENANT#1';
+const TENANT = process.env.TENANT_ID || 'default';
 const s3 = new S3Client({});
 const BUCKET = process.env.S3_BUCKET_NAME;
 const CDN_BASE_URL = process.env.CDN_BASE_URL || '';
@@ -23,7 +23,7 @@ async function checkSlugExists(slug) {
     TableName: TABLE,
     IndexName: 'GSI1',
     KeyConditionExpression: 'GSI1PK = :pk AND GSI1SK = :sk',
-    ExpressionAttributeValues: { ':pk': TENANT, ':sk': `SLUG#${slug}` },
+    ExpressionAttributeValues: { ':pk': `TENANT#${TENANT}`, ':sk': `SLUG#${slug}` },
   }));
   return (result.Items && result.Items.length > 0);
 }
@@ -67,9 +67,9 @@ router.post('/', async (req, res) => {
     const now = new Date().toISOString();
 
     const item = {
-      PK: TENANT,
+      PK: `TENANT#${TENANT}`,
       SK: `NOVIDADE#${id}`,
-      GSI1PK: TENANT,
+      GSI1PK: `TENANT#${TENANT}`,
       GSI1SK: `SLUG#${slug}`,
       id,
       titulo: titulo.trim(),
@@ -105,7 +105,7 @@ router.get('/', async (req, res) => {
     const params = {
       TableName: TABLE,
       KeyConditionExpression: 'PK = :pk AND begins_with(SK, :sk)',
-      ExpressionAttributeValues: { ':pk': TENANT, ':sk': 'NOVIDADE#' },
+      ExpressionAttributeValues: { ':pk': `TENANT#${TENANT}`, ':sk': 'NOVIDADE#' },
       Limit: limit,
       ScanIndexForward: false,
     };
@@ -145,7 +145,7 @@ router.get('/busca', async (req, res) => {
       TableName: TABLE,
       FilterExpression: 'PK = :pk AND begins_with(SK, :sk) AND contains(titulo, :q)',
       ExpressionAttributeValues: {
-        ':pk': TENANT,
+        ':pk': `TENANT#${TENANT}`,
         ':sk': 'NOVIDADE#',
         ':q': q.trim(),
       },
@@ -204,7 +204,7 @@ router.get('/:id', async (req, res) => {
   try {
     const result = await dynamo.send(new GetCommand({
       TableName: TABLE,
-      Key: { PK: TENANT, SK: `NOVIDADE#${req.params.id}` },
+      Key: { PK: `TENANT#${TENANT}`, SK: `NOVIDADE#${req.params.id}` },
     }));
 
     if (!result.Item) {
@@ -227,7 +227,7 @@ router.put('/:id', async (req, res) => {
     // Buscar post atual
     const existing = await dynamo.send(new GetCommand({
       TableName: TABLE,
-      Key: { PK: TENANT, SK: `NOVIDADE#${id}` },
+      Key: { PK: `TENANT#${TENANT}`, SK: `NOVIDADE#${id}` },
     }));
 
     if (!existing.Item) {
@@ -273,7 +273,7 @@ router.put('/:id', async (req, res) => {
 
     const result = await dynamo.send(new UpdateCommand({
       TableName: TABLE,
-      Key: { PK: TENANT, SK: `NOVIDADE#${id}` },
+      Key: { PK: `TENANT#${TENANT}`, SK: `NOVIDADE#${id}` },
       UpdateExpression: expr,
       ExpressionAttributeNames: names,
       ExpressionAttributeValues: vals,
@@ -308,7 +308,7 @@ router.post('/:id/agendar', async (req, res) => {
     // Verificar se post existe e está em rascunho
     const existing = await dynamo.send(new GetCommand({
       TableName: TABLE,
-      Key: { PK: TENANT, SK: `NOVIDADE#${id}` },
+      Key: { PK: `TENANT#${TENANT}`, SK: `NOVIDADE#${id}` },
     }));
 
     if (!existing.Item) {
@@ -322,7 +322,7 @@ router.post('/:id/agendar', async (req, res) => {
 
     await dynamo.send(new UpdateCommand({
       TableName: TABLE,
-      Key: { PK: TENANT, SK: `NOVIDADE#${id}` },
+      Key: { PK: `TENANT#${TENANT}`, SK: `NOVIDADE#${id}` },
       UpdateExpression: 'SET agendado_para = :ap, atualizado_em = :now',
       ExpressionAttributeValues: {
         ':ap': agendado_para,
@@ -351,7 +351,7 @@ router.delete('/:id', async (req, res) => {
     // Verificar se existe
     const existing = await dynamo.send(new GetCommand({
       TableName: TABLE,
-      Key: { PK: TENANT, SK: `NOVIDADE#${id}` },
+      Key: { PK: `TENANT#${TENANT}`, SK: `NOVIDADE#${id}` },
     }));
 
     if (!existing.Item) {
@@ -360,7 +360,7 @@ router.delete('/:id', async (req, res) => {
 
     await dynamo.send(new DeleteCommand({
       TableName: TABLE,
-      Key: { PK: TENANT, SK: `NOVIDADE#${id}` },
+      Key: { PK: `TENANT#${TENANT}`, SK: `NOVIDADE#${id}` },
     }));
 
     res.json({ success: true, message: 'Post excluído com sucesso' });

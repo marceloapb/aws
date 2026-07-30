@@ -534,7 +534,7 @@ router.post('/feedback', async (req, res) => {
     await dynamo.send(new PutCommand({
       TableName: TABLE,
       Item: {
-        PK: 'TENANT#1',
+        PK: `TENANT#${process.env.TENANT_ID || 'default'}`,
         SK: `FEEDBACK#${feedbackId}`,
         GSI1PK: 'FEEDBACK',
         GSI1SK: `FEEDBACK#${now}`,
