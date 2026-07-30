@@ -28,13 +28,14 @@ const LAYOUT_OPTIONS = [
 ];
 
 const CAPA_LAYOUTS = [
-  { id: 'elegante', label: 'Elegante', desc: 'Foto escura com texto centralizado embaixo' },
-  { id: 'ousado', label: 'Ousado', desc: 'Foto grande com texto bold sobreposto' },
-  { id: 'jovial', label: 'Jovial', desc: 'Cores vibrantes com cantos arredondados' },
-  { id: 'classico', label: 'Clássico', desc: 'Layout tradicional com borda fina' },
-  { id: 'minimalista', label: 'Minimalista', desc: 'Fundo branco com foto menor' },
-  { id: 'atemporal', label: 'Atemporal', desc: 'Estilo cinematográfico widescreen' },
-  { id: 'moderno', label: 'Moderno', desc: 'Texto grande no topo, foto abaixo' },
+  { id: 'elegante', label: 'Elegante', desc: 'Texto embaixo com gradiente suave' },
+  { id: 'ousado', label: 'Ousado', desc: 'Texto enorme centralizado sobre a foto' },
+  { id: 'split', label: 'Dividido', desc: 'Foto à esquerda, texto à direita' },
+  { id: 'editorial', label: 'Editorial', desc: 'Barra superior com título, foto em destaque' },
+  { id: 'minimalista', label: 'Minimalista', desc: 'Fundo claro, foto pequena centrada' },
+  { id: 'cinematico', label: 'Cinematográfico', desc: 'Widescreen com barras pretas e texto fino' },
+  { id: 'moldura', label: 'Moldura', desc: 'Foto com borda/moldura decorativa e texto abaixo' },
+  { id: 'full', label: 'Foto Total', desc: 'Só a foto, sem texto até scroll' },
 ];
 
 const SCROLL_EFFECTS = [
@@ -395,16 +396,49 @@ export default function AlbumDetalhe() {
                         <button key={layout.id} onClick={() => updateTema({ capa_layout: layout.id })}
                           className={`w-full text-left rounded-lg border-2 overflow-hidden transition ${tema.capa_layout === layout.id ? 'border-blue-500' : 'border-gray-200 hover:border-gray-300'}`}>
                           {/* Mini preview of capa layout */}
-                          <div className="relative h-24 bg-gray-900">
-                            {coverImg && <img src={coverImg.thumbnail_url || coverImg.url} alt="" className="w-full h-full object-cover opacity-50" />}
-                            <div className="absolute inset-0 flex flex-col justify-end p-3" style={{ color: '#fff' }}>
-                              {layout.id !== 'minimalista' && <p className="text-[8px] opacity-60 uppercase tracking-wider">{textoAlbum.nome_negocio || 'Fotógrafo'}</p>}
-                              <p className={`font-bold ${layout.id === 'ousado' ? 'text-lg' : layout.id === 'moderno' ? 'text-base' : 'text-sm'}`} style={{ fontFamily: tema.fonte_titulo }}>{textoAlbum.titulo || 'Título'}</p>
-                              {layout.id !== 'moderno' && <p className="text-[8px] opacity-60">{textoAlbum.data_evento || '01/01/2026'}</p>}
-                            </div>
+                          <div className={`relative h-24 ${layout.id === 'minimalista' ? 'bg-gray-50' : layout.id === 'cinematico' ? 'bg-black' : 'bg-gray-900'}`}>
+                            {layout.id === 'split' ? (
+                              <div className="flex h-full">
+                                <div className="w-1/2 h-full overflow-hidden">{coverImg && <img src={coverImg.thumbnail_url || coverImg.url} alt="" className="w-full h-full object-cover" />}</div>
+                                <div className="w-1/2 flex flex-col justify-center px-3 bg-gray-900"><p className="text-[8px] text-white opacity-60 uppercase tracking-wider">{textoAlbum.nome_negocio || 'Fotógrafo'}</p><p className="text-xs font-bold text-white" style={{ fontFamily: tema.fonte_titulo }}>{textoAlbum.titulo || 'Título'}</p></div>
+                              </div>
+                            ) : layout.id === 'editorial' ? (
+                              <div className="flex flex-col h-full">
+                                <div className="px-3 py-2 bg-white border-b"><p className="text-xs font-bold text-gray-900" style={{ fontFamily: tema.fonte_titulo }}>{textoAlbum.titulo || 'Título'}</p><p className="text-[8px] text-gray-500">{textoAlbum.data_evento || '01/01/2026'}</p></div>
+                                <div className="flex-1 overflow-hidden">{coverImg && <img src={coverImg.thumbnail_url || coverImg.url} alt="" className="w-full h-full object-cover" />}</div>
+                              </div>
+                            ) : layout.id === 'cinematico' ? (
+                              <div className="flex flex-col h-full">
+                                <div className="h-3 bg-black" />
+                                <div className="flex-1 relative overflow-hidden">{coverImg && <img src={coverImg.thumbnail_url || coverImg.url} alt="" className="w-full h-full object-cover opacity-70" />}<div className="absolute bottom-1 left-3"><p className="text-[9px] text-white tracking-[0.3em] uppercase opacity-80">{textoAlbum.titulo || 'Título'}</p></div></div>
+                                <div className="h-3 bg-black" />
+                              </div>
+                            ) : layout.id === 'moldura' ? (
+                              <div className="flex flex-col items-center justify-center h-full bg-gray-100 p-2">
+                                <div className="w-16 h-12 border-2 border-gray-400 p-0.5 overflow-hidden">{coverImg && <img src={coverImg.thumbnail_url || coverImg.url} alt="" className="w-full h-full object-cover" />}</div>
+                                <p className="text-[8px] font-bold text-gray-700 mt-1" style={{ fontFamily: tema.fonte_titulo }}>{textoAlbum.titulo || 'Título'}</p>
+                              </div>
+                            ) : layout.id === 'full' ? (
+                              <div className="h-full overflow-hidden">{coverImg && <img src={coverImg.thumbnail_url || coverImg.url} alt="" className="w-full h-full object-cover" />}{!coverImg && <div className="w-full h-full bg-gray-800" />}</div>
+                            ) : layout.id === 'minimalista' ? (
+                              <div className="flex flex-col items-center justify-center h-full bg-gray-50 p-3">
+                                <div className="w-14 h-10 rounded overflow-hidden shadow-sm mb-1">{coverImg && <img src={coverImg.thumbnail_url || coverImg.url} alt="" className="w-full h-full object-cover" />}</div>
+                                <p className="text-[9px] font-bold text-gray-800" style={{ fontFamily: tema.fonte_titulo }}>{textoAlbum.titulo || 'Título'}</p>
+                                <p className="text-[7px] text-gray-400">{textoAlbum.data_evento || '01/01/2026'}</p>
+                              </div>
+                            ) : (
+                              <>
+                                {coverImg && <img src={coverImg.thumbnail_url || coverImg.url} alt="" className="w-full h-full object-cover opacity-50" />}
+                                <div className={`absolute inset-0 flex flex-col p-3 ${layout.id === 'ousado' ? 'justify-center items-center text-center' : 'justify-end'}`} style={{ color: '#fff' }}>
+                                  <p className="text-[8px] opacity-60 uppercase tracking-wider">{textoAlbum.nome_negocio || 'Fotógrafo'}</p>
+                                  <p className={`font-bold ${layout.id === 'ousado' ? 'text-lg' : 'text-sm'}`} style={{ fontFamily: tema.fonte_titulo }}>{textoAlbum.titulo || 'Título'}</p>
+                                  <p className="text-[8px] opacity-60">{textoAlbum.data_evento || '01/01/2026'}</p>
+                                </div>
+                              </>
+                            )}
                             {tema.capa_layout === layout.id && <div className="absolute top-2 right-2"><CheckCircle2 size={16} className="text-blue-400" /></div>}
                           </div>
-                          <div className="px-3 py-1.5 bg-white"><span className="text-xs font-medium text-gray-700">{layout.label}</span></div>
+                          <div className="px-3 py-1.5 bg-white"><span className="text-xs font-medium text-gray-700">{layout.label}</span><span className="text-[10px] text-gray-400 ml-1">— {layout.desc}</span></div>
                         </button>
                       ))}
                     </div>
@@ -566,29 +600,124 @@ export default function AlbumDetalhe() {
             <div className="flex-1 overflow-y-auto">
               {/* === CAPA PREVIEW === */}
               {previewMode === 'capa' && (
-                <div className="relative w-full h-full min-h-[400px]" style={{ backgroundColor: tema.cores_capa?.overlay || '#121212' }}>
-                  {coverImg && <img src={coverImg.url || coverImg.thumbnail_url} alt="Capa" className="absolute inset-0 w-full h-full object-cover opacity-50" />}
-                  <div className="absolute inset-0" style={{ backgroundColor: (tema.cores_capa?.overlay || '#121212') + '80' }} />
-                  <div className={`absolute inset-0 flex flex-col p-8 ${
-                    tema.capa_layout === 'minimalista' ? 'justify-center items-start bg-white/90' :
-                    tema.capa_layout === 'moderno' ? 'justify-start items-start pt-16' :
-                    tema.capa_layout === 'ousado' ? 'justify-center items-center text-center' :
-                    'justify-end'
-                  }`} style={{ color: tema.capa_layout === 'minimalista' ? '#1a1a1a' : (tema.cores_capa?.texto || '#FFFFFF') }}>
-                    {textoAlbum.info_negocio && textoAlbum.nome_negocio && (
-                      <p className="text-xs opacity-70 mb-2 tracking-widest uppercase" style={{ fontFamily: tema.fonte_corpo }}>{textoAlbum.nome_negocio}</p>
-                    )}
-                    <h1 className={`font-bold mb-1 ${tema.capa_layout === 'ousado' ? 'text-5xl' : tema.capa_layout === 'moderno' ? 'text-4xl' : 'text-3xl'}`} style={{ fontFamily: tema.fonte_titulo }}>
-                      {textoAlbum.titulo || 'Título do álbum'}
-                    </h1>
-                    {textoAlbum.mais_info && textoAlbum.data_evento && (
-                      <p className="text-sm opacity-70 mt-1" style={{ fontFamily: tema.fonte_corpo }}>{textoAlbum.data_evento}</p>
-                    )}
-                    <div className="flex items-center justify-between w-full mt-6">
-                      <div />
-                      <span className="text-xs opacity-70 flex items-center gap-1" style={{ fontFamily: tema.fonte_corpo }}>{textoAlbum.texto_botao || 'Ver fotos'} →</span>
+                <div className="relative w-full h-full min-h-[400px]" style={{ backgroundColor: tema.capa_layout === 'minimalista' ? '#f9fafb' : tema.capa_layout === 'moldura' ? '#f3f4f6' : (tema.cores_capa?.overlay || '#121212') }}>
+                  {/* SPLIT layout */}
+                  {tema.capa_layout === 'split' ? (
+                    <div className="flex h-full min-h-[400px]">
+                      <div className="w-1/2 h-full overflow-hidden">
+                        {coverImg && <img src={coverImg.url || coverImg.thumbnail_url} alt="Capa" className="w-full h-full object-cover" />}
+                        {!coverImg && <div className="w-full h-full bg-gray-700" />}
+                      </div>
+                      <div className="w-1/2 flex flex-col justify-center px-8" style={{ backgroundColor: tema.cores_capa?.overlay || '#121212', color: tema.cores_capa?.texto || '#FFFFFF' }}>
+                        {textoAlbum.info_negocio && textoAlbum.nome_negocio && (
+                          <p className="text-xs opacity-70 mb-3 tracking-widest uppercase" style={{ fontFamily: tema.fonte_corpo }}>{textoAlbum.nome_negocio}</p>
+                        )}
+                        <h1 className="text-3xl font-bold mb-2" style={{ fontFamily: tema.fonte_titulo }}>{textoAlbum.titulo || 'Título do álbum'}</h1>
+                        {textoAlbum.mais_info && textoAlbum.data_evento && (
+                          <p className="text-sm opacity-70 mt-2" style={{ fontFamily: tema.fonte_corpo }}>{textoAlbum.data_evento}</p>
+                        )}
+                        <span className="text-xs opacity-70 mt-6 flex items-center gap-1" style={{ fontFamily: tema.fonte_corpo }}>{textoAlbum.texto_botao || 'Ver fotos'} →</span>
+                      </div>
                     </div>
-                  </div>
+                  ) : tema.capa_layout === 'editorial' ? (
+                    /* EDITORIAL layout */
+                    <div className="flex flex-col h-full min-h-[400px]">
+                      <div className="px-8 py-6 bg-white border-b" style={{ color: '#1a1a1a' }}>
+                        {textoAlbum.info_negocio && textoAlbum.nome_negocio && (
+                          <p className="text-xs text-gray-400 mb-1 tracking-widest uppercase" style={{ fontFamily: tema.fonte_corpo }}>{textoAlbum.nome_negocio}</p>
+                        )}
+                        <h1 className="text-4xl font-bold" style={{ fontFamily: tema.fonte_titulo }}>{textoAlbum.titulo || 'Título do álbum'}</h1>
+                        {textoAlbum.mais_info && textoAlbum.data_evento && (
+                          <p className="text-sm text-gray-500 mt-2" style={{ fontFamily: tema.fonte_corpo }}>{textoAlbum.data_evento}</p>
+                        )}
+                      </div>
+                      <div className="flex-1 overflow-hidden relative">
+                        {coverImg && <img src={coverImg.url || coverImg.thumbnail_url} alt="Capa" className="w-full h-full object-cover" />}
+                        {!coverImg && <div className="w-full h-full bg-gray-200" />}
+                      </div>
+                    </div>
+                  ) : tema.capa_layout === 'cinematico' ? (
+                    /* CINEMATOGRÁFICO layout */
+                    <div className="flex flex-col h-full min-h-[400px] bg-black">
+                      <div className="h-12 bg-black" />
+                      <div className="flex-1 relative overflow-hidden">
+                        {coverImg && <img src={coverImg.url || coverImg.thumbnail_url} alt="Capa" className="w-full h-full object-cover opacity-80" />}
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+                        <div className="absolute bottom-6 left-8 right-8" style={{ color: tema.cores_capa?.texto || '#FFFFFF' }}>
+                          <h1 className="text-2xl tracking-[0.2em] uppercase font-light" style={{ fontFamily: tema.fonte_titulo }}>{textoAlbum.titulo || 'Título do álbum'}</h1>
+                          {textoAlbum.mais_info && textoAlbum.data_evento && (
+                            <p className="text-xs opacity-60 mt-2 tracking-wider" style={{ fontFamily: tema.fonte_corpo }}>{textoAlbum.data_evento}</p>
+                          )}
+                        </div>
+                      </div>
+                      <div className="h-12 bg-black" />
+                    </div>
+                  ) : tema.capa_layout === 'moldura' ? (
+                    /* MOLDURA layout */
+                    <div className="flex flex-col items-center justify-center h-full min-h-[400px] p-12 bg-gray-100">
+                      <div className="border-4 border-gray-300 p-2 shadow-lg bg-white" style={{ borderColor: tema.cores_capa?.overlay || '#d1d5db' }}>
+                        <div className="w-64 h-48 overflow-hidden">
+                          {coverImg && <img src={coverImg.url || coverImg.thumbnail_url} alt="Capa" className="w-full h-full object-cover" />}
+                          {!coverImg && <div className="w-full h-full bg-gray-200" />}
+                        </div>
+                      </div>
+                      <div className="text-center mt-6" style={{ color: '#1a1a1a' }}>
+                        <h1 className="text-2xl font-bold" style={{ fontFamily: tema.fonte_titulo }}>{textoAlbum.titulo || 'Título do álbum'}</h1>
+                        {textoAlbum.mais_info && textoAlbum.data_evento && (
+                          <p className="text-sm text-gray-500 mt-2" style={{ fontFamily: tema.fonte_corpo }}>{textoAlbum.data_evento}</p>
+                        )}
+                      </div>
+                      <span className="text-xs text-gray-500 mt-6 flex items-center gap-1" style={{ fontFamily: tema.fonte_corpo }}>{textoAlbum.texto_botao || 'Ver fotos'} →</span>
+                    </div>
+                  ) : tema.capa_layout === 'full' ? (
+                    /* FULL PHOTO layout */
+                    <div className="relative w-full h-full min-h-[400px]">
+                      {coverImg && <img src={coverImg.url || coverImg.thumbnail_url} alt="Capa" className="w-full h-full object-cover" />}
+                      {!coverImg && <div className="w-full h-full bg-gray-800" />}
+                      <div className="absolute bottom-4 right-4 opacity-50">
+                        <span className="text-xs text-white bg-black/40 px-2 py-1 rounded" style={{ fontFamily: tema.fonte_corpo }}>↓ scroll</span>
+                      </div>
+                    </div>
+                  ) : tema.capa_layout === 'minimalista' ? (
+                    /* MINIMALISTA layout */
+                    <div className="flex flex-col items-center justify-center h-full min-h-[400px] p-8 bg-gray-50">
+                      <div className="w-48 h-36 rounded-lg overflow-hidden shadow-md mb-6">
+                        {coverImg && <img src={coverImg.url || coverImg.thumbnail_url} alt="Capa" className="w-full h-full object-cover" />}
+                        {!coverImg && <div className="w-full h-full bg-gray-200" />}
+                      </div>
+                      <h1 className="text-3xl font-bold text-gray-900 mb-1" style={{ fontFamily: tema.fonte_titulo }}>{textoAlbum.titulo || 'Título do álbum'}</h1>
+                      {textoAlbum.info_negocio && textoAlbum.nome_negocio && (
+                        <p className="text-xs text-gray-400 tracking-widest uppercase" style={{ fontFamily: tema.fonte_corpo }}>{textoAlbum.nome_negocio}</p>
+                      )}
+                      {textoAlbum.mais_info && textoAlbum.data_evento && (
+                        <p className="text-sm text-gray-500 mt-2" style={{ fontFamily: tema.fonte_corpo }}>{textoAlbum.data_evento}</p>
+                      )}
+                      <span className="text-xs text-gray-500 mt-8 flex items-center gap-1" style={{ fontFamily: tema.fonte_corpo }}>{textoAlbum.texto_botao || 'Ver fotos'} →</span>
+                    </div>
+                  ) : (
+                    /* ELEGANTE / OUSADO (default) */
+                    <>
+                      {coverImg && <img src={coverImg.url || coverImg.thumbnail_url} alt="Capa" className="absolute inset-0 w-full h-full object-cover opacity-50" />}
+                      <div className="absolute inset-0" style={{ backgroundColor: (tema.cores_capa?.overlay || '#121212') + '80' }} />
+                      <div className={`absolute inset-0 flex flex-col p-8 ${
+                        tema.capa_layout === 'ousado' ? 'justify-center items-center text-center' : 'justify-end'
+                      }`} style={{ color: tema.cores_capa?.texto || '#FFFFFF' }}>
+                        {textoAlbum.info_negocio && textoAlbum.nome_negocio && (
+                          <p className="text-xs opacity-70 mb-2 tracking-widest uppercase" style={{ fontFamily: tema.fonte_corpo }}>{textoAlbum.nome_negocio}</p>
+                        )}
+                        <h1 className={`font-bold mb-1 ${tema.capa_layout === 'ousado' ? 'text-5xl' : 'text-3xl'}`} style={{ fontFamily: tema.fonte_titulo }}>
+                          {textoAlbum.titulo || 'Título do álbum'}
+                        </h1>
+                        {textoAlbum.mais_info && textoAlbum.data_evento && (
+                          <p className="text-sm opacity-70 mt-1" style={{ fontFamily: tema.fonte_corpo }}>{textoAlbum.data_evento}</p>
+                        )}
+                        <div className="flex items-center justify-between w-full mt-6">
+                          <div />
+                          <span className="text-xs opacity-70 flex items-center gap-1" style={{ fontFamily: tema.fonte_corpo }}>{textoAlbum.texto_botao || 'Ver fotos'} →</span>
+                        </div>
+                      </div>
+                    </>
+                  )}
                 </div>
               )}
 
