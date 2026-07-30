@@ -17,26 +17,38 @@ export function useScrollAnimation({
 } = {}) {
   const ref = useRef(null);
   const [isVisible, setIsVisible] = useState(false);
+  const prevAnimacao = useRef(animacao);
 
   useEffect(() => {
+    // Reset visibility when animation type changes (so user can preview the new effect)
+    if (prevAnimacao.current !== animacao) {
+      setIsVisible(false);
+      prevAnimacao.current = animacao;
+    }
+
     if (animacao === 'none' || !ref.current) {
       setIsVisible(true);
       return;
     }
 
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) {
-          setIsVisible(true);
-          // Once visible, stop observing (one-time animation)
-          observer.unobserve(entry.target);
-        }
-      },
-      { threshold, rootMargin }
-    );
+    // Small delay to allow the reset to render before re-observing
+    const timeout = setTimeout(() => {
+      if (!ref.current) return;
+      const observer = new IntersectionObserver(
+        ([entry]) => {
+          if (entry.isIntersecting) {
+            setIsVisible(true);
+            observer.unobserve(entry.target);
+          }
+        },
+        { threshold, rootMargin }
+      );
 
-    observer.observe(ref.current);
-    return () => observer.disconnect();
+      observer.observe(ref.current);
+      return () => observer.disconnect();
+    }, 50);
+
+    return () => clearTimeout(timeout);
   }, [animacao, threshold, rootMargin]);
 
   return { ref, isVisible };

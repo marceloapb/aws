@@ -881,17 +881,6 @@ function PreviewGalleryGrid({ layout, fotos, onPhotoClick, tema = {} }) {
 
   if (photos.length === 0) return <div ref={containerRef} />;
 
-  // Custom style para as fotos dentro do layout
-  const photoStyle = `
-    .preview-gallery-grid img {
-      border-radius: ${coresGalerias.borda_raio || 0}px;
-      border: ${coresGalerias.borda_largura || 0}px solid ${coresGalerias.borda_cor || 'transparent'};
-    }
-    .preview-gallery-grid > div > div {
-      border-radius: ${coresGalerias.borda_raio || 0}px;
-    }
-  `;
-
   const renderItem = ({ photo, item, index, style }) => (
     <GalleryPhoto
       key={item.id}
@@ -919,8 +908,7 @@ function PreviewGalleryGrid({ layout, fotos, onPhotoClick, tema = {} }) {
   };
 
   return (
-    <div ref={containerRef} className="w-full preview-gallery-grid">
-      <style>{photoStyle}</style>
+    <div ref={containerRef} className="w-full">
       {width > 0 && renderLayout()}
     </div>
   );
