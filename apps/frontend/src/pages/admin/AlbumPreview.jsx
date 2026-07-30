@@ -238,7 +238,6 @@ export default function AlbumPreview() {
     setDownloading(false);
     setDownloadProgress('');
   };
-  };
 
   // ═══════════════════════════════════════════════════════════
   // VIEW: COVER (Capa full-screen usando tema.capa_layout)
