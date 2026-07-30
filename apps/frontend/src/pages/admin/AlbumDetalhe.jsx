@@ -652,6 +652,7 @@ export default function AlbumDetalhe() {
                         {textoAlbum.mais_info && textoAlbum.data_evento && (
                           <p className="text-sm opacity-60 mt-2" style={{ fontFamily: tema.fonte_corpo }}>{textoAlbum.data_evento}</p>
                         )}
+                        <span className="text-xs opacity-60 mt-3 inline-flex items-center gap-1" style={{ fontFamily: tema.fonte_corpo }}>{textoAlbum.texto_botao || 'Ver fotos'} →</span>
                       </div>
                       <div className="flex-1 overflow-hidden relative">
                         {coverImg && <img src={coverImg.url || coverImg.thumbnail_url} alt="Capa" className="w-full h-full object-cover" />}
@@ -670,6 +671,7 @@ export default function AlbumDetalhe() {
                           {textoAlbum.mais_info && textoAlbum.data_evento && (
                             <p className="text-xs opacity-60 mt-2 tracking-wider" style={{ fontFamily: tema.fonte_corpo }}>{textoAlbum.data_evento}</p>
                           )}
+                          <span className="text-xs opacity-60 mt-3 inline-flex items-center gap-1 tracking-wider" style={{ fontFamily: tema.fonte_corpo }}>{textoAlbum.texto_botao || 'Ver fotos'} →</span>
                         </div>
                       </div>
                       <div className="h-12 bg-black" />
@@ -697,7 +699,7 @@ export default function AlbumDetalhe() {
                       {coverImg && <img src={coverImg.url || coverImg.thumbnail_url} alt="Capa" className="w-full h-full object-cover" />}
                       {!coverImg && <div className="w-full h-full bg-gray-800" />}
                       <div className="absolute bottom-4 right-4 opacity-50">
-                        <span className="text-xs text-white bg-black/40 px-2 py-1 rounded" style={{ fontFamily: tema.fonte_corpo }}>↓ scroll</span>
+                        <span className="text-xs text-white bg-black/40 px-2 py-1 rounded" style={{ fontFamily: tema.fonte_corpo }}>{textoAlbum.texto_botao || 'Ver fotos'} →</span>
                       </div>
                     </div>
                   ) : tema.capa_layout === 'minimalista' ? (
