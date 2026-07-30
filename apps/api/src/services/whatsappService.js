@@ -70,6 +70,10 @@ async function enviarSolicitacaoFeedback(numero, nomeCliente, link) {
   return enviarTemplate(numero, 'feedback_solicitacao', [nomeCliente, link]);
 }
 
+async function enviarLembreteAdmin(numero, tipoEvento, nomeCliente, data, horario, local) {
+  return enviarTemplate(numero, 'lembrete_admin_evento', [tipoEvento, nomeCliente, data, horario, local || 'Não informado']);
+}
+
 function formatarNumero(numero) {
   let limpo = numero.replace(/\D/g, '');
   if (!limpo.startsWith('55')) limpo = '55' + limpo;
@@ -79,6 +83,7 @@ function formatarNumero(numero) {
 module.exports = {
   enviarTemplate,
   enviarLembreteEvento,
+  enviarLembreteAdmin,
   enviarNotificacaoOrcamento,
   enviarNotificacaoAlbum,
   enviarNotificacaoPagamento,
