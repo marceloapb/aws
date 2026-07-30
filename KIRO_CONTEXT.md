@@ -119,7 +119,6 @@ apps/
 
 ## Instruções para o Kiro
 - **SEMPRE ao iniciar sessão**: executar `Set-Location D:\OneDrive\.Git\aws; git pull --rebase` antes de qualquer alteração
-- Não fazer perguntas desnecessárias, só executa
 - Repo local: D:\OneDrive\.Git\aws
 - Depois de alterações, fazer commit + push (o GitHub Actions faz o deploy automaticamente)
 - NÃO fazer deploy manual — o CI/CD cuida disso a cada push na main
