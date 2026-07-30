@@ -70,7 +70,7 @@ export function computeMasonryLayout(photos, containerWidth, options = {}) {
 
     // Calcular posição
     const x = destCol * (columnWidth + gapX);
-    const y = columnHeights[destCol];
+    const y = columnHeights[destCol] > 0 ? columnHeights[destCol] + gapY : 0;
 
     items.push({
       id: photo.id,
@@ -82,14 +82,13 @@ export function computeMasonryLayout(photos, containerWidth, options = {}) {
     });
 
     // Atualizar alturas das colunas
-    const addedHeight = renderHeight + (columnHeights[destCol] > 0 ? gapY : 0);
     if (isPanoramic) {
-      columnHeights[destCol] += addedHeight;
+      columnHeights[destCol] = y + renderHeight;
       if (destCol + 1 < columnCount) {
         columnHeights[destCol + 1] = columnHeights[destCol];
       }
     } else {
-      columnHeights[destCol] += addedHeight;
+      columnHeights[destCol] = y + renderHeight;
     }
   }
 
