@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { Eye, X, ChevronLeft, ChevronRight, Download, ArrowRight, ArrowLeft, Share2 } from 'lucide-react';
+import JSZip from 'jszip';
 import { JustifiedGallery } from '../../utils/galleryLayouts/justifiedRows';
 import { MasonryGallery } from '../../utils/galleryLayouts/masonry';
 import { CollageGallery } from '../../utils/galleryLayouts/collageGroups';
@@ -201,18 +202,42 @@ export default function AlbumPreview() {
     }
   };
 
+  const [downloadProgress, setDownloadProgress] = useState('');
   const handleDownloadAll = async () => {
     if (downloading) return;
     const fotosToDownload = getActiveFotos();
     if (!fotosToDownload.length) return;
     setDownloading(true);
+    setDownloadProgress('Preparando...');
     try {
+      const zip = new JSZip();
       for (let i = 0; i < fotosToDownload.length; i++) {
-        await handleDownload(fotosToDownload[i]);
-        if (i < fotosToDownload.length - 1) await new Promise(r => setTimeout(r, 500));
+        const foto = fotosToDownload[i];
+        const url = foto.url_full || foto.url;
+        if (!url) continue;
+        setDownloadProgress(`Baixando ${i + 1}/${fotosToDownload.length}`);
+        const response = await fetch(url);
+        const blob = await response.blob();
+        const ext = foto.content_type?.includes('png') ? 'png' : foto.content_type?.includes('webp') ? 'webp' : 'jpg';
+        const filename = foto.filename || `foto-${String(i + 1).padStart(3, '0')}.${ext}`;
+        zip.file(filename, blob);
       }
-    } catch {}
+      setDownloadProgress('Gerando ZIP...');
+      const zipBlob = await zip.generateAsync({ type: 'blob' });
+      const blobUrl = URL.createObjectURL(zipBlob);
+      const a = document.createElement('a');
+      a.href = blobUrl;
+      a.download = `${album.titulo || 'album'}-fotos.zip`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(blobUrl);
+    } catch (err) {
+      console.error('Download ZIP error:', err);
+    }
     setDownloading(false);
+    setDownloadProgress('');
+  };
   };
 
   // ═══════════════════════════════════════════════════════════
@@ -479,7 +504,7 @@ export default function AlbumPreview() {
             {album.permite_download && (
               <button onClick={handleDownloadAll} disabled={downloading} className="flex items-center gap-1 text-xs opacity-60 hover:opacity-100 transition-opacity disabled:opacity-30">
                 {downloading ? <div className="w-4 h-4 border-2 border-current/30 border-t-current rounded-full animate-spin" /> : <Download size={16} />}
-                <span>Download</span>
+                <span>{downloading ? downloadProgress : 'Download'}</span>
               </button>
             )}
           </div>

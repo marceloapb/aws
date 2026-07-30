@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, X, ChevronLeft, ChevronRight, Share2, Download } from 'lucide-react';
 import GalleryPhoto from '../../components/album/GalleryPhoto';
+import JSZip from 'jszip';
 
 const API = process.env.REACT_APP_API_URL || '';
 const PAGE_SIZE = 40;
@@ -98,17 +99,39 @@ export default function AlbumGaleria() {
   };
 
   const [downloading, setDownloading] = useState(false);
+  const [downloadProgress, setDownloadProgress] = useState('');
   const handleDownloadAll = async () => {
     if (downloading || !fotos.length) return;
     setDownloading(true);
+    setDownloadProgress('Preparando...');
     try {
+      const zip = new JSZip();
       for (let i = 0; i < fotos.length; i++) {
-        await handleDownload(fotos[i]);
-        // Small delay between downloads to avoid browser blocking
-        if (i < fotos.length - 1) await new Promise(r => setTimeout(r, 500));
+        const foto = fotos[i];
+        const url = foto.url_original || foto.url;
+        if (!url) continue;
+        setDownloadProgress(`${i + 1}/${fotos.length}`);
+        const response = await fetch(url);
+        const blob = await response.blob();
+        const ext = foto.content_type?.includes('png') ? 'png' : foto.content_type?.includes('webp') ? 'webp' : 'jpg';
+        const filename = foto.filename || `foto-${String(i + 1).padStart(3, '0')}.${ext}`;
+        zip.file(filename, blob);
       }
-    } catch {}
+      setDownloadProgress('ZIP...');
+      const zipBlob = await zip.generateAsync({ type: 'blob' });
+      const blobUrl = URL.createObjectURL(zipBlob);
+      const a = document.createElement('a');
+      a.href = blobUrl;
+      a.download = `${data.album_titulo || 'album'}-fotos.zip`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(blobUrl);
+    } catch (err) {
+      console.error('Download ZIP error:', err);
+    }
     setDownloading(false);
+    setDownloadProgress('');
   };
 
   if (loading) {
@@ -157,7 +180,7 @@ export default function AlbumGaleria() {
             </button>
             {data.permite_download && (
               <button onClick={handleDownloadAll} disabled={downloading} className="p-2 text-white/60 hover:text-white transition-colors disabled:opacity-30" title="Baixar todas as fotos">
-                {downloading ? <div className="w-[18px] h-[18px] border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <Download size={18} />}
+                {downloading ? <span className="text-[10px]">{downloadProgress}</span> : <Download size={18} />}
               </button>
             )}
           </div>
