@@ -501,8 +501,11 @@ export default function AlbumDetalhe() {
                 <div>
                   <button onClick={() => setDesignSubTab('main')} className="text-xs text-gray-500 hover:text-gray-700 mb-2">‹ Voltar para design</button>
                   <h2 className="text-sm font-bold text-gray-900 mb-3">Fontes</h2>
-                  <div className="space-y-4 max-h-[calc(100vh-180px)] overflow-y-auto">
-                    <p className="text-[11px] text-gray-500">Escolha um par de fontes para a capa e a galeria.</p>
+                  <div className="flex border-b mb-4">
+                    <button onClick={() => setPreviewMode('capa')} className={`flex-1 py-2 text-xs font-medium border-b-2 transition ${previewMode === 'capa' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500'}`}>Capa</button>
+                    <button onClick={() => setPreviewMode('galeria')} className={`flex-1 py-2 text-xs font-medium border-b-2 transition ${previewMode === 'galeria' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500'}`}>Galerias</button>
+                  </div>
+                  <div className="space-y-3 max-h-[calc(100vh-220px)] overflow-y-auto">
                     {FONT_PRESETS.map((preset, idx) => (
                       <button key={idx} onClick={() => updateTema({ fonte_titulo: preset.titulo, fonte_corpo: preset.corpo })}
                         className={`w-full text-left p-4 rounded-lg border-2 transition ${tema.fonte_titulo === preset.titulo && tema.fonte_corpo === preset.corpo ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:border-gray-300'}`}>
@@ -510,18 +513,6 @@ export default function AlbumDetalhe() {
                         <p className="text-xs text-gray-500 mt-1.5" style={{ fontFamily: `'${preset.corpo}', sans-serif` }}>{preset.titulo} + {preset.corpo}</p>
                       </button>
                     ))}
-                    <hr className="border-gray-100 my-2" />
-                    <h3 className="text-xs font-semibold text-gray-700">Prévia na galeria</h3>
-                    <div className="rounded-lg border border-gray-200 p-4" style={{ backgroundColor: tema.cores_galerias?.background || '#121212' }}>
-                      <p className="text-sm font-medium mb-1" style={{ fontFamily: tema.fonte_titulo, color: tema.cores_galerias?.texto_icones || '#FFFFFF' }}>Nome da Galeria</p>
-                      <p className="text-[10px] opacity-50 mb-3" style={{ fontFamily: tema.fonte_corpo, color: tema.cores_galerias?.texto_icones || '#FFFFFF' }}>{textoAlbum.titulo || 'Título do álbum'}</p>
-                      <div className="flex gap-1">
-                        <div className="w-12 h-12 rounded bg-gray-600" />
-                        <div className="w-12 h-12 rounded bg-gray-600" />
-                        <div className="w-12 h-12 rounded bg-gray-600" />
-                      </div>
-                      <p className="text-[9px] opacity-30 mt-2 text-center" style={{ fontFamily: tema.fonte_corpo, color: tema.cores_galerias?.texto_icones || '#FFFFFF' }}>3 fotos</p>
-                    </div>
                   </div>
                 </div>
               )}
