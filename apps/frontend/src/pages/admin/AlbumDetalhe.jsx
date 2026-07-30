@@ -9,6 +9,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { JustifiedGallery } from '../../utils/galleryLayouts/justifiedRows';
 import { MasonryGallery } from '../../utils/galleryLayouts/masonry';
 import { CollageGallery } from '../../utils/galleryLayouts/collageGroups';
+import GalleryPhoto from '../../components/album/GalleryPhoto';
 
 const ACCENT = '#3B82F6';
 
@@ -237,6 +238,7 @@ export default function AlbumDetalhe() {
     if (activeTab === 'design') {
       if (designSubTab === 'layouts') setPreviewMode(designLayoutTab === 'galerias' ? 'galeria' : 'capa');
       else if (designSubTab === 'cores') setPreviewMode(designColorTab === 'galerias' ? 'galeria' : 'capa');
+      else if (designSubTab === 'animacoes') setPreviewMode('galeria');
       else setPreviewMode('capa');
     }
     if (activeTab === 'config') setPreviewMode('galeria');

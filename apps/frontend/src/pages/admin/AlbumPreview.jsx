@@ -149,6 +149,7 @@ export default function AlbumPreview() {
   };
 
   const [downloading, setDownloading] = useState(false);
+  const [downloadProgress, setDownloadProgress] = useState('');
 
   if (loading) {
     return (
@@ -202,7 +203,6 @@ export default function AlbumPreview() {
     }
   };
 
-  const [downloadProgress, setDownloadProgress] = useState('');
   const handleDownloadAll = async () => {
     if (downloading) return;
     const fotosToDownload = getActiveFotos();
