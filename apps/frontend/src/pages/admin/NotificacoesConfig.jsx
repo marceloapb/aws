@@ -107,6 +107,10 @@ export default function NotificacoesConfig() {
   const [calendarForm, setCalendarForm] = useState(EMPTY_CALENDAR_FORM);
   const [calendarSaving, setCalendarSaving] = useState(false);
 
+  // Templates (for selection in rules)
+  const [whatsappTemplates, setWhatsappTemplates] = useState([]);
+  const [emailTemplates, setEmailTemplates] = useState([]);
+
   const loadRegras = useCallback(async () => {
     setLoading(true);
     try {
@@ -121,6 +125,12 @@ export default function NotificacoesConfig() {
   }, [authFetch, toast]);
 
   useEffect(() => { loadRegras(); }, [loadRegras]);
+
+  // Load templates for selection
+  useEffect(() => {
+    authFetch('/admin/whatsapp/templates').then(r => r.json()).then(d => { if (d.data) setWhatsappTemplates(d.data); }).catch(() => {});
+    authFetch('/admin/email-templates').then(r => r.json()).then(d => { if (d.data) setEmailTemplates(d.data); }).catch(() => {});
+  }, [authFetch]);
 
   // Load delivery logs
   const loadLogs = useCallback(async () => {
@@ -598,9 +608,34 @@ export default function NotificacoesConfig() {
                     ))}
                   </div>
                 </div>
+                {calendarForm.canais.includes('email') && (
+                  <div className="p-3 bg-purple-50/50 rounded-lg border border-purple-100">
+                    <div className="flex items-center justify-between mb-2">
+                      <p className="text-xs font-medium text-purple-700 flex items-center gap-1"><Mail size={12} /> Template E-mail</p>
+                      <a href="/admin/comunicacao/emails" target="_blank" rel="noopener noreferrer" className="text-[10px] text-purple-500 hover:text-purple-700 underline">Gerenciar →</a>
+                    </div>
+                    <select value={calendarForm.template_email || ''} onChange={e => setCalendarForm(p => ({ ...p, template_email: e.target.value }))} className="w-full px-3 py-2 border rounded-lg text-sm outline-none focus:ring-2 focus:ring-orange-200">
+                      <option value="">Nenhum (usar mensagem abaixo)</option>
+                      {emailTemplates.map(t => <option key={t.tipo || t.id} value={t.tipo || t.id}>{t.nome || t.tipo}</option>)}
+                    </select>
+                  </div>
+                )}
+                {calendarForm.canais.includes('whatsapp') && (
+                  <div className="p-3 bg-green-50/50 rounded-lg border border-green-100">
+                    <div className="flex items-center justify-between mb-2">
+                      <p className="text-xs font-medium text-green-700 flex items-center gap-1"><MessageCircle size={12} /> Template WhatsApp</p>
+                      <a href="/admin/comunicacao" target="_blank" rel="noopener noreferrer" className="text-[10px] text-green-500 hover:text-green-700 underline">Gerenciar →</a>
+                    </div>
+                    <select value={calendarForm.template_whatsapp || ''} onChange={e => setCalendarForm(p => ({ ...p, template_whatsapp: e.target.value }))} className="w-full px-3 py-2 border rounded-lg text-sm outline-none focus:ring-2 focus:ring-orange-200">
+                      <option value="">Nenhum (usar mensagem abaixo)</option>
+                      {whatsappTemplates.map(t => <option key={t.name || t.nome} value={t.name || t.nome}>{t.name || t.nome}</option>)}
+                    </select>
+                  </div>
+                )}
                 <div>
-                  <label className="text-xs font-medium text-gray-700 block mb-1">Mensagem (opcional)</label>
+                  <label className="text-xs font-medium text-gray-700 block mb-1">Mensagem personalizada (opcional)</label>
                   <textarea value={calendarForm.mensagem} onChange={e => setCalendarForm(p => ({ ...p, mensagem: e.target.value }))} rows={3} className="w-full px-3 py-2 border rounded-lg text-sm outline-none focus:ring-2 focus:ring-orange-200 resize-none" placeholder="Variáveis: {{cliente_nome}}, {{data_evento}}, {{tipo_evento}}, {{dias}}" />
+                  <p className="text-[10px] text-gray-400 mt-1">Se um template for selecionado acima, esta mensagem será ignorada.</p>
                 </div>
                 <div className="flex justify-end gap-2 pt-2">
                   <button onClick={() => setCalendarModalOpen(false)} className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800">Cancelar</button>
@@ -846,37 +881,73 @@ export default function NotificacoesConfig() {
 
           {form.canais.includes('email') && (
             <div className="space-y-3 p-3 bg-purple-50/50 rounded-lg border border-purple-100">
-              <p className="text-xs font-medium text-purple-700 flex items-center gap-1">
-                <Mail size={12} /> Template E-mail
-              </p>
+              <div className="flex items-center justify-between">
+                <p className="text-xs font-medium text-purple-700 flex items-center gap-1">
+                  <Mail size={12} /> Template E-mail
+                </p>
+                <a href="/admin/comunicacao/emails" target="_blank" rel="noopener noreferrer" className="text-[10px] text-purple-500 hover:text-purple-700 underline">Gerenciar templates →</a>
+              </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Template</label>
-                <textarea
+                <label className="block text-sm font-medium text-gray-700 mb-1">Selecionar template</label>
+                <select
                   value={form.template_email}
                   onChange={(e) => setForm(prev => ({ ...prev, template_email: e.target.value }))}
-                  placeholder="HTML ou texto do e-mail. Use {{variáveis}} para personalizar."
-                  rows={3}
-                  className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm outline-none transition-colors focus:ring-2 focus:ring-orange-200 resize-none font-mono"
-                />
+                  className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm outline-none transition-colors focus:ring-2 focus:ring-orange-200"
+                >
+                  <option value="">Nenhum (texto livre)</option>
+                  {emailTemplates.map(t => (
+                    <option key={t.tipo || t.id} value={t.tipo || t.id}>{t.nome || t.tipo}</option>
+                  ))}
+                </select>
               </div>
+              {!form.template_email && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Texto livre</label>
+                  <textarea
+                    value={form.corpo_email || ''}
+                    onChange={(e) => setForm(prev => ({ ...prev, corpo_email: e.target.value }))}
+                    placeholder="HTML ou texto do e-mail. Use {{variáveis}} para personalizar."
+                    rows={3}
+                    className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm outline-none transition-colors focus:ring-2 focus:ring-orange-200 resize-none font-mono"
+                  />
+                </div>
+              )}
             </div>
           )}
 
           {form.canais.includes('whatsapp') && (
             <div className="space-y-3 p-3 bg-green-50/50 rounded-lg border border-green-100">
-              <p className="text-xs font-medium text-green-700 flex items-center gap-1">
-                <MessageCircle size={12} /> Template WhatsApp
-              </p>
+              <div className="flex items-center justify-between">
+                <p className="text-xs font-medium text-green-700 flex items-center gap-1">
+                  <MessageCircle size={12} /> Template WhatsApp
+                </p>
+                <a href="/admin/comunicacao" target="_blank" rel="noopener noreferrer" className="text-[10px] text-green-500 hover:text-green-700 underline">Gerenciar templates →</a>
+              </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Template</label>
-                <textarea
+                <label className="block text-sm font-medium text-gray-700 mb-1">Selecionar template</label>
+                <select
                   value={form.template_whatsapp}
                   onChange={(e) => setForm(prev => ({ ...prev, template_whatsapp: e.target.value }))}
-                  placeholder="Mensagem WhatsApp. Use {{variáveis}} para personalizar."
-                  rows={3}
-                  className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm outline-none transition-colors focus:ring-2 focus:ring-orange-200 resize-none"
-                />
+                  className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm outline-none transition-colors focus:ring-2 focus:ring-orange-200"
+                >
+                  <option value="">Nenhum (texto livre)</option>
+                  {whatsappTemplates.map(t => (
+                    <option key={t.name || t.nome} value={t.name || t.nome}>{t.name || t.nome}</option>
+                  ))}
+                </select>
               </div>
+              {!form.template_whatsapp && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Texto livre</label>
+                  <textarea
+                    value={form.corpo_whatsapp || ''}
+                    onChange={(e) => setForm(prev => ({ ...prev, corpo_whatsapp: e.target.value }))}
+                    placeholder="Mensagem WhatsApp. Use {{variáveis}} para personalizar."
+                    rows={3}
+                    className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm outline-none transition-colors focus:ring-2 focus:ring-orange-200 resize-none"
+                  />
+                </div>
+              )}
             </div>
           )}
 
