@@ -29,6 +29,7 @@ export default function GalleryPhoto({
   const animacaoScroll = tema.animacao_scroll || 'none';
   const animacaoHover = tema.animacao_hover || 'none';
   const animacaoOverlay = tema.animacao_overlay || 'none';
+  const coresGalerias = tema.cores_galerias || {};
 
   const { ref, isVisible } = useScrollAnimation({
     animacao: animacaoScroll,
@@ -43,6 +44,12 @@ export default function GalleryPhoto({
   // Stagger delay for scroll animations
   const staggerDelay = animacaoScroll !== 'none' ? { transitionDelay: `${index * 0.05}s` } : {};
 
+  // Border styles from tema
+  const borderStyles = {
+    borderRadius: coresGalerias.borda_raio != null ? `${coresGalerias.borda_raio}px` : '4px',
+    border: coresGalerias.borda_largura ? `${coresGalerias.borda_largura}px solid ${coresGalerias.borda_cor || 'transparent'}` : 'none',
+  };
+
   return (
     <div
       ref={ref}
@@ -51,8 +58,9 @@ export default function GalleryPhoto({
       style={{
         ...style,
         ...staggerDelay,
+        ...borderStyles,
         cursor: onClick ? 'pointer' : 'default',
-        borderRadius: 4,
+        overflow: 'hidden',
       }}
       onClick={onClick}
     >

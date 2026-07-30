@@ -892,17 +892,29 @@ function PreviewGalleryGrid({ layout, fotos, onPhotoClick, tema = {} }) {
     }
   `;
 
+  const renderItem = ({ photo, item, index, style }) => (
+    <GalleryPhoto
+      key={item.id}
+      src={photo?.url || ''}
+      id={item.id}
+      index={index}
+      tema={tema}
+      style={style}
+      onClick={() => onPhotoClick && onPhotoClick(index)}
+    />
+  );
+
   const renderLayout = () => {
     switch (layout) {
       case 'mosaico':
-        return <MasonryGallery photos={photos} containerWidth={width} options={{ columnCount: 3, gapX: gap, gapY: gap, crop: false }} onPhotoClick={onPhotoClick} />;
+        return <MasonryGallery photos={photos} containerWidth={width} options={{ columnCount: 3, gapX: gap, gapY: gap, crop: false }} onPhotoClick={onPhotoClick} renderItem={renderItem} />;
       case 'colagem':
-        return <CollageGallery photos={photos} containerWidth={width} options={{ targetRowHeight: 180, gapX: gap, gapY: gap, gapInner: Math.max(2, gap / 2) }} onPhotoClick={onPhotoClick} />;
+        return <CollageGallery photos={photos} containerWidth={width} options={{ targetRowHeight: 180, gapX: gap, gapY: gap, gapInner: Math.max(2, gap / 2) }} onPhotoClick={onPhotoClick} renderItem={renderItem} />;
       case 'grade':
       case 'ladrilhos':
-        return <JustifiedGallery photos={photos} containerWidth={width} options={{ targetRowHeight: layout === 'ladrilhos' ? 120 : 160, gapX: gap, gapY: gap }} onPhotoClick={onPhotoClick} />;
+        return <JustifiedGallery photos={photos} containerWidth={width} options={{ targetRowHeight: layout === 'ladrilhos' ? 120 : 160, gapX: gap, gapY: gap }} onPhotoClick={onPhotoClick} renderItem={renderItem} />;
       default:
-        return <JustifiedGallery photos={photos} containerWidth={width} options={{ targetRowHeight: 160, gapX: gap, gapY: gap }} onPhotoClick={onPhotoClick} />;
+        return <JustifiedGallery photos={photos} containerWidth={width} options={{ targetRowHeight: 160, gapX: gap, gapY: gap }} onPhotoClick={onPhotoClick} renderItem={renderItem} />;
     }
   };
 

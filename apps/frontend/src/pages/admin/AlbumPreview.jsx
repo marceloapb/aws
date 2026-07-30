@@ -593,6 +593,7 @@ export default function AlbumPreview() {
 // Componente interno que escolhe o layout correto
 // ═══════════════════════════════════════════════════════════
 function GalleryGrid({ layout, fotos, containerWidth, onPhotoClick, tema }) {
+  const gap = tema?.espacamento || 8;
   // Preparar array de photos no formato esperado pelos layouts
   const photos = fotos.map(f => ({
     id: f.id || f.SK?.replace('FOTO#', ''),
@@ -622,7 +623,7 @@ function GalleryGrid({ layout, fotos, containerWidth, onPhotoClick, tema }) {
       <MasonryGallery
         photos={photos}
         containerWidth={containerWidth}
-        options={{ columnCount: 3, gapX: 8, gapY: 8, placement: 'shortestColumn', crop: false }}
+        options={{ columnCount: 3, gapX: gap, gapY: gap, placement: 'shortestColumn', crop: false }}
         onPhotoClick={onPhotoClick}
         renderItem={renderItem}
       />
@@ -635,7 +636,7 @@ function GalleryGrid({ layout, fotos, containerWidth, onPhotoClick, tema }) {
       <CollageGallery
         photos={photos}
         containerWidth={containerWidth}
-        options={{ targetCellRatio: 1.33, targetRowHeight: 260, gapX: 8, gapY: 8, gapInner: 4 }}
+        options={{ targetCellRatio: 1.33, targetRowHeight: 260, gapX: gap, gapY: gap, gapInner: Math.max(2, gap / 2) }}
         onPhotoClick={onPhotoClick}
         renderItem={renderItem}
       />
@@ -648,7 +649,7 @@ function GalleryGrid({ layout, fotos, containerWidth, onPhotoClick, tema }) {
       <JustifiedGallery
         photos={photos}
         containerWidth={containerWidth}
-        options={{ targetRowHeight: layout === 'ladrilhos' ? 180 : 240, gapX: 8, gapY: 8 }}
+        options={{ targetRowHeight: layout === 'ladrilhos' ? 180 : 240, gapX: gap, gapY: gap }}
         onPhotoClick={onPhotoClick}
         renderItem={renderItem}
       />
@@ -702,7 +703,7 @@ function GalleryGrid({ layout, fotos, containerWidth, onPhotoClick, tema }) {
     <JustifiedGallery
       photos={photos}
       containerWidth={containerWidth}
-      options={{ targetRowHeight: 240, gapX: 8, gapY: 8 }}
+      options={{ targetRowHeight: 240, gapX: gap, gapY: gap }}
       onPhotoClick={onPhotoClick}
       renderItem={renderItem}
     />
