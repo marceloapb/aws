@@ -567,6 +567,28 @@ export default function AlbumDetalhe() {
               <h2 className="text-sm font-bold text-gray-900 mb-0.5">Configurações</h2>
               <p className="text-[11px] text-gray-500 mb-4">Ajuste as configurações do álbum.</p>
               <div className="space-y-5">
+                {/* Link do álbum */}
+                <div>
+                  <label className="text-xs font-medium text-gray-700 mb-1 block">Link do álbum</label>
+                  <div className="flex items-center gap-1 mb-1">
+                    <span className="text-[10px] text-gray-400 whitespace-nowrap">mbfoto.com.br/album/</span>
+                    <input
+                      type="text"
+                      value={album?.slug || ''}
+                      onChange={e => setAlbum(prev => ({ ...prev, slug: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '') }))}
+                      onBlur={e => { const v = e.target.value.trim(); if (v && v !== album?.slug) saveConfig('slug', v); }}
+                      className="flex-1 px-2 py-1.5 border rounded text-xs outline-none focus:ring-1 focus:ring-blue-300"
+                      placeholder="aniversario-bruno"
+                    />
+                  </div>
+                  {album?.slug && (
+                    <div className="flex items-center gap-2 mt-1.5">
+                      <span className="text-[10px] text-blue-600 truncate flex-1">https://www.mbfoto.com.br/album/{album.slug}</span>
+                      <button onClick={() => { navigator.clipboard.writeText(`https://www.mbfoto.com.br/album/${album.slug}`); }} className="text-[10px] px-2 py-0.5 bg-blue-50 text-blue-600 rounded hover:bg-blue-100 transition whitespace-nowrap">Copiar</button>
+                    </div>
+                  )}
+                </div>
+                <hr className="border-gray-100" />
                 <div>
                   <label className="text-xs font-medium text-gray-700 mb-1 flex items-center gap-1">Qualidade da imagem na galeria <span className="text-gray-400 cursor-help" title="Quanto maior a qualidade, mais tempo vai demorar para carregar a galeria.">ⓘ</span></label>
                   <div className="flex items-center gap-2"><input type="range" min="10" max="100" value={tema.qualidade_imagem} onChange={e => setTema({ ...tema, qualidade_imagem: Number(e.target.value) })} onMouseUp={() => saveTema()} className="flex-1 accent-blue-500" /><span className="text-xs w-8 text-center">{tema.qualidade_imagem}</span></div>
