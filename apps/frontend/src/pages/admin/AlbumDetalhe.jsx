@@ -164,7 +164,7 @@ export default function AlbumDetalhe() {
   // Actions
   const saveTema = async (t) => { const data = t || tema; try { await authFetch(`/admin/albuns/${id}/tema`, { method: 'PUT', body: JSON.stringify(data) }); } catch {} };
   const saveTexto = async () => { try { await authFetch(`/admin/albuns/${id}`, { method: 'PUT', body: JSON.stringify({ titulo: textoAlbum.titulo, data_evento: textoAlbum.data_evento, nome_negocio: textoAlbum.nome_negocio }) }); const temaWithText = { ...tema, texto_botao: textoAlbum.texto_botao, nome_negocio: textoAlbum.nome_negocio, mais_info: textoAlbum.mais_info, info_negocio: textoAlbum.info_negocio }; setTema(temaWithText); saveTema(temaWithText); } catch {} };
-  const saveConfig = async (field, value) => { try { await authFetch(`/admin/albuns/${id}`, { method: 'PUT', body: JSON.stringify({ [field]: value }) }); fetchAlbum(); } catch {} };
+  const saveConfig = async (field, value) => { try { await authFetch(`/admin/albuns/${id}`, { method: 'PUT', body: JSON.stringify({ [field]: value }) }); } catch {} };
 
   const updateTema = (patch) => { const next = { ...tema, ...patch }; setTema(next); saveTema(next); };
   const updateTemaCapa = (patch) => { const next = { ...tema, cores_capa: { ...tema.cores_capa, ...patch } }; setTema(next); saveTema(next); };
@@ -576,7 +576,7 @@ export default function AlbumDetalhe() {
                       type="text"
                       value={album?.slug || ''}
                       onChange={e => setAlbum(prev => ({ ...prev, slug: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '') }))}
-                      onBlur={e => { const v = e.target.value.trim(); if (v && v !== album?.slug) saveConfig('slug', v); }}
+                      onBlur={e => { const v = e.target.value.trim(); if (v) saveConfig('slug', v); }}
                       className="flex-1 px-2 py-1.5 border rounded text-xs outline-none focus:ring-1 focus:ring-blue-300"
                       placeholder="aniversario-bruno"
                     />
