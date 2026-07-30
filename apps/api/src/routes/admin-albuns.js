@@ -763,4 +763,78 @@ router.post('/:id/prorrogacoes/:prorrogacaoId/aprovar', async (req, res) => {
   }
 });
 
+// POST /api/admin/albuns/:id/selecao/toggle — Toggle photo selection (admin)
+router.post('/:id/selecao/toggle', async (req, res) => {
+  try {
+    const { foto_id } = req.body;
+    if (!foto_id) return res.status(400).json({ success: false, message: 'foto_id é obrigatório' });
+
+    const albumId = req.params.id;
+
+    // Get photo
+    const fotoResult = await dynamo.send(new GetCommand({
+      TableName: TABLE,
+      Key: { PK: `ALBUM#${albumId}`, SK: `FOTO#${foto_id}` },
+    }));
+    if (!fotoResult.Item) return res.status(404).json({ success: false, message: 'Foto não encontrada' });
+
+    const foto = fotoResult.Item;
+    const newState = !(foto.selecionada === true);
+
+    await dynamo.send(new UpdateCommand({
+      TableName: TABLE,
+      Key: { PK: `ALBUM#${albumId}`, SK: `FOTO#${foto_id}` },
+      UpdateExpression: 'SET selecionada = :s',
+      ExpressionAttributeValues: { ':s': newState },
+    }));
+
+    res.json({ success: true, data: { foto_id, selecionada: newState } });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// GET /api/admin/albuns/:id/selecao — Get selected photos with download URLs
+router.get('/:id/selecao', async (req, res) => {
+  try {
+    const albumId = req.params.id;
+
+    // Get all photos for this album
+    const fotosResult = await dynamo.send(new QueryCommand({
+      TableName: TABLE,
+      KeyConditionExpression: 'PK = :pk AND begins_with(SK, :sk)',
+      ExpressionAttributeValues: { ':pk': `ALBUM#${albumId}`, ':sk': 'FOTO#' },
+    }));
+
+    const fotos = (fotosResult.Items || []).filter(f => f.selecionada === true);
+
+    // Generate signed URLs for selected photos (use original for download)
+    const { S3Client, GetObjectCommand } = require('@aws-sdk/client-s3');
+    const { getSignedUrl } = require('@aws-sdk/s3-request-presigner');
+    const s3 = new S3Client({});
+    const bucket = process.env.S3_BUCKET_NAME;
+
+    const fotosComUrl = await Promise.all(fotos.map(async (foto) => {
+      const key = foto.s3_key_original || foto.s3_key || foto.key;
+      if (!key) return { ...foto, url_download: null };
+      try {
+        const url_download = await getSignedUrl(s3, new GetObjectCommand({ Bucket: bucket, Key: key }), { expiresIn: 3600 });
+        return { ...foto, url_download };
+      } catch {
+        return { ...foto, url_download: null };
+      }
+    }));
+
+    res.json({
+      success: true,
+      data: {
+        total_selecionadas: fotosComUrl.length,
+        fotos: fotosComUrl,
+      },
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
 module.exports = router;

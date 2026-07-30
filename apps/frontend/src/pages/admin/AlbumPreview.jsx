@@ -99,6 +99,9 @@ export default function AlbumPreview() {
       if (albumJson.success) {
         setAlbum(albumJson.data);
         setFotos(albumJson.data.fotos || []);
+        // Load initial selection state from photo records
+        const sel = (albumJson.data.fotos || []).filter(f => f.selecionada === true).map(f => f.id || f.SK?.replace('FOTO#', ''));
+        setSelecionadas(new Set(sel));
       }
       if (temaJson.success) {
         setTema({ ...DEFAULTS_TEMA, ...temaJson.data });
@@ -164,6 +167,11 @@ export default function AlbumPreview() {
       }
       return nova;
     });
+    // Persist to backend
+    authFetch(`/admin/albuns/${id}/selecao/toggle`, {
+      method: 'POST',
+      body: JSON.stringify({ foto_id: fotoId }),
+    }).catch(() => {});
   };
 
   if (loading) {

@@ -3,8 +3,9 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import {
   Image, Plus, Search, Eye, Shield, Trash2, Send, Clock, Camera,
-  CheckCircle2, XCircle, AlertTriangle, Upload, Link2, Edit, ArrowUpDown
+  CheckCircle2, XCircle, AlertTriangle, Upload, Link2, Edit, ArrowUpDown, Download
 } from 'lucide-react';
+import JSZip from 'jszip';
 
 const ACCENT = '#EA580C';
 const STATUS_TABS = ['todos', 'publicado', 'ativo', 'expirado'];
@@ -106,6 +107,47 @@ export default function Albuns() {
     const url = `${window.location.origin}/album/${album.slug || album.id}`;
     navigator.clipboard.writeText(url);
     alert('Link copiado!');
+  };
+
+  const [downloadingId, setDownloadingId] = useState(null);
+
+  const handleDownloadSelecionadas = async (album) => {
+    if (downloadingId) return;
+    setDownloadingId(album.id);
+    try {
+      const res = await authFetch(`/admin/albuns/${album.id}/selecao`);
+      const json = await res.json();
+      if (!json.success || !json.data?.fotos?.length) {
+        alert('Nenhuma foto selecionada neste álbum.');
+        setDownloadingId(null);
+        return;
+      }
+      const fotos = json.data.fotos;
+      const zip = new JSZip();
+      for (let i = 0; i < fotos.length; i++) {
+        const foto = fotos[i];
+        const url = foto.url_download;
+        if (!url) continue;
+        const response = await fetch(url);
+        const blob = await response.blob();
+        const ext = foto.content_type?.includes('png') ? 'png' : foto.content_type?.includes('webp') ? 'webp' : 'jpg';
+        const filename = foto.filename || `foto-${String(i + 1).padStart(3, '0')}.${ext}`;
+        zip.file(filename, blob);
+      }
+      const zipBlob = await zip.generateAsync({ type: 'blob' });
+      const blobUrl = URL.createObjectURL(zipBlob);
+      const a = document.createElement('a');
+      a.href = blobUrl;
+      a.download = `${album.titulo || 'album'}-selecionadas.zip`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(blobUrl);
+    } catch (err) {
+      console.error('Erro ao baixar selecionadas:', err);
+      alert('Erro ao baixar fotos selecionadas.');
+    }
+    setDownloadingId(null);
   };
 
   const handleCriar = async (e) => {
@@ -274,6 +316,10 @@ export default function Albuns() {
                       <button onClick={() => handleProteger(album.id)} title="Proteger de expiração" className="p-1.5 rounded hover:bg-blue-50 text-gray-500 hover:text-blue-600"><Shield size={16} /></button>
                     )}
                     <button onClick={() => handleCompartilhar(album)} title="Copiar link" className="p-1.5 rounded hover:bg-purple-50 text-gray-500 hover:text-purple-600"><Link2 size={16} /></button>
+                    <button onClick={() => handleDownloadSelecionadas(album)} title="Download selecionadas" disabled={downloadingId === album.id}
+                      className="p-1.5 rounded hover:bg-orange-50 text-gray-500 hover:text-orange-600 disabled:opacity-40 disabled:cursor-wait">
+                      {downloadingId === album.id ? <div className="w-4 h-4 border-2 border-orange-400/30 border-t-orange-500 rounded-full animate-spin" /> : <Download size={16} />}
+                    </button>
                     <button onClick={() => handleExcluir(album.id)} title="Excluir" className="p-1.5 rounded hover:bg-red-50 text-gray-500 hover:text-red-600 ml-auto"><Trash2 size={16} /></button>
                   </div>
                 </div>
