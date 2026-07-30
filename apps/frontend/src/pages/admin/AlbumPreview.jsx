@@ -9,7 +9,9 @@ import { CollageGallery } from '../../utils/galleryLayouts/collageGroups';
 const DEFAULTS_TEMA = {
   capa_foto_id: null,
   capa_modo: 'cover',
+  capa_layout: 'elegante',
   cores: { fundo: '#1A1A1A', texto: '#FFFFFF', acento: '#EA580C' },
+  cores_capa: { texto: '#FFFFFF', overlay: '#121212' },
   layout: 'grade',
   fonte_titulo: 'Playfair Display',
   fonte_corpo: 'Inter',
@@ -177,65 +179,149 @@ export default function AlbumPreview() {
   };
 
   // ═══════════════════════════════════════════════════════════
-  // VIEW: COVER (Capa full-screen estilo Wix)
+  // VIEW: COVER (Capa full-screen usando tema.capa_layout)
   // ═══════════════════════════════════════════════════════════
   if (view === 'cover') {
+    const capaLayout = tema.capa_layout || 'elegante';
+    const coresCapa = tema.cores_capa || {};
+    const corTexto = coresCapa.texto || '#FFFFFF';
+    const corOverlay = coresCapa.overlay || '#121212';
+    const textoBtn = tema.texto_botao || 'Ver fotos';
+    const nomeNegocio = tema.nome_negocio || '';
+    const dataEvento = album.data_evento ? formatDate(album.data_evento) : '';
+
+    const coverContent = () => {
+      if (capaLayout === 'split') {
+        return (
+          <div className="flex h-full min-h-screen">
+            <div className="w-1/2 h-full overflow-hidden">
+              {capaFoto && <img src={capaFoto.url || capaFoto.url_full || ''} alt="" className="w-full h-full object-cover" />}
+              {!capaFoto && <div className="w-full h-full bg-gray-700" />}
+            </div>
+            <div className="w-1/2 flex flex-col justify-center px-8 md:px-16" style={{ backgroundColor: corOverlay, color: corTexto }}>
+              {nomeNegocio && <p className="text-xs opacity-70 mb-3 tracking-widest uppercase" style={{ fontFamily: tema.fonte_corpo }}>{nomeNegocio}</p>}
+              <h1 className="text-3xl md:text-5xl font-bold mb-2" style={{ fontFamily: fonteTitulo }}>{album.titulo}</h1>
+              {dataEvento && <p className="text-sm opacity-70 mt-2" style={{ fontFamily: tema.fonte_corpo }}>{dataEvento}</p>}
+              <button onClick={handleVerFotos} className="mt-8 text-sm opacity-70 hover:opacity-100 flex items-center gap-2 transition" style={{ fontFamily: tema.fonte_corpo }}>
+                {textoBtn} <ArrowRight size={16} />
+              </button>
+            </div>
+          </div>
+        );
+      }
+      if (capaLayout === 'editorial') {
+        return (
+          <div className="flex flex-col min-h-screen">
+            <div className="px-8 md:px-16 py-8 md:py-12 border-b" style={{ backgroundColor: '#fff', color: corTexto, borderColor: `${corTexto}15` }}>
+              {nomeNegocio && <p className="text-xs opacity-50 mb-2 tracking-widest uppercase" style={{ fontFamily: tema.fonte_corpo }}>{nomeNegocio}</p>}
+              <h1 className="text-4xl md:text-6xl font-bold" style={{ fontFamily: fonteTitulo }}>{album.titulo}</h1>
+              {dataEvento && <p className="text-sm opacity-60 mt-3" style={{ fontFamily: tema.fonte_corpo }}>{dataEvento}</p>}
+              <button onClick={handleVerFotos} className="mt-6 text-sm opacity-60 hover:opacity-100 flex items-center gap-2 transition" style={{ fontFamily: tema.fonte_corpo }}>
+                {textoBtn} <ArrowRight size={16} />
+              </button>
+            </div>
+            <div className="flex-1 overflow-hidden relative">
+              {capaFoto && <img src={capaFoto.url || capaFoto.url_full || ''} alt="" className="w-full h-full object-cover" style={{ minHeight: '50vh' }} />}
+            </div>
+          </div>
+        );
+      }
+      if (capaLayout === 'cinematico') {
+        return (
+          <div className="flex flex-col min-h-screen bg-black">
+            <div className="h-16 md:h-24 bg-black" />
+            <div className="flex-1 relative overflow-hidden">
+              {capaFoto && <img src={capaFoto.url || capaFoto.url_full || ''} alt="" className="w-full h-full object-cover opacity-80" />}
+              <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+              <div className="absolute bottom-8 left-8 right-8 md:left-16 md:right-16" style={{ color: corTexto }}>
+                <h1 className="text-2xl md:text-4xl tracking-[0.2em] uppercase font-light" style={{ fontFamily: fonteTitulo }}>{album.titulo}</h1>
+                {dataEvento && <p className="text-xs opacity-60 mt-3 tracking-wider" style={{ fontFamily: tema.fonte_corpo }}>{dataEvento}</p>}
+                <button onClick={handleVerFotos} className="mt-6 text-sm opacity-60 hover:opacity-100 flex items-center gap-2 transition tracking-wider" style={{ fontFamily: tema.fonte_corpo }}>
+                  {textoBtn} <ArrowRight size={16} />
+                </button>
+              </div>
+            </div>
+            <div className="h-16 md:h-24 bg-black" />
+          </div>
+        );
+      }
+      if (capaLayout === 'moldura') {
+        return (
+          <div className="flex flex-col items-center justify-center min-h-screen p-12" style={{ backgroundColor: '#f3f4f6' }}>
+            <div className="border-4 p-3 shadow-lg bg-white" style={{ borderColor: corOverlay }}>
+              <div className="w-72 h-52 md:w-96 md:h-72 overflow-hidden">
+                {capaFoto && <img src={capaFoto.url || capaFoto.url_full || ''} alt="" className="w-full h-full object-cover" />}
+              </div>
+            </div>
+            <div className="text-center mt-8" style={{ color: corTexto }}>
+              <h1 className="text-3xl md:text-4xl font-bold" style={{ fontFamily: fonteTitulo }}>{album.titulo}</h1>
+              {dataEvento && <p className="text-sm opacity-60 mt-3" style={{ fontFamily: tema.fonte_corpo }}>{dataEvento}</p>}
+            </div>
+            <button onClick={handleVerFotos} className="mt-8 text-sm opacity-60 hover:opacity-100 flex items-center gap-2 transition" style={{ color: corTexto, fontFamily: tema.fonte_corpo }}>
+              {textoBtn} <ArrowRight size={16} />
+            </button>
+          </div>
+        );
+      }
+      if (capaLayout === 'full') {
+        return (
+          <div className="relative min-h-screen cursor-pointer" onClick={handleVerFotos}>
+            {capaFoto && <img src={capaFoto.url || capaFoto.url_full || ''} alt="" className="w-full h-full min-h-screen object-cover" />}
+            {!capaFoto && <div className="w-full min-h-screen bg-gray-800" />}
+            <div className="absolute bottom-8 right-8 opacity-60">
+              <span className="text-xs text-white bg-black/40 px-3 py-2 rounded-full backdrop-blur-sm flex items-center gap-2" style={{ fontFamily: tema.fonte_corpo }}>
+                {textoBtn} <ArrowRight size={14} />
+              </span>
+            </div>
+          </div>
+        );
+      }
+      if (capaLayout === 'minimalista') {
+        return (
+          <div className="flex flex-col items-center justify-center min-h-screen p-8" style={{ backgroundColor: '#f9fafb' }}>
+            <div className="w-64 h-48 md:w-80 md:h-60 rounded-lg overflow-hidden shadow-lg mb-8">
+              {capaFoto && <img src={capaFoto.url || capaFoto.url_full || ''} alt="" className="w-full h-full object-cover" />}
+            </div>
+            <h1 className="text-3xl md:text-5xl font-bold mb-2" style={{ fontFamily: fonteTitulo, color: corTexto }}>{album.titulo}</h1>
+            {nomeNegocio && <p className="text-xs opacity-60 tracking-widest uppercase" style={{ fontFamily: tema.fonte_corpo, color: corTexto }}>{nomeNegocio}</p>}
+            {dataEvento && <p className="text-sm opacity-60 mt-3" style={{ fontFamily: tema.fonte_corpo, color: corTexto }}>{dataEvento}</p>}
+            <button onClick={handleVerFotos} className="mt-10 text-sm opacity-60 hover:opacity-100 flex items-center gap-2 transition" style={{ color: corTexto, fontFamily: tema.fonte_corpo }}>
+              {textoBtn} <ArrowRight size={16} />
+            </button>
+          </div>
+        );
+      }
+      // ELEGANTE / OUSADO (default)
+      return (
+        <div className="relative min-h-screen overflow-hidden" style={{ backgroundColor: corOverlay }}>
+          {capaFoto && (
+            <div className="absolute inset-0">
+              <img src={capaFoto.url || capaFoto.url_full || ''} alt="" className="w-full h-full object-cover opacity-50" />
+              <div className="absolute inset-0" style={{ backgroundColor: corOverlay + '80' }} />
+            </div>
+          )}
+          <div className={`relative z-10 min-h-screen flex flex-col p-8 md:p-16 ${capaLayout === 'ousado' ? 'justify-center items-center text-center' : 'justify-end'}`} style={{ color: corTexto }}>
+            {nomeNegocio && <p className="text-xs opacity-70 mb-3 tracking-widest uppercase" style={{ fontFamily: tema.fonte_corpo }}>{nomeNegocio}</p>}
+            <h1 className={`font-bold mb-2 ${capaLayout === 'ousado' ? 'text-5xl md:text-7xl' : 'text-4xl md:text-6xl'}`} style={{ fontFamily: fonteTitulo }}>{album.titulo}</h1>
+            {dataEvento && <p className="text-sm opacity-70 mt-2" style={{ fontFamily: tema.fonte_corpo }}>{dataEvento}</p>}
+            <button onClick={handleVerFotos} className="mt-8 text-sm opacity-70 hover:opacity-100 flex items-center gap-2 transition" style={{ fontFamily: tema.fonte_corpo }}>
+              {textoBtn} <ArrowRight size={16} />
+            </button>
+          </div>
+        </div>
+      );
+    };
+
     return (
-      <div className="min-h-screen relative overflow-hidden" style={{ backgroundColor: cores.fundo }}>
+      <div>
         {/* Banner de preview */}
-        <div className="absolute top-0 left-0 right-0 z-30 bg-yellow-50 border-b border-yellow-200 px-4 py-2 text-center">
+        <div className="fixed top-0 left-0 right-0 z-30 bg-yellow-50 border-b border-yellow-200 px-4 py-2 text-center">
           <span className="inline-flex items-center gap-2 text-sm text-yellow-800 font-medium">
             <Eye size={14} /> Pré-visualização — é assim que o cliente verá o álbum
           </span>
         </div>
-
-        {/* Background cover image */}
-        {capaFoto && (
-          <div className="absolute inset-0">
-            <img
-              src={capaFoto.url || capaFoto.url_full || ''}
-              alt=""
-              className="w-full h-full"
-              style={{ objectFit: tema.capa_modo || 'cover' }}
-            />
-            <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-black/10" />
-            <div className="absolute inset-0 bg-gradient-to-r from-black/40 to-transparent" />
-          </div>
-        )}
-
-        {/* Content */}
-        <div className="relative z-10 min-h-screen flex flex-col justify-between p-6 md:p-12 pt-16">
-          {/* Top - Brand */}
-          <div>
-            <p className="text-white/60 text-xs md:text-sm tracking-widest uppercase font-medium">
-              Marcelo Bloise Fotografia
-            </p>
-          </div>
-
-          {/* Bottom */}
-          <div className="flex items-end justify-between flex-wrap gap-6">
-            <div className="max-w-lg">
-              <h1
-                className="text-4xl md:text-6xl lg:text-7xl font-bold leading-tight"
-                style={{ fontFamily: fonteTitulo, color: acento }}
-              >
-                {album.titulo}
-              </h1>
-              {album.data_evento && (
-                <p className="mt-3 text-lg md:text-xl" style={{ color: acento, opacity: 0.8 }}>
-                  {formatDate(album.data_evento)}
-                </p>
-              )}
-            </div>
-
-            <button
-              onClick={handleVerFotos}
-              className="group flex items-center gap-2 text-white/80 hover:text-white transition-colors text-sm md:text-base"
-            >
-              <span>Ver fotos</span>
-              <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />
-            </button>
-          </div>
+        <div className="pt-10">
+          {coverContent()}
         </div>
       </div>
     );
