@@ -146,6 +146,8 @@ export default function AlbumPreview() {
     setLightbox(null);
   };
 
+  const [downloading, setDownloading] = useState(false);
+
   if (loading) {
     return (
       <div className="min-h-screen bg-black flex items-center justify-center">
@@ -179,7 +181,6 @@ export default function AlbumPreview() {
     return `${d}/${m}/${y}`;
   };
 
-  const [downloading, setDownloading] = useState(false);
   const handleDownload = async (foto) => {
     const url = foto?.url_full || foto?.url;
     if (!url) return;
