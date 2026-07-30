@@ -166,10 +166,11 @@ export default function AlbumPreview() {
   const acento = cores.acento || '#EA580C';
   const fonteTitulo = tema.fonte_titulo || 'Playfair Display';
 
-  // Foto de capa
+  // Foto de capa — usar url_full (original, alta resolução) para não distorcer
   const capaFoto = tema.capa_foto_id
     ? fotos.find(f => f.id === tema.capa_foto_id || f.SK?.replace('FOTO#', '') === tema.capa_foto_id)
     : fotos[0];
+  const capaUrl = capaFoto ? (capaFoto.url_full || capaFoto.url || '') : '';
 
   const formatDate = (dateStr) => {
     if (!dateStr) return '';
@@ -195,7 +196,7 @@ export default function AlbumPreview() {
         return (
           <div className="flex h-full min-h-screen">
             <div className="w-1/2 h-full overflow-hidden">
-              {capaFoto && <img src={capaFoto.url || capaFoto.url_full || ''} alt="" className="w-full h-full object-cover" />}
+              {capaFoto && <img src={capaFoto.url_full || capaFoto.url || ''} alt="" className="w-full h-full object-cover" />}
               {!capaFoto && <div className="w-full h-full bg-gray-700" />}
             </div>
             <div className="w-1/2 flex flex-col justify-center px-8 md:px-16" style={{ backgroundColor: corOverlay, color: corTexto }}>
@@ -221,7 +222,7 @@ export default function AlbumPreview() {
               </button>
             </div>
             <div className="flex-1 overflow-hidden relative">
-              {capaFoto && <img src={capaFoto.url || capaFoto.url_full || ''} alt="" className="w-full h-full object-cover" style={{ minHeight: '50vh' }} />}
+              {capaFoto && <img src={capaFoto.url_full || capaFoto.url || ''} alt="" className="w-full h-full object-cover" style={{ minHeight: '50vh' }} />}
             </div>
           </div>
         );
@@ -231,7 +232,7 @@ export default function AlbumPreview() {
           <div className="flex flex-col min-h-screen bg-black">
             <div className="h-16 md:h-24 bg-black" />
             <div className="flex-1 relative overflow-hidden">
-              {capaFoto && <img src={capaFoto.url || capaFoto.url_full || ''} alt="" className="w-full h-full object-cover opacity-80" />}
+              {capaFoto && <img src={capaFoto.url_full || capaFoto.url || ''} alt="" className="w-full h-full object-cover opacity-80" />}
               <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
               <div className="absolute bottom-8 left-8 right-8 md:left-16 md:right-16" style={{ color: corTexto }}>
                 <h1 className="text-2xl md:text-4xl tracking-[0.2em] uppercase font-light" style={{ fontFamily: fonteTitulo }}>{album.titulo}</h1>
@@ -250,7 +251,7 @@ export default function AlbumPreview() {
           <div className="flex flex-col items-center justify-center min-h-screen p-12" style={{ backgroundColor: '#f3f4f6' }}>
             <div className="border-4 p-3 shadow-lg bg-white" style={{ borderColor: corOverlay }}>
               <div className="w-72 h-52 md:w-96 md:h-72 overflow-hidden">
-                {capaFoto && <img src={capaFoto.url || capaFoto.url_full || ''} alt="" className="w-full h-full object-cover" />}
+                {capaFoto && <img src={capaFoto.url_full || capaFoto.url || ''} alt="" className="w-full h-full object-cover" />}
               </div>
             </div>
             <div className="text-center mt-8" style={{ color: corTexto }}>
@@ -266,7 +267,7 @@ export default function AlbumPreview() {
       if (capaLayout === 'full') {
         return (
           <div className="relative min-h-screen cursor-pointer" onClick={handleVerFotos}>
-            {capaFoto && <img src={capaFoto.url || capaFoto.url_full || ''} alt="" className="w-full h-full min-h-screen object-cover" />}
+            {capaFoto && <img src={capaFoto.url_full || capaFoto.url || ''} alt="" className="w-full h-full min-h-screen object-cover" />}
             {!capaFoto && <div className="w-full min-h-screen bg-gray-800" />}
             <div className="absolute bottom-8 right-8 opacity-60">
               <span className="text-xs text-white bg-black/40 px-3 py-2 rounded-full backdrop-blur-sm flex items-center gap-2" style={{ fontFamily: tema.fonte_corpo }}>
@@ -280,7 +281,7 @@ export default function AlbumPreview() {
         return (
           <div className="flex flex-col items-center justify-center min-h-screen p-8" style={{ backgroundColor: '#f9fafb' }}>
             <div className="w-64 h-48 md:w-80 md:h-60 rounded-lg overflow-hidden shadow-lg mb-8">
-              {capaFoto && <img src={capaFoto.url || capaFoto.url_full || ''} alt="" className="w-full h-full object-cover" />}
+              {capaFoto && <img src={capaFoto.url_full || capaFoto.url || ''} alt="" className="w-full h-full object-cover" />}
             </div>
             <h1 className="text-3xl md:text-5xl font-bold mb-2" style={{ fontFamily: fonteTitulo, color: corTexto }}>{album.titulo}</h1>
             {nomeNegocio && <p className="text-xs opacity-60 tracking-widest uppercase" style={{ fontFamily: tema.fonte_corpo, color: corTexto }}>{nomeNegocio}</p>}
@@ -296,7 +297,7 @@ export default function AlbumPreview() {
         <div className="relative min-h-screen overflow-hidden" style={{ backgroundColor: corOverlay }}>
           {capaFoto && (
             <div className="absolute inset-0">
-              <img src={capaFoto.url || capaFoto.url_full || ''} alt="" className="w-full h-full object-cover opacity-50" />
+              <img src={capaFoto.url_full || capaFoto.url || ''} alt="" className="w-full h-full object-cover opacity-50" />
               <div className="absolute inset-0" style={{ backgroundColor: corOverlay + '80' }} />
             </div>
           )}

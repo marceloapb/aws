@@ -96,11 +96,11 @@ router.get('/', async (req, res) => {
       capaFoto = todasFotos[0];
     }
 
-    // Assinar URL da capa
+    // Assinar URL da capa — usar original (alta resolução) para não distorcer
     let capa_url = null;
     if (capaFoto) {
-      const signed = await assinarFoto(capaFoto);
-      capa_url = signed.url;
+      const originalKey = capaFoto.s3_key_original || capaFoto.s3_key || capaFoto.s3_key_media || '';
+      capa_url = originalKey ? await getSignedDownloadUrl(originalKey, 86400) : null;
     }
 
     // Para cada galeria, pegar primeira foto como thumbnail
