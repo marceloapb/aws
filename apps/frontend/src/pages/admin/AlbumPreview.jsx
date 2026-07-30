@@ -188,8 +188,8 @@ export default function AlbumPreview() {
     const corTexto = coresCapa.texto || '#FFFFFF';
     const corOverlay = coresCapa.overlay || '#121212';
     const textoBtn = tema.texto_botao || 'Ver fotos';
-    const nomeNegocio = tema.nome_negocio || '';
-    const dataEvento = album.data_evento ? formatDate(album.data_evento) : '';
+    const nomeNegocio = (tema.info_negocio !== false) ? (album.nome_negocio || tema.nome_negocio || '') : '';
+    const dataEvento = (tema.mais_info !== false) && album.data_evento ? formatDate(album.data_evento) : '';
 
     const coverContent = () => {
       if (capaLayout === 'split') {
@@ -335,7 +335,7 @@ export default function AlbumPreview() {
     const galeriasAtivas = getGaleriasComFotos();
 
     return (
-      <div className="min-h-screen" style={{ backgroundColor: cores.fundo, color: cores.texto }}>
+      <div className="min-h-screen" style={{ backgroundColor: tema.cores_galerias?.background || cores.fundo, color: tema.cores_galerias?.texto_icones || cores.texto }}>
         {/* Banner preview */}
         <div className="bg-yellow-50 border-b border-yellow-200 px-4 py-2 text-center">
           <span className="inline-flex items-center gap-2 text-sm text-yellow-800 font-medium">
@@ -344,7 +344,7 @@ export default function AlbumPreview() {
         </div>
 
         {/* Header */}
-        <header className="sticky top-0 z-20 backdrop-blur-sm border-b" style={{ backgroundColor: `${cores.fundo}ee`, borderColor: `${cores.texto}10` }}>
+        <header className="sticky top-0 z-20 backdrop-blur-sm border-b" style={{ backgroundColor: `${tema.cores_galerias?.background || cores.fundo}ee`, borderColor: `${tema.cores_galerias?.texto_icones || cores.texto}10` }}>
           <div className="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
             <button onClick={() => setView('cover')} className="p-2 -ml-2 opacity-60 hover:opacity-100 transition-opacity">
               <ArrowLeft size={20} />
@@ -421,7 +421,7 @@ export default function AlbumPreview() {
   })();
 
   return (
-    <div className="min-h-screen" style={{ backgroundColor: cores.fundo, color: cores.texto, fontFamily: tema.fonte_corpo || 'Inter' }}>
+    <div className="min-h-screen" style={{ backgroundColor: tema.cores_galerias?.background || cores.fundo, color: tema.cores_galerias?.texto_icones || cores.texto, fontFamily: tema.fonte_corpo || 'Inter' }}>
       {/* CSS Animations */}
       <style>{`
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
@@ -439,7 +439,7 @@ export default function AlbumPreview() {
       </div>
 
       {/* Header */}
-      <header className="sticky top-0 z-20 backdrop-blur-sm border-b" style={{ backgroundColor: `${cores.fundo}ee`, borderColor: `${cores.texto}10` }}>
+      <header className="sticky top-0 z-20 backdrop-blur-sm border-b" style={{ backgroundColor: `${tema.cores_galerias?.background || cores.fundo}ee`, borderColor: `${tema.cores_galerias?.texto_icones || cores.texto}10` }}>
         <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
           <button
             onClick={() => galeriasAtivas.length > 1 ? setView('sets') : setView('cover')}

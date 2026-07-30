@@ -110,9 +110,19 @@ router.put('/', async (req, res) => {
       ...(body.densidade_colagem !== undefined && { densidade_colagem: body.densidade_colagem }),
       ...(body.orientacao && { orientacao: body.orientacao }),
       ...(body.qualidade_imagem !== undefined && { qualidade_imagem: body.qualidade_imagem }),
+      // Animações (aceita ambos os formatos de campo)
       ...(body.scroll_effect && { scroll_effect: body.scroll_effect }),
       ...(body.hover_effect && { hover_effect: body.hover_effect }),
       ...(body.overlay_animation && { overlay_animation: body.overlay_animation }),
+      ...(body.animacao_scroll && { animacao_scroll: body.animacao_scroll, scroll_effect: body.animacao_scroll }),
+      ...(body.animacao_hover && { animacao_hover: body.animacao_hover, hover_effect: body.animacao_hover }),
+      ...(body.animacao_overlay && { animacao_overlay: body.animacao_overlay, overlay_animation: body.animacao_overlay }),
+      // Texto da capa (persistido no tema para o preview usar)
+      ...(body.texto_botao !== undefined && { texto_botao: body.texto_botao }),
+      ...(body.nome_negocio !== undefined && { nome_negocio: body.nome_negocio }),
+      ...(body.mais_info !== undefined && { mais_info: body.mais_info }),
+      ...(body.info_negocio !== undefined && { info_negocio: body.info_negocio }),
+      updated_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     };
 
