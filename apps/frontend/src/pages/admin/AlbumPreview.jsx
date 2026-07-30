@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
-import { Eye, X, ChevronLeft, ChevronRight, Download, ArrowRight, ArrowLeft, Share2 } from 'lucide-react';
+import { Eye, X, ChevronLeft, ChevronRight, Download, ArrowRight, ArrowLeft, Share2, Heart } from 'lucide-react';
 import JSZip from 'jszip';
 import { JustifiedGallery } from '../../utils/galleryLayouts/justifiedRows';
 import { MasonryGallery } from '../../utils/galleryLayouts/masonry';
@@ -150,6 +150,21 @@ export default function AlbumPreview() {
 
   const [downloading, setDownloading] = useState(false);
   const [downloadProgress, setDownloadProgress] = useState('');
+  const [selecionadas, setSelecionadas] = useState(new Set());
+
+  const toggleSelecao = (fotoId) => {
+    setSelecionadas(prev => {
+      const nova = new Set(prev);
+      if (nova.has(fotoId)) {
+        nova.delete(fotoId);
+      } else {
+        // Verificar cota
+        if (album?.cota_selecao && nova.size >= album.cota_selecao) return prev;
+        nova.add(fotoId);
+      }
+      return nova;
+    });
+  };
 
   if (loading) {
     return (
@@ -482,20 +497,22 @@ export default function AlbumPreview() {
 
       {/* Header */}
       <header className="sticky top-0 z-20 backdrop-blur-sm border-b" style={{ backgroundColor: `${tema.cores_galerias?.background || cores.fundo}ee`, borderColor: `${tema.cores_galerias?.texto_icones || cores.texto}10` }}>
-        <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
+        <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between relative">
           <button
             onClick={() => galeriasAtivas.length > 1 ? setView('sets') : setView('cover')}
-            className="p-2 -ml-2 opacity-60 hover:opacity-100 transition-opacity"
+            className="p-2 -ml-2 opacity-60 hover:opacity-100 transition-opacity z-10"
           >
             <ArrowLeft size={20} />
           </button>
-          <div className="text-center">
-            <h1 className="text-lg md:text-xl font-semibold" style={{ fontFamily: tema.fonte_titulo || 'Playfair Display' }}>{galeriaNome}</h1>
-            {album.titulo !== galeriaNome && (
-              <p className="text-sm opacity-50">{album.titulo}</p>
-            )}
+          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+            <div className="text-center">
+              <h1 className="text-lg md:text-xl font-semibold" style={{ fontFamily: tema.fonte_titulo || 'Playfair Display' }}>{galeriaNome}</h1>
+              {album.titulo !== galeriaNome && (
+                <p className="text-sm opacity-50">{album.titulo}</p>
+              )}
+            </div>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 z-10">
             <button onClick={() => { const url = `${window.location.origin}/album/${album.slug || album.id}`; if (navigator.share) { navigator.share({ title: album.titulo, url }); } else { navigator.clipboard.writeText(url); } }} className="flex items-center gap-1 text-xs opacity-60 hover:opacity-100 transition-opacity">
               <Share2 size={16} />
               <span>Compartilhar</span>
@@ -518,6 +535,9 @@ export default function AlbumPreview() {
           containerWidth={gridWidth || (typeof window !== 'undefined' ? Math.min(window.innerWidth - 48, 1280) : 1200)}
           onPhotoClick={(i) => setLightbox(i)}
           tema={tema}
+          permiteSelecao={album.permite_selecao}
+          selecionadas={selecionadas}
+          onToggleSelecao={toggleSelecao}
         />
 
         {/* Infinite scroll loader */}
@@ -573,6 +593,18 @@ export default function AlbumPreview() {
             <span className="text-white/60 text-sm bg-black/60 px-3 py-1.5 rounded-full backdrop-blur-sm">
               {lightbox + 1} / {activeFotos.length}
             </span>
+            {album.permite_selecao && (() => {
+              const fotoId = activeFotos[lightbox]?.id || activeFotos[lightbox]?.SK?.replace('FOTO#', '');
+              const sel = selecionadas.has(fotoId);
+              return (
+                <button
+                  onClick={(e) => { e.stopPropagation(); toggleSelecao(fotoId); }}
+                  className={`p-2 rounded-full backdrop-blur-sm transition-all ${sel ? 'bg-red-500 text-white' : 'bg-black/60 text-white/60 hover:text-white'}`}
+                >
+                  <Heart size={18} fill={sel ? 'white' : 'none'} />
+                </button>
+              );
+            })()}
             {album.permite_download && (
               <button
                 onClick={(e) => { e.stopPropagation(); handleDownload(activeFotos[lightbox]); }}
@@ -584,6 +616,40 @@ export default function AlbumPreview() {
           </div>
         </div>
       )}
+
+      {/* Selection bar */}
+      {album.permite_selecao && (
+        <div className="fixed bottom-0 left-0 right-0 z-40">
+          <div className="max-w-4xl mx-auto px-4 pb-4">
+            <div className="px-6 py-4 bg-white/95 backdrop-blur border rounded-xl shadow-lg space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-medium text-gray-700">
+                  <span className="text-lg font-bold" style={{ color: acento }}>{selecionadas.size}</span>
+                  {' / '}
+                  <span className="text-gray-500">{album.cota_selecao || activeFotos.length}</span>
+                  {' '}selecionadas
+                </span>
+                <button
+                  disabled={selecionadas.size === 0}
+                  className="px-5 py-2 text-sm font-medium text-white rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed hover:opacity-90"
+                  style={{ backgroundColor: acento }}
+                >
+                  Confirmar Seleção
+                </button>
+              </div>
+              <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+                <div
+                  className="h-full rounded-full transition-all duration-300"
+                  style={{
+                    width: `${Math.min((selecionadas.size / (album.cota_selecao || activeFotos.length)) * 100, 100)}%`,
+                    backgroundColor: acento,
+                  }}
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -592,7 +658,7 @@ export default function AlbumPreview() {
 // ═══════════════════════════════════════════════════════════
 // Componente interno que escolhe o layout correto
 // ═══════════════════════════════════════════════════════════
-function GalleryGrid({ layout, fotos, containerWidth, onPhotoClick, tema }) {
+function GalleryGrid({ layout, fotos, containerWidth, onPhotoClick, tema, permiteSelecao, selecionadas, onToggleSelecao }) {
   const gap = tema?.espacamento || 8;
   // Preparar array de photos no formato esperado pelos layouts
   const photos = fotos.map(f => ({
@@ -604,17 +670,33 @@ function GalleryGrid({ layout, fotos, containerWidth, onPhotoClick, tema }) {
 
   if (photos.length === 0) return null;
 
+  // Selection heart button overlay
+  const SelectionOverlay = ({ fotoId }) => {
+    if (!permiteSelecao) return null;
+    const sel = selecionadas?.has(fotoId);
+    return (
+      <button
+        onClick={(e) => { e.stopPropagation(); onToggleSelecao?.(fotoId); }}
+        className={`absolute top-2 right-2 w-9 h-9 rounded-full flex items-center justify-center transition-all z-10 ${sel ? 'bg-red-500 text-white scale-110 shadow-lg' : 'bg-white/80 text-gray-400 hover:text-red-500 hover:scale-110 shadow'}`}
+      >
+        <Heart size={18} fill={sel ? 'white' : 'none'} />
+      </button>
+    );
+  };
+
   // renderItem function that applies animations via GalleryPhoto
   const renderItem = ({ photo, item, index, style }) => (
-    <GalleryPhoto
-      key={item.id}
-      src={photo?.url || ''}
-      id={item.id}
-      index={index}
-      tema={tema}
-      style={style}
-      onClick={() => onPhotoClick && onPhotoClick(index)}
-    />
+    <div key={item.id} className="relative" style={style}>
+      <GalleryPhoto
+        src={photo?.url || ''}
+        id={item.id}
+        index={index}
+        tema={tema}
+        style={{ width: '100%', height: '100%' }}
+        onClick={() => onPhotoClick && onPhotoClick(index)}
+      />
+      <SelectionOverlay fotoId={item.id} />
+    </div>
   );
 
   // Mosaico → Masonry (colunas, foto inteira sem corte)
@@ -660,21 +742,25 @@ function GalleryGrid({ layout, fotos, containerWidth, onPhotoClick, tema }) {
   if (layout === 'slider') {
     return (
       <div className="flex overflow-x-auto gap-4 snap-x snap-mandatory pb-4" style={{ scrollbarWidth: 'none' }}>
-        {fotos.map((foto, i) => (
-          <div
-            key={foto.id || i}
-            className="min-w-[70vw] md:min-w-[45vw] lg:min-w-[30vw] flex-shrink-0 snap-center rounded-lg overflow-hidden cursor-pointer"
-            onClick={() => onPhotoClick(i)}
-          >
-            <GalleryPhoto
-              src={foto.url || ''}
-              id={foto.id || `slider-${i}`}
-              index={i}
-              tema={tema}
-              style={{ width: '100%', height: '60vh' }}
-            />
-          </div>
-        ))}
+        {fotos.map((foto, i) => {
+          const fotoId = foto.id || foto.SK?.replace('FOTO#', '');
+          return (
+            <div
+              key={fotoId || i}
+              className="relative min-w-[70vw] md:min-w-[45vw] lg:min-w-[30vw] flex-shrink-0 snap-center rounded-lg overflow-hidden cursor-pointer"
+              onClick={() => onPhotoClick(i)}
+            >
+              <GalleryPhoto
+                src={foto.url || ''}
+                id={fotoId || `slider-${i}`}
+                index={i}
+                tema={tema}
+                style={{ width: '100%', height: '60vh' }}
+              />
+              <SelectionOverlay fotoId={fotoId} />
+            </div>
+          );
+        })}
       </div>
     );
   }
@@ -683,17 +769,21 @@ function GalleryGrid({ layout, fotos, containerWidth, onPhotoClick, tema }) {
   if (layout === 'coluna') {
     return (
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {fotos.map((foto, i) => (
-          <div key={foto.id || i} className="rounded-lg overflow-hidden cursor-pointer" onClick={() => onPhotoClick(i)}>
-            <GalleryPhoto
-              src={foto.url || ''}
-              id={foto.id || `col-${i}`}
-              index={i}
-              tema={tema}
-              style={{ width: '100%', maxHeight: '500px' }}
-            />
-          </div>
-        ))}
+        {fotos.map((foto, i) => {
+          const fotoId = foto.id || foto.SK?.replace('FOTO#', '');
+          return (
+            <div key={fotoId || i} className="relative rounded-lg overflow-hidden cursor-pointer" onClick={() => onPhotoClick(i)}>
+              <GalleryPhoto
+                src={foto.url || ''}
+                id={fotoId || `col-${i}`}
+                index={i}
+                tema={tema}
+                style={{ width: '100%', maxHeight: '500px' }}
+              />
+              <SelectionOverlay fotoId={fotoId} />
+            </div>
+          );
+        })}
       </div>
     );
   }
