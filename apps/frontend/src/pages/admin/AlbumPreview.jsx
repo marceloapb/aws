@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
-import { Eye, X, ChevronLeft, ChevronRight, Download, ArrowRight, ArrowLeft } from 'lucide-react';
+import { Eye, X, ChevronLeft, ChevronRight, Download, ArrowRight, ArrowLeft, Share2 } from 'lucide-react';
 import { JustifiedGallery } from '../../utils/galleryLayouts/justifiedRows';
 import { MasonryGallery } from '../../utils/galleryLayouts/masonry';
 import { CollageGallery } from '../../utils/galleryLayouts/collageGroups';
@@ -385,7 +385,7 @@ export default function AlbumPreview() {
             <button onClick={() => setView('cover')} className="p-2 -ml-2 opacity-60 hover:opacity-100 transition-opacity">
               <ArrowLeft size={20} />
             </button>
-            <h1 className="text-base md:text-lg font-medium" style={{ fontFamily: tema.fonte_titulo || 'Playfair Display' }}>{album.titulo}</h1>
+            <h1 className="text-lg md:text-xl font-semibold" style={{ fontFamily: tema.fonte_titulo || 'Playfair Display' }}>{album.titulo}</h1>
             <div className="w-8" />
           </div>
         </header>
@@ -466,12 +466,16 @@ export default function AlbumPreview() {
             <ArrowLeft size={20} />
           </button>
           <div className="text-center">
-            <h1 className="text-sm md:text-base font-medium" style={{ fontFamily: tema.fonte_titulo || 'Playfair Display' }}>{galeriaNome}</h1>
+            <h1 className="text-lg md:text-xl font-semibold" style={{ fontFamily: tema.fonte_titulo || 'Playfair Display' }}>{galeriaNome}</h1>
             {album.titulo !== galeriaNome && (
-              <p className="text-xs opacity-40">{album.titulo}</p>
+              <p className="text-sm opacity-50">{album.titulo}</p>
             )}
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
+            <button onClick={() => { const url = `${window.location.origin}/album/${album.slug || album.id}`; if (navigator.share) { navigator.share({ title: album.titulo, url }); } else { navigator.clipboard.writeText(url); } }} className="flex items-center gap-1 text-xs opacity-60 hover:opacity-100 transition-opacity">
+              <Share2 size={16} />
+              <span>Compartilhar</span>
+            </button>
             {album.permite_download && (
               <button onClick={handleDownloadAll} disabled={downloading} className="flex items-center gap-1 text-xs opacity-60 hover:opacity-100 transition-opacity disabled:opacity-30">
                 {downloading ? <div className="w-4 h-4 border-2 border-current/30 border-t-current rounded-full animate-spin" /> : <Download size={16} />}

@@ -145,9 +145,9 @@ export default function AlbumGaleria() {
           </button>
 
           <div className="text-center">
-            <h1 className="text-sm md:text-base font-medium text-white">{galeriaNome}</h1>
+            <h1 className="text-lg md:text-xl font-semibold text-white">{galeriaNome}</h1>
             {albumTitulo !== galeriaNome && (
-              <p className="text-xs text-white/40">{albumTitulo}</p>
+              <p className="text-sm text-white/50">{albumTitulo}</p>
             )}
           </div>
 
