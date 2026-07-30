@@ -142,6 +142,9 @@ apps/
 - Despesas recorrentes: o POST funciona mas precisa testar se está gravando
 - Modelo Bedrock para texto (amazon.nova-micro): funciona, mas para contratos longos usa nova-lite com chunks
 - Portfolio: pipeline de thumbnails (SQS → Lambda) criado mas a Lambda de processamento pode não estar deployada ainda (depende do SAM deploy com sharp)
+- **Página pública do álbum (AlbumGaleria.jsx)**: Ignora quase todo o tema — cores, layout, fontes, bordas. Usa grid hardcoded. Precisa refatorar para usar tema da API.
+- **qualidade_imagem**: Salva no tema mas não é consumido em nenhum lugar (precisa backend/CDN)
+- **Fontes na página pública**: Não carrega Google Fonts dinamicamente
 
 ## Contexto técnico importante
 - **TENANT ÚNICO: `TENANT#default`** — TODO o sistema usa apenas este tenant. NÃO existe mais TENANT#1 nem TENANT#<cognitoSub>.
@@ -156,3 +159,13 @@ apps/
 - Status normalizado no frontend admin: aprovado→accepted, solicitado→draft, rascunho→draft
 - Portfolio fotos: bucket público para /1/portfolio/*, usa -web.webp para exibição
 - **NUNCA usar TENANT#1 ou TENANT#<cognitoSub> — sempre TENANT#default**
+
+## Notas técnicas da sessão 30/07/2026
+- **AlbumPreview.jsx**: CUIDADO com useState — TODOS os hooks devem ficar ANTES dos `if (loading) return` / `if (!album) return`. Já causou tela branca 2x.
+- **GalleryPhoto.jsx**: Componente wrapper que aplica animações (scroll/hover/overlay) + bordas. Usado tanto no editor (PreviewGalleryGrid via renderItem) quanto no AlbumPreview (GalleryGrid via renderItem).
+- **useScrollAnimation.js**: Hook que reseta quando `animacao` muda (permite re-testar efeitos no editor).
+- **Animações**: Salvas como `animacao_scroll`, `animacao_hover`, `animacao_overlay` no tema. API aceita ambos os nomes (com e sem prefixo).
+- **Regras de Calendário**: Nova funcionalidade em `/admin/notificacoes/calendario`. Rota: `admin-calendario-rules.js`. SK: `CALENDAR_RULE#<id>`.
+- **Regras de Disparo**: 20 regras cadastradas. SK: `REGRA_NTF#<id>`. Campos: `titulo_template`, `mensagem_template`, `whatsapp_template`.
+- **Download ZIP**: Frontend usa JSZip para baixar todas as fotos como .zip. Dependência: `jszip@3.10.1` + `yaml@2.9.0` (necessário para resolver conflito tailwindcss/postcss-load-config).
+- **Deploy**: O lockfile do frontend DEVE ter `yaml@2.9.0` como dependência direta para evitar erro no `npm ci` do GitHub Actions.
