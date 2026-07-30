@@ -747,14 +747,25 @@ export default function AlbumDetalhe() {
 
               {/* === GALERIA PREVIEW === */}
               {previewMode === 'galeria' && (
-                <div className="w-full h-full min-h-[400px] p-4 overflow-y-auto" style={{ backgroundColor: tema.cores_galerias?.background || '#121212' }}>
-                  <PreviewGalleryGrid
-                    layout={tema.layout}
-                    fotos={fotosGaleria.slice(0, 20)}
-                    onPhotoClick={(i) => setLightboxIndex(i)}
-                    tema={tema}
-                  />
-                  {fotosGaleria.length === 0 && <div className="flex items-center justify-center h-full"><p className="text-gray-500 text-sm">Nenhuma foto na galeria. Faça upload na aba Mídia.</p></div>}
+                <div className="w-full h-full min-h-[400px] overflow-y-auto" style={{ backgroundColor: tema.cores_galerias?.background || '#121212' }}>
+                  {/* Gallery header */}
+                  <div className="sticky top-0 z-10 backdrop-blur-sm border-b px-4 py-3 flex items-center justify-between" style={{ backgroundColor: `${tema.cores_galerias?.background || '#121212'}ee`, borderColor: `${tema.cores_galerias?.texto_icones || '#FFFFFF'}15` }}>
+                    <span className="text-xs opacity-40" style={{ color: tema.cores_galerias?.texto_icones || '#FFFFFF' }}>←</span>
+                    <div className="text-center">
+                      <h2 className="text-sm font-medium" style={{ fontFamily: tema.fonte_titulo, color: tema.cores_galerias?.texto_icones || '#FFFFFF' }}>{galerias.find(g => g.id === galeriaAtiva)?.nome || 'Galeria'}</h2>
+                      <p className="text-[10px] opacity-40" style={{ color: tema.cores_galerias?.texto_icones || '#FFFFFF', fontFamily: tema.fonte_corpo }}>{textoAlbum.titulo || 'Álbum'}</p>
+                    </div>
+                    <span className="text-[10px] opacity-40 flex items-center gap-1" style={{ color: tema.cores_galerias?.texto_icones || '#FFFFFF' }}>↓</span>
+                  </div>
+                  <div className="p-4">
+                    <PreviewGalleryGrid
+                      layout={tema.layout}
+                      fotos={fotosGaleria.slice(0, 20)}
+                      onPhotoClick={(i) => setLightboxIndex(i)}
+                      tema={tema}
+                    />
+                    {fotosGaleria.length === 0 && <div className="flex items-center justify-center h-64"><p className="text-gray-500 text-sm">Nenhuma foto na galeria. Faça upload na aba Mídia.</p></div>}
+                  </div>
                 </div>
               )}
             </div>
