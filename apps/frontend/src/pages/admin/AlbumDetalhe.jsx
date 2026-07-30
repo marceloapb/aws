@@ -323,7 +323,7 @@ export default function AlbumDetalhe() {
               ) : (
                 <button onClick={() => setShowNovaGaleria(true)} className="w-full border-2 border-dashed border-gray-300 rounded-lg py-2.5 flex flex-col items-center gap-0.5 text-xs text-gray-500 hover:border-blue-300 hover:text-blue-500 transition mb-3"><Plus size={14} /><span>Adicionar nova galeria</span></button>
               )}
-              <button onClick={() => fileInputRef.current?.click()} className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-white text-sm font-medium" style={{ backgroundColor: ACCENT }}><Upload size={14} /> Upload de mídia</button>
+              <button onClick={() => fileInputRef.current?.click()} className="w-full flex flex-col items-center gap-1 px-3 py-2.5 rounded-lg text-white text-sm font-medium" style={{ backgroundColor: ACCENT }}><div className="flex items-center gap-2"><Upload size={14} /> Upload de mídia</div>{galeriaAtiva && galerias.length > 0 && <span className="text-[10px] opacity-80 font-normal">→ {galerias.find(g => g.id === galeriaAtiva)?.nome || 'Galeria'}</span>}</button>
               <input ref={fileInputRef} type="file" multiple accept="image/*" className="hidden" onChange={handleUpload} />
               {uploading && <div className="mt-2"><div className="w-full bg-gray-200 rounded-full h-1.5"><div className="h-1.5 rounded-full bg-blue-500 transition-all" style={{ width: `${uploadProgress}%` }} /></div><p className="text-[10px] text-gray-400 mt-0.5">{uploadProgress}%</p></div>}
             </div>
