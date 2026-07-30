@@ -455,7 +455,7 @@ export default function AlbumDetalhe() {
                       </div>
                       <div><label className="text-xs font-medium text-gray-700 mb-1.5 block">Orientação da galeria</label><div className="flex gap-4"><label className="flex items-center gap-2 text-xs"><input type="radio" name="orient" checked={tema.orientacao === 'horizontal'} onChange={() => updateTema({ orientacao: 'horizontal' })} /> Horizontal</label><label className="flex items-center gap-2 text-xs"><input type="radio" name="orient" checked={tema.orientacao === 'vertical'} onChange={() => updateTema({ orientacao: 'vertical' })} /> Vertical</label></div></div>
                       <div><label className="text-xs font-medium text-gray-700 mb-1 block">Espaçamento</label><div className="flex items-center gap-2"><input type="range" min="0" max="40" value={tema.espacamento} onChange={e => setTema({ ...tema, espacamento: Number(e.target.value) })} onMouseUp={() => saveTema()} className="flex-1 accent-blue-500" /><span className="text-xs w-8 text-center">{tema.espacamento}</span></div></div>
-                      <div><label className="text-xs font-medium text-gray-700 mb-1 block">Densidade da colagem</label><div className="flex items-center gap-2"><input type="range" min="0" max="100" value={tema.densidade_colagem} onChange={e => setTema({ ...tema, densidade_colagem: Number(e.target.value) })} onMouseUp={() => saveTema()} className="flex-1 accent-blue-500" /><span className="text-xs w-8 text-center">{tema.densidade_colagem}</span></div></div>
+
                     </div>
                   )}
                 </div>
@@ -768,7 +768,11 @@ export default function AlbumDetalhe() {
                       <h2 className="text-sm font-medium" style={{ fontFamily: tema.fonte_titulo, color: tema.cores_galerias?.texto_icones || '#FFFFFF' }}>{galerias.find(g => g.id === galeriaAtiva)?.nome || 'Galeria'}</h2>
                       <p className="text-[10px] opacity-40" style={{ color: tema.cores_galerias?.texto_icones || '#FFFFFF', fontFamily: tema.fonte_corpo }}>{textoAlbum.titulo || 'Álbum'}</p>
                     </div>
-                    <span className="text-[10px] opacity-40 flex items-center gap-1" style={{ color: tema.cores_galerias?.texto_icones || '#FFFFFF' }}>↓</span>
+                    <div className="flex items-center gap-2" style={{ color: tema.cores_galerias?.texto_icones || '#FFFFFF' }}>
+                      {config.permite_download && <span className="opacity-50 text-[10px]" title="Download habilitado">↓</span>}
+                      {config.permite_selecao && <span className="opacity-50 text-[10px]" title="Seleção habilitada">☑</span>}
+                      {config.permite_comentarios && <span className="opacity-50 text-[10px]" title="Comentários habilitados">💬</span>}
+                    </div>
                   </div>
                   <div className="p-4">
                     <PreviewGalleryGrid
