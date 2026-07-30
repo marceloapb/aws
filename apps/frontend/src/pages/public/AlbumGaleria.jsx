@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, X, ChevronLeft, ChevronRight, Share2, Download, ZoomIn } from 'lucide-react';
+import { ArrowLeft, X, ChevronLeft, ChevronRight, Share2, Download } from 'lucide-react';
+import GalleryPhoto from '../../components/album/GalleryPhoto';
 
 const API = process.env.REACT_APP_API_URL || '';
 const PAGE_SIZE = 40;
@@ -129,12 +130,7 @@ export default function AlbumGaleria() {
   const galeriaNome = data.galeria?.nome || 'Galeria';
   const albumTitulo = data.album_titulo || '';
   const fotosVisiveis = fotos.slice(0, visibleCount);
-
-  // Masonry-style layout: assign photos to columns
-  const getColumns = () => {
-    // Use 2 cols on mobile, 3 on tablet+
-    return typeof window !== 'undefined' && window.innerWidth >= 768 ? 3 : 2;
-  };
+  const tema = data.tema || {};
 
   return (
     <div className="min-h-screen bg-[#1A1A1A] text-white">
@@ -176,39 +172,34 @@ export default function AlbumGaleria() {
             <div className="grid grid-cols-3 gap-2 md:gap-3" style={{ gridTemplateRows: 'auto' }}>
               {/* Main featured photo - spans 2 cols and 2 rows */}
               <div
-                className="col-span-2 row-span-2 relative group cursor-pointer rounded-lg overflow-hidden"
+                className="col-span-2 row-span-2 relative cursor-pointer rounded-lg overflow-hidden"
                 style={{ aspectRatio: '4/3' }}
                 onClick={() => setLightbox(0)}
               >
-                <img
+                <GalleryPhoto
                   src={fotosVisiveis[0]?.url_thumb || fotosVisiveis[0]?.url}
-                  alt=""
-                  className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-[1.02]"
+                  id={fotosVisiveis[0]?.id || 'featured-0'}
+                  index={0}
+                  tema={tema}
+                  style={{ width: '100%', height: '100%' }}
                 />
-                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors" />
-                <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                  <ZoomIn size={32} className="text-white drop-shadow-lg" />
-                </div>
-                {/* Orange border on hover (like Wix example) */}
-                <div className="absolute inset-0 border-2 border-transparent group-hover:border-orange-500 rounded-lg transition-colors pointer-events-none" />
               </div>
 
               {/* Side photos */}
               {fotosVisiveis.slice(1, 3).map((foto, i) => (
                 <div
                   key={foto.id}
-                  className="relative group cursor-pointer rounded-lg overflow-hidden"
+                  className="relative cursor-pointer rounded-lg overflow-hidden"
                   style={{ aspectRatio: '1' }}
                   onClick={() => setLightbox(i + 1)}
                 >
-                  <img
+                  <GalleryPhoto
                     src={foto.url_thumb || foto.url}
-                    alt=""
-                    className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-[1.02]"
-                    loading="lazy"
+                    id={foto.id || `side-${i}`}
+                    index={i + 1}
+                    tema={tema}
+                    style={{ width: '100%', height: '100%' }}
                   />
-                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors" />
-                  <div className="absolute inset-0 border-2 border-transparent group-hover:border-orange-500 rounded-lg transition-colors pointer-events-none" />
                 </div>
               ))}
             </div>
@@ -221,18 +212,16 @@ export default function AlbumGaleria() {
             {fotosVisiveis.slice(3).map((foto, i) => (
               <div
                 key={foto.id}
-                className="relative group cursor-pointer rounded-lg overflow-hidden aspect-square"
+                className="relative cursor-pointer rounded-lg overflow-hidden aspect-square"
                 onClick={() => setLightbox(i + 3)}
               >
-                <img
+                <GalleryPhoto
                   src={foto.url_thumb || foto.url}
-                  alt=""
-                  className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-[1.02]"
-                  loading="lazy"
-                  decoding="async"
+                  id={foto.id || `grid-${i}`}
+                  index={i + 3}
+                  tema={tema}
+                  style={{ width: '100%', height: '100%' }}
                 />
-                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors" />
-                <div className="absolute inset-0 border-2 border-transparent group-hover:border-orange-500 rounded-lg transition-colors pointer-events-none" />
               </div>
             ))}
           </div>

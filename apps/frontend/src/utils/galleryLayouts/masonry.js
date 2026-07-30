@@ -100,7 +100,7 @@ export function computeMasonryLayout(photos, containerWidth, options = {}) {
 // COMPONENTE REACT
 // ════════════════════════════════════════════════════════════
 
-export function MasonryGallery({ photos, containerWidth, options = {}, onPhotoClick }) {
+export function MasonryGallery({ photos, containerWidth, options = {}, onPhotoClick, renderItem }) {
   if (!photos || photos.length === 0 || !containerWidth) return null;
 
   const { crop = false } = options;
@@ -108,35 +108,44 @@ export function MasonryGallery({ photos, containerWidth, options = {}, onPhotoCl
 
   return (
     <div style={{ position: 'relative', width: containerWidth, height: totalHeight }}>
-      {items.map((item, i) => (
-        <div
-          key={item.id}
-          style={{
-            position: 'absolute',
-            left: item.x,
-            top: item.y,
-            width: item.width,
-            height: item.height,
-            overflow: 'hidden',
-            borderRadius: 4,
-            cursor: onPhotoClick ? 'pointer' : 'default',
-          }}
-          onClick={() => onPhotoClick && onPhotoClick(i, item)}
-        >
-          <img
-            src={photos.find(p => p.id === item.id)?.url || ''}
-            alt=""
-            loading="lazy"
-            decoding="async"
-            style={{
-              width: '100%',
-              height: '100%',
-              objectFit: crop ? 'cover' : 'cover',
-              display: 'block',
-            }}
-          />
-        </div>
-      ))}
+      {items.map((item, i) => {
+        const photo = photos.find(p => p.id === item.id);
+        const positionStyle = {
+          position: 'absolute',
+          left: item.x,
+          top: item.y,
+          width: item.width,
+          height: item.height,
+          overflow: 'hidden',
+          borderRadius: 4,
+          cursor: onPhotoClick ? 'pointer' : 'default',
+        };
+
+        if (renderItem) {
+          return renderItem({ photo, item, index: i, style: positionStyle });
+        }
+
+        return (
+          <div
+            key={item.id}
+            style={positionStyle}
+            onClick={() => onPhotoClick && onPhotoClick(i, item)}
+          >
+            <img
+              src={photo?.url || ''}
+              alt=""
+              loading="lazy"
+              decoding="async"
+              style={{
+                width: '100%',
+                height: '100%',
+                objectFit: crop ? 'cover' : 'cover',
+                display: 'block',
+              }}
+            />
+          </div>
+        );
+      })}
     </div>
   );
 }

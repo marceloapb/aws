@@ -5,6 +5,7 @@ import { Eye, X, ChevronLeft, ChevronRight, Download, ArrowRight, ArrowLeft } fr
 import { JustifiedGallery } from '../../utils/galleryLayouts/justifiedRows';
 import { MasonryGallery } from '../../utils/galleryLayouts/masonry';
 import { CollageGallery } from '../../utils/galleryLayouts/collageGroups';
+import GalleryPhoto from '../../components/album/GalleryPhoto';
 
 const DEFAULTS_TEMA = {
   capa_foto_id: null,
@@ -440,28 +441,10 @@ export default function AlbumPreview() {
   // Layout do tema
   const layout = tema.layout || 'grade';
 
-  // Animação
-  const animStyle = (i) => {
-    if (tema.animacao === 'none' || !tema.animacao) return {};
-    return { animationDelay: `${i * 0.06}s` };
-  };
-
-  const animClass = (() => {
-    switch (tema.animacao) {
-      case 'fade': return 'animate-[fadeIn_0.5s_ease-out_both]';
-      case 'slide': return 'animate-[slideUp_0.5s_ease-out_both]';
-      case 'zoom': return 'animate-[zoomIn_0.4s_ease-out_both]';
-      default: return '';
-    }
-  })();
-
   return (
     <div className="min-h-screen" style={{ backgroundColor: tema.cores_galerias?.background || cores.fundo, color: tema.cores_galerias?.texto_icones || cores.texto, fontFamily: tema.fonte_corpo || 'Inter' }}>
-      {/* CSS Animations */}
+      {/* CSS Animations are handled by galleryAnimations.css */}
       <style>{`
-        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-        @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
-        @keyframes zoomIn { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
         .scrollbar-hide::-webkit-scrollbar { display: none; }
         .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
       `}</style>
@@ -592,6 +575,19 @@ function GalleryGrid({ layout, fotos, containerWidth, onPhotoClick, tema }) {
 
   if (photos.length === 0) return null;
 
+  // renderItem function that applies animations via GalleryPhoto
+  const renderItem = ({ photo, item, index, style }) => (
+    <GalleryPhoto
+      key={item.id}
+      src={photo?.url || ''}
+      id={item.id}
+      index={index}
+      tema={tema}
+      style={style}
+      onClick={() => onPhotoClick && onPhotoClick(index)}
+    />
+  );
+
   // Mosaico → Masonry (colunas, foto inteira sem corte)
   if (layout === 'mosaico') {
     return (
@@ -600,6 +596,7 @@ function GalleryGrid({ layout, fotos, containerWidth, onPhotoClick, tema }) {
         containerWidth={containerWidth}
         options={{ columnCount: 3, gapX: 8, gapY: 8, placement: 'shortestColumn', crop: false }}
         onPhotoClick={onPhotoClick}
+        renderItem={renderItem}
       />
     );
   }
@@ -612,6 +609,7 @@ function GalleryGrid({ layout, fotos, containerWidth, onPhotoClick, tema }) {
         containerWidth={containerWidth}
         options={{ targetCellRatio: 1.33, targetRowHeight: 260, gapX: 8, gapY: 8, gapInner: 4 }}
         onPhotoClick={onPhotoClick}
+        renderItem={renderItem}
       />
     );
   }
@@ -624,6 +622,7 @@ function GalleryGrid({ layout, fotos, containerWidth, onPhotoClick, tema }) {
         containerWidth={containerWidth}
         options={{ targetRowHeight: layout === 'ladrilhos' ? 180 : 240, gapX: 8, gapY: 8 }}
         onPhotoClick={onPhotoClick}
+        renderItem={renderItem}
       />
     );
   }
@@ -638,7 +637,13 @@ function GalleryGrid({ layout, fotos, containerWidth, onPhotoClick, tema }) {
             className="min-w-[70vw] md:min-w-[45vw] lg:min-w-[30vw] flex-shrink-0 snap-center rounded-lg overflow-hidden cursor-pointer"
             onClick={() => onPhotoClick(i)}
           >
-            <img src={foto.url || ''} alt="" className="w-full h-[60vh] object-cover" loading="lazy" decoding="async" />
+            <GalleryPhoto
+              src={foto.url || ''}
+              id={foto.id || `slider-${i}`}
+              index={i}
+              tema={tema}
+              style={{ width: '100%', height: '60vh' }}
+            />
           </div>
         ))}
       </div>
@@ -651,7 +656,13 @@ function GalleryGrid({ layout, fotos, containerWidth, onPhotoClick, tema }) {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {fotos.map((foto, i) => (
           <div key={foto.id || i} className="rounded-lg overflow-hidden cursor-pointer" onClick={() => onPhotoClick(i)}>
-            <img src={foto.url || ''} alt="" className="w-full max-h-[500px] object-cover" loading="lazy" decoding="async" />
+            <GalleryPhoto
+              src={foto.url || ''}
+              id={foto.id || `col-${i}`}
+              index={i}
+              tema={tema}
+              style={{ width: '100%', maxHeight: '500px' }}
+            />
           </div>
         ))}
       </div>
@@ -665,6 +676,7 @@ function GalleryGrid({ layout, fotos, containerWidth, onPhotoClick, tema }) {
       containerWidth={containerWidth}
       options={{ targetRowHeight: 240, gapX: 8, gapY: 8 }}
       onPhotoClick={onPhotoClick}
+      renderItem={renderItem}
     />
   );
 }
