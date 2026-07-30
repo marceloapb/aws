@@ -179,6 +179,40 @@ export default function AlbumPreview() {
     return `${d}/${m}/${y}`;
   };
 
+  const [downloading, setDownloading] = useState(false);
+  const handleDownload = async (foto) => {
+    const url = foto?.url_full || foto?.url;
+    if (!url) return;
+    try {
+      const response = await fetch(url);
+      const blob = await response.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = blobUrl;
+      a.download = foto.filename || `foto-${foto.id || 'download'}.jpg`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(blobUrl);
+    } catch {
+      window.open(url, '_blank');
+    }
+  };
+
+  const handleDownloadAll = async () => {
+    if (downloading) return;
+    const fotosToDownload = getActiveFotos();
+    if (!fotosToDownload.length) return;
+    setDownloading(true);
+    try {
+      for (let i = 0; i < fotosToDownload.length; i++) {
+        await handleDownload(fotosToDownload[i]);
+        if (i < fotosToDownload.length - 1) await new Promise(r => setTimeout(r, 500));
+      }
+    } catch {}
+    setDownloading(false);
+  };
+
   // ═══════════════════════════════════════════════════════════
   // VIEW: COVER (Capa full-screen usando tema.capa_layout)
   // ═══════════════════════════════════════════════════════════
@@ -455,7 +489,10 @@ export default function AlbumPreview() {
           </div>
           <div className="flex items-center gap-2">
             {album.permite_download && (
-              <span className="flex items-center gap-1 text-xs opacity-60"><Download size={16} /> Download</span>
+              <button onClick={handleDownloadAll} disabled={downloading} className="flex items-center gap-1 text-xs opacity-60 hover:opacity-100 transition-opacity disabled:opacity-30">
+                {downloading ? <div className="w-4 h-4 border-2 border-current/30 border-t-current rounded-full animate-spin" /> : <Download size={16} />}
+                <span>Download</span>
+              </button>
             )}
           </div>
         </div>
@@ -524,6 +561,14 @@ export default function AlbumPreview() {
             <span className="text-white/60 text-sm bg-black/60 px-3 py-1.5 rounded-full backdrop-blur-sm">
               {lightbox + 1} / {activeFotos.length}
             </span>
+            {album.permite_download && (
+              <button
+                onClick={(e) => { e.stopPropagation(); handleDownload(activeFotos[lightbox]); }}
+                className="text-white/60 hover:text-white bg-black/60 p-2 rounded-full backdrop-blur-sm transition-colors"
+              >
+                <Download size={16} />
+              </button>
+            )}
           </div>
         </div>
       )}
