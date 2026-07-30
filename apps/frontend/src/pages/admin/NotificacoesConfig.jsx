@@ -170,10 +170,10 @@ export default function NotificacoesConfig() {
       tipo_evento: rule.tipo_evento || '',
       destinatario: rule.destinatario || '',
       canais: rule.canais || [],
-      titulo_inapp: rule.titulo_inapp || '',
-      corpo_inapp: rule.corpo_inapp || '',
+      titulo_inapp: rule.titulo_inapp || rule.titulo_template || '',
+      corpo_inapp: rule.corpo_inapp || rule.mensagem_template || '',
       template_email: rule.template_email || '',
-      template_whatsapp: rule.template_whatsapp || '',
+      template_whatsapp: rule.template_whatsapp || rule.whatsapp_template || '',
       ativa: rule.ativa !== false,
     });
     setModalOpen(true);
@@ -194,7 +194,7 @@ export default function NotificacoesConfig() {
 
       const res = await authFetch(url, {
         method,
-        body: JSON.stringify(form),
+        body: JSON.stringify({ ...form, titulo_template: form.titulo_inapp, mensagem_template: form.corpo_inapp, whatsapp_template: form.template_whatsapp }),
       });
       const data = await res.json();
 
