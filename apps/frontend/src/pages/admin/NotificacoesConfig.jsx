@@ -41,6 +41,34 @@ const CANAL_COLORS = {
   whatsapp: 'green',
 };
 
+// Calendar rule types
+const GATILHOS_CALENDARIO = [
+  { value: 'evento.data', label: 'Data do evento (sessão/ensaio)' },
+  { value: 'album.expiracao', label: 'Expiração do álbum' },
+  { value: 'pagamento.vencimento', label: 'Vencimento de pagamento' },
+  { value: 'contrato.criacao', label: 'Criação do contrato (sem assinatura)' },
+  { value: 'orcamento.criacao', label: 'Criação do orçamento (sem resposta)' },
+  { value: 'cliente.aniversario', label: 'Aniversário do cliente' },
+  { value: 'cliente.ultima_sessao', label: 'Última sessão realizada' },
+];
+
+const MOMENTO_OPTIONS = [
+  { value: 'antes', label: 'Antes' },
+  { value: 'depois', label: 'Depois' },
+  { value: 'no_dia', label: 'No dia' },
+];
+
+const EMPTY_CALENDAR_FORM = {
+  nome: '',
+  gatilho: '',
+  momento: 'antes',
+  dias: 1,
+  canais: [],
+  destinatario: 'cliente',
+  mensagem: '',
+  ativa: true,
+};
+
 const EMPTY_FORM = {
   tipo_evento: '',
   destinatario: '',
@@ -70,6 +98,14 @@ export default function NotificacoesConfig() {
   const [logFilters, setLogFilters] = useState({ canal: '', status: '', tipo_evento: '' });
   const [logPage, setLogPage] = useState(1);
   const [logPagination, setLogPagination] = useState({ totalPages: 1, totalItems: 0 });
+
+  // Calendar rules state
+  const [calendarRules, setCalendarRules] = useState([]);
+  const [calendarLoading, setCalendarLoading] = useState(false);
+  const [calendarModalOpen, setCalendarModalOpen] = useState(false);
+  const [editingCalendarRule, setEditingCalendarRule] = useState(null);
+  const [calendarForm, setCalendarForm] = useState(EMPTY_CALENDAR_FORM);
+  const [calendarSaving, setCalendarSaving] = useState(false);
 
   const loadRegras = useCallback(async () => {
     setLoading(true);
@@ -206,6 +242,109 @@ export default function NotificacoesConfig() {
     }));
   };
 
+  // Calendar rules functions
+  const loadCalendarRules = useCallback(async () => {
+    setCalendarLoading(true);
+    try {
+      const res = await authFetch('/admin/notificacoes/calendario');
+      const data = await res.json();
+      if (data.success) setCalendarRules(data.data || []);
+    } catch {
+      toast.error('Erro ao carregar regras de calendário');
+    } finally {
+      setCalendarLoading(false);
+    }
+  }, [authFetch, toast]);
+
+  useEffect(() => {
+    if (activeTab === 'calendario') loadCalendarRules();
+  }, [activeTab, loadCalendarRules]);
+
+  const openCalendarCreate = () => {
+    setEditingCalendarRule(null);
+    setCalendarForm(EMPTY_CALENDAR_FORM);
+    setCalendarModalOpen(true);
+  };
+
+  const openCalendarEdit = (rule) => {
+    setEditingCalendarRule(rule);
+    setCalendarForm({
+      nome: rule.nome || '',
+      gatilho: rule.gatilho || '',
+      momento: rule.momento || 'antes',
+      dias: rule.dias || 1,
+      canais: rule.canais || [],
+      destinatario: rule.destinatario || 'cliente',
+      mensagem: rule.mensagem || '',
+      ativa: rule.ativa !== false,
+    });
+    setCalendarModalOpen(true);
+  };
+
+  const handleCalendarSave = async () => {
+    if (!calendarForm.nome || !calendarForm.gatilho || calendarForm.canais.length === 0) {
+      toast.error('Preencha nome, gatilho e pelo menos um canal');
+      return;
+    }
+    setCalendarSaving(true);
+    try {
+      const url = editingCalendarRule
+        ? `/admin/notificacoes/calendario/${editingCalendarRule.id}`
+        : '/admin/notificacoes/calendario';
+      const method = editingCalendarRule ? 'PUT' : 'POST';
+      const res = await authFetch(url, { method, body: JSON.stringify(calendarForm) });
+      const data = await res.json();
+      if (data.success) {
+        toast.success(editingCalendarRule ? 'Regra atualizada!' : 'Regra criada!');
+        setCalendarModalOpen(false);
+        loadCalendarRules();
+      } else {
+        toast.error(data.message || 'Erro ao salvar');
+      }
+    } catch {
+      toast.error('Erro ao salvar regra');
+    } finally {
+      setCalendarSaving(false);
+    }
+  };
+
+  const handleCalendarDelete = async (id) => {
+    try {
+      const res = await authFetch(`/admin/notificacoes/calendario/${id}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (data.success) {
+        toast.success('Regra removida');
+        setCalendarRules(prev => prev.filter(r => r.id !== id));
+      }
+    } catch {
+      toast.error('Erro ao remover');
+    }
+  };
+
+  const handleCalendarToggle = async (rule) => {
+    try {
+      const res = await authFetch(`/admin/notificacoes/calendario/${rule.id}`, {
+        method: 'PUT',
+        body: JSON.stringify({ ...rule, ativa: !rule.ativa }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setCalendarRules(prev => prev.map(r => r.id === rule.id ? { ...r, ativa: !r.ativa } : r));
+      }
+    } catch {
+      toast.error('Erro ao alterar status');
+    }
+  };
+
+  const handleCalendarCanalToggle = (canal) => {
+    setCalendarForm(prev => ({
+      ...prev,
+      canais: prev.canais.includes(canal)
+        ? prev.canais.filter(c => c !== canal)
+        : [...prev.canais, canal],
+    }));
+  };
+
   const formatEvento = (tipo) => {
     if (!tipo) return '';
     return tipo.replace('.', ' → ').replace(/^\w/, c => c.toUpperCase());
@@ -227,6 +366,11 @@ export default function NotificacoesConfig() {
             Nova Regra
           </Button>
         )}
+        {activeTab === 'calendario' && (
+          <Button icon={Plus} onClick={openCalendarCreate}>
+            Nova Regra
+          </Button>
+        )}
       </div>
 
       {/* Tabs */}
@@ -242,6 +386,19 @@ export default function NotificacoesConfig() {
           <span className="flex items-center gap-2">
             <Settings2 size={14} />
             Regras de Disparo
+          </span>
+        </button>
+        <button
+          onClick={() => setActiveTab('calendario')}
+          className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
+            activeTab === 'calendario'
+              ? 'border-orange-500 text-orange-600'
+              : 'border-transparent text-gray-500 hover:text-gray-700'
+          }`}
+        >
+          <span className="flex items-center gap-2">
+            <Clock size={14} />
+            Regras de Calendário
           </span>
         </button>
         <button
@@ -341,6 +498,118 @@ export default function NotificacoesConfig() {
                 </div>
               ))}
             </div>
+          )}
+        </>
+      )}
+
+      {/* Tab Content: Regras de Calendário */}
+      {activeTab === 'calendario' && (
+        <>
+          {calendarLoading ? (
+            <div className="space-y-3">
+              {[...Array(3)].map((_, i) => (
+                <div key={i} className="h-20 bg-gray-100 rounded-xl animate-pulse" />
+              ))}
+            </div>
+          ) : calendarRules.length === 0 ? (
+            <div className="bg-white rounded-xl border p-12 text-center">
+              <Clock size={40} className="mx-auto text-gray-300 mb-3" />
+              <p className="text-sm text-gray-500">Nenhuma regra de calendário configurada</p>
+              <p className="text-xs text-gray-400 mt-1">Crie regras para enviar lembretes automáticos baseados em datas</p>
+              <Button icon={Plus} onClick={openCalendarCreate} className="mt-4">
+                Criar Primeira Regra
+              </Button>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {calendarRules.map((rule) => (
+                <div key={rule.id} className={`bg-white rounded-xl border p-4 flex items-center gap-4 transition-colors ${!rule.ativa ? 'opacity-60' : ''}`}>
+                  <button onClick={() => handleCalendarToggle(rule)} className={`relative w-10 h-5 rounded-full transition-colors shrink-0 ${rule.ativa ? 'bg-green-500' : 'bg-gray-300'}`}>
+                    <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow-sm transition-transform ${rule.ativa ? 'translate-x-5' : 'translate-x-0.5'}`} />
+                  </button>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-sm font-medium text-gray-900">{rule.nome}</span>
+                      <Badge variant={rule.destinatario === 'admin' ? 'orange' : 'blue'} size="sm">
+                        {rule.destinatario === 'admin' ? 'Admin' : 'Cliente'}
+                      </Badge>
+                    </div>
+                    <p className="text-xs text-gray-500 mt-0.5">
+                      {rule.momento === 'no_dia' ? 'No dia' : `${rule.dias} dia(s) ${rule.momento === 'antes' ? 'antes' : 'depois'}`} — {GATILHOS_CALENDARIO.find(g => g.value === rule.gatilho)?.label || rule.gatilho}
+                    </p>
+                    <div className="flex items-center gap-1.5 mt-1.5">
+                      {(rule.canais || []).map((canal) => (
+                        <Badge key={canal} variant={CANAL_COLORS[canal] || 'gray'} size="sm">
+                          {canal === 'inapp' ? 'Sininho' : canal === 'email' ? 'E-mail' : 'WhatsApp'}
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1 shrink-0">
+                    <button onClick={() => openCalendarEdit(rule)} className="p-2 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors"><Edit2 size={16} /></button>
+                    <button onClick={() => handleCalendarDelete(rule.id)} className="p-2 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-500 transition-colors"><Trash2 size={16} /></button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Calendar Rule Modal */}
+          {calendarModalOpen && (
+            <Modal onClose={() => setCalendarModalOpen(false)} title={editingCalendarRule ? 'Editar Regra de Calendário' : 'Nova Regra de Calendário'}>
+              <div className="space-y-4">
+                <div>
+                  <label className="text-xs font-medium text-gray-700 block mb-1">Nome da regra *</label>
+                  <input value={calendarForm.nome} onChange={e => setCalendarForm(p => ({ ...p, nome: e.target.value }))} className="w-full px-3 py-2 border rounded-lg text-sm outline-none focus:ring-2 focus:ring-orange-200" placeholder="Ex: Lembrete 1 dia antes da sessão" />
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-gray-700 block mb-1">Gatilho (baseado em) *</label>
+                  <select value={calendarForm.gatilho} onChange={e => setCalendarForm(p => ({ ...p, gatilho: e.target.value }))} className="w-full px-3 py-2 border rounded-lg text-sm outline-none focus:ring-2 focus:ring-orange-200">
+                    <option value="">Selecione...</option>
+                    {GATILHOS_CALENDARIO.map(g => <option key={g.value} value={g.value}>{g.label}</option>)}
+                  </select>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-xs font-medium text-gray-700 block mb-1">Momento</label>
+                    <select value={calendarForm.momento} onChange={e => setCalendarForm(p => ({ ...p, momento: e.target.value }))} className="w-full px-3 py-2 border rounded-lg text-sm outline-none focus:ring-2 focus:ring-orange-200">
+                      {MOMENTO_OPTIONS.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-gray-700 block mb-1">Dias</label>
+                    <input type="number" min="0" value={calendarForm.dias} onChange={e => setCalendarForm(p => ({ ...p, dias: Number(e.target.value) }))} disabled={calendarForm.momento === 'no_dia'} className="w-full px-3 py-2 border rounded-lg text-sm outline-none focus:ring-2 focus:ring-orange-200 disabled:bg-gray-100" />
+                  </div>
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-gray-700 block mb-1">Destinatário</label>
+                  <select value={calendarForm.destinatario} onChange={e => setCalendarForm(p => ({ ...p, destinatario: e.target.value }))} className="w-full px-3 py-2 border rounded-lg text-sm outline-none focus:ring-2 focus:ring-orange-200">
+                    <option value="cliente">Cliente</option>
+                    <option value="admin">Admin (você)</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-gray-700 block mb-2">Canais de envio *</label>
+                  <div className="flex gap-2">
+                    {CANAIS.map(c => (
+                      <button key={c.key} onClick={() => handleCalendarCanalToggle(c.key)} className={`flex items-center gap-1.5 px-3 py-2 rounded-lg border-2 text-sm transition ${calendarForm.canais.includes(c.key) ? 'border-orange-500 bg-orange-50 text-orange-700' : 'border-gray-200 text-gray-600 hover:border-gray-300'}`}>
+                        <c.icon size={14} /> {c.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-gray-700 block mb-1">Mensagem (opcional)</label>
+                  <textarea value={calendarForm.mensagem} onChange={e => setCalendarForm(p => ({ ...p, mensagem: e.target.value }))} rows={3} className="w-full px-3 py-2 border rounded-lg text-sm outline-none focus:ring-2 focus:ring-orange-200 resize-none" placeholder="Variáveis: {{cliente_nome}}, {{data_evento}}, {{tipo_evento}}, {{dias}}" />
+                </div>
+                <div className="flex justify-end gap-2 pt-2">
+                  <button onClick={() => setCalendarModalOpen(false)} className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800">Cancelar</button>
+                  <Button onClick={handleCalendarSave} disabled={calendarSaving}>
+                    {calendarSaving ? 'Salvando...' : (editingCalendarRule ? 'Atualizar' : 'Criar Regra')}
+                  </Button>
+                </div>
+              </div>
+            </Modal>
           )}
         </>
       )}
