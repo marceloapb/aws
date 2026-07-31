@@ -29,6 +29,8 @@ export default function AlbumPublico() {
 
   // Lightbox & pagination
   const [lightbox, setLightbox] = useState(null);
+  const [lightboxUrl, setLightboxUrl] = useState('');
+  const signedUrlCache = useRef({});
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const loaderRef = useRef(null);
   const gridContainerRef = useRef(null);
@@ -89,6 +91,30 @@ export default function AlbumPublico() {
     window.addEventListener('keydown', handleKey);
     return () => window.removeEventListener('keydown', handleKey);
   }, [lightbox, fotos.length]);
+
+  // Fetch full-resolution URL for lightbox on demand
+  useEffect(() => {
+    if (lightbox === null) { setLightboxUrl(''); return; }
+    const foto = fotos[lightbox];
+    if (!foto) return;
+    // If photo already has url_original (from full signing), use it
+    if (foto.url_original) { setLightboxUrl(foto.url_original); return; }
+    if (foto.url) { setLightboxUrl(foto.url); return; }
+    // Check cache
+    if (signedUrlCache.current[foto.id]) { setLightboxUrl(signedUrlCache.current[foto.id]); return; }
+    // Fetch on demand — show thumb immediately, upgrade when ready
+    setLightboxUrl(foto.url_thumb || '');
+    fetch(`${API}/public/album/${slug}/foto/${foto.id}/url`)
+      .then(r => r.json())
+      .then(json => {
+        if (json.success) {
+          const fullUrl = json.data.url_original || json.data.url || foto.url_thumb;
+          signedUrlCache.current[foto.id] = fullUrl;
+          setLightboxUrl(fullUrl);
+        }
+      })
+      .catch(() => {});
+  }, [lightbox, fotos, slug]);
 
   const loadAlbum = async (senhaParam) => {
     try {
@@ -235,7 +261,16 @@ export default function AlbumPublico() {
 
   // Download
   const handleDownload = async (foto) => {
-    const url = foto?.url_original || foto?.url;
+    let url = foto?.url_original || foto?.url;
+    // If no full URL available, fetch it on demand
+    if (!url && foto?.id) {
+      try {
+        const res = await fetch(`${API}/public/album/${slug}/foto/${foto.id}/url`);
+        const json = await res.json();
+        if (json.success) url = json.data.url_original || json.data.url;
+      } catch {}
+    }
+    if (!url) url = foto?.url_thumb;
     if (!url) return;
     try {
       const response = await fetch(url);
@@ -700,7 +735,7 @@ export default function AlbumPublico() {
               <ChevronRight size={32} />
             </button>
           )}
-          <img src={fotos[lightbox]?.url_original || fotos[lightbox]?.url || ''} alt="" className="max-h-[90vh] max-w-[90vw] object-contain select-none" onClick={(e) => e.stopPropagation()} draggable={false} />
+          <img src={lightboxUrl || fotos[lightbox]?.url_thumb || ''} alt="" className="max-h-[90vh] max-w-[90vw] object-contain select-none" onClick={(e) => e.stopPropagation()} draggable={false} />
           <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-4">
             <span className="text-white/60 text-sm bg-black/60 px-3 py-1.5 rounded-full backdrop-blur-sm">{lightbox + 1} / {fotos.length}</span>
             {album.permite_selecao && !selecaoConfirmada && (() => {

@@ -32,6 +32,27 @@ async function assinarFoto(foto) {
   };
 }
 
+// Light version — only signs thumb (for gallery listing performance)
+async function assinarFotoLight(foto) {
+  const thumbKey = foto.s3_key_thumb || foto.s3_key_media || foto.s3_key || '';
+  const mediaKey = foto.s3_key_media || foto.s3_key || '';
+  const originalKey = foto.s3_key_original || foto.s3_key || '';
+  return {
+    id: foto.id,
+    galeria_id: foto.galeria_id,
+    ordem: foto.ordem || 0,
+    filename: foto.filename || foto.original_filename || null,
+    width: foto.width || null,
+    height: foto.height || null,
+    content_type: foto.content_type || null,
+    selecionada: foto.selecionada || false,
+    url_thumb: thumbKey ? await getSignedDownloadUrl(thumbKey, 86400) : null,
+    // Store keys for on-demand signing (lightbox/download)
+    _media_key: mediaKey || null,
+    _original_key: originalKey || null,
+  };
+}
+
 // GET /public/album/:slug — Album landing page data (cover, title, date, gallery count)
 router.get('/', async (req, res) => {
   try {
@@ -209,7 +230,7 @@ router.get('/galeria/:galeriaId', async (req, res) => {
     }));
 
     const fotos = (fotosResult.Items || []).sort((a, b) => (a.ordem || 0) - (b.ordem || 0));
-    const fotosAssinadas = await Promise.all(fotos.map(assinarFoto));
+    const fotosAssinadas = await Promise.all(fotos.map(assinarFotoLight));
 
     // Buscar tema do álbum
     let tema = {};
@@ -288,7 +309,7 @@ router.get('/fotos', async (req, res) => {
     }));
 
     const fotos = (fotosResult.Items || []).sort((a, b) => (a.ordem || 0) - (b.ordem || 0));
-    const fotosAssinadas = await Promise.all(fotos.map(assinarFoto));
+    const fotosAssinadas = await Promise.all(fotos.map(assinarFotoLight));
 
     // Buscar tema do álbum
     let tema = {};
@@ -318,6 +339,44 @@ router.get('/fotos', async (req, res) => {
         selecao_confirmada: album.selecao_confirmada || false,
       },
     });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// ══════════════════════════════════════════════════════════════
+// GET /public/album/:slug/foto/:fotoId/url — Get signed URLs for a single photo (lightbox/download)
+// ══════════════════════════════════════════════════════════════
+router.get('/foto/:fotoId/url', async (req, res) => {
+  try {
+    const { slug, fotoId } = req.params;
+
+    const albumResult = await dynamo.send(new QueryCommand({
+      TableName: TABLE,
+      IndexName: 'GSI1',
+      KeyConditionExpression: 'GSI1PK = :pk',
+      FilterExpression: 'slug = :slug',
+      ExpressionAttributeValues: { ':pk': 'ALBUM', ':slug': slug },
+    }));
+
+    const album = albumResult.Items?.[0];
+    if (!album) return res.status(404).json({ success: false });
+
+    const fotoResult = await dynamo.send(new GetCommand({
+      TableName: TABLE,
+      Key: { PK: `ALBUM#${album.id}`, SK: `FOTO#${fotoId}` },
+    }));
+
+    const foto = fotoResult.Item;
+    if (!foto) return res.status(404).json({ success: false });
+
+    const mediaKey = foto.s3_key_media || foto.s3_key || '';
+    const originalKey = foto.s3_key_original || foto.s3_key || '';
+
+    const url = mediaKey ? await getSignedDownloadUrl(mediaKey, 86400) : null;
+    const url_original = originalKey ? await getSignedDownloadUrl(originalKey, 86400) : null;
+
+    res.json({ success: true, data: { url, url_original } });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
