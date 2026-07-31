@@ -22,6 +22,10 @@ async function assinarFoto(foto) {
     titulo: foto.titulo || null,
     ordem: foto.ordem || 0,
     filename: foto.filename || foto.original_filename || null,
+    width: foto.width || null,
+    height: foto.height || null,
+    content_type: foto.content_type || null,
+    selecionada: foto.selecionada || false,
     url: key ? await getSignedDownloadUrl(key, 86400) : null,
     url_thumb: thumbKey ? await getSignedDownloadUrl(thumbKey, 86400) : (key ? await getSignedDownloadUrl(key, 86400) : null),
     url_original: originalKey ? await getSignedDownloadUrl(originalKey, 86400) : null,
@@ -236,6 +240,7 @@ router.get('/galeria/:galeriaId', async (req, res) => {
         permite_download: album.permite_download || false,
         permite_selecao: album.permite_selecao || false,
         permite_comentarios: album.permite_comentarios || false,
+        cota_selecao: album.cota_selecao || null,
       },
     });
   } catch (error) {
@@ -308,6 +313,7 @@ router.get('/fotos', async (req, res) => {
         permite_download: album.permite_download || false,
         permite_selecao: album.permite_selecao || false,
         permite_comentarios: album.permite_comentarios || false,
+        cota_selecao: album.cota_selecao || null,
       },
     });
   } catch (error) {
