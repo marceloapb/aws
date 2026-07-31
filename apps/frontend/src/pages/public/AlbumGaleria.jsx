@@ -19,6 +19,9 @@ export default function AlbumGaleria() {
   const [lightbox, setLightbox] = useState(null);
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const [selecionadas, setSelecionadas] = useState(new Set());
+  const [selecaoConfirmada, setSelecaoConfirmada] = useState(false);
+  const [selecaoMsg, setSelecaoMsg] = useState('');
+  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [downloading, setDownloading] = useState(false);
   const [downloadProgress, setDownloadProgress] = useState('');
   const loaderRef = useRef(null);
@@ -75,21 +78,115 @@ export default function AlbumGaleria() {
       if (json.success) {
         setData(json.data);
         setFotos(json.data.fotos || []);
-        // Load selection state
+        // Load selection state from photo records
         const sel = (json.data.fotos || []).filter(f => f.selecionada === true).map(f => f.id);
         setSelecionadas(new Set(sel));
+        // Check if selection is already confirmed (from album data)
+        setSelecaoConfirmada(json.data.selecao_confirmada || false);
       }
     } catch {}
     setLoading(false);
   };
 
-  const toggleSelecao = (fotoId) => {
+  const toggleSelecao = async (fotoId) => {
+    // If selection is locked, do nothing
+    if (selecaoConfirmada) return;
+
+    const isCurrentlySelected = selecionadas.has(fotoId);
+    const cotaSelecao = data?.cota_selecao || null;
+
+    // Quota check: if selecting (not deselecting), check limit
+    if (!isCurrentlySelected && cotaSelecao && selecionadas.size >= cotaSelecao) {
+      setSelecaoMsg(`Limite de ${cotaSelecao} fotos atingido.`);
+      setTimeout(() => setSelecaoMsg(''), 3000);
+      return;
+    }
+
+    // Optimistic update
     setSelecionadas(prev => {
       const nova = new Set(prev);
       if (nova.has(fotoId)) nova.delete(fotoId);
       else nova.add(fotoId);
       return nova;
     });
+
+    // Persist to backend
+    try {
+      const res = await fetch(`${API}/public/album/${slug}/selecao/toggle`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ foto_id: fotoId }),
+      });
+      const json = await res.json();
+      if (!json.success) {
+        // Revert optimistic update
+        setSelecionadas(prev => {
+          const nova = new Set(prev);
+          if (isCurrentlySelected) nova.add(fotoId);
+          else nova.delete(fotoId);
+          return nova;
+        });
+        if (json.message) {
+          setSelecaoMsg(json.message);
+          setTimeout(() => setSelecaoMsg(''), 3000);
+        }
+      }
+    } catch {
+      // Revert on network error
+      setSelecionadas(prev => {
+        const nova = new Set(prev);
+        if (isCurrentlySelected) nova.add(fotoId);
+        else nova.delete(fotoId);
+        return nova;
+      });
+    }
+  };
+
+  const handleLimparSelecao = async () => {
+    if (!window.confirm('Limpar todas as seleções?')) return;
+    const ids = [...selecionadas];
+    // Deselect all one by one
+    for (const fotoId of ids) {
+      try {
+        await fetch(`${API}/public/album/${slug}/selecao/toggle`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ foto_id: fotoId }),
+        });
+      } catch {}
+    }
+    setSelecionadas(new Set());
+    setSelecaoMsg('Seleção limpa.');
+    setTimeout(() => setSelecaoMsg(''), 3000);
+  };
+
+  const handleConfirmarSelecao = async (finalizar) => {
+    setShowConfirmDialog(false);
+
+    if (!finalizar) {
+      // Just save — already persisted per toggle
+      setSelecaoMsg(`✓ Seleção salva! ${selecionadas.size} foto(s) selecionada(s).`);
+      setTimeout(() => setSelecaoMsg(''), 4000);
+      return;
+    }
+
+    // Finalizar — lock selection
+    try {
+      const res = await fetch(`${API}/public/album/${slug}/selecao/confirmar`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      });
+      const json = await res.json();
+      if (json.success) {
+        setSelecaoConfirmada(true);
+        setSelecaoMsg(`✓ Seleção finalizada! ${selecionadas.size} foto(s) confirmada(s).`);
+      } else {
+        setSelecaoMsg(json.message || 'Erro ao confirmar seleção.');
+      }
+    } catch {
+      setSelecaoMsg('Erro de conexão ao confirmar seleção.');
+    }
+    setTimeout(() => setSelecaoMsg(''), 5000);
   };
 
   const handleBack = () => navigate(`/album/${slug}`);
@@ -214,7 +311,7 @@ export default function AlbumGaleria() {
           containerWidth={gridWidth || (typeof window !== 'undefined' ? Math.min(window.innerWidth - 48, 1280) : 1200)}
           onPhotoClick={(i) => setLightbox(i)}
           tema={tema}
-          permiteSelecao={data.permite_selecao}
+          permiteSelecao={data.permite_selecao && !selecaoConfirmada}
           selecionadas={selecionadas}
           onToggleSelecao={toggleSelecao}
         />
@@ -228,8 +325,15 @@ export default function AlbumGaleria() {
         <div className="text-center py-6 text-sm opacity-30">{fotos.length} fotos</div>
       </main>
 
-      {/* Selection bar */}
-      {data.permite_selecao && (
+      {/* Selection confirmation message (toast) */}
+      {selecaoMsg && (
+        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 px-6 py-3 bg-green-600 text-white text-sm font-medium rounded-xl shadow-lg">
+          {selecaoMsg}
+        </div>
+      )}
+
+      {/* Selection bar — active (not confirmed) */}
+      {data.permite_selecao && !selecaoConfirmada && (
         <div className="fixed bottom-0 left-0 right-0 z-40">
           <div className="max-w-4xl mx-auto px-4 pb-4">
             <div className="px-6 py-4 bg-white/95 backdrop-blur border rounded-xl shadow-lg space-y-3">
@@ -240,13 +344,74 @@ export default function AlbumGaleria() {
                   <span className="text-gray-500">{data.cota_selecao || fotos.length}</span>
                   {' '}selecionadas
                 </span>
-                <button disabled={selecionadas.size === 0} className="px-5 py-2 text-sm font-medium text-white rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed hover:opacity-90" style={{ backgroundColor: acento }}>
-                  Confirmar Seleção
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    disabled={selecionadas.size === 0}
+                    onClick={handleLimparSelecao}
+                    className="px-4 py-2 text-sm font-medium text-gray-600 border border-gray-300 rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-100"
+                  >
+                    Limpar
+                  </button>
+                  <button
+                    disabled={selecionadas.size === 0}
+                    onClick={() => setShowConfirmDialog(true)}
+                    className="px-5 py-2 text-sm font-medium text-white rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed hover:opacity-90"
+                    style={{ backgroundColor: acento }}
+                  >
+                    Confirmar Seleção
+                  </button>
+                </div>
               </div>
               <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
                 <div className="h-full rounded-full transition-all duration-300" style={{ width: `${Math.min((selecionadas.size / (data.cota_selecao || fotos.length)) * 100, 100)}%`, backgroundColor: acento }} />
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Selection confirmed bar (locked state) */}
+      {data.permite_selecao && selecaoConfirmada && (
+        <div className="fixed bottom-0 left-0 right-0 z-40">
+          <div className="max-w-4xl mx-auto px-4 pb-4">
+            <div className="px-6 py-4 bg-green-50/95 backdrop-blur border border-green-200 rounded-xl shadow-lg flex items-center justify-center">
+              <span className="text-sm font-medium text-green-700 flex items-center gap-2">
+                ✓ Seleção finalizada — {selecionadas.size} foto(s) selecionada(s)
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Confirm selection dialog */}
+      {showConfirmDialog && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/50" onClick={() => setShowConfirmDialog(false)} />
+          <div className="relative bg-white rounded-xl w-full max-w-sm shadow-xl p-6 space-y-4">
+            <h3 className="text-lg font-bold text-gray-900">Confirmar seleção</h3>
+            <p className="text-sm text-gray-600">
+              Você selecionou <strong>{selecionadas.size}</strong> foto(s). O que deseja fazer?
+            </p>
+            <div className="flex flex-col gap-2 pt-2">
+              <button
+                onClick={() => handleConfirmarSelecao(false)}
+                className="w-full px-4 py-2.5 text-sm font-medium border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition"
+              >
+                Apenas salvar (continuar selecionando)
+              </button>
+              <button
+                onClick={() => handleConfirmarSelecao(true)}
+                className="w-full px-4 py-2.5 text-sm font-medium text-white rounded-lg hover:opacity-90 transition"
+                style={{ backgroundColor: acento }}
+              >
+                Finalizar seleção (não poderá alterar)
+              </button>
+              <button
+                onClick={() => setShowConfirmDialog(false)}
+                className="w-full px-4 py-2 text-sm text-gray-500 hover:text-gray-700 transition"
+              >
+                Cancelar
+              </button>
             </div>
           </div>
         </div>
@@ -271,7 +436,7 @@ export default function AlbumGaleria() {
           <img src={fotos[lightbox]?.url_original || fotos[lightbox]?.url || ''} alt="" className="max-h-[90vh] max-w-[90vw] object-contain select-none" onClick={(e) => e.stopPropagation()} draggable={false} />
           <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-4">
             <span className="text-white/60 text-sm bg-black/60 px-3 py-1.5 rounded-full backdrop-blur-sm">{lightbox + 1} / {fotos.length}</span>
-            {data.permite_selecao && (() => {
+            {data.permite_selecao && !selecaoConfirmada && (() => {
               const fotoId = fotos[lightbox]?.id;
               const sel = selecionadas.has(fotoId);
               return (

@@ -5,7 +5,7 @@
 
 const { Router } = require('express');
 const { dynamo, TABLE } = require('../config/dynamodb');
-const { QueryCommand, GetCommand } = require('@aws-sdk/lib-dynamodb');
+const { QueryCommand, GetCommand, UpdateCommand } = require('@aws-sdk/lib-dynamodb');
 const { getSignedDownloadUrl } = require('../services/s3Service');
 const { ALBUM_STATUS } = require('../config/constants');
 
@@ -241,6 +241,7 @@ router.get('/galeria/:galeriaId', async (req, res) => {
         permite_selecao: album.permite_selecao || false,
         permite_comentarios: album.permite_comentarios || false,
         cota_selecao: album.cota_selecao || null,
+        selecao_confirmada: album.selecao_confirmada || false,
       },
     });
   } catch (error) {
@@ -314,6 +315,148 @@ router.get('/fotos', async (req, res) => {
         permite_selecao: album.permite_selecao || false,
         permite_comentarios: album.permite_comentarios || false,
         cota_selecao: album.cota_selecao || null,
+        selecao_confirmada: album.selecao_confirmada || false,
+      },
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// ══════════════════════════════════════════════════════════════
+// POST /public/album/:slug/selecao/toggle — Toggle photo selection (public, no auth)
+// ══════════════════════════════════════════════════════════════
+router.post('/selecao/toggle', async (req, res) => {
+  try {
+    const { slug } = req.params;
+    const { foto_id } = req.body;
+
+    if (!foto_id) return res.status(400).json({ success: false, message: 'foto_id é obrigatório' });
+
+    // Buscar álbum pelo slug
+    const albumResult = await dynamo.send(new QueryCommand({
+      TableName: TABLE,
+      IndexName: 'GSI1',
+      KeyConditionExpression: 'GSI1PK = :pk',
+      FilterExpression: 'slug = :slug',
+      ExpressionAttributeValues: { ':pk': 'ALBUM', ':slug': slug },
+    }));
+
+    const album = albumResult.Items?.[0];
+    if (!album) return res.status(404).json({ success: false, message: 'Álbum não encontrado' });
+
+    if (album.status !== ALBUM_STATUS.ATIVO && album.status !== 'publicado') {
+      return res.status(404).json({ success: false, message: 'Álbum não disponível' });
+    }
+
+    if (!album.permite_selecao) {
+      return res.status(400).json({ success: false, message: 'Seleção não habilitada para este álbum' });
+    }
+
+    if (album.selecao_confirmada) {
+      return res.status(400).json({ success: false, message: 'Seleção já foi confirmada e não pode ser alterada' });
+    }
+
+    // Get all photos to check current state and quota
+    const fotosResult = await dynamo.send(new QueryCommand({
+      TableName: TABLE,
+      KeyConditionExpression: 'PK = :pk AND begins_with(SK, :sk)',
+      ExpressionAttributeValues: { ':pk': `ALBUM#${album.id}`, ':sk': 'FOTO#' },
+    }));
+
+    const fotos = fotosResult.Items || [];
+    const foto = fotos.find(f => f.id === foto_id);
+    if (!foto) return res.status(404).json({ success: false, message: 'Foto não encontrada' });
+
+    const currentlySelected = foto.selecionada === true;
+    const totalSelecionadas = fotos.filter(f => f.selecionada === true).length;
+    const cota = album.cota_selecao || null;
+
+    // If selecting (not deselecting), check quota
+    if (!currentlySelected && cota && totalSelecionadas >= cota) {
+      return res.status(400).json({
+        success: false,
+        message: `Cota de seleção atingida (${cota} fotos)`,
+        data: { total_selecionadas: totalSelecionadas, cota },
+      });
+    }
+
+    const newState = !currentlySelected;
+
+    await dynamo.send(new UpdateCommand({
+      TableName: TABLE,
+      Key: { PK: foto.PK, SK: foto.SK },
+      UpdateExpression: 'SET selecionada = :s',
+      ExpressionAttributeValues: { ':s': newState },
+    }));
+
+    const newTotal = newState ? totalSelecionadas + 1 : totalSelecionadas - 1;
+
+    res.json({
+      success: true,
+      data: {
+        selecionada: newState,
+        total_selecionadas: newTotal,
+        cota,
+      },
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// ══════════════════════════════════════════════════════════════
+// POST /public/album/:slug/selecao/confirmar — Lock selection (public, no auth)
+// ══════════════════════════════════════════════════════════════
+router.post('/selecao/confirmar', async (req, res) => {
+  try {
+    const { slug } = req.params;
+
+    // Buscar álbum pelo slug
+    const albumResult = await dynamo.send(new QueryCommand({
+      TableName: TABLE,
+      IndexName: 'GSI1',
+      KeyConditionExpression: 'GSI1PK = :pk',
+      FilterExpression: 'slug = :slug',
+      ExpressionAttributeValues: { ':pk': 'ALBUM', ':slug': slug },
+    }));
+
+    const album = albumResult.Items?.[0];
+    if (!album) return res.status(404).json({ success: false, message: 'Álbum não encontrado' });
+
+    if (!album.permite_selecao) {
+      return res.status(400).json({ success: false, message: 'Seleção não habilitada' });
+    }
+
+    if (album.selecao_confirmada) {
+      return res.status(400).json({ success: false, message: 'Seleção já foi confirmada anteriormente' });
+    }
+
+    await dynamo.send(new UpdateCommand({
+      TableName: TABLE,
+      Key: { PK: album.PK, SK: album.SK },
+      UpdateExpression: 'SET selecao_confirmada = :c, selecao_confirmada_em = :t',
+      ExpressionAttributeValues: {
+        ':c': true,
+        ':t': new Date().toISOString(),
+      },
+    }));
+
+    // Get selected photos count
+    const fotosResult = await dynamo.send(new QueryCommand({
+      TableName: TABLE,
+      KeyConditionExpression: 'PK = :pk AND begins_with(SK, :sk)',
+      FilterExpression: 'selecionada = :s',
+      ExpressionAttributeValues: { ':pk': `ALBUM#${album.id}`, ':sk': 'FOTO#', ':s': true },
+      Select: 'COUNT',
+    }));
+
+    res.json({
+      success: true,
+      data: {
+        confirmada: true,
+        selecao_confirmada_em: new Date().toISOString(),
+        total_selecionadas: fotosResult.Count || 0,
       },
     });
   } catch (error) {
