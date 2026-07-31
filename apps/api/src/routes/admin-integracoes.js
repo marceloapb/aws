@@ -119,49 +119,53 @@ router.get('/logs', async (req, res) => {
   try {
     const { integracao, limit = 100, page = 1 } = req.query;
 
-    // Buscar logs de integrações (INTLOG)
-    const intLogParams = {
+    let items = [];
+
+    // Buscar logs de integrações (INTLOG) — exceto se filtro for 'notificacoes'
+    if (!integracao || integracao !== 'notificacoes') {
+      const intLogParams = {
+        TableName: TABLE,
+        IndexName: 'GSI1',
+        KeyConditionExpression: 'GSI1PK = :pk',
+        ExpressionAttributeValues: { ':pk': 'INTLOG' },
+        ScanIndexForward: false,
+      };
+
+      if (integracao) {
+        intLogParams.FilterExpression = 'integracao = :integracao';
+        intLogParams.ExpressionAttributeValues[':integracao'] = integracao;
+      }
+
+      const intLogResult = await dynamo.send(new QueryCommand(intLogParams));
+      items = intLogResult.Items || [];
+    }
+
+    // Buscar logs de notificações (LOG_NTF) — sempre, e filtrar por canal se necessário
+    const TENANT = process.env.TENANT_ID || 'default';
+    const ntfParams = {
       TableName: TABLE,
-      IndexName: 'GSI1',
-      KeyConditionExpression: 'GSI1PK = :pk',
-      ExpressionAttributeValues: { ':pk': 'INTLOG' },
+      KeyConditionExpression: 'PK = :pk AND begins_with(SK, :sk)',
+      ExpressionAttributeValues: { ':pk': `TENANT#${TENANT}`, ':sk': 'LOG_NTF#' },
       ScanIndexForward: false,
+      Limit: 200,
     };
 
+    // Filtrar por canal se integração especificada
     if (integracao && integracao !== 'notificacoes') {
-      intLogParams.FilterExpression = 'integracao = :integracao';
-      intLogParams.ExpressionAttributeValues[':integracao'] = integracao;
+      ntfParams.FilterExpression = 'canal = :canal';
+      ntfParams.ExpressionAttributeValues[':canal'] = integracao;
     }
 
-    const intLogResult = await dynamo.send(new QueryCommand(intLogParams));
-    let items = intLogResult.Items || [];
-
-    // Buscar logs de notificações (LOG_NTF) e unificar no mesmo formato
-    if (!integracao || integracao === 'notificacoes') {
-      const TENANT = process.env.TENANT_ID || 'default';
-      const ntfParams = {
-        TableName: TABLE,
-        KeyConditionExpression: 'PK = :pk AND begins_with(SK, :sk)',
-        ExpressionAttributeValues: { ':pk': `TENANT#${TENANT}`, ':sk': 'LOG_NTF#' },
-        ScanIndexForward: false,
-        Limit: 200,
-      };
-      const ntfResult = await dynamo.send(new QueryCommand(ntfParams));
-      const ntfItems = (ntfResult.Items || []).map(log => ({
-        id: log.id,
-        integracao: log.canal || 'notificacao',
-        tipo: log.tipo_evento || 'disparo',
-        resultado: log.status === 'enviado' ? 'sucesso' : 'erro',
-        detalhes: log.erro || `${log.tipo_evento} → ${log.canal} (${log.destinatario || 'admin'})`,
-        created: log.created,
-      }));
-      items = [...items, ...ntfItems];
-    }
-
-    // Filtrar por integração se especificada
-    if (integracao && integracao !== 'notificacoes') {
-      items = items.filter(i => i.integracao === integracao);
-    }
+    const ntfResult = await dynamo.send(new QueryCommand(ntfParams));
+    const ntfItems = (ntfResult.Items || []).map(log => ({
+      id: log.id,
+      integracao: log.canal || 'notificacao',
+      tipo: log.tipo_evento || 'disparo',
+      resultado: log.status === 'enviado' ? 'sucesso' : 'erro',
+      detalhes: log.erro || `${log.tipo_evento} → ${log.canal} (${log.destinatario || 'admin'})`,
+      created: log.created,
+    }));
+    items = [...items, ...ntfItems];
 
     // Ordenar por data (mais recentes primeiro)
     items.sort((a, b) => (b.created || '').localeCompare(a.created || ''));
