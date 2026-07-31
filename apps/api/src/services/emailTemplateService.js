@@ -322,7 +322,11 @@ async function renderizarTemplate(tipo, variaveis = {}) {
 
   // Montar logo HTML
   let logoHtml = '';
-  if (config.logo_url) {
+  if (config.logo_key) {
+    const cdnDomain = process.env.CDN_DOMAIN || process.env.CF_DOMAIN || 'd2112x4m4e89fv.cloudfront.net';
+    const logoUrl = `https://${cdnDomain}/${config.logo_key}`;
+    logoHtml = `<img src="${logoUrl}" alt="${config.remetente_nome || 'Logo'}" style="max-height:60px;max-width:200px;" />`;
+  } else if (config.logo_url) {
     logoHtml = `<img src="${config.logo_url}" alt="${config.remetente_nome || 'Logo'}" style="max-height:60px;max-width:200px;" />`;
   }
 
