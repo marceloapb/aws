@@ -102,6 +102,7 @@ export default function AlbumPreview() {
         // Load initial selection state from photo records
         const sel = (albumJson.data.fotos || []).filter(f => f.selecionada === true).map(f => f.id || f.SK?.replace('FOTO#', ''));
         setSelecionadas(new Set(sel));
+        setSelecaoConfirmada(albumJson.data.selecao_confirmada || false);
       }
       if (temaJson.success) {
         setTema({ ...DEFAULTS_TEMA, ...temaJson.data });
@@ -156,6 +157,7 @@ export default function AlbumPreview() {
   const [selecionadas, setSelecionadas] = useState(new Set());
   const [selecaoMsg, setSelecaoMsg] = useState('');
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
+  const [selecaoConfirmada, setSelecaoConfirmada] = useState(false);
 
   const toggleSelecao = (fotoId) => {
     setSelecionadas(prev => {
@@ -637,7 +639,7 @@ export default function AlbumPreview() {
       )}
 
       {/* Selection bar */}
-      {album.permite_selecao && (
+      {album.permite_selecao && !selecaoConfirmada && (
         <div className="fixed bottom-0 left-0 right-0 z-40">
           <div className="max-w-4xl mx-auto px-4 pb-4">
             <div className="px-6 py-4 bg-white/95 backdrop-blur border rounded-xl shadow-lg space-y-3">
@@ -692,6 +694,36 @@ export default function AlbumPreview() {
         </div>
       )}
 
+      {/* Selection confirmed bar */}
+      {album.permite_selecao && selecaoConfirmada && (
+        <div className="fixed bottom-0 left-0 right-0 z-40">
+          <div className="max-w-4xl mx-auto px-4 pb-4">
+            <div className="px-6 py-4 bg-green-50/95 backdrop-blur border border-green-200 rounded-xl shadow-lg flex items-center justify-between">
+              <span className="text-sm font-medium text-green-700 flex items-center gap-2">
+                ✓ Seleção finalizada — {selecionadas.size} foto(s) selecionada(s)
+              </span>
+              <button
+                onClick={async () => {
+                  if (!window.confirm('Reabrir a seleção? O cliente poderá alterar as escolhas novamente.')) return;
+                  try {
+                    await authFetch(`/admin/albuns/${id}`, {
+                      method: 'PUT',
+                      body: JSON.stringify({ selecao_confirmada: false, selecao_confirmada_em: null }),
+                    });
+                    setSelecaoConfirmada(false);
+                    setSelecaoMsg('Seleção reaberta. O cliente pode alterar novamente.');
+                    setTimeout(() => setSelecaoMsg(''), 4000);
+                  } catch {}
+                }}
+                className="px-4 py-1.5 text-sm font-medium text-green-700 border border-green-300 rounded-lg hover:bg-green-100 transition"
+              >
+                Reabrir seleção
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Confirm selection dialog */}
       {showConfirmDialog && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -720,8 +752,10 @@ export default function AlbumPreview() {
                       method: 'PUT',
                       body: JSON.stringify({ selecao_confirmada: true, selecao_confirmada_em: new Date().toISOString() }),
                     });
+                    setSelecaoConfirmada(true);
                     setSelecaoMsg(`✓ Seleção finalizada! ${selecionadas.size} foto(s) confirmada(s).`);
                   } catch {
+                    setSelecaoConfirmada(true);
                     setSelecaoMsg(`✓ Seleção finalizada! ${selecionadas.size} foto(s) confirmada(s).`);
                   }
                   setTimeout(() => setSelecaoMsg(''), 5000);
