@@ -12,17 +12,19 @@ export default function MeusAlbuns() {
   const [favorites, setFavorites] = useState(new Set());
 
   useEffect(() => {
-    authFetch('/albums/mine').then(r => r.json()).then(data => {
-      if (Array.isArray(data)) setAlbums(data);
+    authFetch('/client/albuns').then(r => r.json()).then(data => {
+      if (data.success) setAlbums(data.data || []);
+      else if (Array.isArray(data)) setAlbums(data);
     }).catch(() => {});
   }, []);
 
   const openAlbum = async (album) => {
     setSelectedAlbum(album);
     try {
-      const res = await authFetch(`/albums/${album.id}/photos`);
+      const res = await authFetch(`/client/albuns/${album.id}`);
       const data = await res.json();
-      if (Array.isArray(data)) setPhotos(data);
+      if (data.success) setPhotos(data.data?.fotos || []);
+      else if (Array.isArray(data)) setPhotos(data);
     } catch {}
   };
 
