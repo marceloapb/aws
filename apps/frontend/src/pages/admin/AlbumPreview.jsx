@@ -647,17 +647,38 @@ export default function AlbumPreview() {
                   <span className="text-gray-500">{album.cota_selecao || activeFotos.length}</span>
                   {' '}selecionadas
                 </span>
-                <button
-                  disabled={selecionadas.size === 0}
-                  onClick={() => {
-                    setSelecaoMsg(`✓ Seleção salva! ${selecionadas.size} foto(s) selecionada(s).`);
-                    setTimeout(() => setSelecaoMsg(''), 4000);
-                  }}
-                  className="px-5 py-2 text-sm font-medium text-white rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed hover:opacity-90"
-                  style={{ backgroundColor: acento }}
-                >
-                  Confirmar Seleção
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    disabled={selecionadas.size === 0}
+                    onClick={async () => {
+                      if (!window.confirm('Limpar todas as seleções?')) return;
+                      const ids = [...selecionadas];
+                      for (const fotoId of ids) {
+                        await authFetch(`/admin/albuns/${id}/selecao/toggle`, {
+                          method: 'POST',
+                          body: JSON.stringify({ foto_id: fotoId }),
+                        }).catch(() => {});
+                      }
+                      setSelecionadas(new Set());
+                      setSelecaoMsg('Seleção limpa.');
+                      setTimeout(() => setSelecaoMsg(''), 3000);
+                    }}
+                    className="px-4 py-2 text-sm font-medium text-gray-600 border border-gray-300 rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-100"
+                  >
+                    Limpar
+                  </button>
+                  <button
+                    disabled={selecionadas.size === 0}
+                    onClick={() => {
+                      setSelecaoMsg(`✓ Seleção salva! ${selecionadas.size} foto(s) selecionada(s).`);
+                      setTimeout(() => setSelecaoMsg(''), 4000);
+                    }}
+                    className="px-5 py-2 text-sm font-medium text-white rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed hover:opacity-90"
+                    style={{ backgroundColor: acento }}
+                  >
+                    Confirmar Seleção
+                  </button>
+                </div>
               </div>
               <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
                 <div
