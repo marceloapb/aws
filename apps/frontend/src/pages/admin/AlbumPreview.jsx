@@ -154,6 +154,7 @@ export default function AlbumPreview() {
   const [downloading, setDownloading] = useState(false);
   const [downloadProgress, setDownloadProgress] = useState('');
   const [selecionadas, setSelecionadas] = useState(new Set());
+  const [selecaoMsg, setSelecaoMsg] = useState('');
 
   const toggleSelecao = (fotoId) => {
     setSelecionadas(prev => {
@@ -625,6 +626,13 @@ export default function AlbumPreview() {
         </div>
       )}
 
+      {/* Selection confirmation message */}
+      {selecaoMsg && (
+        <div className="fixed top-16 left-1/2 -translate-x-1/2 z-50 px-6 py-3 bg-green-600 text-white text-sm font-medium rounded-xl shadow-lg animate-bounce-in">
+          {selecaoMsg}
+        </div>
+      )}
+
       {/* Selection bar */}
       {album.permite_selecao && (
         <div className="fixed bottom-0 left-0 right-0 z-40">
@@ -639,6 +647,10 @@ export default function AlbumPreview() {
                 </span>
                 <button
                   disabled={selecionadas.size === 0}
+                  onClick={() => {
+                    setSelecaoMsg(`✓ Seleção salva! ${selecionadas.size} foto(s) selecionada(s).`);
+                    setTimeout(() => setSelecaoMsg(''), 4000);
+                  }}
                   className="px-5 py-2 text-sm font-medium text-white rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed hover:opacity-90"
                   style={{ backgroundColor: acento }}
                 >
