@@ -116,6 +116,8 @@ apps/
 - API: Express Router, async/await, DynamoDB single-table (PK/SK + GSI1PK/GSI1SK)
 - Commits: conventional commits (feat:, fix:, docs:)
 - Build frontend no Windows: usar `node node_modules/react-scripts/bin/react-scripts.js build`
+- **Combos/Selects**: TODAS as opções de dropdowns devem estar em ORDEM ALFABÉTICA (exceto quando a ordem tem significado funcional, ex: pipeline de status)
+- Listas dinâmicas (do banco): ordenar com `.sort((a,b) => a.nome.localeCompare(b.nome))` antes de renderizar
 
 ## Instruções para o Kiro
 - **SEMPRE ao iniciar sessão**: executar `Set-Location D:\OneDrive\.Git\aws; git pull --rebase` antes de qualquer alteração

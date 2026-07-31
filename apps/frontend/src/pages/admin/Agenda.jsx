@@ -9,7 +9,7 @@ import { MapLink } from '../../components/MapLink';
 const ACCENT = '#EA580C';
 const DIAS_SEMANA = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
 const STATUS_OPTIONS = ['Todos', 'Confirmadas', 'Pendentes', 'Bloqueadas', 'Canceladas'];
-const TIPO_OPTIONS = ['Todos os tipos', 'Casamento', 'Ensaio', 'Aniversário', 'Corporativo', 'Batizado', 'Outros'];
+const TIPO_OPTIONS = ['Todos os tipos', 'Aniversário', 'Batizado', 'Casamento', 'Corporativo', 'Ensaio', 'Outros'];
 
 export default function Agenda() {
   const { authFetch } = useAuth();

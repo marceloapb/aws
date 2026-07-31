@@ -11,22 +11,22 @@ import Select from '../../components/ui/Select';
 const ACCENT = '#EA580C';
 
 const TIPOS_EVENTO = [
+  'album.baixado',
+  'album.publicado',
+  'cliente.criado',
+  'contrato.assinado',
+  'contrato.enviado',
+  'evento.confirmado',
+  'evento.criado',
+  'evento.realizado',
+  'feedback.respondido',
+  'mensagem.recebida',
+  'orcamento.aceito',
   'orcamento.criado',
   'orcamento.enviado',
-  'orcamento.aceito',
   'orcamento.recusado',
-  'contrato.enviado',
-  'contrato.assinado',
   'pagamento.confirmado',
   'pagamento.vencido',
-  'evento.criado',
-  'evento.confirmado',
-  'evento.realizado',
-  'album.publicado',
-  'album.baixado',
-  'feedback.respondido',
-  'cliente.criado',
-  'mensagem.recebida',
 ];
 
 const CANAIS = [
@@ -43,13 +43,13 @@ const CANAL_COLORS = {
 
 // Calendar rule types
 const GATILHOS_CALENDARIO = [
-  { value: 'evento.data', label: 'Data do evento (sessão/ensaio)' },
-  { value: 'album.expiracao', label: 'Expiração do álbum' },
-  { value: 'pagamento.vencimento', label: 'Vencimento de pagamento' },
+  { value: 'cliente.aniversario', label: 'Aniversário do cliente' },
   { value: 'contrato.criacao', label: 'Criação do contrato (sem assinatura)' },
   { value: 'orcamento.criacao', label: 'Criação do orçamento (sem resposta)' },
-  { value: 'cliente.aniversario', label: 'Aniversário do cliente' },
+  { value: 'evento.data', label: 'Data do evento (sessão/ensaio)' },
+  { value: 'album.expiracao', label: 'Expiração do álbum' },
   { value: 'cliente.ultima_sessao', label: 'Última sessão realizada' },
+  { value: 'pagamento.vencimento', label: 'Vencimento de pagamento' },
 ];
 
 const MOMENTO_OPTIONS = [

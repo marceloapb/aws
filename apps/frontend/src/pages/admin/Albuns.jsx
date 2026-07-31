@@ -398,14 +398,14 @@ export default function Albuns() {
               <select value={form.tipo_evento} onChange={e => setForm(f => ({ ...f, tipo_evento: e.target.value }))}
                 className="mt-1 w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-orange-200">
                 <option value="">Selecione...</option>
-                <option value="casamento">Casamento</option>
                 <option value="aniversario">Aniversário</option>
+                <option value="batizado">Batizado</option>
+                <option value="casamento">Casamento</option>
                 <option value="corporativo">Corporativo</option>
                 <option value="ensaio">Ensaio</option>
-                <option value="batizado">Batizado</option>
-                <option value="portfolio">Portfólio</option>
-                <option value="pessoal">Pessoal</option>
                 <option value="outro">Outro</option>
+                <option value="pessoal">Pessoal</option>
+                <option value="portfolio">Portfólio</option>
               </select>
             </div>
             <div className="grid grid-cols-2 gap-4">
@@ -450,14 +450,14 @@ export default function Albuns() {
               <select value={form.tipo_evento} onChange={e => setForm(f => ({ ...f, tipo_evento: e.target.value }))}
                 className="mt-1 w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-orange-200">
                 <option value="">Selecione...</option>
-                <option value="casamento">Casamento</option>
                 <option value="aniversario">Aniversário</option>
+                <option value="batizado">Batizado</option>
+                <option value="casamento">Casamento</option>
                 <option value="corporativo">Corporativo</option>
                 <option value="ensaio">Ensaio</option>
-                <option value="batizado">Batizado</option>
-                <option value="portfolio">Portfólio</option>
-                <option value="pessoal">Pessoal</option>
                 <option value="outro">Outro</option>
+                <option value="pessoal">Pessoal</option>
+                <option value="portfolio">Portfólio</option>
               </select>
             </div>
             <div className="grid grid-cols-2 gap-4">
