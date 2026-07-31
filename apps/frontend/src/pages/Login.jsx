@@ -11,8 +11,8 @@ export default function Login() {
   const [password, setPassword] = useState('');
   const [showPw, setShowPw] = useState(false);
   const [error, setError] = useState('');
-  const [logoUrl, setLogoUrl] = useState('');
-  const [nomeSite, setNomeSite] = useState('Marcelo Bloise Fotografia');
+  const [logoUrl, setLogoUrl] = useState(() => localStorage.getItem('mbf_logo_url') || localStorage.getItem('mbf_logo_dark_url') || '');
+  const [nomeSite, setNomeSite] = useState(() => localStorage.getItem('mbf_empresa_nome') || 'Marcelo Bloise Fotografia');
   const { login, loading } = useAuth();
   const navigate = useNavigate();
 
@@ -24,8 +24,15 @@ export default function Login() {
         if (json.success && json.data) {
           // Use logo_url (fundo claro) preferencialmente, fallback para logo_dark_url
           const logo = json.data.logo_url || json.data.logo_dark_url;
-          if (logo) setLogoUrl(logo);
-          if (json.data.nome) setNomeSite(json.data.nome);
+          if (logo) {
+            setLogoUrl(logo);
+            localStorage.setItem('mbf_logo_url', json.data.logo_url || logo);
+            if (json.data.logo_dark_url) localStorage.setItem('mbf_logo_dark_url', json.data.logo_dark_url);
+          }
+          if (json.data.nome) {
+            setNomeSite(json.data.nome);
+            localStorage.setItem('mbf_empresa_nome', json.data.nome);
+          }
         }
       } catch {}
     };

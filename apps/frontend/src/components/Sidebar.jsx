@@ -84,8 +84,8 @@ export default function Sidebar({ onClose }) {
   const navigate = useNavigate();
   const isAdmin = user?.role === 'admin';
   const counts = usePendingCounts();
-  const [logoUrl, setLogoUrl] = useState(null);
-  const [empresaNome, setEmpresaNome] = useState('');
+  const [logoUrl, setLogoUrl] = useState(() => localStorage.getItem('mbf_logo_dark_url') || localStorage.getItem('mbf_logo_url') || null);
+  const [empresaNome, setEmpresaNome] = useState(() => localStorage.getItem('mbf_empresa_nome') || '');
 
   useEffect(() => {
     // Buscar logo da empresa para exibir no sidebar (fundo escuro → prioriza logoDark)
@@ -97,11 +97,24 @@ export default function Sidebar({ onClose }) {
           const darkKey = data.logoDarkKey;
           const lightKey = data.logoKey;
           const logoKeyToUse = darkKey || lightKey;
-          if (data.tradeName) setEmpresaNome(data.tradeName);
+          if (data.tradeName) {
+            setEmpresaNome(data.tradeName);
+            localStorage.setItem('mbf_empresa_nome', data.tradeName);
+          }
           if (logoKeyToUse) {
             authFetch('/admin/fotos/view-url', { method: 'POST', body: JSON.stringify({ key: logoKeyToUse }) })
               .then(r => r.json())
-              .then(res => { if (res.success) setLogoUrl(res.data.url); })
+              .then(res => {
+                if (res.success) {
+                  setLogoUrl(res.data.url);
+                  // Cache: save dark vs light
+                  if (darkKey && logoKeyToUse === darkKey) {
+                    localStorage.setItem('mbf_logo_dark_url', res.data.url);
+                  } else {
+                    localStorage.setItem('mbf_logo_url', res.data.url);
+                  }
+                }
+              })
               .catch(() => {});
           }
         }

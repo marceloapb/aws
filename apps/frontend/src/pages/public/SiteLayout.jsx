@@ -24,14 +24,28 @@ const SOCIAL_ICONS = {
 };
 
 export default function SiteLayout() {
-  const [config, setConfig] = useState(null);
+  const [config, setConfig] = useState(() => {
+    // Initialize from localStorage cache for instant display
+    const cachedLogo = localStorage.getItem('mbf_logo_dark_url') || localStorage.getItem('mbf_logo_url');
+    const cachedNome = localStorage.getItem('mbf_empresa_nome');
+    if (cachedLogo || cachedNome) {
+      return { logo_dark_url: localStorage.getItem('mbf_logo_dark_url') || '', logo_url: localStorage.getItem('mbf_logo_url') || '', nome: cachedNome || '' };
+    }
+    return null;
+  });
   const [menuOpen, setMenuOpen] = useState(false);
   const location = useLocation();
 
   useEffect(() => {
     fetch(`${API}/public/site/config`)
       .then(r => r.json())
-      .then(data => setConfig(data.data || data))
+      .then(data => {
+        const d = data.data || data;
+        setConfig(d);
+        if (d.logo_url) localStorage.setItem('mbf_logo_url', d.logo_url);
+        if (d.logo_dark_url) localStorage.setItem('mbf_logo_dark_url', d.logo_dark_url);
+        if (d.nome) localStorage.setItem('mbf_empresa_nome', d.nome);
+      })
       .catch(() => {});
   }, []);
 

@@ -71,14 +71,21 @@ export default function Cadastro() {
   const [success, setSuccess] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
-  const [logoUrl, setLogoUrl] = useState('');
+  const [logoUrl, setLogoUrl] = useState(() => localStorage.getItem('mbf_logo_url') || localStorage.getItem('mbf_logo_dark_url') || '');
   const { register, loading } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
     fetch(`${API_URL}/public/site/config`)
       .then(r => r.json())
-      .then(json => { if (json.success && json.data?.logo_url) setLogoUrl(json.data.logo_url); })
+      .then(json => {
+        if (json.success && json.data?.logo_url) {
+          setLogoUrl(json.data.logo_url);
+          localStorage.setItem('mbf_logo_url', json.data.logo_url);
+        }
+        if (json.data?.logo_dark_url) localStorage.setItem('mbf_logo_dark_url', json.data.logo_dark_url);
+        if (json.data?.nome) localStorage.setItem('mbf_empresa_nome', json.data.nome);
+      })
       .catch(() => {});
   }, []);
 
