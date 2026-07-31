@@ -17,6 +17,16 @@ const TEMPLATE_TYPES = {
     descricao: 'Enviado quando um contrato é disponibilizado para assinatura digital',
     variaveis: ['{{cliente_nome}}', '{{tipo_evento}}', '{{data_evento}}', '{{link_assinatura}}', '{{empresa_nome}}'],
   },
+  contrato_token: {
+    nome: 'Contrato - Código de Verificação',
+    descricao: 'Enviado com o código (token) para validar a assinatura do contrato',
+    variaveis: ['{{cliente_nome}}', '{{codigo}}', '{{empresa_nome}}'],
+  },
+  contrato_pronto: {
+    nome: 'Contrato - Pronto para Assinar',
+    descricao: 'Notificação ao cliente de que o contrato está pronto e aguardando assinatura',
+    variaveis: ['{{cliente_nome}}', '{{tipo_evento}}', '{{data_evento}}', '{{link_assinatura}}', '{{empresa_nome}}'],
+  },
   orcamento_novo: {
     nome: 'Orçamento - Novo',
     descricao: 'Enviado quando um orçamento é criado e disponibilizado ao cliente',
@@ -61,6 +71,28 @@ const DEFAULT_TEMPLATES = {
   <a href="{{link_assinatura}}" style="display:inline-block;padding:12px 28px;background:#EA580C;color:white;text-decoration:none;border-radius:6px;font-weight:bold;">Assinar Contrato</a>
 </div>
 <p style="color:#6b7280;font-size:13px;">Se você não solicitou este serviço, por favor ignore este e-mail.</p>`,
+  },
+  contrato_token: {
+    assunto: 'Código de verificação para assinatura - {{empresa_nome}}',
+    corpo: `<div style="text-align:center;margin-bottom:20px;">{{logo}}</div>
+<h2 style="color:#1f2937;">Olá {{cliente_nome}}!</h2>
+<p style="color:#4b5563;line-height:1.6;">Seu código de verificação para assinar o contrato é:</p>
+<div style="text-align:center;margin:25px 0;">
+  <span style="font-size:32px;font-weight:bold;letter-spacing:8px;color:#EA580C;background:#FFF7ED;padding:15px 30px;border-radius:8px;border:2px dashed #EA580C;">{{codigo}}</span>
+</div>
+<p style="color:#6b7280;font-size:13px;">Este código é válido por <strong>10 minutos</strong>. Por segurança, não compartilhe com terceiros.</p>`,
+  },
+  contrato_pronto: {
+    assunto: 'Seu contrato está pronto! - {{empresa_nome}}',
+    corpo: `<div style="text-align:center;margin-bottom:20px;">{{logo}}</div>
+<h2 style="color:#1f2937;">Olá {{cliente_nome}}!</h2>
+<p style="color:#4b5563;line-height:1.6;">Seu contrato para <strong>{{tipo_evento}}</strong> foi preparado e está aguardando sua assinatura.</p>
+<p style="color:#4b5563;">Data do evento: <strong>{{data_evento}}</strong></p>
+<p style="color:#4b5563;">O processo é simples e rápido — basta clicar no botão abaixo e seguir as instruções.</p>
+<div style="text-align:center;margin:25px 0;">
+  <a href="{{link_assinatura}}" style="display:inline-block;padding:12px 28px;background:#EA580C;color:white;text-decoration:none;border-radius:6px;font-weight:bold;">Assinar Contrato</a>
+</div>
+<p style="color:#6b7280;font-size:13px;">Se tiver dúvidas, responda este e-mail ou entre em contato pelo WhatsApp.</p>`,
   },
   orcamento_novo: {
     assunto: 'Seu orçamento está pronto! - {{empresa_nome}}',
