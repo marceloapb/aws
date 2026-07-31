@@ -21,15 +21,33 @@ async function enviarEmail({ destinatario, titulo, corpo, templateData = {} }) {
     throw new Error('destinatario é obrigatório para envio de email');
   }
 
+  // Buscar configurações de remetente do banco
+  let fromAddress = FROM_EMAIL;
+  let logoUrl = '';
+  let corPrimaria = '#EA580C';
+  let remetenteNome = '';
+  let rodapeTexto = '';
+  try {
+    const { buscarConfigEmail } = require('../../services/emailTemplateService');
+    const config = await buscarConfigEmail();
+    if (config.remetente_nome) {
+      remetenteNome = config.remetente_nome;
+      fromAddress = `${config.remetente_nome} <${FROM_EMAIL}>`;
+    }
+    if (config.logo_url) logoUrl = config.logo_url;
+    if (config.cor_primaria) corPrimaria = config.cor_primaria;
+    if (config.rodape_texto) rodapeTexto = config.rodape_texto;
+  } catch {}
+
   // Interpolar variáveis no título e corpo
   const tituloFinal = interpolar(titulo, templateData);
   const corpoFinal = interpolar(corpo, templateData);
 
   // Montar HTML completo
-  const html = montarHtml(tituloFinal, corpoFinal);
+  const html = montarHtml(tituloFinal, corpoFinal, { logoUrl, corPrimaria, remetenteNome, rodapeTexto });
 
   const command = new SendEmailCommand({
-    Source: FROM_EMAIL,
+    Source: fromAddress,
     Destination: {
       ToAddresses: Array.isArray(destinatario) ? destinatario : [destinatario],
     },
@@ -62,22 +80,30 @@ function interpolar(texto, dados) {
 }
 
 /**
- * Monta HTML com layout padrão
+ * Monta HTML com layout padrão usando configurações do remetente
  */
-function montarHtml(titulo, corpo) {
+function montarHtml(titulo, corpo, { logoUrl, corPrimaria, remetenteNome, rodapeTexto } = {}) {
+  const cor = corPrimaria || '#EA580C';
+  const nome = remetenteNome || 'MBFoto';
+  const rodape = rodapeTexto || 'Você recebeu este email pois está cadastrado no sistema.';
+
+  const headerContent = logoUrl
+    ? `<img src="${logoUrl}" alt="${nome}" style="max-height:40px;max-width:200px;object-fit:contain;" />`
+    : `<h2 style="color:white;margin:0;font-size:18px;">📸 ${nome}</h2>`;
+
   return `<!DOCTYPE html>
 <html>
 <head><meta charset="UTF-8"></head>
 <body style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:20px;background:#f9fafb;">
-  <div style="background:#EA580C;padding:15px 20px;border-radius:8px 8px 0 0;">
-    <h2 style="color:white;margin:0;font-size:18px;">📸 MBFoto</h2>
+  <div style="background:${cor};padding:15px 20px;border-radius:8px 8px 0 0;text-align:center;">
+    ${headerContent}
   </div>
   <div style="background:white;padding:20px;border:1px solid #e5e7eb;border-top:none;border-radius:0 0 8px 8px;">
     <h3 style="margin:0 0 10px;color:#111827;">${titulo}</h3>
     <div style="color:#4b5563;line-height:1.6;">${corpo}</div>
   </div>
   <p style="color:#9ca3af;font-size:12px;margin-top:10px;text-align:center;">
-    Você recebeu este email pois está cadastrado no sistema MBFoto.
+    ${rodape}
   </p>
 </body>
 </html>`;
