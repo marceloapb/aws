@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams } from 'react-router-dom';
 import { ArrowLeft, ArrowRight, X, ChevronLeft, ChevronRight, Share2, Download, Heart, Lock } from 'lucide-react';
 import GalleryPhoto from '../../components/album/GalleryPhoto';
