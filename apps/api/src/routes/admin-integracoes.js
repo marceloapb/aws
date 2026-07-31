@@ -119,7 +119,8 @@ router.get('/logs', async (req, res) => {
   try {
     const { integracao, limit = 100, page = 1 } = req.query;
 
-    const params = {
+    // Buscar logs de integrações (INTLOG)
+    const intLogParams = {
       TableName: TABLE,
       IndexName: 'GSI1',
       KeyConditionExpression: 'GSI1PK = :pk',
@@ -127,13 +128,44 @@ router.get('/logs', async (req, res) => {
       ScanIndexForward: false,
     };
 
-    if (integracao) {
-      params.FilterExpression = 'integracao = :integracao';
-      params.ExpressionAttributeValues[':integracao'] = integracao;
+    if (integracao && integracao !== 'notificacoes') {
+      intLogParams.FilterExpression = 'integracao = :integracao';
+      intLogParams.ExpressionAttributeValues[':integracao'] = integracao;
     }
 
-    const result = await dynamo.send(new QueryCommand(params));
-    const items = result.Items || [];
+    const intLogResult = await dynamo.send(new QueryCommand(intLogParams));
+    let items = intLogResult.Items || [];
+
+    // Buscar logs de notificações (LOG_NTF) e unificar no mesmo formato
+    if (!integracao || integracao === 'notificacoes') {
+      const TENANT = process.env.TENANT_ID || 'default';
+      const ntfParams = {
+        TableName: TABLE,
+        KeyConditionExpression: 'PK = :pk AND begins_with(SK, :sk)',
+        ExpressionAttributeValues: { ':pk': `TENANT#${TENANT}`, ':sk': 'LOG_NTF#' },
+        ScanIndexForward: false,
+        Limit: 200,
+      };
+      const ntfResult = await dynamo.send(new QueryCommand(ntfParams));
+      const ntfItems = (ntfResult.Items || []).map(log => ({
+        id: log.id,
+        integracao: log.canal || 'notificacao',
+        tipo: log.tipo_evento || 'disparo',
+        resultado: log.status === 'enviado' ? 'sucesso' : 'erro',
+        detalhes: log.erro || `${log.tipo_evento} → ${log.canal} (${log.destinatario || 'admin'})`,
+        created: log.created,
+      }));
+      items = [...items, ...ntfItems];
+    }
+
+    // Filtrar por integração se especificada
+    if (integracao && integracao !== 'notificacoes') {
+      items = items.filter(i => i.integracao === integracao);
+    }
+
+    // Ordenar por data (mais recentes primeiro)
+    items.sort((a, b) => (b.created || '').localeCompare(a.created || ''));
+
     const total = items.length;
     const start = (Number(page) - 1) * Number(limit);
     const data = items.slice(start, start + Number(limit));

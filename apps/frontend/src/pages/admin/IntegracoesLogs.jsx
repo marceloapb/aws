@@ -52,6 +52,8 @@ export default function IntegracoesLogs() {
       'maps': 'Google Maps',
       'gateway': 'Pagamento',
       'nf': 'Nota Fiscal',
+      'notificacao': 'Notificação',
+      'inapp': 'In-App (Sininho)',
     };
     return map[integracao] || integracao;
   };
@@ -65,6 +67,8 @@ export default function IntegracoesLogs() {
       'maps': 'bg-indigo-100 text-indigo-700',
       'gateway': 'bg-orange-100 text-orange-700',
       'nf': 'bg-teal-100 text-teal-700',
+      'notificacao': 'bg-pink-100 text-pink-700',
+      'inapp': 'bg-sky-100 text-sky-700',
     };
     return map[integracao] || 'bg-gray-100 text-gray-700';
   };
@@ -101,7 +105,7 @@ export default function IntegracoesLogs() {
       {/* Filtros */}
       <div className="flex flex-col sm:flex-row sm:items-center gap-3">
         <div className="flex border-b border-gray-200 overflow-x-auto">
-          {[{ value: '', label: 'Todos' }, { value: 'whatsapp', label: 'WhatsApp' }, { value: 'instagram', label: 'Instagram' }, { value: 'google-calendar', label: 'Calendar' }, { value: 'email', label: 'E-mail' }, { value: 'maps', label: 'Maps' }, { value: 'nf', label: 'NF' }].map(f => (
+          {[{ value: '', label: 'Todos' }, { value: 'whatsapp', label: 'WhatsApp' }, { value: 'instagram', label: 'Instagram' }, { value: 'google-calendar', label: 'Calendar' }, { value: 'email', label: 'E-mail' }, { value: 'notificacoes', label: 'Notificações' }, { value: 'maps', label: 'Maps' }, { value: 'nf', label: 'NF' }].map(f => (
             <button key={f.value} onClick={() => setFiltro(f.value)}
               className={`px-4 py-3 text-sm font-medium whitespace-nowrap border-b-2 transition-colors ${filtro === f.value ? 'border-orange-600 text-orange-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
               style={filtro === f.value ? { borderColor: ACCENT, color: ACCENT } : {}}>
