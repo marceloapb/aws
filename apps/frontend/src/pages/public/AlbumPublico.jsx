@@ -24,7 +24,7 @@ export default function AlbumPublico() {
   const [activeGaleriaId, setActiveGaleriaId] = useState(null);
 
   // Gallery photos
-  const [fotos, setFotos] = useState([]);
+  const [allFotos, setAllFotos] = useState([]);
   const [fotosLoading, setFotosLoading] = useState(false);
 
   // Lightbox & pagination
@@ -71,7 +71,7 @@ export default function AlbumPublico() {
     );
     observer.observe(loaderRef.current);
     return () => observer.disconnect();
-  }, [visibleCount, fotos.length]);
+  }, [visibleCount, fotos.length, activeGaleriaId]);
 
   // Keyboard navigation for lightbox
   useEffect(() => {
@@ -100,14 +100,12 @@ export default function AlbumPublico() {
   const loadGaleriaFotos = async (galeriaId) => {
     setFotosLoading(true);
     try {
-      const url = galeriaId === 'all'
-        ? `${API}/public/album/${slug}/fotos`
-        : `${API}/public/album/${slug}/galeria/${galeriaId}`;
-      const res = await fetch(url);
+      // Always load ALL photos for the album (global selection count)
+      const res = await fetch(`${API}/public/album/${slug}/fotos`);
       const json = await res.json();
       if (json.success) {
         const fotosData = json.data.fotos || [];
-        setFotos(fotosData);
+        setAllFotos(fotosData);
         const sel = fotosData.filter(f => f.selecionada === true).map(f => f.id);
         setSelecionadas(new Set(sel));
         setSelecaoConfirmada(json.data.selecao_confirmada || false);
@@ -115,6 +113,11 @@ export default function AlbumPublico() {
     } catch {}
     setFotosLoading(false);
   };
+
+  // Filter photos by active galeria (local, like admin does)
+  const fotos = activeGaleriaId && activeGaleriaId !== 'all'
+    ? allFotos.filter(f => f.galeria_id === activeGaleriaId)
+    : allFotos;
 
   const handleSenha = (e) => {
     e.preventDefault();
@@ -626,7 +629,7 @@ export default function AlbumPublico() {
                 <span className="text-sm font-medium text-gray-700">
                   <span className="text-lg font-bold" style={{ color: acento }}>{selecionadas.size}</span>
                   {' / '}
-                  <span className="text-gray-500">{album.cota_selecao || fotos.length}</span>
+                  <span className="text-gray-500">{album.cota_selecao || allFotos.length}</span>
                   {' '}selecionadas
                 </span>
                 <div className="flex items-center gap-2">
@@ -639,7 +642,7 @@ export default function AlbumPublico() {
                 </div>
               </div>
               <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
-                <div className="h-full rounded-full transition-all duration-300" style={{ width: `${Math.min((selecionadas.size / (album.cota_selecao || fotos.length)) * 100, 100)}%`, backgroundColor: acento }} />
+                <div className="h-full rounded-full transition-all duration-300" style={{ width: `${Math.min((selecionadas.size / (album.cota_selecao || allFotos.length)) * 100, 100)}%`, backgroundColor: acento }} />
               </div>
             </div>
           </div>
