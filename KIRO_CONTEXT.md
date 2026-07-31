@@ -166,6 +166,23 @@ apps/
 - **GalleryPhoto.jsx**: Componente wrapper que aplica animações (scroll/hover/overlay) + bordas. Usado tanto no editor (PreviewGalleryGrid via renderItem) quanto no AlbumPreview (GalleryGrid via renderItem).
 - **useScrollAnimation.js**: Hook que reseta quando `animacao` muda (permite re-testar efeitos no editor).
 - **Animações**: Salvas como `animacao_scroll`, `animacao_hover`, `animacao_overlay` no tema. API aceita ambos os nomes (com e sem prefixo).
+
+## Notas técnicas da sessão 31/07/2026
+- **Seleção de fotos (admin preview)**: Persiste no backend via POST /admin/albuns/:id/selecao/toggle. Campo `selecionada` na foto (PK=ALBUM#id, SK=FOTO#id). Tem botão "Confirmar Seleção" (com diálogo salvar/finalizar), "Limpar", e "Reabrir seleção".
+- **Seleção de fotos (público)**: AlbumGaleria.jsx replica 100% do AlbumPreview — mesma GalleryGrid com SelectionOverlay (Heart), mesma barra de progresso, mesmo lightbox.
+- **Páginas públicas do álbum**: AlbumPublico.jsx (capa) usa TODOS os capa_layout do tema (elegante, ousado, editorial, split, cinematico, full, minimalista). AlbumGalerias.jsx (sets) e AlbumGaleria.jsx (fotos) usam cores/fontes/layout do tema.
+- **Endpoint público assinarFoto()**: DEVE retornar width, height, content_type, selecionada — sem eles os layouts não funcionam.
+- **Logo em emails**: Usar `logo_key` com CDN URL (d2112x4m4e89fv.cloudfront.net) — NUNCA usar logo_url presigned (expira em 1h).
+- **WhatsApp templates aprovados na Meta (pt_BR)**: album_pronto, contrato_assinado_aviso, contrato_assinatura, evento_confirmado, feedback_solicitacao, lembrete_evento, mbfoto_codigo_verificacao, notificacao_geral, novo_orcamento, orcamento_pronto, pagamento_confirmado, pagamento_vencido.
+- **WhatsApp dispatcher**: Envia 3 parâmetros [cliente_nome, titulo, mensagem]. Registra envios em WHATSAPP#<numero>/OUT# para contabilização de custos.
+- **NotificationDispatcher**: Enriquece automaticamente dados do cliente (whatsapp, email, nome) quando tem cliente_id nos dados do evento.
+- **Email templates**: Novos tipos adicionados: contrato_token (código verificação), contrato_pronto (convite assinatura).
+- **ConfigEmails**: Toggle Visual/HTML no editor de templates.
+- **Abas removidas**: "Log de Entregas" removido de /admin/comunicacao/regras (centralizado em /admin/integracoes/logs). Abas "E-mails" e "Notificações" removidas de /admin/config.
+- **Logs integrações**: GET /admin/integracoes/logs agora busca INTLOG + LOG_NTF unificados. Filtro por canal funciona para ambos.
+- **Logo cache localStorage**: Todas as telas usam mbf_logo_url, mbf_logo_dark_url, mbf_empresa_nome no localStorage para exibição instantânea.
+- **MeusAlbuns.jsx (portal cliente)**: Usa /client/albuns (não /albums/mine). Campos: titulo, thumbnail_url, total_fotos, slug. Ao clicar abre window.open('/album/:slug', '_blank').
+- **client-albuns.js GET /:id**: Aceita tanto UUID quanto slug. Se não achar por ID, busca por slug nos álbuns do cliente.
 - **Regras de Calendário**: Nova funcionalidade em `/admin/notificacoes/calendario`. Rota: `admin-calendario-rules.js`. SK: `CALENDAR_RULE#<id>`.
 - **Regras de Disparo**: 20 regras cadastradas. SK: `REGRA_NTF#<id>`. Campos: `titulo_template`, `mensagem_template`, `whatsapp_template`.
 - **Download ZIP**: Frontend usa JSZip para baixar todas as fotos como .zip. Dependência: `jszip@3.10.1` + `yaml@2.9.0` (necessário para resolver conflito tailwindcss/postcss-load-config).
