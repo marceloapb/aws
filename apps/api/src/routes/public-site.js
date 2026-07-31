@@ -44,6 +44,31 @@ router.get('/config', async (req, res) => {
       Object.assign(data, { nome, logo_url, logo_dark_url, redes, whatsapp_pessoal });
     }
 
+    // Enrich with social network info from empresa config (CONFIG#instagram, CONFIG#tiktok, etc.)
+    try {
+      const configResult = await dynamo.send(new QueryCommand({
+        TableName: TABLE,
+        KeyConditionExpression: 'PK = :pk AND begins_with(SK, :sk)',
+        ExpressionAttributeValues: { ':pk': `TENANT#${TENANT}`, ':sk': 'CONFIG#' },
+      }));
+      const configMap = {};
+      for (const item of (configResult.Items || [])) {
+        configMap[item.chave] = item.valor;
+      }
+      // Build redes_sociais object from empresa config fields
+      const redesSociais = {};
+      if (configMap.instagram) redesSociais.instagram = configMap.instagram.startsWith('http') ? configMap.instagram : `https://instagram.com/${configMap.instagram.replace('@', '')}`;
+      if (configMap.facebook) redesSociais.facebook = configMap.facebook.startsWith('http') ? configMap.facebook : `https://facebook.com/${configMap.facebook}`;
+      if (configMap.youtube) redesSociais.youtube = configMap.youtube.startsWith('http') ? configMap.youtube : `https://youtube.com/${configMap.youtube}`;
+      if (configMap.tiktok) redesSociais.tiktok = configMap.tiktok.startsWith('http') ? configMap.tiktok : `https://tiktok.com/@${configMap.tiktok.replace('@', '')}`;
+      if (configMap.whatsappBusiness) redesSociais.whatsapp = configMap.whatsappBusiness.startsWith('http') ? configMap.whatsappBusiness : `https://wa.me/${configMap.whatsappBusiness.replace(/\D/g, '')}`;
+      if (Object.keys(redesSociais).length > 0) {
+        data.redes_sociais = redesSociais;
+      }
+      // Fallback nome from empresa config
+      if (!data.nome && configMap.tradeName) data.nome = configMap.tradeName;
+    } catch {}
+
     // If no logo in site config, try to get from admin config (same TENANT, then TENANT#default)
     if (!data.logo_dark_url && !data.logo_url) {
       try {
