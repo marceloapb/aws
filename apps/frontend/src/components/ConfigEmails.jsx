@@ -106,7 +106,8 @@ export default function ConfigEmails() {
   };
 
   const handleSendTest = async () => {
-    if (!selectedTemplate || !testEmail) return;
+    if (!selectedTemplate) { setMsg('Selecione um template primeiro'); setTimeout(() => setMsg(''), 3000); return; }
+    if (!testEmail) { setMsg('Digite o e-mail de destino'); setTimeout(() => setMsg(''), 3000); return; }
     setSending(true);
     try {
       const res = await authFetch(`/admin/email-templates/${selectedTemplate.tipo}/enviar-teste`, {
