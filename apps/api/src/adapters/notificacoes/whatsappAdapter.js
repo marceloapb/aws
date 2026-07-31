@@ -3,6 +3,32 @@
 // ══════════════════════════════════════════════════════════════
 
 const whatsappClient = require('../../lib/whatsapp/client');
+const { dynamo, TABLE } = require('../../config/dynamodb');
+const { PutCommand } = require('@aws-sdk/lib-dynamodb');
+
+/**
+ * Registra mensagem enviada no DynamoDB para contabilização de custos
+ */
+async function registrarEnvio(phone, template, messageId, categoria) {
+  try {
+    const now = new Date();
+    await dynamo.send(new PutCommand({
+      TableName: TABLE,
+      Item: {
+        PK: `WHATSAPP#${phone}`,
+        SK: `OUT#${now.toISOString()}#${messageId || Date.now()}`,
+        type: 'template',
+        templateNome: template,
+        categoria: categoria || 'utility',
+        status: 'enviado',
+        messageId: messageId || null,
+        origem: 'notificacao',
+        createdAt: now.toISOString(),
+        timestamp: Math.floor(now.getTime() / 1000).toString(),
+      },
+    }));
+  } catch {}
+}
 
 /**
  * Envia mensagem WhatsApp via template
@@ -31,6 +57,9 @@ async function enviarWhatsApp({ numero, template, parametros = [], components = 
       components,
     });
 
+    // Registrar envio para custos
+    await registrarEnvio(result.phone || numero.replace(/\D/g, ''), template, result.message_id, 'utility');
+
     return {
       success: true,
       message_id: result.message_id,
@@ -50,6 +79,9 @@ async function enviarWhatsApp({ numero, template, parametros = [], components = 
     language: 'pt_BR',
     parameters,
   });
+
+  // Registrar envio para custos
+  await registrarEnvio(result.phone || numero.replace(/\D/g, ''), template, result.message_id, 'utility');
 
   return {
     success: true,
