@@ -1,56 +1,12 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { X, ChevronLeft, ChevronRight } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
+import { Camera } from 'lucide-react';
 
 const API = process.env.REACT_APP_API_URL || '';
 
-// Protected image component - prevents download/save
-function ProtectedImg({ src, alt, className }) {
-  return (
-    <div className="relative select-none" style={{ WebkitTouchCallout: 'none' }}>
-      <img
-        src={src}
-        alt={alt}
-        loading="lazy"
-        draggable={false}
-        onContextMenu={e => e.preventDefault()}
-        onDragStart={e => e.preventDefault()}
-        className={`${className} pointer-events-none`}
-      />
-      {/* Transparent overlay to block right-click save */}
-      <div
-        className="absolute inset-0 z-10"
-        onContextMenu={e => e.preventDefault()}
-        onDragStart={e => e.preventDefault()}
-      />
-    </div>
-  );
-}
-
 export default function PortfolioPage() {
   const [categorias, setCategorias] = useState([]);
-  const [fotos, setFotos] = useState([]);
-  const [selected, setSelected] = useState('todas');
   const [loading, setLoading] = useState(true);
-  const [lightbox, setLightbox] = useState(null); // index of active photo
-
-  // Protection: block right-click, Ctrl+S, Ctrl+P, PrintScreen on this page
-  useEffect(() => {
-    const blockContext = (e) => e.preventDefault();
-    const blockKeys = (e) => {
-      // Block Ctrl+S (save), Ctrl+P (print), Ctrl+Shift+I (devtools), PrintScreen
-      if ((e.ctrlKey && (e.key === 's' || e.key === 'p' || e.key === 'u')) ||
-          (e.ctrlKey && e.shiftKey && e.key === 'i') ||
-          e.key === 'PrintScreen') {
-        e.preventDefault();
-      }
-    };
-    document.addEventListener('contextmenu', blockContext);
-    document.addEventListener('keydown', blockKeys);
-    return () => {
-      document.removeEventListener('contextmenu', blockContext);
-      document.removeEventListener('keydown', blockKeys);
-    };
-  }, []);
 
   useEffect(() => {
     fetch(`${API}/public/portfolio`)
@@ -58,72 +14,17 @@ export default function PortfolioPage() {
       .then(data => {
         const portfolio = data.data || data;
         if (portfolio?.categorias) {
-          setCategorias(portfolio.categorias.map(c => c.nome));
-          const allFotos = portfolio.categorias.flatMap(c =>
-            (c.fotos || []).map(f => ({ ...f, categoria: c.nome }))
-          );
-          setFotos(allFotos);
-        } else if (portfolio?.fotos) {
-          setFotos(portfolio.fotos);
-          const cats = [...new Set(portfolio.fotos.map(f => f.categoria).filter(Boolean))];
-          setCategorias(cats);
-        } else if (Array.isArray(portfolio)) {
-          setFotos(portfolio);
-          const cats = [...new Set(portfolio.map(f => f.categoria).filter(Boolean))];
-          setCategorias(cats);
+          setCategorias(portfolio.categorias);
         }
       })
       .catch(() => {})
       .finally(() => setLoading(false));
   }, []);
 
-  const filteredFotos = selected === 'todas'
-    ? fotos
-    : fotos.filter(f => f.categoria === selected);
-
-  const openLightbox = (idx) => setLightbox(idx);
-  const closeLightbox = () => setLightbox(null);
-
-  const prevPhoto = useCallback(() => {
-    setLightbox(prev => (prev - 1 + filteredFotos.length) % filteredFotos.length);
-  }, [filteredFotos.length]);
-
-  const nextPhoto = useCallback(() => {
-    setLightbox(prev => (prev + 1) % filteredFotos.length);
-  }, [filteredFotos.length]);
-
-  // Keyboard navigation for lightbox
-  useEffect(() => {
-    if (lightbox === null) return;
-    const handler = (e) => {
-      if (e.key === 'Escape') closeLightbox();
-      if (e.key === 'ArrowLeft') prevPhoto();
-      if (e.key === 'ArrowRight') nextPhoto();
-    };
-    document.addEventListener('keydown', handler);
-    return () => document.removeEventListener('keydown', handler);
-  }, [lightbox, prevPhoto, nextPhoto]);
-
-  // Prevent body scroll when lightbox open
-  useEffect(() => {
-    if (lightbox !== null) {
-      document.body.style.overflow = 'hidden';
-    } else {
-      document.body.style.overflow = '';
-    }
-    return () => { document.body.style.overflow = ''; };
-  }, [lightbox]);
-
   return (
-    <div className="min-h-screen" style={{ WebkitUserSelect: 'none', userSelect: 'none' }}>
-      {/* Anti-print/screenshot CSS */}
-      <style>{`
-        @media print { .portfolio-protected { display: none !important; } }
-        .portfolio-protected img { -webkit-user-drag: none; user-drag: none; }
-      `}</style>
-      <div className="portfolio-protected">
+    <div className="min-h-screen bg-stone-950">
       {/* Header */}
-      <section className="py-16 sm:py-20 bg-stone-950">
+      <section className="py-16 sm:py-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
           <h1 className="text-3xl sm:text-4xl font-bold text-stone-50 text-center mb-4">
             Portfólio
@@ -134,123 +35,77 @@ export default function PortfolioPage() {
         </div>
       </section>
 
-      {/* Category Tabs */}
-      <section className="sticky top-16 z-30 bg-stone-950/90 backdrop-blur-md border-b border-stone-800">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6">
-          <div className="flex gap-2 py-3 overflow-x-auto scrollbar-hide">
-            <button
-              onClick={() => setSelected('todas')}
-              className={`shrink-0 px-4 py-2 rounded-full text-sm font-medium transition-colors ${
-                selected === 'todas'
-                  ? 'bg-[#EA580C] text-white'
-                  : 'bg-stone-800 text-stone-400 hover:text-stone-200 hover:bg-stone-700'
-              }`}
-            >
-              Todas
-            </button>
-            {categorias.map(cat => (
-              <button
-                key={cat}
-                onClick={() => setSelected(cat)}
-                className={`shrink-0 px-4 py-2 rounded-full text-sm font-medium transition-colors ${
-                  selected === cat
-                    ? 'bg-[#EA580C] text-white'
-                    : 'bg-stone-800 text-stone-400 hover:text-stone-200 hover:bg-stone-700'
-                }`}
-              >
-                {cat}
-              </button>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Photo Grid - Masonry 2 columns */}
-      <section className="py-6 bg-stone-950">
-        <div className="max-w-4xl mx-auto px-2 sm:px-4">
+      {/* Category Galleries Grid */}
+      <section className="pb-16 sm:pb-20">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6">
           {loading ? (
-            <div className="columns-2 gap-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
               {Array.from({ length: 6 }).map((_, i) => (
-                <div key={i} className="mb-2 bg-stone-900 animate-pulse" style={{ height: i % 2 === 0 ? '200px' : '260px' }} />
+                <div key={i} className="aspect-[4/3] bg-stone-900 rounded-xl animate-pulse" />
               ))}
             </div>
-          ) : filteredFotos.length === 0 ? (
-            <p className="text-center text-stone-500 py-12">Nenhuma foto encontrada.</p>
+          ) : categorias.length === 0 ? (
+            <div className="text-center py-20">
+              <Camera size={48} className="mx-auto text-stone-700 mb-4" />
+              <p className="text-stone-500 text-lg">Nenhuma galeria disponível no momento.</p>
+            </div>
           ) : (
-            <div className="columns-2 gap-2">
-              {filteredFotos.map((foto, idx) => (
-                <button
-                  key={foto.id || idx}
-                  onClick={() => openLightbox(idx)}
-                  className="group relative w-full mb-2 overflow-hidden bg-stone-900 block break-inside-avoid focus:outline-none focus:ring-2 focus:ring-[#EA580C]"
-                  onContextMenu={e => e.preventDefault()}
-                >
-                  <ProtectedImg
-                    src={foto.url || foto.thumb_url}
-                    alt={foto.titulo || foto.alt || ''}
-                    className="w-full h-auto object-cover transition-transform duration-500 group-hover:scale-105"
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-                  {foto.titulo && (
-                    <span className="absolute bottom-3 left-3 right-3 text-sm text-white font-medium opacity-0 group-hover:opacity-100 transition-opacity truncate">
-                      {foto.titulo}
-                    </span>
-                  )}
-                </button>
-              ))}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+              {categorias.map(cat => {
+                // Use first photo as cover
+                const capa = cat.fotos?.[0];
+                const totalFotos = cat.fotos?.length || 0;
+
+                return (
+                  <Link
+                    key={cat.id}
+                    to={`/portfolio/${cat.id}`}
+                    className="group relative aspect-[4/3] rounded-xl overflow-hidden bg-stone-900 block focus:outline-none focus:ring-2 focus:ring-[#EA580C] focus:ring-offset-2 focus:ring-offset-stone-950"
+                  >
+                    {/* Cover image */}
+                    {capa?.url || capa?.thumb_url ? (
+                      <img
+                        src={capa.url || capa.thumb_url}
+                        alt={cat.nome}
+                        loading="lazy"
+                        className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+                      />
+                    ) : (
+                      <div className="absolute inset-0 flex items-center justify-center bg-stone-900">
+                        <Camera size={40} className="text-stone-700" />
+                      </div>
+                    )}
+
+                    {/* Gradient overlay */}
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+
+                    {/* Hover overlay */}
+                    <div className="absolute inset-0 bg-[#EA580C]/0 group-hover:bg-[#EA580C]/10 transition-colors duration-300" />
+
+                    {/* Category info */}
+                    <div className="absolute bottom-0 left-0 right-0 p-5">
+                      <h2 className="text-lg sm:text-xl font-bold text-white mb-1 group-hover:text-[#EA580C] transition-colors">
+                        {cat.nome}
+                      </h2>
+                      {cat.texto && (
+                        <p className="text-stone-300 text-sm line-clamp-2 mb-2">{cat.texto}</p>
+                      )}
+                      <span className="text-xs text-stone-400">
+                        {totalFotos} {totalFotos === 1 ? 'foto' : 'fotos'}
+                      </span>
+                    </div>
+
+                    {/* Top-right badge */}
+                    <div className="absolute top-3 right-3 bg-black/50 backdrop-blur-sm rounded-full px-3 py-1">
+                      <span className="text-xs text-stone-200 font-medium">Ver galeria</span>
+                    </div>
+                  </Link>
+                );
+              })}
             </div>
           )}
         </div>
       </section>
-
-      {/* Lightbox */}
-      {lightbox !== null && filteredFotos[lightbox] && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/95">
-          {/* Close button */}
-          <button
-            onClick={closeLightbox}
-            className="absolute top-4 right-4 z-10 w-10 h-10 rounded-full bg-stone-800/80 flex items-center justify-center text-stone-300 hover:text-white transition-colors"
-            aria-label="Fechar"
-          >
-            <X size={24} />
-          </button>
-
-          {/* Prev */}
-          {filteredFotos.length > 1 && (
-            <button
-              onClick={prevPhoto}
-              className="absolute left-4 z-10 w-10 h-10 rounded-full bg-stone-800/80 flex items-center justify-center text-stone-300 hover:text-white transition-colors"
-              aria-label="Anterior"
-            >
-              <ChevronLeft size={24} />
-            </button>
-          )}
-
-          {/* Image */}
-          <ProtectedImg
-            src={filteredFotos[lightbox].url_full || filteredFotos[lightbox].url || filteredFotos[lightbox].thumb_url}
-            alt={filteredFotos[lightbox].titulo || ''}
-            className="max-w-[90vw] max-h-[85vh] object-contain rounded-lg"
-          />
-
-          {/* Next */}
-          {filteredFotos.length > 1 && (
-            <button
-              onClick={nextPhoto}
-              className="absolute right-4 z-10 w-10 h-10 rounded-full bg-stone-800/80 flex items-center justify-center text-stone-300 hover:text-white transition-colors"
-              aria-label="Próximo"
-            >
-              <ChevronRight size={24} />
-            </button>
-          )}
-
-          {/* Counter */}
-          <div className="absolute bottom-4 left-1/2 -translate-x-1/2 text-stone-400 text-sm">
-            {lightbox + 1} / {filteredFotos.length}
-          </div>
-        </div>
-      )}
-      </div>
     </div>
   );
 }
