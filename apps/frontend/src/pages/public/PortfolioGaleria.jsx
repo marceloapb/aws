@@ -38,17 +38,39 @@ export default function PortfolioGaleria() {
   useEffect(() => {
     const blockContext = (e) => e.preventDefault();
     const blockKeys = (e) => {
+      // Block Ctrl+S (save), Ctrl+P (print), Ctrl+U (view source), 
+      // Ctrl+Shift+I (devtools), Ctrl+Shift+J (console), PrintScreen, F12
       if ((e.ctrlKey && (e.key === 's' || e.key === 'p' || e.key === 'u')) ||
-          (e.ctrlKey && e.shiftKey && e.key === 'i') ||
-          e.key === 'PrintScreen') {
+          (e.ctrlKey && e.shiftKey && (e.key === 'i' || e.key === 'I' || e.key === 'j' || e.key === 'J' || e.key === 'c' || e.key === 'C')) ||
+          e.key === 'PrintScreen' || e.key === 'F12') {
         e.preventDefault();
+        e.stopPropagation();
+        return false;
       }
     };
+    const blockDrag = (e) => e.preventDefault();
+    const blockCopy = (e) => e.preventDefault();
+    
     document.addEventListener('contextmenu', blockContext);
     document.addEventListener('keydown', blockKeys);
+    document.addEventListener('dragstart', blockDrag);
+    document.addEventListener('copy', blockCopy);
+    
+    // Block devtools open detection
+    const devtoolsCheck = setInterval(() => {
+      const widthThreshold = window.outerWidth - window.innerWidth > 160;
+      const heightThreshold = window.outerHeight - window.innerHeight > 160;
+      if (widthThreshold || heightThreshold) {
+        document.body.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100vh;background:#000;color:#666;font-size:1.2rem;">Conteúdo protegido</div>';
+      }
+    }, 1000);
+    
     return () => {
       document.removeEventListener('contextmenu', blockContext);
       document.removeEventListener('keydown', blockKeys);
+      document.removeEventListener('dragstart', blockDrag);
+      document.removeEventListener('copy', blockCopy);
+      clearInterval(devtoolsCheck);
     };
   }, []);
 
@@ -132,10 +154,34 @@ export default function PortfolioGaleria() {
 
   return (
     <div className="min-h-screen bg-stone-950" style={{ WebkitUserSelect: 'none', userSelect: 'none' }}>
-      {/* Anti-print CSS */}
+      {/* Anti-print/screenshot CSS */}
       <style>{`
-        @media print { .portfolio-protected { display: none !important; } }
-        .portfolio-protected img { -webkit-user-drag: none; user-drag: none; }
+        @media print { 
+          .portfolio-protected { display: none !important; }
+          body { display: none !important; }
+          html { display: none !important; }
+        }
+        .portfolio-protected img { 
+          -webkit-user-drag: none; 
+          user-drag: none;
+          -webkit-touch-callout: none;
+          pointer-events: none;
+        }
+        .portfolio-protected {
+          -webkit-user-select: none;
+          -moz-user-select: none;
+          -ms-user-select: none;
+          user-select: none;
+        }
+        /* Invisible watermark overlay */
+        .photo-shield::after {
+          content: '';
+          position: absolute;
+          inset: 0;
+          z-index: 20;
+          background: transparent;
+          pointer-events: auto;
+        }
       `}</style>
 
       <div className="portfolio-protected">
@@ -155,9 +201,6 @@ export default function PortfolioGaleria() {
             {categoria.texto && (
               <p className="text-stone-400 max-w-2xl">{categoria.texto}</p>
             )}
-            <p className="text-stone-500 text-sm mt-2">
-              {fotos.length} {fotos.length === 1 ? 'foto' : 'fotos'}
-            </p>
           </div>
         </section>
 
@@ -172,7 +215,8 @@ export default function PortfolioGaleria() {
                   <button
                     key={foto.id || idx}
                     onClick={() => openLightbox(idx)}
-                    className="group relative w-full mb-2 overflow-hidden rounded-lg bg-stone-900 block break-inside-avoid focus:outline-none focus:ring-2 focus:ring-[#EA580C]"
+                    className="photo-shield group relative w-full mb-2 overflow-hidden bg-stone-900 block break-inside-avoid focus:outline-none focus:ring-2 focus:ring-[#EA580C]"
+                    style={{ border: '3px solid #EA580C', borderRadius: '10px' }}
                     onContextMenu={e => e.preventDefault()}
                   >
                     <ProtectedImg

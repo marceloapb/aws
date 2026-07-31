@@ -54,7 +54,6 @@ export default function PortfolioPage() {
               {categorias.map(cat => {
                 // Use first photo as cover
                 const capa = cat.fotos?.[0];
-                const totalFotos = cat.fotos?.length || 0;
 
                 return (
                   <Link
@@ -84,15 +83,12 @@ export default function PortfolioPage() {
 
                     {/* Category info */}
                     <div className="absolute bottom-0 left-0 right-0 p-5">
-                      <h2 className="text-lg sm:text-xl font-bold text-white mb-1 group-hover:text-[#EA580C] transition-colors">
+                      <h2 className="text-lg sm:text-xl font-bold text-white group-hover:text-[#EA580C] transition-colors">
                         {cat.nome}
                       </h2>
                       {cat.texto && (
-                        <p className="text-stone-300 text-sm line-clamp-2 mb-2">{cat.texto}</p>
+                        <p className="text-stone-300 text-sm line-clamp-2 mt-1">{cat.texto}</p>
                       )}
-                      <span className="text-xs text-stone-400">
-                        {totalFotos} {totalFotos === 1 ? 'foto' : 'fotos'}
-                      </span>
                     </div>
 
                     {/* Top-right badge */}
