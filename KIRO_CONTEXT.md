@@ -138,7 +138,6 @@ apps/
   - Domínio verificado no SES: bloise.com.br
 
 ## Problemas conhecidos
-- WhatsApp Meta API: token expirado (Invalid OAuth access token) — precisa renovar no painel Meta
 - Despesas recorrentes: o POST funciona mas precisa testar se está gravando
 - Modelo Bedrock para texto (amazon.nova-micro): funciona, mas para contratos longos usa nova-lite com chunks
 - Portfolio: pipeline de thumbnails (SQS → Lambda) criado mas a Lambda de processamento pode não estar deployada ainda (depende do SAM deploy com sharp)

@@ -303,4 +303,68 @@ router.get('/log', async (req, res) => {
   }
 });
 
+// ─── POST /testar — Disparar notificação de teste para TODOS os tipos de evento ───
+router.post('/testar', async (req, res) => {
+  try {
+    const { processarEvento } = require('../services/notificationDispatcher');
+
+    const TIPOS_EVENTO = [
+      'orcamento.criado',
+      'orcamento.enviado',
+      'orcamento.aceito',
+      'orcamento.recusado',
+      'contrato.enviado',
+      'contrato.assinado',
+      'pagamento.confirmado',
+      'pagamento.vencido',
+      'evento.criado',
+      'evento.confirmado',
+      'evento.realizado',
+      'album.publicado',
+      'album.baixado',
+      'feedback.respondido',
+      'cliente.criado',
+      'mensagem.recebida',
+    ];
+
+    const resultados = [];
+
+    for (const tipo of TIPOS_EVENTO) {
+      const eventoId = `teste-${tipo}-${Date.now()}`;
+      try {
+        const resultado = await processarEvento({
+          evento_id: eventoId,
+          tipo_evento: tipo,
+          tenant_id: TENANT,
+          dados: {
+            cliente_nome: 'Cliente Teste',
+            email: req.body?.email || 'contato@bloise.com.br',
+            whatsapp: req.body?.whatsapp || '',
+            valor: 'R$ 1.500,00',
+            titulo: `Teste de ${tipo}`,
+            descricao: `Notificação de teste para o evento: ${tipo}`,
+            link: 'https://www.mbfoto.com.br/admin',
+            tipo_evento: tipo,
+          },
+        });
+        resultados.push({ tipo, ...resultado });
+      } catch (err) {
+        resultados.push({ tipo, success: false, erro: err.message });
+      }
+    }
+
+    const disparados = resultados.filter(r => r.success && !r.ignorado).length;
+    const ignorados = resultados.filter(r => r.ignorado).length;
+    const erros = resultados.filter(r => !r.success).length;
+
+    res.json({
+      success: true,
+      message: `Teste concluído: ${disparados} disparados, ${ignorados} sem regra, ${erros} erros`,
+      data: resultados,
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
 module.exports = router;
