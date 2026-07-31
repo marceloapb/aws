@@ -155,10 +155,6 @@ export default function NotificacoesConfig() {
     }
   }, [authFetch, toast, logPage, logFilters]);
 
-  useEffect(() => {
-    if (activeTab === 'log') loadLogs();
-  }, [activeTab, loadLogs]);
-
   const openCreate = () => {
     setEditingRule(null);
     setForm(EMPTY_FORM);
@@ -437,19 +433,6 @@ export default function NotificacoesConfig() {
             Regras de Calendário
           </span>
         </button>
-        <button
-          onClick={() => setActiveTab('log')}
-          className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
-            activeTab === 'log'
-              ? 'border-orange-500 text-orange-600'
-              : 'border-transparent text-gray-500 hover:text-gray-700'
-          }`}
-        >
-          <span className="flex items-center gap-2">
-            <ClipboardList size={14} />
-            Log de Entregas
-          </span>
-        </button>
       </div>
 
       {/* Tab Content: Regras */}
@@ -676,141 +659,6 @@ export default function NotificacoesConfig() {
       )}
 
       {/* Tab Content: Log de Entregas */}
-      {activeTab === 'log' && (
-        <div className="space-y-4">
-          {/* Filters */}
-          <div className="bg-white rounded-xl border p-4">
-            <div className="flex items-center gap-2 mb-3">
-              <Filter size={14} className="text-gray-500" />
-              <span className="text-sm font-medium text-gray-700">Filtros</span>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <select
-                value={logFilters.canal}
-                onChange={(e) => { setLogFilters(prev => ({ ...prev, canal: e.target.value })); setLogPage(1); }}
-                className="px-3 py-2 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-orange-200"
-              >
-                <option value="">Todos os canais</option>
-                <option value="inapp">Sininho (In-App)</option>
-                <option value="email">E-mail</option>
-                <option value="whatsapp">WhatsApp</option>
-              </select>
-              <select
-                value={logFilters.status}
-                onChange={(e) => { setLogFilters(prev => ({ ...prev, status: e.target.value })); setLogPage(1); }}
-                className="px-3 py-2 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-orange-200"
-              >
-                <option value="">Todos os status</option>
-                <option value="enviado">Enviado</option>
-                <option value="erro">Erro</option>
-              </select>
-              <select
-                value={logFilters.tipo_evento}
-                onChange={(e) => { setLogFilters(prev => ({ ...prev, tipo_evento: e.target.value })); setLogPage(1); }}
-                className="px-3 py-2 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-orange-200"
-              >
-                <option value="">Todos os eventos</option>
-                {TIPOS_EVENTO.map(t => (
-                  <option key={t} value={t}>{formatEvento(t)}</option>
-                ))}
-              </select>
-            </div>
-          </div>
-
-          {/* Log List */}
-          {logsLoading ? (
-            <div className="space-y-2">
-              {[...Array(5)].map((_, i) => (
-                <div key={i} className="h-14 bg-gray-100 rounded-xl animate-pulse" />
-              ))}
-            </div>
-          ) : logs.length === 0 ? (
-            <div className="bg-white rounded-xl border p-12 text-center">
-              <ClipboardList size={40} className="mx-auto text-gray-300 mb-3" />
-              <p className="text-sm text-gray-500">Nenhum registro de entrega encontrado</p>
-              <p className="text-xs text-gray-400 mt-1">Os logs aparecem quando notificacoes sao disparadas</p>
-            </div>
-          ) : (
-            <>
-              <div className="space-y-2">
-                {logs.map((log) => (
-                  <div key={log.id} className="bg-white rounded-xl border p-4 flex items-center gap-3">
-                    {/* Status icon */}
-                    <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${
-                      log.status === 'enviado' ? 'bg-green-50' : 'bg-red-50'
-                    }`}>
-                      {log.status === 'enviado'
-                        ? <CheckCircle size={16} className="text-green-500" />
-                        : <XCircle size={16} className="text-red-500" />
-                      }
-                    </div>
-
-                    {/* Info */}
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="text-sm font-medium text-gray-900">
-                          {formatEvento(log.tipo_evento)}
-                        </span>
-                        <Badge variant={CANAL_COLORS[log.canal] || 'gray'} size="sm">
-                          {log.canal === 'inapp' ? 'Sininho' : log.canal === 'email' ? 'E-mail' : 'WhatsApp'}
-                        </Badge>
-                        <Badge variant={log.status === 'enviado' ? 'green' : 'red'} size="sm">
-                          {log.status === 'enviado' ? 'Enviado' : 'Erro'}
-                        </Badge>
-                      </div>
-                      <div className="flex items-center gap-3 mt-1">
-                        <span className="text-xs text-gray-400 flex items-center gap-1">
-                          <Clock size={10} />
-                          {log.created ? new Date(log.created).toLocaleString('pt-BR') : '-'}
-                        </span>
-                        {log.erro && (
-                          <span className="text-xs text-red-500 truncate max-w-xs">
-                            {log.erro}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Destinatario */}
-                    <Badge variant={log.destinatario === 'admin' ? 'orange' : 'blue'} size="sm">
-                      {log.destinatario === 'admin' ? 'Admin' : 'Cliente'}
-                    </Badge>
-                  </div>
-                ))}
-              </div>
-
-              {/* Pagination */}
-              {logPagination.totalPages > 1 && (
-                <div className="flex items-center justify-between pt-2">
-                  <span className="text-xs text-gray-500">
-                    {logPagination.totalItems} registro(s)
-                  </span>
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => setLogPage(p => Math.max(1, p - 1))}
-                      disabled={logPage <= 1}
-                      className="px-3 py-1.5 text-xs border rounded-lg disabled:opacity-50 hover:bg-gray-50"
-                    >
-                      Anterior
-                    </button>
-                    <span className="text-xs text-gray-600">
-                      {logPage} / {logPagination.totalPages}
-                    </span>
-                    <button
-                      onClick={() => setLogPage(p => Math.min(logPagination.totalPages, p + 1))}
-                      disabled={logPage >= logPagination.totalPages}
-                      className="px-3 py-1.5 text-xs border rounded-lg disabled:opacity-50 hover:bg-gray-50"
-                    >
-                      Proximo
-                    </button>
-                  </div>
-                </div>
-              )}
-            </>
-          )}
-        </div>
-      )}
-
       {/* Create/Edit Modal */}
       <Modal
         isOpen={modalOpen}
