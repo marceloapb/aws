@@ -111,6 +111,7 @@ export default function NotificacoesConfig() {
   const [whatsappTemplates, setWhatsappTemplates] = useState([]);
   const [emailTemplates, setEmailTemplates] = useState([]);
   const [testing, setTesting] = useState(false);
+  const [filtroDestinatario, setFiltroDestinatario] = useState('');
 
   const loadRegras = useCallback(async () => {
     setLoading(true);
@@ -438,6 +439,16 @@ export default function NotificacoesConfig() {
       {/* Tab Content: Regras */}
       {activeTab === 'regras' && (
         <>
+          {/* Filtro Destinatário */}
+          <div className="flex items-center gap-2">
+            {[{ value: '', label: 'Todos' }, { value: 'admin', label: 'Admin' }, { value: 'cliente', label: 'Cliente' }].map(f => (
+              <button key={f.value} onClick={() => setFiltroDestinatario(f.value)}
+                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${filtroDestinatario === f.value ? 'bg-orange-100 text-orange-700 border border-orange-300' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
+                {f.label}
+              </button>
+            ))}
+          </div>
+
           {/* Rules List */}
           {loading ? (
             <div className="space-y-3">
@@ -445,7 +456,7 @@ export default function NotificacoesConfig() {
                 <div key={i} className="h-20 bg-gray-100 rounded-xl animate-pulse" />
               ))}
             </div>
-          ) : regras.length === 0 ? (
+          ) : regras.filter(r => !filtroDestinatario || r.destinatario === filtroDestinatario).length === 0 ? (
             <div className="bg-white rounded-xl border p-12 text-center">
               <Settings2 size={40} className="mx-auto text-gray-300 mb-3" />
               <p className="text-sm text-gray-500">Nenhuma regra configurada</p>
@@ -456,7 +467,7 @@ export default function NotificacoesConfig() {
             </div>
           ) : (
             <div className="space-y-2">
-              {regras.map((rule) => (
+              {regras.filter(r => !filtroDestinatario || r.destinatario === filtroDestinatario).map((rule) => (
                 <div
                   key={rule.id}
                   className={`bg-white rounded-xl border p-4 flex items-center gap-4 transition-colors ${
