@@ -1,6 +1,6 @@
 const { Router } = require('express');
 const { dynamo, TABLE } = require('../config/dynamodb');
-const { QueryCommand } = require('@aws-sdk/lib-dynamodb');
+const { QueryCommand, GetCommand } = require('@aws-sdk/lib-dynamodb');
 const { getSignedDownloadUrl } = require('../services/s3Service');
 const { ALBUM_STATUS } = require('../config/constants');
 
@@ -32,26 +32,64 @@ router.get('/', async (req, res) => {
     // Enrich each album with thumbnail_url (first photo or capa_foto_id)
     const enriched = await Promise.all(items.map(async (album) => {
       try {
-        const fotosResult = await dynamo.send(new QueryCommand({
-          TableName: TABLE,
-          KeyConditionExpression: 'PK = :pk AND begins_with(SK, :sk)',
-          ExpressionAttributeValues: { ':pk': `ALBUM#${album.id}`, ':sk': 'FOTO#' },
-          Limit: 20,
-        }));
-        const fotos = (fotosResult.Items || []).sort((a, b) => (a.ordem || 0) - (b.ordem || 0));
+        // Determine capa_foto_id (album field or tema)
+        let capaId = album.capa_foto_id || null;
+        if (!capaId) {
+          try {
+            const temaResult = await dynamo.send(new GetCommand({
+              TableName: TABLE,
+              Key: { PK: `ALBUM#${album.id}`, SK: 'TEMA' },
+            }));
+            if (temaResult.Item?.capa_foto_id) capaId = temaResult.Item.capa_foto_id;
+          } catch {}
+        }
+
         let capaFoto = null;
-        if (album.capa_foto_id) {
-          capaFoto = fotos.find(f => f.id === album.capa_foto_id);
+
+        // If we have a capa_foto_id, fetch that specific photo
+        if (capaId) {
+          try {
+            const fotoResult = await dynamo.send(new GetCommand({
+              TableName: TABLE,
+              Key: { PK: `ALBUM#${album.id}`, SK: `FOTO#${capaId}` },
+            }));
+            if (fotoResult.Item) capaFoto = fotoResult.Item;
+          } catch {}
         }
-        if (!capaFoto && fotos.length > 0) {
-          capaFoto = fotos[0];
+
+        // Fallback: first photo by ordem
+        if (!capaFoto) {
+          const fotosResult = await dynamo.send(new QueryCommand({
+            TableName: TABLE,
+            KeyConditionExpression: 'PK = :pk AND begins_with(SK, :sk)',
+            ExpressionAttributeValues: { ':pk': `ALBUM#${album.id}`, ':sk': 'FOTO#' },
+            Limit: 5,
+          }));
+          const fotos = (fotosResult.Items || []).sort((a, b) => (a.ordem || 0) - (b.ordem || 0));
+          if (fotos.length > 0) capaFoto = fotos[0];
         }
+
         let thumbnail_url = null;
         if (capaFoto) {
           const key = capaFoto.s3_key_thumb || capaFoto.s3_key_media || capaFoto.s3_key || '';
           if (key) thumbnail_url = await getSignedDownloadUrl(key, 86400);
         }
-        return { ...album, thumbnail_url, total_fotos: fotos.length || album.total_fotos || 0 };
+
+        // Get total_fotos count
+        let total_fotos = album.total_fotos || 0;
+        if (!total_fotos) {
+          try {
+            const countResult = await dynamo.send(new QueryCommand({
+              TableName: TABLE,
+              KeyConditionExpression: 'PK = :pk AND begins_with(SK, :sk)',
+              ExpressionAttributeValues: { ':pk': `ALBUM#${album.id}`, ':sk': 'FOTO#' },
+              Select: 'COUNT',
+            }));
+            total_fotos = countResult.Count || 0;
+          } catch {}
+        }
+
+        return { ...album, thumbnail_url, total_fotos };
       } catch {
         return album;
       }

@@ -85,20 +85,43 @@ router.get('/', async (req, res) => {
       // Buscar foto de capa para thumbnail
       let thumbnail_url = null;
       try {
-        const fotosResult = await dynamo.send(new QueryCommand({
-          TableName: TABLE,
-          KeyConditionExpression: 'PK = :pk AND begins_with(SK, :sk)',
-          ExpressionAttributeValues: { ':pk': `ALBUM#${album.id}`, ':sk': 'FOTO#' },
-          Limit: 20,
-        }));
-        const fotos = (fotosResult.Items || []).sort((a, b) => (a.ordem || 0) - (b.ordem || 0));
+        // Determine capa_foto_id (album field or tema)
+        let capaId = album.capa_foto_id || null;
+        if (!capaId) {
+          try {
+            const temaResult = await dynamo.send(new GetCommand({
+              TableName: TABLE,
+              Key: { PK: `ALBUM#${album.id}`, SK: 'TEMA' },
+            }));
+            if (temaResult.Item?.capa_foto_id) capaId = temaResult.Item.capa_foto_id;
+          } catch {}
+        }
+
         let capaFoto = null;
-        if (album.capa_foto_id) {
-          capaFoto = fotos.find(f => f.id === album.capa_foto_id);
+
+        // If we have a capa_foto_id, fetch that specific photo
+        if (capaId) {
+          try {
+            const fotoResult = await dynamo.send(new GetCommand({
+              TableName: TABLE,
+              Key: { PK: `ALBUM#${album.id}`, SK: `FOTO#${capaId}` },
+            }));
+            if (fotoResult.Item) capaFoto = fotoResult.Item;
+          } catch {}
         }
-        if (!capaFoto && fotos.length > 0) {
-          capaFoto = fotos[0];
+
+        // Fallback: first photo by ordem
+        if (!capaFoto) {
+          const fotosResult = await dynamo.send(new QueryCommand({
+            TableName: TABLE,
+            KeyConditionExpression: 'PK = :pk AND begins_with(SK, :sk)',
+            ExpressionAttributeValues: { ':pk': `ALBUM#${album.id}`, ':sk': 'FOTO#' },
+            Limit: 5,
+          }));
+          const fotos = (fotosResult.Items || []).sort((a, b) => (a.ordem || 0) - (b.ordem || 0));
+          if (fotos.length > 0) capaFoto = fotos[0];
         }
+
         if (capaFoto) {
           const key = capaFoto.s3_key_thumb || capaFoto.s3_key_media || capaFoto.s3_key_original;
           if (key) {
