@@ -297,7 +297,7 @@ export default function AlbumPreview() {
       if (capaLayout === 'editorial') {
         return (
           <div className="flex flex-col min-h-screen">
-            <div className="px-8 md:px-16 py-8 md:py-12 border-b" style={{ backgroundColor: '#fff', color: corTexto, borderColor: `${corTexto}15` }}>
+            <div className="px-8 md:px-16 py-8 md:py-12 border-b" style={{ backgroundColor: corOverlay, color: corTexto, borderColor: `${corTexto}15` }}>
               {nomeNegocio && <p className="text-xs opacity-50 mb-2 tracking-widest uppercase" style={{ fontFamily: tema.fonte_corpo }}>{nomeNegocio}</p>}
               <h1 className="text-4xl md:text-6xl font-bold" style={{ fontFamily: fonteTitulo }}>{album.titulo}</h1>
               <div className="flex items-center justify-between mt-3">
