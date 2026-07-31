@@ -82,18 +82,25 @@ router.get('/', async (req, res) => {
         } catch {}
       }
 
-      // Buscar primeira foto para thumbnail
+      // Buscar foto de capa para thumbnail
       let thumbnail_url = null;
       try {
         const fotosResult = await dynamo.send(new QueryCommand({
           TableName: TABLE,
           KeyConditionExpression: 'PK = :pk AND begins_with(SK, :sk)',
           ExpressionAttributeValues: { ':pk': `ALBUM#${album.id}`, ':sk': 'FOTO#' },
-          Limit: 1,
+          Limit: 20,
         }));
-        const primeiraFoto = fotosResult.Items?.[0];
-        if (primeiraFoto) {
-          const key = primeiraFoto.s3_key_thumb || primeiraFoto.s3_key_media || primeiraFoto.s3_key_original;
+        const fotos = (fotosResult.Items || []).sort((a, b) => (a.ordem || 0) - (b.ordem || 0));
+        let capaFoto = null;
+        if (album.capa_foto_id) {
+          capaFoto = fotos.find(f => f.id === album.capa_foto_id);
+        }
+        if (!capaFoto && fotos.length > 0) {
+          capaFoto = fotos[0];
+        }
+        if (capaFoto) {
+          const key = capaFoto.s3_key_thumb || capaFoto.s3_key_media || capaFoto.s3_key_original;
           if (key) {
             thumbnail_url = await getSignedUrl(s3, new GetObjectCommand({ Bucket: bucket, Key: key }), { expiresIn: 3600 });
           }
