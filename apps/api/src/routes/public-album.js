@@ -145,13 +145,7 @@ router.get('/', async (req, res) => {
         permite_selecao: album.permite_selecao || false,
         permite_comentarios: album.permite_comentarios || false,
         cota_selecao: album.cota_selecao || null,
-        tema: {
-          cores: temaClean.cores || { fundo: '#1A1A1A', texto: '#FFFFFF', acento: '#EA580C' },
-          fonte_titulo: temaClean.fonte_titulo || 'Playfair Display',
-          fonte_corpo: temaClean.fonte_corpo || 'Inter',
-          capa_modo: temaClean.capa_modo || 'cover',
-          layout: temaClean.layout || 'grade',
-        },
+        tema: temaClean,
       },
     });
   } catch (error) {

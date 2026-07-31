@@ -41,7 +41,7 @@ export default function AlbumGalerias() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#1A1A1A] flex items-center justify-center">
+      <div className="min-h-screen bg-gray-900 flex items-center justify-center">
         <div className="w-8 h-8 border-2 border-white/30 border-t-white rounded-full animate-spin" />
       </div>
     );
@@ -49,46 +49,40 @@ export default function AlbumGalerias() {
 
   if (!album) {
     return (
-      <div className="min-h-screen bg-[#1A1A1A] flex items-center justify-center">
+      <div className="min-h-screen bg-gray-900 flex items-center justify-center">
         <p className="text-white/60 text-lg">Álbum não encontrado</p>
       </div>
     );
   }
 
   const galerias = album.galerias || [];
+  const tema = album.tema || {};
+  const cores = tema.cores || { fundo: '#1A1A1A', texto: '#FFFFFF' };
+  const coresGalerias = tema.cores_galerias || {};
+  const bgColor = coresGalerias.background || cores.fundo || '#1A1A1A';
+  const textColor = coresGalerias.texto_icones || cores.texto || '#FFFFFF';
 
   return (
-    <div className="min-h-screen bg-[#1A1A1A] text-white">
+    <div className="min-h-screen" style={{ backgroundColor: bgColor, color: textColor, fontFamily: tema.fonte_corpo || 'Inter' }}>
       {/* Header */}
-      <header className="sticky top-0 z-20 bg-[#1A1A1A]/95 backdrop-blur-sm border-b border-white/5">
-        <div className="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
+      <header className="sticky top-0 z-20 backdrop-blur-sm border-b" style={{ backgroundColor: `${bgColor}ee`, borderColor: `${textColor}10` }}>
+        <div className="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between relative">
           <button
             onClick={() => navigate(`/album/${slug}`)}
-            className="p-2 -ml-2 text-white/60 hover:text-white transition-colors"
+            className="p-2 -ml-2 opacity-60 hover:opacity-100 transition-opacity z-10"
           >
             <ArrowLeft size={20} />
           </button>
-
-          <h1 className="text-base md:text-lg font-medium text-white">
-            {album.titulo}
-          </h1>
-
-          <div className="flex items-center gap-2">
-            <button
-              onClick={handleShare}
-              className="p-2 text-white/60 hover:text-white transition-colors"
-              title="Compartilhar"
-            >
-              <Share2 size={18} />
+          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+            <h1 className="text-xl md:text-2xl font-semibold" style={{ fontFamily: tema.fonte_titulo || 'Playfair Display' }}>
+              {album.titulo}
+            </h1>
+          </div>
+          <div className="flex items-center gap-3 z-10">
+            <button onClick={handleShare} className="flex items-center gap-1 text-sm opacity-60 hover:opacity-100 transition-opacity">
+              <Share2 size={16} />
+              <span className="hidden sm:inline">Compartilhar</span>
             </button>
-            {album.permite_download && (
-              <button
-                className="p-2 text-white/60 hover:text-white transition-colors"
-                title="Download"
-              >
-                <Download size={18} />
-              </button>
-            )}
           </div>
         </div>
       </header>

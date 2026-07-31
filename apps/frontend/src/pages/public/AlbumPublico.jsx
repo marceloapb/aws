@@ -104,6 +104,12 @@ export default function AlbumPublico() {
   const tema = album.tema || {};
   const cores = tema.cores || { fundo: '#1A1A1A', texto: '#FFFFFF', acento: '#EA580C' };
   const fonteTitulo = tema.fonte_titulo || 'Playfair Display';
+  const capaLayout = tema.capa_layout || 'elegante';
+  const coresCapa = tema.cores_capa || {};
+  const corTexto = coresCapa.texto || '#FFFFFF';
+  const corOverlay = coresCapa.overlay || '#121212';
+  const textoBtn = tema.texto_botao || 'Ver fotos';
+  const nomeNegocio = (tema.info_negocio !== false) ? (album.nome_negocio || tema.nome_negocio || '') : '';
 
   // Formatar data
   const formatDate = (dateStr) => {
@@ -113,56 +119,118 @@ export default function AlbumPublico() {
     return `${d}/${m}/${y}`;
   };
 
-  return (
-    <div className="min-h-screen relative overflow-hidden" style={{ backgroundColor: cores.fundo }}>
-      {/* Background image - full screen cover */}
-      {album.capa_url && (
-        <div className="absolute inset-0">
-          <img
-            src={album.capa_url}
-            alt=""
-            className="w-full h-full object-cover"
-          />
-          {/* Gradient overlay */}
-          <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-black/10" />
-          <div className="absolute inset-0 bg-gradient-to-r from-black/40 to-transparent" />
+  const dataEvento = (tema.mais_info !== false) && album.data_evento ? formatDate(album.data_evento) : '';
+
+  // Layout: split
+  if (capaLayout === 'split') {
+    return (
+      <div className="flex h-full min-h-screen">
+        <div className="w-1/2 h-full min-h-screen overflow-hidden">
+          {album.capa_url && <img src={album.capa_url} alt="" className="w-full h-full object-cover" />}
+          {!album.capa_url && <div className="w-full h-full bg-gray-700" />}
         </div>
-      )}
-
-      {/* Content overlay */}
-      <div className="relative z-10 min-h-screen flex flex-col justify-between p-6 md:p-12">
-        {/* Top - Logo/Brand */}
-        <div>
-          <p className="text-white/60 text-xs md:text-sm tracking-widest uppercase font-medium">
-            Marcelo Bloise Fotografia
-          </p>
-        </div>
-
-        {/* Bottom - Title, Date, CTA */}
-        <div className="flex items-end justify-between flex-wrap gap-6">
-          <div className="max-w-lg">
-            <h1
-              className="text-4xl md:text-6xl lg:text-7xl font-bold leading-tight"
-              style={{ fontFamily: fonteTitulo, color: cores.acento }}
-            >
-              {album.titulo}
-            </h1>
-            {album.data_evento && (
-              <p className="mt-3 text-lg md:text-xl" style={{ color: cores.acento, opacity: 0.8 }}>
-                {formatDate(album.data_evento)}
-              </p>
-            )}
-          </div>
-
-          {/* CTA Button */}
-          <button
-            onClick={handleVerFotos}
-            className="group flex items-center gap-2 text-white/80 hover:text-white transition-colors text-sm md:text-base"
-          >
-            <span>Ver fotos</span>
-            <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />
+        <div className="w-1/2 flex flex-col justify-center px-8 md:px-16" style={{ backgroundColor: corOverlay, color: corTexto }}>
+          {nomeNegocio && <p className="text-sm opacity-70 mb-3 tracking-widest uppercase" style={{ fontFamily: tema.fonte_corpo }}>{nomeNegocio}</p>}
+          <h1 className="text-3xl md:text-5xl font-bold mb-2" style={{ fontFamily: fonteTitulo }}>{album.titulo}</h1>
+          {dataEvento && <p className="text-sm opacity-70 mt-2" style={{ fontFamily: tema.fonte_corpo }}>{dataEvento}</p>}
+          <button onClick={handleVerFotos} className="mt-8 text-sm opacity-70 hover:opacity-100 flex items-center gap-2 transition" style={{ fontFamily: tema.fonte_corpo }}>
+            {textoBtn} →
           </button>
         </div>
+      </div>
+    );
+  }
+
+  // Layout: editorial
+  if (capaLayout === 'editorial') {
+    return (
+      <div className="flex flex-col min-h-screen">
+        <div className="px-8 md:px-16 py-8 md:py-12 border-b" style={{ backgroundColor: corOverlay, color: corTexto, borderColor: `${corTexto}15` }}>
+          {nomeNegocio && <p className="text-sm md:text-base opacity-50 mb-2 tracking-widest uppercase" style={{ fontFamily: tema.fonte_corpo }}>{nomeNegocio}</p>}
+          <h1 className="text-4xl md:text-6xl font-bold" style={{ fontFamily: fonteTitulo }}>{album.titulo}</h1>
+          <div className="flex items-center justify-between mt-3">
+            {dataEvento && <p className="text-base md:text-lg opacity-60" style={{ fontFamily: tema.fonte_corpo }}>{dataEvento}</p>}
+            <button onClick={handleVerFotos} className="text-sm md:text-base opacity-60 hover:opacity-100 flex items-center gap-2 transition ml-auto" style={{ fontFamily: tema.fonte_corpo }}>
+              {textoBtn} →
+            </button>
+          </div>
+        </div>
+        <div className="flex-1 overflow-hidden relative">
+          {album.capa_url && <img src={album.capa_url} alt="" className="w-full h-full object-cover" style={{ minHeight: '50vh' }} />}
+        </div>
+      </div>
+    );
+  }
+
+  // Layout: cinematico
+  if (capaLayout === 'cinematico') {
+    return (
+      <div className="flex flex-col min-h-screen bg-black">
+        <div className="h-16 md:h-24 bg-black" />
+        <div className="flex-1 relative overflow-hidden">
+          {album.capa_url && <img src={album.capa_url} alt="" className="w-full h-full object-cover opacity-80" />}
+          <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+          <div className="absolute bottom-8 left-8 right-8 md:left-16 md:right-16" style={{ color: corTexto }}>
+            <h1 className="text-2xl md:text-4xl tracking-[0.2em] uppercase font-light" style={{ fontFamily: fonteTitulo }}>{album.titulo}</h1>
+            {dataEvento && <p className="text-xs opacity-60 mt-3 tracking-wider" style={{ fontFamily: tema.fonte_corpo }}>{dataEvento}</p>}
+            <button onClick={handleVerFotos} className="mt-6 text-sm opacity-60 hover:opacity-100 flex items-center gap-2 transition tracking-wider" style={{ fontFamily: tema.fonte_corpo }}>
+              {textoBtn} →
+            </button>
+          </div>
+        </div>
+        <div className="h-16 md:h-24 bg-black" />
+      </div>
+    );
+  }
+
+  // Layout: full
+  if (capaLayout === 'full') {
+    return (
+      <div className="relative min-h-screen cursor-pointer" onClick={handleVerFotos}>
+        {album.capa_url && <img src={album.capa_url} alt="" className="w-full h-full min-h-screen object-cover" />}
+        {!album.capa_url && <div className="w-full min-h-screen bg-gray-800" />}
+        <div className="absolute bottom-8 right-8 opacity-60">
+          <span className="text-xs text-white bg-black/40 px-3 py-2 rounded-full backdrop-blur-sm flex items-center gap-2" style={{ fontFamily: tema.fonte_corpo }}>
+            {textoBtn} →
+          </span>
+        </div>
+      </div>
+    );
+  }
+
+  // Layout: minimalista
+  if (capaLayout === 'minimalista') {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen p-8" style={{ backgroundColor: '#f9fafb' }}>
+        <div className="w-64 h-48 md:w-80 md:h-60 rounded-lg overflow-hidden shadow-lg mb-8">
+          {album.capa_url && <img src={album.capa_url} alt="" className="w-full h-full object-cover" />}
+        </div>
+        <h1 className="text-3xl md:text-5xl font-bold mb-2" style={{ fontFamily: fonteTitulo, color: corTexto }}>{album.titulo}</h1>
+        {nomeNegocio && <p className="text-xs opacity-60 tracking-widest uppercase" style={{ fontFamily: tema.fonte_corpo, color: corTexto }}>{nomeNegocio}</p>}
+        {dataEvento && <p className="text-sm opacity-60 mt-3" style={{ fontFamily: tema.fonte_corpo, color: corTexto }}>{dataEvento}</p>}
+        <button onClick={handleVerFotos} className="mt-10 text-sm opacity-60 hover:opacity-100 flex items-center gap-2 transition" style={{ color: corTexto, fontFamily: tema.fonte_corpo }}>
+          {textoBtn} →
+        </button>
+      </div>
+    );
+  }
+
+  // Layout: elegante / ousado (default)
+  return (
+    <div className="relative min-h-screen overflow-hidden" style={{ backgroundColor: corOverlay }}>
+      {album.capa_url && (
+        <div className="absolute inset-0">
+          <img src={album.capa_url} alt="" className="w-full h-full object-cover opacity-50" />
+          <div className="absolute inset-0" style={{ backgroundColor: corOverlay + '80' }} />
+        </div>
+      )}
+      <div className={`relative z-10 min-h-screen flex flex-col p-8 md:p-16 ${capaLayout === 'ousado' ? 'justify-center items-center text-center' : 'justify-end'}`} style={{ color: corTexto }}>
+        {nomeNegocio && <p className="text-sm opacity-70 mb-3 tracking-widest uppercase" style={{ fontFamily: tema.fonte_corpo }}>{nomeNegocio}</p>}
+        <h1 className={`font-bold mb-2 ${capaLayout === 'ousado' ? 'text-5xl md:text-7xl' : 'text-4xl md:text-6xl'}`} style={{ fontFamily: fonteTitulo }}>{album.titulo}</h1>
+        {dataEvento && <p className="text-sm opacity-70 mt-2" style={{ fontFamily: tema.fonte_corpo }}>{dataEvento}</p>}
+        <button onClick={handleVerFotos} className="mt-8 text-sm opacity-70 hover:opacity-100 flex items-center gap-2 transition" style={{ fontFamily: tema.fonte_corpo }}>
+          {textoBtn} →
+        </button>
       </div>
     </div>
   );
