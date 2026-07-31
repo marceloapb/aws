@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, X, ChevronLeft, ChevronRight, Share2, Download } from 'lucide-react';
+import { ArrowLeft, X, ChevronLeft, ChevronRight, Share2, Download, Heart } from 'lucide-react';
 import GalleryPhoto from '../../components/album/GalleryPhoto';
 import { JustifiedGallery } from '../../utils/galleryLayouts/justifiedRows';
 import { MasonryGallery } from '../../utils/galleryLayouts/masonry';
@@ -18,6 +18,9 @@ export default function AlbumGaleria() {
   const [loading, setLoading] = useState(true);
   const [lightbox, setLightbox] = useState(null);
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+  const [selecionadas, setSelecionadas] = useState(new Set());
+  const [downloading, setDownloading] = useState(false);
+  const [downloadProgress, setDownloadProgress] = useState('');
   const loaderRef = useRef(null);
   const gridContainerRef = useRef(null);
   const [gridWidth, setGridWidth] = useState(0);
@@ -64,34 +67,37 @@ export default function AlbumGaleria() {
 
   const loadGaleria = async () => {
     try {
-      let url;
-      if (galeriaId === 'all') {
-        url = `${API}/public/album/${slug}/fotos`;
-      } else {
-        url = `${API}/public/album/${slug}/galeria/${galeriaId}`;
-      }
+      const url = galeriaId === 'all'
+        ? `${API}/public/album/${slug}/fotos`
+        : `${API}/public/album/${slug}/galeria/${galeriaId}`;
       const res = await fetch(url);
       const json = await res.json();
       if (json.success) {
         setData(json.data);
         setFotos(json.data.fotos || []);
+        // Load selection state
+        const sel = (json.data.fotos || []).filter(f => f.selecionada === true).map(f => f.id);
+        setSelecionadas(new Set(sel));
       }
     } catch {}
     setLoading(false);
   };
 
-  const handleBack = () => {
-    // Go back to sets page or album cover
-    navigate(`/album/${slug}`);
+  const toggleSelecao = (fotoId) => {
+    setSelecionadas(prev => {
+      const nova = new Set(prev);
+      if (nova.has(fotoId)) nova.delete(fotoId);
+      else nova.add(fotoId);
+      return nova;
+    });
   };
+
+  const handleBack = () => navigate(`/album/${slug}`);
 
   const handleShare = () => {
     const url = window.location.href;
-    if (navigator.share) {
-      navigator.share({ title: data?.galeria?.nome || data?.album_titulo, url });
-    } else {
-      navigator.clipboard.writeText(url);
-    }
+    if (navigator.share) navigator.share({ title: data?.galeria?.nome || data?.album_titulo, url });
+    else navigator.clipboard.writeText(url);
   };
 
   const handleDownload = async (foto) => {
@@ -108,14 +114,9 @@ export default function AlbumGaleria() {
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(blobUrl);
-    } catch {
-      // Fallback: open in new tab
-      window.open(url, '_blank');
-    }
+    } catch { window.open(url, '_blank'); }
   };
 
-  const [downloading, setDownloading] = useState(false);
-  const [downloadProgress, setDownloadProgress] = useState('');
   const handleDownloadAll = async () => {
     if (downloading || !fotos.length) return;
     setDownloading(true);
@@ -143,9 +144,7 @@ export default function AlbumGaleria() {
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(blobUrl);
-    } catch (err) {
-      console.error('Download ZIP error:', err);
-    }
+    } catch (err) { console.error('Download ZIP error:', err); }
     setDownloading(false);
     setDownloadProgress('');
   };
@@ -170,34 +169,32 @@ export default function AlbumGaleria() {
   const albumTitulo = data.album_titulo || '';
   const fotosVisiveis = fotos.slice(0, visibleCount);
   const tema = data.tema || {};
-  const cores = tema.cores || { fundo: '#1A1A1A', texto: '#FFFFFF' };
+  const cores = tema.cores || { fundo: '#1A1A1A', texto: '#FFFFFF', acento: '#EA580C' };
   const coresGalerias = tema.cores_galerias || {};
   const bgColor = coresGalerias.background || cores.fundo || '#1A1A1A';
   const textColor = coresGalerias.texto_icones || cores.texto || '#FFFFFF';
+  const acento = cores.acento || '#EA580C';
+  const layout = tema.layout || 'grade';
 
   return (
     <div className="min-h-screen" style={{ backgroundColor: bgColor, color: textColor, fontFamily: tema.fonte_corpo || 'Inter' }}>
+      <style>{`.scrollbar-hide::-webkit-scrollbar { display: none; } .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }`}</style>
+
       {/* Header */}
       <header className="sticky top-0 z-20 backdrop-blur-sm border-b" style={{ backgroundColor: `${bgColor}ee`, borderColor: `${textColor}10` }}>
         <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between relative">
-          <button
-            onClick={handleBack}
-            className="p-2 -ml-2 opacity-60 hover:opacity-100 transition-opacity z-10"
-          >
+          <button onClick={handleBack} className="p-2 -ml-2 opacity-60 hover:opacity-100 transition-opacity z-10">
             <ArrowLeft size={20} />
           </button>
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
             <div className="text-center">
               <h1 className="text-xl md:text-2xl font-semibold" style={{ fontFamily: tema.fonte_titulo || 'Playfair Display' }}>{galeriaNome}</h1>
-              {albumTitulo !== galeriaNome && (
-                <p className="text-base opacity-50">{albumTitulo}</p>
-              )}
+              {albumTitulo !== galeriaNome && <p className="text-base opacity-50">{albumTitulo}</p>}
             </div>
           </div>
           <div className="flex items-center gap-3 z-10">
             <button onClick={handleShare} className="flex items-center gap-1 text-sm opacity-60 hover:opacity-100 transition-opacity">
-              <Share2 size={16} />
-              <span className="hidden sm:inline">Compartilhar</span>
+              <Share2 size={16} /><span className="hidden sm:inline">Compartilhar</span>
             </button>
             {data.permite_download && (
               <button onClick={handleDownloadAll} disabled={downloading} className="flex items-center gap-1 text-sm opacity-60 hover:opacity-100 transition-opacity disabled:opacity-30">
@@ -209,82 +206,82 @@ export default function AlbumGaleria() {
         </div>
       </header>
 
-      {/* Photo Grid — uses tema.layout */}
+      {/* Photo Grid */}
       <main ref={gridContainerRef} className="max-w-7xl mx-auto px-2 md:px-4 py-4">
-        <PublicGalleryGrid
-          layout={tema.layout || 'grade'}
+        <GalleryGrid
+          layout={layout}
           fotos={fotosVisiveis}
           containerWidth={gridWidth || (typeof window !== 'undefined' ? Math.min(window.innerWidth - 48, 1280) : 1200)}
           onPhotoClick={(i) => setLightbox(i)}
           tema={tema}
+          permiteSelecao={data.permite_selecao}
+          selecionadas={selecionadas}
+          onToggleSelecao={toggleSelecao}
         />
 
-        {/* Loader for infinite scroll */}
         {visibleCount < fotos.length && (
           <div ref={loaderRef} className="flex justify-center py-8">
             <div className="w-6 h-6 border-2 border-current/20 border-t-current/60 rounded-full animate-spin opacity-40" />
           </div>
         )}
 
-        {/* Photo count */}
-        <div className="text-center py-6 text-sm opacity-30">
-          {fotos.length} fotos
-        </div>
+        <div className="text-center py-6 text-sm opacity-30">{fotos.length} fotos</div>
       </main>
+
+      {/* Selection bar */}
+      {data.permite_selecao && (
+        <div className="fixed bottom-0 left-0 right-0 z-40">
+          <div className="max-w-4xl mx-auto px-4 pb-4">
+            <div className="px-6 py-4 bg-white/95 backdrop-blur border rounded-xl shadow-lg space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-medium text-gray-700">
+                  <span className="text-lg font-bold" style={{ color: acento }}>{selecionadas.size}</span>
+                  {' / '}
+                  <span className="text-gray-500">{data.cota_selecao || fotos.length}</span>
+                  {' '}selecionadas
+                </span>
+                <button disabled={selecionadas.size === 0} className="px-5 py-2 text-sm font-medium text-white rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed hover:opacity-90" style={{ backgroundColor: acento }}>
+                  Confirmar Seleção
+                </button>
+              </div>
+              <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+                <div className="h-full rounded-full transition-all duration-300" style={{ width: `${Math.min((selecionadas.size / (data.cota_selecao || fotos.length)) * 100, 100)}%`, backgroundColor: acento }} />
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Lightbox */}
       {lightbox !== null && (
-        <div
-          className="fixed inset-0 bg-black z-50 flex items-center justify-center"
-          onClick={() => setLightbox(null)}
-        >
-          {/* Close */}
-          <button
-            onClick={(e) => { e.stopPropagation(); setLightbox(null); }}
-            className="absolute top-4 right-4 text-white/70 hover:text-white p-2 hover:bg-white/10 rounded-full z-10 transition-colors"
-          >
+        <div className="fixed inset-0 bg-black z-50 flex items-center justify-center" onClick={() => setLightbox(null)}>
+          <button onClick={(e) => { e.stopPropagation(); setLightbox(null); }} className="absolute top-4 right-4 text-white/70 hover:text-white p-2 hover:bg-white/10 rounded-full z-10 transition-colors">
             <X size={24} />
           </button>
-
-          {/* Nav prev */}
           {lightbox > 0 && (
-            <button
-              onClick={(e) => { e.stopPropagation(); setLightbox(i => Math.max(0, i - 1)); }}
-              className="absolute left-2 md:left-4 text-white/70 hover:text-white p-2 hover:bg-white/10 rounded-full transition-colors"
-            >
+            <button onClick={(e) => { e.stopPropagation(); setLightbox(i => Math.max(0, i - 1)); }} className="absolute left-2 md:left-4 text-white/70 hover:text-white p-2 hover:bg-white/10 rounded-full transition-colors">
               <ChevronLeft size={32} />
             </button>
           )}
-
-          {/* Nav next */}
           {lightbox < fotos.length - 1 && (
-            <button
-              onClick={(e) => { e.stopPropagation(); setLightbox(i => Math.min(fotos.length - 1, i + 1)); }}
-              className="absolute right-2 md:right-4 text-white/70 hover:text-white p-2 hover:bg-white/10 rounded-full transition-colors"
-            >
+            <button onClick={(e) => { e.stopPropagation(); setLightbox(i => Math.min(fotos.length - 1, i + 1)); }} className="absolute right-2 md:right-4 text-white/70 hover:text-white p-2 hover:bg-white/10 rounded-full transition-colors">
               <ChevronRight size={32} />
             </button>
           )}
-
-          {/* Image */}
-          <img
-            src={fotos[lightbox]?.url || fotos[lightbox]?.url_thumb || ''}
-            alt=""
-            className="max-h-[90vh] max-w-[90vw] object-contain select-none"
-            onClick={(e) => e.stopPropagation()}
-            draggable={false}
-          />
-
-          {/* Bottom bar */}
+          <img src={fotos[lightbox]?.url_original || fotos[lightbox]?.url || ''} alt="" className="max-h-[90vh] max-w-[90vw] object-contain select-none" onClick={(e) => e.stopPropagation()} draggable={false} />
           <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-4">
-            <span className="text-white/60 text-sm bg-black/60 px-3 py-1.5 rounded-full backdrop-blur-sm">
-              {lightbox + 1} / {fotos.length}
-            </span>
+            <span className="text-white/60 text-sm bg-black/60 px-3 py-1.5 rounded-full backdrop-blur-sm">{lightbox + 1} / {fotos.length}</span>
+            {data.permite_selecao && (() => {
+              const fotoId = fotos[lightbox]?.id;
+              const sel = selecionadas.has(fotoId);
+              return (
+                <button onClick={(e) => { e.stopPropagation(); toggleSelecao(fotoId); }} className={`p-2 rounded-full backdrop-blur-sm transition-all ${sel ? 'bg-red-500 text-white' : 'bg-black/60 text-white/60 hover:text-white'}`}>
+                  <Heart size={18} fill={sel ? 'white' : 'none'} />
+                </button>
+              );
+            })()}
             {data.permite_download && (
-              <button
-                onClick={(e) => { e.stopPropagation(); handleDownload(fotos[lightbox]); }}
-                className="text-white/60 hover:text-white bg-black/60 p-2 rounded-full backdrop-blur-sm transition-colors"
-              >
+              <button onClick={(e) => { e.stopPropagation(); handleDownload(fotos[lightbox]); }} className="text-white/60 hover:text-white bg-black/60 p-2 rounded-full backdrop-blur-sm transition-colors">
                 <Download size={16} />
               </button>
             )}
@@ -295,11 +292,10 @@ export default function AlbumGaleria() {
   );
 }
 
-
 // ═══════════════════════════════════════════════════════════
-// Componente que escolhe o layout correto (igual ao AlbumPreview)
+// GalleryGrid — mesmo componente do AlbumPreview
 // ═══════════════════════════════════════════════════════════
-function PublicGalleryGrid({ layout, fotos, containerWidth, onPhotoClick, tema }) {
+function GalleryGrid({ layout, fotos, containerWidth, onPhotoClick, tema, permiteSelecao, selecionadas, onToggleSelecao }) {
   const gap = tema?.espacamento || 8;
   const photos = fotos.map(f => ({
     id: f.id || f.SK?.replace('FOTO#', ''),
@@ -310,16 +306,22 @@ function PublicGalleryGrid({ layout, fotos, containerWidth, onPhotoClick, tema }
 
   if (photos.length === 0) return null;
 
+  const SelectionOverlay = ({ fotoId }) => {
+    if (!permiteSelecao) return null;
+    const sel = selecionadas?.has(fotoId);
+    return (
+      <button onClick={(e) => { e.stopPropagation(); onToggleSelecao?.(fotoId); }}
+        className={`absolute top-2 right-2 w-9 h-9 rounded-full flex items-center justify-center transition-all z-10 ${sel ? 'bg-red-500 text-white scale-110 shadow-lg' : 'bg-white/80 text-gray-400 hover:text-red-500 hover:scale-110 shadow'}`}>
+        <Heart size={18} fill={sel ? 'white' : 'none'} />
+      </button>
+    );
+  };
+
   const renderItem = ({ photo, item, index, style }) => (
-    <GalleryPhoto
-      key={item.id}
-      src={photo?.url || ''}
-      id={item.id}
-      index={index}
-      tema={tema}
-      style={style}
-      onClick={() => onPhotoClick && onPhotoClick(index)}
-    />
+    <div key={item.id} className="relative" style={style}>
+      <GalleryPhoto src={photo?.url || ''} id={item.id} index={index} tema={tema} style={{ width: '100%', height: '100%' }} onClick={() => onPhotoClick && onPhotoClick(index)} />
+      <SelectionOverlay fotoId={item.id} />
+    </div>
   );
 
   if (layout === 'mosaico') {
@@ -333,26 +335,33 @@ function PublicGalleryGrid({ layout, fotos, containerWidth, onPhotoClick, tema }
   }
   if (layout === 'slider') {
     return (
-      <div className="flex overflow-x-auto gap-4 snap-x snap-mandatory pb-4" style={{ scrollbarWidth: 'none' }}>
-        {fotos.map((foto, i) => (
-          <div key={foto.id || i} className="min-w-[70vw] md:min-w-[45vw] lg:min-w-[30vw] flex-shrink-0 snap-center rounded-lg overflow-hidden cursor-pointer" onClick={() => onPhotoClick(i)}>
-            <GalleryPhoto src={foto.url_thumb || foto.url || ''} id={foto.id || `slider-${i}`} index={i} tema={tema} style={{ width: '100%', height: '60vh' }} />
-          </div>
-        ))}
+      <div className="flex overflow-x-auto gap-4 snap-x snap-mandatory pb-4 scrollbar-hide">
+        {fotos.map((foto, i) => {
+          const fotoId = foto.id || foto.SK?.replace('FOTO#', '');
+          return (
+            <div key={fotoId || i} className="relative min-w-[70vw] md:min-w-[45vw] lg:min-w-[30vw] flex-shrink-0 snap-center rounded-lg overflow-hidden cursor-pointer" onClick={() => onPhotoClick(i)}>
+              <GalleryPhoto src={foto.url_thumb || foto.url || ''} id={fotoId || `slider-${i}`} index={i} tema={tema} style={{ width: '100%', height: '60vh' }} />
+              <SelectionOverlay fotoId={fotoId} />
+            </div>
+          );
+        })}
       </div>
     );
   }
   if (layout === 'coluna') {
     return (
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {fotos.map((foto, i) => (
-          <div key={foto.id || i} className="rounded-lg overflow-hidden cursor-pointer" onClick={() => onPhotoClick(i)}>
-            <GalleryPhoto src={foto.url_thumb || foto.url || ''} id={foto.id || `col-${i}`} index={i} tema={tema} style={{ width: '100%', maxHeight: '500px' }} />
-          </div>
-        ))}
+        {fotos.map((foto, i) => {
+          const fotoId = foto.id || foto.SK?.replace('FOTO#', '');
+          return (
+            <div key={fotoId || i} className="relative rounded-lg overflow-hidden cursor-pointer" onClick={() => onPhotoClick(i)}>
+              <GalleryPhoto src={foto.url_thumb || foto.url || ''} id={fotoId || `col-${i}`} index={i} tema={tema} style={{ width: '100%', maxHeight: '500px' }} />
+              <SelectionOverlay fotoId={fotoId} />
+            </div>
+          );
+        })}
       </div>
     );
   }
-  // Fallback
   return <JustifiedGallery photos={photos} containerWidth={containerWidth} options={{ targetRowHeight: 240, gapX: gap, gapY: gap }} onPhotoClick={onPhotoClick} renderItem={renderItem} />;
 }
