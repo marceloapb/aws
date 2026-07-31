@@ -1,6 +1,6 @@
 import React, { useState, useEffect, createContext, useContext } from 'react';
 import { Outlet, Link, NavLink, useLocation } from 'react-router-dom';
-import { Menu, X, Camera, Instagram, Facebook, Youtube, Mail, LogIn, Bell, ChevronDown, User } from 'lucide-react';
+import { Menu, X, Camera, Instagram, Facebook, Youtube, Mail, LogIn } from 'lucide-react';
 import FloatingCTA from '../../components/FloatingCTA';
 
 const API = process.env.REACT_APP_API_URL || '';
@@ -140,26 +140,8 @@ export default function SiteLayout() {
                 )}
               </Link>
 
-              {/* Right: Social Icons + User */}
+              {/* Right: Social Icons + Entrar */}
               <div className="hidden md:flex items-center gap-3">
-                {/* Notification bell */}
-                <button className="relative p-1.5 text-stone-400 hover:text-[#EA580C] transition-colors" aria-label="Notificações">
-                  <Bell size={18} />
-                  <span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-[#EA580C] rounded-full" />
-                </button>
-
-                {/* User profile */}
-                <Link to="/login" className="flex items-center gap-2 px-2 py-1 rounded-lg hover:bg-stone-800 transition-colors">
-                  <div className="w-7 h-7 rounded-full bg-stone-700 border border-stone-600 flex items-center justify-center overflow-hidden">
-                    <User size={14} className="text-stone-400" />
-                  </div>
-                  <span className="text-sm text-stone-200 font-medium">{nome.split(' ').slice(0, 2).join(' ')}</span>
-                  <ChevronDown size={14} className="text-stone-500" />
-                </Link>
-
-                {/* Social divider */}
-                <div className="w-px h-6 bg-stone-700 mx-1" />
-
                 {/* Social icons */}
                 <div className="flex items-center gap-2">
                   {redesSociais.whatsapp && (
@@ -192,6 +174,11 @@ export default function SiteLayout() {
                     </>
                   )}
                 </div>
+
+                {/* Entrar button */}
+                <Link to="/login" className="ml-2 inline-flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-sm font-medium bg-[#EA580C] text-white hover:opacity-90 transition-opacity">
+                  <LogIn size={14} /> Entrar
+                </Link>
               </div>
 
               {/* Mobile hamburger */}
@@ -235,8 +222,8 @@ export default function SiteLayout() {
                   </NavLink>
                 ))}
                 <div className="mt-4 pt-4 border-t border-stone-700">
-                  <Link to="/login" className="flex items-center justify-center gap-2 px-4 py-3 rounded-lg text-sm font-medium bg-stone-800 text-stone-200 hover:bg-stone-700 transition-colors">
-                    <User size={16} /> Entrar
+                  <Link to="/login" className="flex items-center justify-center gap-2 px-4 py-3 rounded-lg text-sm font-medium bg-[#EA580C] text-white hover:opacity-90 transition-opacity">
+                    <LogIn size={16} /> Entrar
                   </Link>
                 </div>
                 {/* Social icons mobile */}
