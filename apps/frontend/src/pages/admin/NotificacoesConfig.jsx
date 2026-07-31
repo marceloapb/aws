@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useToast } from '../../components/ui/Toast';
-import { Settings2, Plus, Edit2, Trash2, Bell, Mail, MessageCircle, ClipboardList, CheckCircle, XCircle, Clock, Filter } from 'lucide-react';
+import { Settings2, Plus, Edit2, Trash2, Bell, Mail, MessageCircle, ClipboardList, CheckCircle, XCircle, Clock, Filter, Zap } from 'lucide-react';
 import Button from '../../components/ui/Button';
 import Badge from '../../components/ui/Badge';
 import Modal from '../../components/ui/Modal';
@@ -110,6 +110,7 @@ export default function NotificacoesConfig() {
   // Templates (for selection in rules)
   const [whatsappTemplates, setWhatsappTemplates] = useState([]);
   const [emailTemplates, setEmailTemplates] = useState([]);
+  const [testing, setTesting] = useState(false);
 
   const loadRegras = useCallback(async () => {
     setLoading(true);
@@ -372,9 +373,34 @@ export default function NotificacoesConfig() {
           </div>
         </div>
         {activeTab === 'regras' && (
-          <Button icon={Plus} onClick={openCreate}>
-            Nova Regra
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              icon={Zap}
+              variant="secondary"
+              loading={testing}
+              onClick={async () => {
+                if (!window.confirm('Disparar notificação de teste para TODOS os tipos de evento? (inapp + email + WhatsApp)')) return;
+                setTesting(true);
+                try {
+                  const res = await authFetch('/admin/notificacoes/testar', { method: 'POST', body: JSON.stringify({}) });
+                  const json = await res.json();
+                  if (json.success) {
+                    toast.success(json.message || 'Testes disparados!');
+                  } else {
+                    toast.error(json.message || 'Erro ao testar');
+                  }
+                } catch {
+                  toast.error('Erro ao disparar testes');
+                }
+                setTesting(false);
+              }}
+            >
+              {testing ? 'Testando...' : 'Testar Todas'}
+            </Button>
+            <Button icon={Plus} onClick={openCreate}>
+              Nova Regra
+            </Button>
+          </div>
         )}
         {activeTab === 'calendario' && (
           <Button icon={Plus} onClick={openCalendarCreate}>
