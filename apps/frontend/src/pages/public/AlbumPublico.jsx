@@ -45,6 +45,7 @@ export default function AlbumPublico() {
   // Download
   const [downloading, setDownloading] = useState(false);
   const [downloadProgress, setDownloadProgress] = useState('');
+  const [downloadPercent, setDownloadPercent] = useState(0);
 
   // Filter photos by active galeria (local, like admin does)
   const fotos = activeGaleriaId && activeGaleriaId !== 'all'
@@ -290,6 +291,7 @@ export default function AlbumPublico() {
     if (downloading || !fotos.length) return;
     setDownloading(true);
     setDownloadProgress('Preparando URLs...');
+    setDownloadPercent(0);
     try {
       // Fetch all download URLs in batch
       const foto_ids = fotos.map(f => f.id);
@@ -306,14 +308,17 @@ export default function AlbumPublico() {
         const foto = fotos[i];
         const url = urlsMap[foto.id] || foto.url_thumb;
         if (!url) continue;
-        setDownloadProgress(`${i + 1}/${fotos.length}`);
+        const percent = Math.round(((i + 1) / fotos.length) * 90);
+        setDownloadPercent(percent);
+        setDownloadProgress(`Baixando foto ${i + 1} de ${fotos.length}`);
         const response = await fetch(url);
         const blob = await response.blob();
         const ext = foto.content_type?.includes('png') ? 'png' : foto.content_type?.includes('webp') ? 'webp' : 'jpg';
         const filename = foto.filename || `foto-${String(i + 1).padStart(3, '0')}.${ext}`;
         zip.file(filename, blob);
       }
-      setDownloadProgress('ZIP...');
+      setDownloadProgress('Gerando arquivo ZIP...');
+      setDownloadPercent(95);
       const zipBlob = await zip.generateAsync({ type: 'blob' });
       const blobUrl = URL.createObjectURL(zipBlob);
       const a = document.createElement('a');
@@ -323,9 +328,13 @@ export default function AlbumPublico() {
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(blobUrl);
+      setDownloadPercent(100);
     } catch (err) { console.error('Download ZIP error:', err); }
-    setDownloading(false);
-    setDownloadProgress('');
+    setTimeout(() => {
+      setDownloading(false);
+      setDownloadProgress('');
+      setDownloadPercent(0);
+    }, 500);
   };
 
   const handleShare = () => {
@@ -657,6 +666,31 @@ export default function AlbumPublico() {
 
         <div className="text-center py-6 text-sm opacity-30">{fotos.length} fotos</div>
       </main>
+
+      {/* Download progress overlay */}
+      {downloading && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm mx-4 p-6 space-y-4">
+            <div className="text-center">
+              <div className="w-12 h-12 mx-auto mb-3 rounded-full flex items-center justify-center" style={{ backgroundColor: `${acento}15` }}>
+                <Download size={24} style={{ color: acento }} />
+              </div>
+              <h3 className="text-lg font-bold text-gray-900">Preparando download</h3>
+              <p className="text-sm text-gray-500 mt-1">{downloadProgress}</p>
+            </div>
+            <div className="space-y-2">
+              <div className="h-3 bg-gray-100 rounded-full overflow-hidden">
+                <div
+                  className="h-full rounded-full transition-all duration-300 ease-out"
+                  style={{ width: `${downloadPercent}%`, backgroundColor: acento }}
+                />
+              </div>
+              <p className="text-xs text-gray-400 text-center">{downloadPercent}%</p>
+            </div>
+            <p className="text-xs text-gray-400 text-center">Não feche esta página durante o download</p>
+          </div>
+        </div>
+      )}
 
       {/* Toast message */}
       {selecaoMsg && (
