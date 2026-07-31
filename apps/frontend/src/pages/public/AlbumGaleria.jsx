@@ -2,6 +2,9 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, X, ChevronLeft, ChevronRight, Share2, Download } from 'lucide-react';
 import GalleryPhoto from '../../components/album/GalleryPhoto';
+import { JustifiedGallery } from '../../utils/galleryLayouts/justifiedRows';
+import { MasonryGallery } from '../../utils/galleryLayouts/masonry';
+import { CollageGallery } from '../../utils/galleryLayouts/collageGroups';
 import JSZip from 'jszip';
 
 const API = process.env.REACT_APP_API_URL || '';
@@ -16,8 +19,21 @@ export default function AlbumGaleria() {
   const [lightbox, setLightbox] = useState(null);
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const loaderRef = useRef(null);
+  const gridContainerRef = useRef(null);
+  const [gridWidth, setGridWidth] = useState(0);
 
   useEffect(() => { loadGaleria(); }, [slug, galeriaId]);
+
+  // Measure grid container width
+  useEffect(() => {
+    if (!gridContainerRef.current) return;
+    const ro = new ResizeObserver(entries => {
+      for (const entry of entries) setGridWidth(entry.contentRect.width);
+    });
+    ro.observe(gridContainerRef.current);
+    setGridWidth(gridContainerRef.current.clientWidth);
+    return () => ro.disconnect();
+  }, [data]);
 
   // Infinite scroll
   useEffect(() => {
@@ -191,78 +207,25 @@ export default function AlbumGaleria() {
         </div>
       </header>
 
-      {/* Photo Grid - Masonry style with featured first photo */}
-      <main className="max-w-7xl mx-auto px-2 md:px-4 py-4">
-        {/* Featured first photo (larger) + side thumbnails */}
-        {fotosVisiveis.length > 0 && (
-          <div className="mb-2 md:mb-3">
-            <div className="grid grid-cols-3 gap-2 md:gap-3" style={{ gridTemplateRows: 'auto' }}>
-              {/* Main featured photo - spans 2 cols and 2 rows */}
-              <div
-                className="col-span-2 row-span-2 relative cursor-pointer rounded-lg overflow-hidden"
-                style={{ aspectRatio: '4/3' }}
-                onClick={() => setLightbox(0)}
-              >
-                <GalleryPhoto
-                  src={fotosVisiveis[0]?.url_thumb || fotosVisiveis[0]?.url}
-                  id={fotosVisiveis[0]?.id || 'featured-0'}
-                  index={0}
-                  tema={tema}
-                  style={{ width: '100%', height: '100%' }}
-                />
-              </div>
-
-              {/* Side photos */}
-              {fotosVisiveis.slice(1, 3).map((foto, i) => (
-                <div
-                  key={foto.id}
-                  className="relative cursor-pointer rounded-lg overflow-hidden"
-                  style={{ aspectRatio: '1' }}
-                  onClick={() => setLightbox(i + 1)}
-                >
-                  <GalleryPhoto
-                    src={foto.url_thumb || foto.url}
-                    id={foto.id || `side-${i}`}
-                    index={i + 1}
-                    tema={tema}
-                    style={{ width: '100%', height: '100%' }}
-                  />
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Remaining photos in grid */}
-        {fotosVisiveis.length > 3 && (
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 md:gap-3">
-            {fotosVisiveis.slice(3).map((foto, i) => (
-              <div
-                key={foto.id}
-                className="relative cursor-pointer rounded-lg overflow-hidden aspect-square"
-                onClick={() => setLightbox(i + 3)}
-              >
-                <GalleryPhoto
-                  src={foto.url_thumb || foto.url}
-                  id={foto.id || `grid-${i}`}
-                  index={i + 3}
-                  tema={tema}
-                  style={{ width: '100%', height: '100%' }}
-                />
-              </div>
-            ))}
-          </div>
-        )}
+      {/* Photo Grid — uses tema.layout */}
+      <main ref={gridContainerRef} className="max-w-7xl mx-auto px-2 md:px-4 py-4">
+        <PublicGalleryGrid
+          layout={tema.layout || 'grade'}
+          fotos={fotosVisiveis}
+          containerWidth={gridWidth || (typeof window !== 'undefined' ? Math.min(window.innerWidth - 48, 1280) : 1200)}
+          onPhotoClick={(i) => setLightbox(i)}
+          tema={tema}
+        />
 
         {/* Loader for infinite scroll */}
         {visibleCount < fotos.length && (
           <div ref={loaderRef} className="flex justify-center py-8">
-            <div className="w-6 h-6 border-2 border-white/20 border-t-white/60 rounded-full animate-spin" />
+            <div className="w-6 h-6 border-2 border-current/20 border-t-current/60 rounded-full animate-spin opacity-40" />
           </div>
         )}
 
         {/* Photo count */}
-        <div className="text-center py-6 text-white/30 text-sm">
+        <div className="text-center py-6 text-sm opacity-30">
           {fotos.length} fotos
         </div>
       </main>
@@ -328,4 +291,66 @@ export default function AlbumGaleria() {
       )}
     </div>
   );
+}
+
+
+// ═══════════════════════════════════════════════════════════
+// Componente que escolhe o layout correto (igual ao AlbumPreview)
+// ═══════════════════════════════════════════════════════════
+function PublicGalleryGrid({ layout, fotos, containerWidth, onPhotoClick, tema }) {
+  const gap = tema?.espacamento || 8;
+  const photos = fotos.map(f => ({
+    id: f.id || f.SK?.replace('FOTO#', ''),
+    url: f.url_thumb || f.url || '',
+    width: f.width || 1600,
+    height: f.height || 1200,
+  }));
+
+  if (photos.length === 0) return null;
+
+  const renderItem = ({ photo, item, index, style }) => (
+    <GalleryPhoto
+      key={item.id}
+      src={photo?.url || ''}
+      id={item.id}
+      index={index}
+      tema={tema}
+      style={style}
+      onClick={() => onPhotoClick && onPhotoClick(index)}
+    />
+  );
+
+  if (layout === 'mosaico') {
+    return <MasonryGallery photos={photos} containerWidth={containerWidth} options={{ columnCount: 3, gapX: gap, gapY: gap, placement: 'shortestColumn', crop: false }} onPhotoClick={onPhotoClick} renderItem={renderItem} />;
+  }
+  if (layout === 'colagem') {
+    return <CollageGallery photos={photos} containerWidth={containerWidth} options={{ targetCellRatio: 1.33, targetRowHeight: 260, gapX: gap, gapY: gap, gapInner: Math.max(2, gap / 2) }} onPhotoClick={onPhotoClick} renderItem={renderItem} />;
+  }
+  if (layout === 'grade' || layout === 'ladrilhos') {
+    return <JustifiedGallery photos={photos} containerWidth={containerWidth} options={{ targetRowHeight: layout === 'ladrilhos' ? 180 : 240, gapX: gap, gapY: gap }} onPhotoClick={onPhotoClick} renderItem={renderItem} />;
+  }
+  if (layout === 'slider') {
+    return (
+      <div className="flex overflow-x-auto gap-4 snap-x snap-mandatory pb-4" style={{ scrollbarWidth: 'none' }}>
+        {fotos.map((foto, i) => (
+          <div key={foto.id || i} className="min-w-[70vw] md:min-w-[45vw] lg:min-w-[30vw] flex-shrink-0 snap-center rounded-lg overflow-hidden cursor-pointer" onClick={() => onPhotoClick(i)}>
+            <GalleryPhoto src={foto.url_thumb || foto.url || ''} id={foto.id || `slider-${i}`} index={i} tema={tema} style={{ width: '100%', height: '60vh' }} />
+          </div>
+        ))}
+      </div>
+    );
+  }
+  if (layout === 'coluna') {
+    return (
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {fotos.map((foto, i) => (
+          <div key={foto.id || i} className="rounded-lg overflow-hidden cursor-pointer" onClick={() => onPhotoClick(i)}>
+            <GalleryPhoto src={foto.url_thumb || foto.url || ''} id={foto.id || `col-${i}`} index={i} tema={tema} style={{ width: '100%', maxHeight: '500px' }} />
+          </div>
+        ))}
+      </div>
+    );
+  }
+  // Fallback
+  return <JustifiedGallery photos={photos} containerWidth={containerWidth} options={{ targetRowHeight: 240, gapX: gap, gapY: gap }} onPhotoClick={onPhotoClick} renderItem={renderItem} />;
 }
