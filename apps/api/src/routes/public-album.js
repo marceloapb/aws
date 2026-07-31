@@ -386,6 +386,56 @@ router.get('/foto/:fotoId/url', async (req, res) => {
 });
 
 // ══════════════════════════════════════════════════════════════
+// POST /public/album/:slug/fotos/urls — Batch sign URLs for download
+// ══════════════════════════════════════════════════════════════
+router.post('/fotos/urls', async (req, res) => {
+  try {
+    const { slug } = req.params;
+    const { foto_ids } = req.body;
+
+    if (!foto_ids || !Array.isArray(foto_ids)) {
+      return res.status(400).json({ success: false, message: 'foto_ids array é obrigatório' });
+    }
+
+    const albumResult = await dynamo.send(new QueryCommand({
+      TableName: TABLE,
+      IndexName: 'GSI1',
+      KeyConditionExpression: 'GSI1PK = :pk',
+      FilterExpression: 'slug = :slug',
+      ExpressionAttributeValues: { ':pk': 'ALBUM', ':slug': slug },
+    }));
+
+    const album = albumResult.Items?.[0];
+    if (!album) return res.status(404).json({ success: false });
+    if (!album.permite_download) return res.status(403).json({ success: false, message: 'Download não permitido' });
+
+    // Sign URLs in parallel (batches of 20)
+    const results = {};
+    const BATCH = 20;
+    for (let i = 0; i < foto_ids.length; i += BATCH) {
+      const batch = foto_ids.slice(i, i + BATCH);
+      await Promise.all(batch.map(async (fotoId) => {
+        try {
+          const fotoResult = await dynamo.send(new GetCommand({
+            TableName: TABLE,
+            Key: { PK: `ALBUM#${album.id}`, SK: `FOTO#${fotoId}` },
+          }));
+          const foto = fotoResult.Item;
+          if (foto) {
+            const originalKey = foto.s3_key_original || foto.s3_key || '';
+            results[fotoId] = originalKey ? await getSignedDownloadUrl(originalKey, 3600) : null;
+          }
+        } catch {}
+      }));
+    }
+
+    res.json({ success: true, data: results });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// ══════════════════════════════════════════════════════════════
 // POST /public/album/:slug/selecao/toggle — Toggle photo selection (public, no auth)
 // ══════════════════════════════════════════════════════════════
 router.post('/selecao/toggle', async (req, res) => {

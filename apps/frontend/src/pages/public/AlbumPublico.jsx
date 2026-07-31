@@ -289,12 +289,22 @@ export default function AlbumPublico() {
   const handleDownloadAll = async () => {
     if (downloading || !fotos.length) return;
     setDownloading(true);
-    setDownloadProgress('Preparando...');
+    setDownloadProgress('Preparando URLs...');
     try {
+      // Fetch all download URLs in batch
+      const foto_ids = fotos.map(f => f.id);
+      const urlsRes = await fetch(`${API}/public/album/${slug}/fotos/urls`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ foto_ids }),
+      });
+      const urlsJson = await urlsRes.json();
+      const urlsMap = urlsJson.success ? urlsJson.data : {};
+
       const zip = new JSZip();
       for (let i = 0; i < fotos.length; i++) {
         const foto = fotos[i];
-        const url = foto.url_original || foto.url;
+        const url = urlsMap[foto.id] || foto.url_thumb;
         if (!url) continue;
         setDownloadProgress(`${i + 1}/${fotos.length}`);
         const response = await fetch(url);
