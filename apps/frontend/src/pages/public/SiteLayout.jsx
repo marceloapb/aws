@@ -70,7 +70,28 @@ export default function SiteLayout() {
   const nome = config?.nome || 'Marcelo Bloise Fotografia';
   // Site tem fundo escuro — prioriza logo para fundo escuro, com fallback para o padrão
   const logoUrl = config?.logo_dark_url || config?.logo_url;
-  const redes = config?.redes || {};
+  
+  // redes_sociais vem como objeto { instagram, whatsapp, tiktok, ... } do cadastro da empresa
+  // redes vem como array [{ tipo, url }] do CMS — normalizar para objeto
+  const redesSociais = (() => {
+    // Prioriza redes_sociais (cadastro da empresa)
+    if (config?.redes_sociais && Object.keys(config.redes_sociais).length > 0) {
+      return config.redes_sociais;
+    }
+    // Fallback: redes do CMS (array format)
+    if (Array.isArray(config?.redes)) {
+      const obj = {};
+      for (const r of config.redes) {
+        if (r.tipo && r.url) obj[r.tipo] = r.url;
+      }
+      return obj;
+    }
+    // Fallback: redes como objeto direto
+    if (config?.redes && typeof config.redes === 'object' && !Array.isArray(config.redes)) {
+      return config.redes;
+    }
+    return {};
+  })();
 
   return (
     <SiteConfigContext.Provider value={config}>
@@ -141,23 +162,23 @@ export default function SiteLayout() {
 
                 {/* Social icons */}
                 <div className="flex items-center gap-2">
-                  {redes.whatsapp && (
-                    <a href={redes.whatsapp} target="_blank" rel="noopener noreferrer" className="text-stone-400 hover:text-[#EA580C] transition-colors" aria-label="WhatsApp">
+                  {redesSociais.whatsapp && (
+                    <a href={redesSociais.whatsapp} target="_blank" rel="noopener noreferrer" className="text-stone-400 hover:text-[#EA580C] transition-colors" aria-label="WhatsApp">
                       <WhatsAppIcon size={17} />
                     </a>
                   )}
-                  {redes.instagram && (
-                    <a href={redes.instagram} target="_blank" rel="noopener noreferrer" className="text-stone-400 hover:text-[#EA580C] transition-colors" aria-label="Instagram">
+                  {redesSociais.instagram && (
+                    <a href={redesSociais.instagram} target="_blank" rel="noopener noreferrer" className="text-stone-400 hover:text-[#EA580C] transition-colors" aria-label="Instagram">
                       <Instagram size={17} />
                     </a>
                   )}
-                  {redes.tiktok && (
-                    <a href={redes.tiktok} target="_blank" rel="noopener noreferrer" className="text-stone-400 hover:text-[#EA580C] transition-colors" aria-label="TikTok">
+                  {redesSociais.tiktok && (
+                    <a href={redesSociais.tiktok} target="_blank" rel="noopener noreferrer" className="text-stone-400 hover:text-[#EA580C] transition-colors" aria-label="TikTok">
                       <TikTokIcon size={17} />
                     </a>
                   )}
                   {/* Fallback: show icons even if redes not configured */}
-                  {!redes.whatsapp && !redes.instagram && !redes.tiktok && (
+                  {!redesSociais.whatsapp && !redesSociais.instagram && !redesSociais.tiktok && (
                     <>
                       <a href="#" className="text-stone-400 hover:text-[#EA580C] transition-colors" aria-label="WhatsApp">
                         <WhatsAppIcon size={17} />
@@ -220,13 +241,13 @@ export default function SiteLayout() {
                 </div>
                 {/* Social icons mobile */}
                 <div className="mt-4 flex items-center justify-center gap-4">
-                  <a href={redes.whatsapp || '#'} className="text-stone-400 hover:text-[#EA580C] transition-colors" aria-label="WhatsApp">
+                  <a href={redesSociais.whatsapp || '#'} className="text-stone-400 hover:text-[#EA580C] transition-colors" aria-label="WhatsApp">
                     <WhatsAppIcon size={20} />
                   </a>
-                  <a href={redes.instagram || '#'} className="text-stone-400 hover:text-[#EA580C] transition-colors" aria-label="Instagram">
+                  <a href={redesSociais.instagram || '#'} className="text-stone-400 hover:text-[#EA580C] transition-colors" aria-label="Instagram">
                     <Instagram size={20} />
                   </a>
-                  <a href={redes.tiktok || '#'} className="text-stone-400 hover:text-[#EA580C] transition-colors" aria-label="TikTok">
+                  <a href={redesSociais.tiktok || '#'} className="text-stone-400 hover:text-[#EA580C] transition-colors" aria-label="TikTok">
                     <TikTokIcon size={20} />
                   </a>
                 </div>
@@ -257,9 +278,9 @@ export default function SiteLayout() {
               </div>
 
               {/* Social Icons */}
-              {Object.keys(redes).length > 0 && (
+              {Object.keys(redesSociais).length > 0 && (
                 <div className="flex items-center gap-3">
-                  {Object.entries(redes).map(([key, url]) => {
+                  {Object.entries(redesSociais).map(([key, url]) => {
                     if (!url) return null;
                     const Icon = SOCIAL_ICONS[key] || Mail;
                     return (
