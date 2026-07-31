@@ -207,7 +207,7 @@ async function despacharCanal(canal, regra, evento, dados) {
       await enviarWhatsApp({
         numero,
         template: templateName,
-        parametros: [titulo, mensagem],
+        parametros: [dados.cliente_nome || 'Cliente', titulo, mensagem],
       });
       break;
     }
