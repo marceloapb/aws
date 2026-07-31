@@ -379,7 +379,7 @@ export default function NotificacoesConfig() {
               variant="secondary"
               loading={testing}
               onClick={async () => {
-                if (!window.confirm('Disparar notificação de teste para TODOS os tipos de evento? (inapp + email + WhatsApp)')) return;
+                if (!window.confirm('Disparar notificação de teste para todas as regras de ADMIN? (não envia para clientes)')) return;
                 setTesting(true);
                 try {
                   const res = await authFetch('/admin/notificacoes/testar', { method: 'POST', body: JSON.stringify({}) });

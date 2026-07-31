@@ -308,29 +308,32 @@ router.post('/testar', async (req, res) => {
   try {
     const { processarEvento } = require('../services/notificationDispatcher');
 
-    const TIPOS_EVENTO = [
-      'orcamento.criado',
-      'orcamento.enviado',
-      'orcamento.aceito',
-      'orcamento.recusado',
-      'contrato.enviado',
-      'contrato.assinado',
-      'pagamento.confirmado',
-      'pagamento.vencido',
-      'evento.criado',
-      'evento.confirmado',
-      'evento.realizado',
-      'album.publicado',
-      'album.baixado',
-      'feedback.respondido',
-      'cliente.criado',
-      'mensagem.recebida',
-    ];
+    // Buscar apenas regras com destinatario = admin
+    const regrasResult = await dynamo.send(new QueryCommand({
+      TableName: TABLE,
+      KeyConditionExpression: 'PK = :pk AND begins_with(SK, :sk)',
+      FilterExpression: '#status = :ativa AND destinatario = :admin',
+      ExpressionAttributeNames: { '#status': 'status' },
+      ExpressionAttributeValues: {
+        ':pk': `TENANT#${TENANT}`,
+        ':sk': 'REGRA_NTF#',
+        ':ativa': 'ativa',
+        ':admin': 'admin',
+      },
+    }));
+
+    const regras = regrasResult.Items || [];
+    if (regras.length === 0) {
+      return res.json({ success: true, message: 'Nenhuma regra de admin ativa encontrada', data: [] });
+    }
+
+    // Extrair tipos de evento únicos das regras admin
+    const tiposEvento = [...new Set(regras.map(r => r.tipo_evento).filter(Boolean))];
 
     const resultados = [];
 
-    for (const tipo of TIPOS_EVENTO) {
-      const eventoId = `teste-${tipo}-${Date.now()}`;
+    for (const tipo of tiposEvento) {
+      const eventoId = `teste-admin-${tipo}-${Date.now()}`;
       try {
         const resultado = await processarEvento({
           evento_id: eventoId,
@@ -359,7 +362,7 @@ router.post('/testar', async (req, res) => {
 
     res.json({
       success: true,
-      message: `Teste concluído: ${disparados} disparados, ${ignorados} sem regra, ${erros} erros`,
+      message: `Teste concluído (só admin): ${disparados} disparados, ${ignorados} sem regra, ${erros} erros`,
       data: resultados,
     });
   } catch (error) {
