@@ -136,7 +136,7 @@ export default function AlbumGaleria() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#1A1A1A] flex items-center justify-center">
+      <div className="min-h-screen bg-gray-900 flex items-center justify-center">
         <div className="w-8 h-8 border-2 border-white/30 border-t-white rounded-full animate-spin" />
       </div>
     );
@@ -144,7 +144,7 @@ export default function AlbumGaleria() {
 
   if (!data || fotos.length === 0) {
     return (
-      <div className="min-h-screen bg-[#1A1A1A] flex items-center justify-center">
+      <div className="min-h-screen bg-gray-900 flex items-center justify-center">
         <p className="text-white/60 text-lg">Galeria não encontrada</p>
       </div>
     );
@@ -154,32 +154,36 @@ export default function AlbumGaleria() {
   const albumTitulo = data.album_titulo || '';
   const fotosVisiveis = fotos.slice(0, visibleCount);
   const tema = data.tema || {};
+  const cores = tema.cores || { fundo: '#1A1A1A', texto: '#FFFFFF' };
+  const coresGalerias = tema.cores_galerias || {};
+  const bgColor = coresGalerias.background || cores.fundo || '#1A1A1A';
+  const textColor = coresGalerias.texto_icones || cores.texto || '#FFFFFF';
 
   return (
-    <div className="min-h-screen bg-[#1A1A1A] text-white">
+    <div className="min-h-screen" style={{ backgroundColor: bgColor, color: textColor }}>
       {/* Header */}
-      <header className="sticky top-0 z-20 bg-[#1A1A1A]/95 backdrop-blur-sm border-b border-white/5">
+      <header className="sticky top-0 z-20 backdrop-blur-sm border-b" style={{ backgroundColor: `${bgColor}ee`, borderColor: `${textColor}10` }}>
         <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
           <button
             onClick={handleBack}
-            className="p-2 -ml-2 text-white/60 hover:text-white transition-colors"
+            className="p-2 -ml-2 opacity-60 hover:opacity-100 transition-colors"
           >
             <ArrowLeft size={20} />
           </button>
 
           <div className="text-center">
-            <h1 className="text-lg md:text-xl font-semibold text-white">{galeriaNome}</h1>
+            <h1 className="text-lg md:text-xl font-semibold" style={{ fontFamily: tema.fonte_titulo || 'Playfair Display' }}>{galeriaNome}</h1>
             {albumTitulo !== galeriaNome && (
-              <p className="text-sm text-white/50">{albumTitulo}</p>
+              <p className="text-sm opacity-50">{albumTitulo}</p>
             )}
           </div>
 
           <div className="flex items-center gap-1">
-            <button onClick={handleShare} className="p-2 text-white/60 hover:text-white transition-colors">
+            <button onClick={handleShare} className="p-2 opacity-60 hover:opacity-100 transition-colors">
               <Share2 size={18} />
             </button>
             {data.permite_download && (
-              <button onClick={handleDownloadAll} disabled={downloading} className="p-2 text-white/60 hover:text-white transition-colors disabled:opacity-30" title="Baixar todas as fotos">
+              <button onClick={handleDownloadAll} disabled={downloading} className="p-2 opacity-60 hover:opacity-100 transition-colors disabled:opacity-30" title="Baixar todas as fotos">
                 {downloading ? <span className="text-[10px]">{downloadProgress}</span> : <Download size={18} />}
               </button>
             )}

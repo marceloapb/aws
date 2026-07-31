@@ -213,6 +213,19 @@ router.get('/galeria/:galeriaId', async (req, res) => {
     const fotos = (fotosResult.Items || []).sort((a, b) => (a.ordem || 0) - (b.ordem || 0));
     const fotosAssinadas = await Promise.all(fotos.map(assinarFoto));
 
+    // Buscar tema do álbum
+    let tema = {};
+    try {
+      const temaResult = await dynamo.send(new GetCommand({
+        TableName: TABLE,
+        Key: { PK: `ALBUM#${album.id}`, SK: 'TEMA' },
+      }));
+      if (temaResult.Item) {
+        const { PK, SK, ...temaData } = temaResult.Item;
+        tema = temaData;
+      }
+    } catch {}
+
     res.json({
       success: true,
       data: {
@@ -225,6 +238,7 @@ router.get('/galeria/:galeriaId', async (req, res) => {
           ordem: galeria.ordem,
         },
         fotos: fotosAssinadas,
+        tema,
         permite_download: album.permite_download || false,
         permite_selecao: album.permite_selecao || false,
         permite_comentarios: album.permite_comentarios || false,
@@ -276,6 +290,19 @@ router.get('/fotos', async (req, res) => {
     const fotos = (fotosResult.Items || []).sort((a, b) => (a.ordem || 0) - (b.ordem || 0));
     const fotosAssinadas = await Promise.all(fotos.map(assinarFoto));
 
+    // Buscar tema do álbum
+    let tema = {};
+    try {
+      const temaResult = await dynamo.send(new GetCommand({
+        TableName: TABLE,
+        Key: { PK: `ALBUM#${album.id}`, SK: 'TEMA' },
+      }));
+      if (temaResult.Item) {
+        const { PK, SK, ...temaData } = temaResult.Item;
+        tema = temaData;
+      }
+    } catch {}
+
     res.json({
       success: true,
       data: {
@@ -283,6 +310,7 @@ router.get('/fotos', async (req, res) => {
         album_titulo: album.titulo,
         album_slug: album.slug,
         fotos: fotosAssinadas,
+        tema,
         permite_download: album.permite_download || false,
         permite_selecao: album.permite_selecao || false,
         permite_comentarios: album.permite_comentarios || false,
