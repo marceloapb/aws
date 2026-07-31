@@ -32,8 +32,11 @@ async function assinarFoto(foto) {
   };
 }
 
-// Light version — only signs thumb (for gallery listing performance)
-async function assinarFotoLight(foto) {
+// CloudFront domain for photos (public, no signing needed)
+const PHOTOS_CDN = 'https://d2112x4m4e89fv.cloudfront.net';
+
+// Light version — uses CloudFront CDN directly (no signing needed for thumbs)
+function assinarFotoLight(foto) {
   const thumbKey = foto.s3_key_thumb || foto.s3_key_media || foto.s3_key || '';
   const mediaKey = foto.s3_key_media || foto.s3_key || '';
   const originalKey = foto.s3_key_original || foto.s3_key || '';
@@ -46,7 +49,7 @@ async function assinarFotoLight(foto) {
     height: foto.height || null,
     content_type: foto.content_type || null,
     selecionada: foto.selecionada || false,
-    url_thumb: thumbKey ? await getSignedDownloadUrl(thumbKey, 86400) : null,
+    url_thumb: thumbKey ? `${PHOTOS_CDN}/${thumbKey}` : null,
     // Store keys for on-demand signing (lightbox/download)
     _media_key: mediaKey || null,
     _original_key: originalKey || null,
@@ -230,7 +233,7 @@ router.get('/galeria/:galeriaId', async (req, res) => {
     }));
 
     const fotos = (fotosResult.Items || []).sort((a, b) => (a.ordem || 0) - (b.ordem || 0));
-    const fotosAssinadas = await Promise.all(fotos.map(assinarFotoLight));
+    const fotosAssinadas = fotos.map(assinarFotoLight);
 
     // Buscar tema do álbum
     let tema = {};
@@ -309,7 +312,7 @@ router.get('/fotos', async (req, res) => {
     }));
 
     const fotos = (fotosResult.Items || []).sort((a, b) => (a.ordem || 0) - (b.ordem || 0));
-    const fotosAssinadas = await Promise.all(fotos.map(assinarFotoLight));
+    const fotosAssinadas = fotos.map(assinarFotoLight);
 
     // Buscar tema do álbum
     let tema = {};
