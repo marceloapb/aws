@@ -44,6 +44,11 @@ export default function AlbumPublico() {
   const [downloading, setDownloading] = useState(false);
   const [downloadProgress, setDownloadProgress] = useState('');
 
+  // Filter photos by active galeria (local, like admin does)
+  const fotos = activeGaleriaId && activeGaleriaId !== 'all'
+    ? allFotos.filter(f => f.galeria_id === activeGaleriaId)
+    : allFotos;
+
   // Load album data
   useEffect(() => { loadAlbum(); }, [slug]);
 
@@ -113,11 +118,6 @@ export default function AlbumPublico() {
     } catch {}
     setFotosLoading(false);
   };
-
-  // Filter photos by active galeria (local, like admin does)
-  const fotos = activeGaleriaId && activeGaleriaId !== 'all'
-    ? allFotos.filter(f => f.galeria_id === activeGaleriaId)
-    : allFotos;
 
   const handleSenha = (e) => {
     e.preventDefault();
