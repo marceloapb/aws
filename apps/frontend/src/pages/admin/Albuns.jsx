@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import {
   Image, Plus, Search, Eye, Shield, Trash2, Send, Clock, Camera,
-  CheckCircle2, XCircle, AlertTriangle, Upload, Link2, Edit, ArrowUpDown, Download
+  CheckCircle2, XCircle, AlertTriangle, Upload, Link2, Edit, ArrowUpDown, Download, RotateCcw
 } from 'lucide-react';
 import JSZip from 'jszip';
 
@@ -148,6 +148,21 @@ export default function Albuns() {
       alert('Erro ao baixar fotos selecionadas.');
     }
     setDownloadingId(null);
+  };
+
+  const handleReabrirSelecao = async (album) => {
+    if (!window.confirm('Reabrir a seleção deste álbum? O cliente poderá alterar as escolhas novamente.')) return;
+    try {
+      await authFetch(`/admin/albuns/${album.id}`, {
+        method: 'PUT',
+        body: JSON.stringify({ selecao_confirmada: false, selecao_confirmada_em: null }),
+      });
+      setAlbuns(prev => prev.map(a => a.id === album.id ? { ...a, selecao_confirmada: false } : a));
+      setMsg('Seleção reaberta com sucesso!');
+      setTimeout(() => setMsg(''), 3000);
+    } catch {
+      alert('Erro ao reabrir seleção.');
+    }
   };
 
   const handleCriar = async (e) => {
@@ -320,6 +335,11 @@ export default function Albuns() {
                       className="p-1.5 rounded hover:bg-orange-50 text-gray-500 hover:text-orange-600 disabled:opacity-40 disabled:cursor-wait">
                       {downloadingId === album.id ? <div className="w-4 h-4 border-2 border-orange-400/30 border-t-orange-500 rounded-full animate-spin" /> : <Download size={16} />}
                     </button>
+                    {album.selecao_confirmada && (
+                      <button onClick={() => handleReabrirSelecao(album)} title="Reabrir seleção" className="p-1.5 rounded hover:bg-green-50 text-gray-500 hover:text-green-600">
+                        <RotateCcw size={16} />
+                      </button>
+                    )}
                     <button onClick={() => handleExcluir(album.id)} title="Excluir" className="p-1.5 rounded hover:bg-red-50 text-gray-500 hover:text-red-600 ml-auto"><Trash2 size={16} /></button>
                   </div>
                 </div>
