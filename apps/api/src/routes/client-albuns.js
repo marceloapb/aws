@@ -92,14 +92,31 @@ router.get('/publico/:slug', async (req, res) => {
 
 router.get('/:id', async (req, res) => {
   try {
-    const result = await dynamo.send(new QueryCommand({
-      TableName: TABLE,
-      KeyConditionExpression: 'PK = :pk AND SK = :sk',
-      ExpressionAttributeValues: { ':pk': `CLIENTE#${req.clienteId}`, ':sk': `ALBUM#${req.params.id}` },
-    }));
-    if (!result.Items || result.Items.length === 0) return res.status(403).json({ success: false, message: 'Acesso negado' });
-    const album = result.Items[0];
+    const param = req.params.id;
+    let album = null;
 
+    // Tentar buscar por ID direto (UUID)
+    const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-/.test(param);
+    if (isUUID) {
+      const result = await dynamo.send(new QueryCommand({
+        TableName: TABLE,
+        KeyConditionExpression: 'PK = :pk AND SK = :sk',
+        ExpressionAttributeValues: { ':pk': `CLIENTE#${req.clienteId}`, ':sk': `ALBUM#${param}` },
+      }));
+      album = result.Items?.[0] || null;
+    }
+
+    // Fallback: buscar por slug nos álbuns do cliente
+    if (!album) {
+      const allResult = await dynamo.send(new QueryCommand({
+        TableName: TABLE,
+        KeyConditionExpression: 'PK = :pk AND begins_with(SK, :sk)',
+        ExpressionAttributeValues: { ':pk': `CLIENTE#${req.clienteId}`, ':sk': 'ALBUM#' },
+      }));
+      album = (allResult.Items || []).find(a => a.slug === param) || null;
+    }
+
+    if (!album) return res.status(404).json({ success: false, message: 'Álbum não encontrado' });
     if (album.status === ALBUM_STATUS.EXPIRADO && !album.protegido) return res.status(410).json({ success: false, message: 'Álbum expirado' });
 
     const fotosResult = await dynamo.send(new QueryCommand({

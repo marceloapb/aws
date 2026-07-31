@@ -25,9 +25,9 @@ export default function MeusAlbuns() {
   };
 
   const handleOpenAlbum = (album) => {
-    // Navegar para a visualização do álbum com download/compartilhar
+    // Abrir visualização do álbum em nova janela
     const slug = album.slug || album.id;
-    navigate(`/cliente/albuns/${slug}`);
+    window.open(`/album/${slug}`, '_blank');
   };
 
   const formatDate = (dateStr) => {
