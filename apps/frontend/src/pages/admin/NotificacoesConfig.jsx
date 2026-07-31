@@ -566,7 +566,7 @@ export default function NotificacoesConfig() {
 
           {/* Calendar Rule Modal */}
           {calendarModalOpen && (
-            <Modal onClose={() => setCalendarModalOpen(false)} title={editingCalendarRule ? 'Editar Regra de Calendário' : 'Nova Regra de Calendário'}>
+            <Modal isOpen={calendarModalOpen} onClose={() => setCalendarModalOpen(false)} title={editingCalendarRule ? 'Editar Regra de Calendário' : 'Nova Regra de Calendário'}>
               <div className="space-y-4">
                 <div>
                   <label className="text-xs font-medium text-gray-700 block mb-1">Nome da regra *</label>
