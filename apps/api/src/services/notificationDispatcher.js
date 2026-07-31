@@ -17,6 +17,32 @@ const TENANT = process.env.TENANT_ID || 'default';
 async function processarEvento(evento) {
   const { evento_id, tipo_evento, tenant_id, dados = {} } = evento;
 
+  // 0) Enriquecer dados com informações do cliente (se cliente_id presente)
+  if (dados.cliente_id && !dados.whatsapp) {
+    try {
+      const { GetCommand: GC } = require('@aws-sdk/lib-dynamodb');
+      // Tentar CLIENT#<id>/PROFILE (self-signup)
+      let clienteResult = await dynamo.send(new GC({
+        TableName: TABLE,
+        Key: { PK: `CLIENT#${dados.cliente_id}`, SK: 'PROFILE' },
+      }));
+      let cliente = clienteResult.Item;
+      // Fallback: TENANT#default/CLIENTE#<id> (admin-created)
+      if (!cliente) {
+        clienteResult = await dynamo.send(new GC({
+          TableName: TABLE,
+          Key: { PK: `TENANT#${tenant_id || TENANT}`, SK: `CLIENTE#${dados.cliente_id}` },
+        }));
+        cliente = clienteResult.Item;
+      }
+      if (cliente) {
+        if (!dados.whatsapp) dados.whatsapp = cliente.whatsapp || cliente.telefone || cliente.whatsapp_numero || '';
+        if (!dados.email) dados.email = cliente.email || '';
+        if (!dados.cliente_nome) dados.cliente_nome = cliente.nome || cliente.name || '';
+      }
+    } catch {}
+  }
+
   // 1) Verificar idempotência
   const jaDuplicado = await verificarDedup(evento_id);
   if (jaDuplicado) {
