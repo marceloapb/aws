@@ -8,6 +8,7 @@ import Cadastro from './pages/Cadastro';
 import SiteLayout from './pages/public/SiteLayout';
 import HomePage from './pages/public/HomePage';
 import PortfolioPage from './pages/public/PortfolioPage';
+import PortfolioGaleria from './pages/public/PortfolioGaleria';
 import NovidadesPage from './pages/public/NovidadesPage';
 import NovidadeDetalhe from './pages/public/NovidadeDetalhe';
 import SobrePage from './pages/public/SobrePage';
@@ -114,6 +115,7 @@ function App() {
       <Route element={<SiteLayout />}>
         <Route path="/" element={<HomePage />} />
         <Route path="/portfolio" element={<PortfolioPage />} />
+        <Route path="/portfolio/:categoriaId" element={<PortfolioGaleria />} />
         <Route path="/novidades" element={<NovidadesPage />} />
         <Route path="/novidades/:slug" element={<NovidadeDetalhe />} />
         <Route path="/sobre" element={<SobrePage />} />
