@@ -9,7 +9,7 @@ const { GetCommand, QueryCommand } = require('@aws-sdk/lib-dynamodb');
 const router = Router();
 const TENANT = process.env.TENANT_ID || 'default';
 const VALID_TIPOS = ['home', 'sobre', 'contato'];
-const BASE_URL = 'https://www.mbfoto.com.br';
+const BASE_URL = 'https://www.marcelobloisefotografia.com.br';
 
 // ─── GET /config — Configuração pública do site ─────────────
 

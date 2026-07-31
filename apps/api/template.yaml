@@ -27,7 +27,7 @@ Parameters:
     Default: ab1oeans0c58esml7918he0q1
   FrontendUrl:
     Type: String
-    Default: 'https://www.mbfoto.com.br'
+    Default: 'https://www.marcelobloisefotografia.com.br'
 
 Globals:
   Function:
@@ -58,7 +58,7 @@ Resources:
       CorsConfiguration:
         AllowOrigins:
           - !Ref FrontendUrl
-          - 'https://mbfoto.com.br'
+          - 'https://marcelobloisefotografia.com.br'
           - 'http://localhost:3000'
           - 'http://localhost:5173'
         AllowMethods:

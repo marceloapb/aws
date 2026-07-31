@@ -577,7 +577,7 @@ export default function AlbumDetalhe() {
                 <div>
                   <label className="text-xs font-medium text-gray-700 mb-1 block">Link do álbum</label>
                   <div className="flex items-center gap-1 mb-1">
-                    <span className="text-[10px] text-gray-400 whitespace-nowrap">mbfoto.com.br/album/</span>
+                    <span className="text-[10px] text-gray-400 whitespace-nowrap">marcelobloisefotografia.com.br/album/</span>
                     <input
                       type="text"
                       value={album?.slug || ''}
@@ -589,8 +589,8 @@ export default function AlbumDetalhe() {
                   </div>
                   {album?.slug && (
                     <div className="flex items-center gap-2 mt-1.5">
-                      <span className="text-[10px] text-blue-600 truncate flex-1">https://www.mbfoto.com.br/album/{album.slug}</span>
-                      <button onClick={() => { navigator.clipboard.writeText(`https://www.mbfoto.com.br/album/${album.slug}`); }} className="text-[10px] px-2 py-0.5 bg-blue-50 text-blue-600 rounded hover:bg-blue-100 transition whitespace-nowrap">Copiar</button>
+                      <span className="text-[10px] text-blue-600 truncate flex-1">https://www.marcelobloisefotografia.com.br/album/{album.slug}</span>
+                      <button onClick={() => { navigator.clipboard.writeText(`https://www.marcelobloisefotografia.com.br/album/${album.slug}`); }} className="text-[10px] px-2 py-0.5 bg-blue-50 text-blue-600 rounded hover:bg-blue-100 transition whitespace-nowrap">Copiar</button>
                     </div>
                   )}
                 </div>
@@ -620,7 +620,7 @@ export default function AlbumDetalhe() {
             {/* Browser chrome */}
             <div className="h-7 bg-gray-100 border-b flex items-center px-3 gap-2 shrink-0">
               <div className="flex gap-1.5"><div className="w-2.5 h-2.5 rounded-full bg-red-400" /><div className="w-2.5 h-2.5 rounded-full bg-yellow-400" /><div className="w-2.5 h-2.5 rounded-full bg-green-400" /></div>
-              <div className="flex-1 mx-6"><div className="bg-white rounded-full h-4 flex items-center px-3"><span className="text-[9px] text-gray-400 truncate">mbfoto.com.br/album/{album.slug || '...'}</span></div></div>
+              <div className="flex-1 mx-6"><div className="bg-white rounded-full h-4 flex items-center px-3"><span className="text-[9px] text-gray-400 truncate">marcelobloisefotografia.com.br/album/{album.slug || '...'}</span></div></div>
               <span className="text-gray-400 text-xs">⋮</span>
             </div>
 

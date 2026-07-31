@@ -142,13 +142,13 @@ router.post('/:tipo/enviar-teste', async (req, res) => {
       titulo: 'E-mail de Teste',
       mensagem: 'Este é um e-mail de teste do sistema de templates.',
       email_cliente: email_destino,
-      link_assinatura: 'https://www.mbfoto.com.br',
-      link_orcamento: 'https://www.mbfoto.com.br',
-      link_album: 'https://www.mbfoto.com.br',
-      link_pagamento: 'https://www.mbfoto.com.br',
-      link_portal: 'https://www.mbfoto.com.br',
-      link_feedback: 'https://www.mbfoto.com.br',
-      link: 'https://www.mbfoto.com.br',
+      link_assinatura: 'https://www.marcelobloisefotografia.com.br',
+      link_orcamento: 'https://www.marcelobloisefotografia.com.br',
+      link_album: 'https://www.marcelobloisefotografia.com.br',
+      link_pagamento: 'https://www.marcelobloisefotografia.com.br',
+      link_portal: 'https://www.marcelobloisefotografia.com.br',
+      link_feedback: 'https://www.marcelobloisefotografia.com.br',
+      link: 'https://www.marcelobloisefotografia.com.br',
     };
 
     const rendered = await emailTemplateService.renderizarTemplate(req.params.tipo, exemplos);

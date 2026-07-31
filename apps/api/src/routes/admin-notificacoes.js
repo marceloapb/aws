@@ -346,7 +346,7 @@ router.post('/testar', async (req, res) => {
             valor: 'R$ 1.500,00',
             titulo: `Teste de ${tipo}`,
             descricao: `Notificação de teste para o evento: ${tipo}`,
-            link: 'https://www.mbfoto.com.br/admin',
+            link: 'https://www.marcelobloisefotografia.com.br/admin',
             tipo_evento: tipo,
           },
         });

@@ -102,7 +102,7 @@ const TEMPLATES = [
       {
         type: 'BODY',
         text: 'Olá *{{1}}*! 👋\n\nSeu orçamento no valor de *{{2}}* está pronto para visualização.\n\nAcesse pelo link abaixo para conferir todos os detalhes:\n{{3}}',
-        example: { body_text: [['João', 'R$ 3.500,00', 'https://mbfoto.com.br/orcamento/abc123']] },
+        example: { body_text: [['João', 'R$ 3.500,00', 'https://marcelobloisefotografia.com.br/orcamento/abc123']] },
       },
       {
         type: 'FOOTER',
@@ -123,7 +123,7 @@ const TEMPLATES = [
       {
         type: 'BODY',
         text: 'Olá *{{1}}*! 🎉\n\nSeu álbum *{{2}}* está disponível para visualização e download!\n\nAcesse pelo link:\n{{3}}\n\nEspero que goste! ❤️',
-        example: { body_text: [['Maria', 'Casamento - Maria & João', 'https://mbfoto.com.br/album/maria-joao']] },
+        example: { body_text: [['Maria', 'Casamento - Maria & João', 'https://marcelobloisefotografia.com.br/album/maria-joao']] },
       },
       {
         type: 'FOOTER',
@@ -165,7 +165,7 @@ const TEMPLATES = [
       {
         type: 'BODY',
         text: 'Olá *{{1}}*! 👋\n\nSeu contrato está pronto para revisão e assinatura digital.\n\nAcesse pelo link abaixo:\n{{2}}\n\nQualquer dúvida, é só responder! 😊',
-        example: { body_text: [['Maria', 'https://mbfoto.com.br/contrato/abc123']] },
+        example: { body_text: [['Maria', 'https://marcelobloisefotografia.com.br/contrato/abc123']] },
       },
       {
         type: 'FOOTER',
@@ -249,7 +249,7 @@ const TEMPLATES = [
       {
         type: 'BODY',
         text: 'Olá *{{1}}*! 👋\n\nGostaríamos de saber sua opinião sobre o serviço.\n\nDeixe sua avaliação pelo link:\n{{2}}\n\nSua opinião é muito importante! ❤️',
-        example: { body_text: [['Maria', 'https://mbfoto.com.br/feedback/abc123']] },
+        example: { body_text: [['Maria', 'https://marcelobloisefotografia.com.br/feedback/abc123']] },
       },
       {
         type: 'FOOTER',

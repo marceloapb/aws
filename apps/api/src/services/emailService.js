@@ -98,7 +98,7 @@ async function enviarEmailBoasVindas(cliente, linkPortal) {
   return enviarEmailComTemplate('boas_vindas', cliente.email, {
     cliente_nome: cliente.nome,
     email_cliente: cliente.email,
-    link_portal: linkPortal || 'https://www.mbfoto.com.br/login',
+    link_portal: linkPortal || 'https://www.marcelobloisefotografia.com.br/login',
   });
 }
 
@@ -107,7 +107,7 @@ async function enviarEmailLembretePagamento(cliente, { valor, data_vencimento, l
     cliente_nome: cliente.nome,
     valor: valor,
     data_vencimento: data_vencimento,
-    link_pagamento: link_pagamento || 'https://www.mbfoto.com.br/login',
+    link_pagamento: link_pagamento || 'https://www.marcelobloisefotografia.com.br/login',
   });
 }
 
@@ -116,7 +116,7 @@ async function enviarEmailFollowup(cliente, { tipo_evento, data_evento, link_fee
     cliente_nome: cliente.nome,
     tipo_evento: tipo_evento || '',
     data_evento: data_evento || '',
-    link_feedback: link_feedback || 'https://www.mbfoto.com.br/login',
+    link_feedback: link_feedback || 'https://www.marcelobloisefotografia.com.br/login',
   });
 }
 
@@ -125,7 +125,7 @@ async function enviarEmailNotificacao(cliente, { titulo, mensagem, link }) {
     cliente_nome: cliente.nome,
     titulo: titulo || '',
     mensagem: mensagem || '',
-    link: link || 'https://www.mbfoto.com.br/login',
+    link: link || 'https://www.marcelobloisefotografia.com.br/login',
   });
 }
 

@@ -85,7 +85,7 @@ async function notificar({
   // 2. EMAIL — via SES
   if (canais.includes('email') && destinatario_email) {
     try {
-      const fromEmail = process.env.SES_FROM_EMAIL || 'noreply@mbfoto.com.br';
+      const fromEmail = process.env.SES_FROM_EMAIL || 'noreply@marcelobloisefotografia.com.br';
       await ses.send(new SendEmailCommand({
         Source: fromEmail,
         Destination: { ToAddresses: [destinatario_email] },
@@ -161,7 +161,7 @@ async function notificarNovoOrcamento(adminEmail, adminWhatsapp, adminId, client
     destinatario_id: adminId,
     destinatario_email: adminEmail,
     destinatario_whatsapp: adminWhatsapp,
-    dados: { link: 'https://www.mbfoto.com.br/admin/orcamentos' },
+    dados: { link: 'https://www.marcelobloisefotografia.com.br/admin/orcamentos' },
   });
 }
 
@@ -173,7 +173,7 @@ async function notificarContratoAssinado(adminEmail, adminWhatsapp, adminId, cli
     destinatario_id: adminId,
     destinatario_email: adminEmail,
     destinatario_whatsapp: adminWhatsapp,
-    dados: { link: 'https://www.mbfoto.com.br/admin/contratos' },
+    dados: { link: 'https://www.marcelobloisefotografia.com.br/admin/contratos' },
   });
 }
 
@@ -185,7 +185,7 @@ async function notificarPagamentoRecebido(adminEmail, adminWhatsapp, adminId, cl
     destinatario_id: adminId,
     destinatario_email: adminEmail,
     destinatario_whatsapp: adminWhatsapp,
-    dados: { link: 'https://www.mbfoto.com.br/admin/financeiro' },
+    dados: { link: 'https://www.marcelobloisefotografia.com.br/admin/financeiro' },
   });
 }
 

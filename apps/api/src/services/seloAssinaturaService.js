@@ -51,7 +51,7 @@ function formatarDataHoraBR(isoDate) {
  */
 async function gerarSeloHTML(aceite, contratoId) {
   const codigo = gerarCodigoVerificacao(contratoId, aceite.data || aceite.data_aceite || aceite.assinadoEm);
-  const frontendUrl = env.FRONTEND_URL || 'https://www.mbfoto.com.br';
+  const frontendUrl = env.FRONTEND_URL || 'https://www.marcelobloisefotografia.com.br';
   const urlVerificacao = `${frontendUrl}/verificar/${codigo}`;
 
   let qrDataUrl = '';

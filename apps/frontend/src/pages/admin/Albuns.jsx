@@ -304,7 +304,7 @@ export default function Albuns() {
                   <p className="text-sm text-gray-500 truncate">{album.cliente_nome || 'Sem cliente'}</p>
                   {album.slug && (
                     <button onClick={() => handleAbrirLink(album)} className="text-xs text-orange-600 hover:text-orange-700 hover:underline truncate block max-w-full text-left">
-                      🔗 mbfoto.com.br/album/{album.slug}
+                      🔗 marcelobloisefotografia.com.br/album/{album.slug}
                     </button>
                   )}
 
