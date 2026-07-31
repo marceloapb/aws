@@ -34,7 +34,13 @@ async function enviarEmail({ destinatario, titulo, corpo, templateData = {} }) {
       remetenteNome = config.remetente_nome;
       fromAddress = `${config.remetente_nome} <${FROM_EMAIL}>`;
     }
-    if (config.logo_url) logoUrl = config.logo_url;
+    if (config.logo_key) {
+      // Gerar URL permanente via CDN (não usar presigned URL que expira)
+      const cdnDomain = process.env.CDN_DOMAIN || process.env.CF_DOMAIN || 'd2112x4m4e89fv.cloudfront.net';
+      logoUrl = `https://${cdnDomain}/${config.logo_key}`;
+    } else if (config.logo_url) {
+      logoUrl = config.logo_url;
+    }
     if (config.cor_primaria) corPrimaria = config.cor_primaria;
     if (config.rodape_texto) rodapeTexto = config.rodape_texto;
   } catch {}
