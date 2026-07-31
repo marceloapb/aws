@@ -28,7 +28,36 @@ router.get('/', async (req, res) => {
       ExpressionAttributeValues: { ':pk': `CLIENTE#${req.clienteId}`, ':sk': 'ALBUM#', ':excluido': ALBUM_STATUS.PRONTO_EXCLUSAO },
     }));
     const items = (result.Items || []).sort((a, b) => (b.created || '').localeCompare(a.created || ''));
-    res.json({ success: true, data: items });
+
+    // Enrich each album with thumbnail_url (first photo or capa_foto_id)
+    const enriched = await Promise.all(items.map(async (album) => {
+      try {
+        const fotosResult = await dynamo.send(new QueryCommand({
+          TableName: TABLE,
+          KeyConditionExpression: 'PK = :pk AND begins_with(SK, :sk)',
+          ExpressionAttributeValues: { ':pk': `ALBUM#${album.id}`, ':sk': 'FOTO#' },
+          Limit: 20,
+        }));
+        const fotos = (fotosResult.Items || []).sort((a, b) => (a.ordem || 0) - (b.ordem || 0));
+        let capaFoto = null;
+        if (album.capa_foto_id) {
+          capaFoto = fotos.find(f => f.id === album.capa_foto_id);
+        }
+        if (!capaFoto && fotos.length > 0) {
+          capaFoto = fotos[0];
+        }
+        let thumbnail_url = null;
+        if (capaFoto) {
+          const key = capaFoto.s3_key_thumb || capaFoto.s3_key_media || capaFoto.s3_key || '';
+          if (key) thumbnail_url = await getSignedDownloadUrl(key, 86400);
+        }
+        return { ...album, thumbnail_url, total_fotos: fotos.length || album.total_fotos || 0 };
+      } catch {
+        return album;
+      }
+    }));
+
+    res.json({ success: true, data: enriched });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
