@@ -40,7 +40,7 @@ export default function MeusAlbuns() {
     return (
       <div>
         <button onClick={() => setSelectedAlbum(null)} className="text-sm text-gray-500 hover:text-gray-700 mb-4">← Voltar aos álbuns</button>
-        <h1 className="text-2xl font-bold text-gray-900 mb-2">{selectedAlbum.title}</h1>
+        <h1 className="text-2xl font-bold text-gray-900 mb-2">{selectedAlbum.titulo}</h1>
         <p className="text-sm text-gray-500 mb-6">{photos.length} fotos • Selecione suas favoritas</p>
 
         {photos.length === 0 ? (
@@ -92,15 +92,15 @@ export default function MeusAlbuns() {
               className="bg-white rounded-xl border border-gray-200 p-4 text-left hover:shadow-md transition-shadow">
               <div className="flex items-center gap-4">
                 <div className="w-16 h-16 rounded-lg bg-gray-100 flex items-center justify-center overflow-hidden">
-                  {album.coverUrl ? <img src={album.coverUrl} alt="" className="w-full h-full object-cover" /> : <Image size={24} className="text-gray-300" />}
+                  {album.thumbnail_url ? <img src={album.thumbnail_url} alt="" className="w-full h-full object-cover" /> : <Image size={24} className="text-gray-300" />}
                 </div>
                 <div>
-                  <p className="font-medium text-gray-900">{album.title}</p>
-                  <p className="text-sm text-gray-500 mt-1">{album.photoCount || 0} fotos</p>
+                  <p className="font-medium text-gray-900">{album.titulo}</p>
+                  <p className="text-sm text-gray-500 mt-1">{album.total_fotos || 0} fotos</p>
                   <span className={`inline-block mt-2 px-2 py-0.5 rounded-full text-xs font-medium ${
-                    album.status === 'delivered' ? 'bg-green-50 text-green-600' : 'bg-blue-50 text-blue-600'
+                    album.status === 'publicado' ? 'bg-green-50 text-green-600' : 'bg-blue-50 text-blue-600'
                   }`}>
-                    {album.status === 'delivered' ? 'Pronto para download' : 'Em seleção'}
+                    {album.status === 'publicado' ? 'Disponível' : album.status === 'ativo' ? 'Em preparação' : album.status}
                   </span>
                 </div>
               </div>
