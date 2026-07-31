@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import {
   Image, Plus, Search, Eye, Shield, Trash2, Send, Clock, Camera,
-  CheckCircle2, XCircle, AlertTriangle, Upload, Link2, Edit, ArrowUpDown, Download, RotateCcw
+  CheckCircle2, XCircle, AlertTriangle, Upload, Link2, Edit, ArrowUpDown, Download, RotateCcw, ExternalLink
 } from 'lucide-react';
 import JSZip from 'jszip';
 
@@ -106,7 +106,13 @@ export default function Albuns() {
   const handleCompartilhar = (album) => {
     const url = `${window.location.origin}/album/${album.slug || album.id}`;
     navigator.clipboard.writeText(url);
-    alert('Link copiado!');
+    setMsg(`Link copiado: ${url}`);
+    setTimeout(() => setMsg(''), 4000);
+  };
+
+  const handleAbrirLink = (album) => {
+    const url = `${window.location.origin}/album/${album.slug || album.id}`;
+    window.open(url, '_blank');
   };
 
   const [downloadingId, setDownloadingId] = useState(null);
@@ -296,6 +302,11 @@ export default function Albuns() {
                 <div className="p-4 space-y-3">
                   <h3 className="font-bold text-gray-900 truncate text-base">{album.titulo}</h3>
                   <p className="text-sm text-gray-500 truncate">{album.cliente_nome || 'Sem cliente'}</p>
+                  {album.slug && (
+                    <button onClick={() => handleAbrirLink(album)} className="text-xs text-orange-600 hover:text-orange-700 hover:underline truncate block max-w-full text-left">
+                      🔗 mbfoto.com.br/album/{album.slug}
+                    </button>
+                  )}
 
                   {/* Resumo */}
                   <div className="flex items-center gap-4 text-xs text-gray-400">
@@ -331,6 +342,7 @@ export default function Albuns() {
                       <button onClick={() => handleProteger(album.id)} title="Proteger de expiração" className="p-1.5 rounded hover:bg-blue-50 text-gray-500 hover:text-blue-600"><Shield size={16} /></button>
                     )}
                     <button onClick={() => handleCompartilhar(album)} title="Copiar link" className="p-1.5 rounded hover:bg-purple-50 text-gray-500 hover:text-purple-600"><Link2 size={16} /></button>
+                    <button onClick={() => handleAbrirLink(album)} title="Abrir link do cliente" className="p-1.5 rounded hover:bg-orange-50 text-gray-500 hover:text-orange-600"><ExternalLink size={16} /></button>
                     <button onClick={() => handleDownloadSelecionadas(album)} title="Download selecionadas" disabled={downloadingId === album.id}
                       className="p-1.5 rounded hover:bg-orange-50 text-gray-500 hover:text-orange-600 disabled:opacity-40 disabled:cursor-wait">
                       {downloadingId === album.id ? <div className="w-4 h-4 border-2 border-orange-400/30 border-t-orange-500 rounded-full animate-spin" /> : <Download size={16} />}
