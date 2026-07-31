@@ -14,6 +14,7 @@ export default function IntegracoesLogs() {
   const [filtro, setFiltro] = useState('');
   const [filtroStatus, setFiltroStatus] = useState('');
   const [clearing, setClearing] = useState(false);
+  const [expandedId, setExpandedId] = useState(null);
 
   const loadLogs = useCallback(async () => {
     setLoading(true);
@@ -138,31 +139,57 @@ export default function IntegracoesLogs() {
       ) : (
         <div className="space-y-2">
           {filteredLogs.map((log) => (
-            <div key={log.id} className="flex items-center gap-3 p-4 rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors">
-              {/* Ícone de resultado */}
-              {log.resultado === 'sucesso' ? (
-                <CheckCircle size={18} className="text-green-500 shrink-0" />
-              ) : (
-                <XCircle size={18} className="text-red-500 shrink-0" />
-              )}
-
-              {/* Info */}
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 mb-0.5">
-                  <span className={`inline-flex px-2 py-0.5 rounded text-xs font-medium ${getIntegracaoColor(log.integracao)}`}>
-                    {getIntegracaoLabel(log.integracao)}
-                  </span>
-                  <span className="text-xs text-gray-400 capitalize">{log.tipo}</span>
-                </div>
-                {log.detalhes && (
-                  <p className="text-sm text-gray-600 truncate">{log.detalhes}</p>
+            <div key={log.id}
+              className="rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors cursor-pointer"
+              onClick={() => setExpandedId(expandedId === log.id ? null : log.id)}
+            >
+              <div className="flex items-center gap-3 p-4">
+                {/* Ícone de resultado */}
+                {log.resultado === 'sucesso' ? (
+                  <CheckCircle size={18} className="text-green-500 shrink-0" />
+                ) : (
+                  <XCircle size={18} className="text-red-500 shrink-0" />
                 )}
+
+                {/* Info */}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-0.5">
+                    <span className={`inline-flex px-2 py-0.5 rounded text-xs font-medium ${getIntegracaoColor(log.integracao)}`}>
+                      {getIntegracaoLabel(log.integracao)}
+                    </span>
+                    <span className="text-xs text-gray-400 capitalize">{log.tipo}</span>
+                  </div>
+                  {log.detalhes && (
+                    <p className={`text-sm text-gray-600 ${expandedId === log.id ? 'whitespace-pre-wrap break-all' : 'truncate'}`}>{log.detalhes}</p>
+                  )}
+                </div>
+
+                {/* Timestamp */}
+                <span className="text-xs text-gray-400 whitespace-nowrap shrink-0">
+                  {new Date(log.created).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
+                </span>
               </div>
 
-              {/* Timestamp */}
-              <span className="text-xs text-gray-400 whitespace-nowrap shrink-0">
-                {new Date(log.created).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
-              </span>
+              {/* Expanded details */}
+              {expandedId === log.id && (
+                <div className="px-4 pb-4 pt-0 border-t border-gray-100 mt-0">
+                  <div className="mt-3 space-y-2">
+                    <div className="grid grid-cols-2 gap-2 text-xs">
+                      <div><span className="font-medium text-gray-500">ID:</span> <span className="text-gray-700 font-mono">{log.id}</span></div>
+                      <div><span className="font-medium text-gray-500">Integração:</span> <span className="text-gray-700">{getIntegracaoLabel(log.integracao)}</span></div>
+                      <div><span className="font-medium text-gray-500">Tipo:</span> <span className="text-gray-700">{log.tipo}</span></div>
+                      <div><span className="font-medium text-gray-500">Resultado:</span> <span className={log.resultado === 'sucesso' ? 'text-green-600 font-medium' : 'text-red-600 font-medium'}>{log.resultado}</span></div>
+                      <div className="col-span-2"><span className="font-medium text-gray-500">Data:</span> <span className="text-gray-700">{new Date(log.created).toLocaleString('pt-BR')}</span></div>
+                    </div>
+                    {log.detalhes && (
+                      <div className="mt-2">
+                        <span className="text-xs font-medium text-gray-500 block mb-1">Detalhes completos:</span>
+                        <pre className="text-xs bg-gray-900 text-green-300 p-3 rounded-lg overflow-x-auto whitespace-pre-wrap break-all max-h-64 overflow-y-auto">{log.detalhes}</pre>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
           ))}
         </div>
