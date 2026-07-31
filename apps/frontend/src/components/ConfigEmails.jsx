@@ -10,6 +10,7 @@ export default function ConfigEmails() {
   const [config, setConfig] = useState({ remetente_nome: '', remetente_email: '', logo_url: '', logo_key: '', cor_primaria: '#EA580C', rodape_texto: '' });
   const [selectedTemplate, setSelectedTemplate] = useState(null);
   const [editForm, setEditForm] = useState({ assunto: '', corpo: '', ativo: true });
+  const [htmlMode, setHtmlMode] = useState(false);
   const [preview, setPreview] = useState(null);
   const [showPreview, setShowPreview] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -354,9 +355,18 @@ export default function ConfigEmails() {
 
                 {/* Corpo (editor rich-text) */}
                 <div className="mb-4">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Corpo do E-mail (HTML)</label>
-                  {/* Rich Text Toolbar */}
-                  <div className="flex flex-wrap gap-1 p-2 border border-b-0 rounded-t-lg bg-gray-50">
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-sm font-medium text-gray-700">Corpo do E-mail</label>
+                    <div className="flex bg-gray-100 rounded-lg p-0.5">
+                      <button onClick={() => setHtmlMode(false)} className={`px-3 py-1 text-xs font-medium rounded-md transition ${!htmlMode ? 'bg-white shadow text-gray-900' : 'text-gray-500'}`}>Visual</button>
+                      <button onClick={() => setHtmlMode(true)} className={`px-3 py-1 text-xs font-medium rounded-md transition ${htmlMode ? 'bg-white shadow text-gray-900' : 'text-gray-500'}`}>HTML</button>
+                    </div>
+                  </div>
+
+                  {!htmlMode ? (
+                    <>
+                      {/* Rich Text Toolbar */}
+                      <div className="flex flex-wrap gap-1 p-2 border border-b-0 rounded-t-lg bg-gray-50">
                     <button type="button" onClick={() => document.execCommand('bold')} className="px-2 py-1 text-xs font-bold border rounded hover:bg-gray-200" title="Negrito">B</button>
                     <button type="button" onClick={() => document.execCommand('italic')} className="px-2 py-1 text-xs italic border rounded hover:bg-gray-200" title="Itálico">I</button>
                     <button type="button" onClick={() => document.execCommand('underline')} className="px-2 py-1 text-xs underline border rounded hover:bg-gray-200" title="Sublinhado">U</button>
@@ -392,6 +402,18 @@ export default function ConfigEmails() {
                     style={{ lineHeight: '1.8' }}
                   />
                   <p className="text-xs text-gray-400 mt-1">Use a barra de ferramentas para formatar. As variáveis serão substituídas automaticamente ao enviar.</p>
+                    </>
+                  ) : (
+                    <>
+                      <textarea
+                        value={editForm.corpo}
+                        onChange={e => setEditForm(f => ({ ...f, corpo: e.target.value }))}
+                        className="w-full border rounded-lg px-4 py-3 text-xs font-mono min-h-[350px] max-h-[500px] overflow-y-auto focus:outline-none focus:ring-2 focus:ring-orange-200 bg-gray-900 text-green-300"
+                        spellCheck={false}
+                      />
+                      <p className="text-xs text-gray-400 mt-1">Edite o HTML diretamente. Use variáveis como {'{{cliente_nome}}'}, {'{{logo}}'}, etc.</p>
+                    </>
+                  )}
                 </div>
 
                 {/* Ações */}
