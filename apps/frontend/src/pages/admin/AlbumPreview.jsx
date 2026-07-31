@@ -298,11 +298,11 @@ export default function AlbumPreview() {
         return (
           <div className="flex flex-col min-h-screen">
             <div className="px-8 md:px-16 py-8 md:py-12 border-b" style={{ backgroundColor: corOverlay, color: corTexto, borderColor: `${corTexto}15` }}>
-              {nomeNegocio && <p className="text-xs opacity-50 mb-2 tracking-widest uppercase" style={{ fontFamily: tema.fonte_corpo }}>{nomeNegocio}</p>}
+              {nomeNegocio && <p className="text-sm md:text-base opacity-50 mb-2 tracking-widest uppercase" style={{ fontFamily: tema.fonte_corpo }}>{nomeNegocio}</p>}
               <h1 className="text-4xl md:text-6xl font-bold" style={{ fontFamily: fonteTitulo }}>{album.titulo}</h1>
               <div className="flex items-center justify-between mt-3">
-                {dataEvento && <p className="text-sm opacity-60" style={{ fontFamily: tema.fonte_corpo }}>{dataEvento}</p>}
-                <button onClick={handleVerFotos} className="text-sm opacity-60 hover:opacity-100 flex items-center gap-2 transition ml-auto" style={{ fontFamily: tema.fonte_corpo }}>
+                {dataEvento && <p className="text-base md:text-lg opacity-60" style={{ fontFamily: tema.fonte_corpo }}>{dataEvento}</p>}
+                <button onClick={handleVerFotos} className="text-sm md:text-base opacity-60 hover:opacity-100 flex items-center gap-2 transition ml-auto" style={{ fontFamily: tema.fonte_corpo }}>
                   {textoBtn} <ArrowRight size={16} />
                 </button>
               </div>

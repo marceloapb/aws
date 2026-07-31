@@ -652,14 +652,14 @@ export default function AlbumDetalhe() {
                     <div className="flex flex-col h-full min-h-[400px]">
                       <div className="px-8 py-6 border-b" style={{ backgroundColor: tema.cores_capa?.overlay || '#121212', color: tema.cores_capa?.texto || '#FFFFFF', borderColor: `${tema.cores_capa?.texto || '#FFFFFF'}15` }}>
                         {textoAlbum.info_negocio && textoAlbum.nome_negocio && (
-                          <p className="text-xs opacity-50 mb-1 tracking-widest uppercase" style={{ fontFamily: tema.fonte_corpo }}>{textoAlbum.nome_negocio}</p>
+                          <p className="text-sm opacity-50 mb-1 tracking-widest uppercase" style={{ fontFamily: tema.fonte_corpo }}>{textoAlbum.nome_negocio}</p>
                         )}
                         <h1 className="text-4xl font-bold" style={{ fontFamily: tema.fonte_titulo }}>{textoAlbum.titulo || 'Título do álbum'}</h1>
-                        <div className="flex items-center justify-between mt-2">
+                        <div className="flex items-center justify-between mt-3">
                           {textoAlbum.mais_info && textoAlbum.data_evento && (
-                            <p className="text-sm opacity-60" style={{ fontFamily: tema.fonte_corpo }}>{textoAlbum.data_evento}</p>
+                            <p className="text-base opacity-60" style={{ fontFamily: tema.fonte_corpo }}>{textoAlbum.data_evento}</p>
                           )}
-                          <span className="text-xs opacity-60 inline-flex items-center gap-1 ml-auto" style={{ fontFamily: tema.fonte_corpo }}>{textoAlbum.texto_botao || 'Ver fotos'} →</span>
+                          <span className="text-sm opacity-60 inline-flex items-center gap-1 ml-auto" style={{ fontFamily: tema.fonte_corpo }}>{textoAlbum.texto_botao || 'Ver fotos'} →</span>
                         </div>
                       </div>
                       <div className="flex-1 overflow-hidden relative">
