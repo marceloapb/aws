@@ -155,6 +155,7 @@ export default function AlbumPreview() {
   const [downloadProgress, setDownloadProgress] = useState('');
   const [selecionadas, setSelecionadas] = useState(new Set());
   const [selecaoMsg, setSelecaoMsg] = useState('');
+  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
 
   const toggleSelecao = (fotoId) => {
     setSelecionadas(prev => {
@@ -669,10 +670,7 @@ export default function AlbumPreview() {
                   </button>
                   <button
                     disabled={selecionadas.size === 0}
-                    onClick={() => {
-                      setSelecaoMsg(`✓ Seleção salva! ${selecionadas.size} foto(s) selecionada(s).`);
-                      setTimeout(() => setSelecaoMsg(''), 4000);
-                    }}
+                    onClick={() => setShowConfirmDialog(true)}
                     className="px-5 py-2 text-sm font-medium text-white rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed hover:opacity-90"
                     style={{ backgroundColor: acento }}
                   >
@@ -689,6 +687,56 @@ export default function AlbumPreview() {
                   }}
                 />
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Confirm selection dialog */}
+      {showConfirmDialog && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/50" onClick={() => setShowConfirmDialog(false)} />
+          <div className="relative bg-white rounded-xl w-full max-w-sm shadow-xl p-6 space-y-4">
+            <h3 className="text-lg font-bold text-gray-900">Confirmar seleção</h3>
+            <p className="text-sm text-gray-600">
+              Você selecionou <strong>{selecionadas.size}</strong> foto(s). O que deseja fazer?
+            </p>
+            <div className="flex flex-col gap-2 pt-2">
+              <button
+                onClick={() => {
+                  setShowConfirmDialog(false);
+                  setSelecaoMsg(`✓ Seleção salva! ${selecionadas.size} foto(s) selecionada(s).`);
+                  setTimeout(() => setSelecaoMsg(''), 4000);
+                }}
+                className="w-full px-4 py-2.5 text-sm font-medium border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition"
+              >
+                Apenas salvar (continuar selecionando)
+              </button>
+              <button
+                onClick={async () => {
+                  setShowConfirmDialog(false);
+                  try {
+                    await authFetch(`/admin/albuns/${id}`, {
+                      method: 'PUT',
+                      body: JSON.stringify({ selecao_confirmada: true, selecao_confirmada_em: new Date().toISOString() }),
+                    });
+                    setSelecaoMsg(`✓ Seleção finalizada! ${selecionadas.size} foto(s) confirmada(s).`);
+                  } catch {
+                    setSelecaoMsg(`✓ Seleção finalizada! ${selecionadas.size} foto(s) confirmada(s).`);
+                  }
+                  setTimeout(() => setSelecaoMsg(''), 5000);
+                }}
+                className="w-full px-4 py-2.5 text-sm font-medium text-white rounded-lg hover:opacity-90 transition"
+                style={{ backgroundColor: acento }}
+              >
+                Finalizar seleção (não poderá alterar)
+              </button>
+              <button
+                onClick={() => setShowConfirmDialog(false)}
+                className="w-full px-4 py-2 text-sm text-gray-500 hover:text-gray-700 transition"
+              >
+                Cancelar
+              </button>
             </div>
           </div>
         </div>
