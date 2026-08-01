@@ -35,6 +35,47 @@ function formatCEP(v) {
   return n.length > 5 ? `${n.slice(0, 5)}-${n.slice(5)}` : n;
 }
 
+function validarCPF(cpf) {
+  const nums = cpf.replace(/\D/g, '');
+  if (nums.length !== 11) return false;
+  if (/^(\d)\1{10}$/.test(nums)) return false;
+  let soma = 0;
+  for (let i = 0; i < 9; i++) soma += parseInt(nums[i]) * (10 - i);
+  let resto = (soma * 10) % 11;
+  if (resto === 10) resto = 0;
+  if (resto !== parseInt(nums[9])) return false;
+  soma = 0;
+  for (let i = 0; i < 10; i++) soma += parseInt(nums[i]) * (11 - i);
+  resto = (soma * 10) % 11;
+  if (resto === 10) resto = 0;
+  return resto === parseInt(nums[10]);
+}
+
+function validarCNPJ(cnpj) {
+  const nums = cnpj.replace(/\D/g, '');
+  if (nums.length !== 14) return false;
+  if (/^(\d)\1{13}$/.test(nums)) return false;
+  const pesos1 = [5,4,3,2,9,8,7,6,5,4,3,2];
+  const pesos2 = [6,5,4,3,2,9,8,7,6,5,4,3,2];
+  let soma = 0;
+  for (let i = 0; i < 12; i++) soma += parseInt(nums[i]) * pesos1[i];
+  let resto = soma % 11;
+  const dig1 = resto < 2 ? 0 : 11 - resto;
+  if (parseInt(nums[12]) !== dig1) return false;
+  soma = 0;
+  for (let i = 0; i < 13; i++) soma += parseInt(nums[i]) * pesos2[i];
+  resto = soma % 11;
+  const dig2 = resto < 2 ? 0 : 11 - resto;
+  return parseInt(nums[13]) === dig2;
+}
+
+function validarDocumento(value) {
+  const nums = (value || '').replace(/\D/g, '');
+  if (nums.length === 0) return true; // campo opcional, vazio é ok
+  if (nums.length <= 11) return validarCPF(nums);
+  return validarCNPJ(nums);
+}
+
 export default function NovoCliente() {
   const navigate = useNavigate();
   const [step, setStep] = useState(0);
@@ -115,6 +156,10 @@ export default function NovoCliente() {
       if (!form.nome.trim() || form.nome.trim().length < 3) return 'Nome é obrigatório (mínimo 3 caracteres)';
       if (!form.email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) return 'E-mail válido é obrigatório';
       if (form.telefone.replace(/\D/g, '').length < 10) return 'Telefone/WhatsApp é obrigatório';
+      if (!validarDocumento(form.cpf_cnpj)) {
+        const nums = form.cpf_cnpj.replace(/\D/g, '');
+        return nums.length <= 11 ? 'CPF inválido' : 'CNPJ inválido';
+      }
     }
     if (step === 2) {
       if (!form.nome_evento.trim()) return 'Nome do evento é obrigatório';
