@@ -35,9 +35,16 @@ export default function IntegracoesLogs() {
     if (!window.confirm('Tem certeza que deseja limpar todos os logs?')) return;
     setClearing(true);
     try {
-      await authFetch('/admin/integracoes/logs', { method: 'DELETE' });
-      setLogs([]);
-    } catch {} finally {
+      const res = await authFetch('/admin/integracoes/logs', { method: 'DELETE' });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setLogs([]);
+      } else {
+        alert(data.message || 'Erro ao limpar logs');
+      }
+    } catch (err) {
+      alert('Erro de conexão ao limpar logs');
+    } finally {
       setClearing(false);
     }
   };

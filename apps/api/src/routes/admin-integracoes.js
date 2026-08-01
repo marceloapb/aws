@@ -151,20 +151,45 @@ router.get('/logs', async (req, res) => {
 // DELETE /api/admin/integracoes/logs
 router.delete('/logs', async (req, res) => {
   try {
-    const { DeleteCommand } = require('@aws-sdk/lib-dynamodb');
-    const result = await dynamo.send(new QueryCommand({
-      TableName: TABLE,
-      IndexName: 'GSI1',
-      KeyConditionExpression: 'GSI1PK = :pk',
-      ExpressionAttributeValues: { ':pk': 'INTLOG' },
-    }));
+    const { BatchWriteCommand } = require('@aws-sdk/lib-dynamodb');
+    let totalRemovidos = 0;
+    let lastEvaluatedKey = undefined;
 
-    for (const item of (result.Items || [])) {
-      await dynamo.send(new DeleteCommand({ TableName: TABLE, Key: { PK: item.PK, SK: item.SK } }));
-    }
+    do {
+      const params = {
+        TableName: TABLE,
+        IndexName: 'GSI1',
+        KeyConditionExpression: 'GSI1PK = :pk',
+        ExpressionAttributeValues: { ':pk': 'INTLOG' },
+        ProjectionExpression: 'PK, SK',
+      };
+      if (lastEvaluatedKey) params.ExclusiveStartKey = lastEvaluatedKey;
 
-    res.json({ success: true, message: `${result.Items?.length || 0} logs removidos` });
+      const result = await dynamo.send(new QueryCommand(params));
+      const items = result.Items || [];
+      lastEvaluatedKey = result.LastEvaluatedKey;
+
+      // BatchWrite em lotes de 25 (limite do DynamoDB)
+      for (let i = 0; i < items.length; i += 25) {
+        const batch = items.slice(i, i + 25);
+        const deleteRequests = batch
+          .filter(item => item.PK && item.SK)
+          .map(item => ({
+            DeleteRequest: { Key: { PK: item.PK, SK: item.SK } },
+          }));
+
+        if (deleteRequests.length > 0) {
+          await dynamo.send(new BatchWriteCommand({
+            RequestItems: { [TABLE]: deleteRequests },
+          }));
+          totalRemovidos += deleteRequests.length;
+        }
+      }
+    } while (lastEvaluatedKey);
+
+    res.json({ success: true, message: `${totalRemovidos} logs removidos` });
   } catch (error) {
+    console.error('[INTEGRACOES] Erro ao limpar logs:', error.message);
     res.status(500).json({ success: false, message: error.message });
   }
 });
