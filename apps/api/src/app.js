@@ -95,7 +95,7 @@ app.use(express.json({ limit: '10mb' }));
 app.options('*', (req, res) => {
   res.header('Access-Control-Allow-Origin', req.headers.origin || '*');
   res.header('Access-Control-Allow-Methods', 'GET,POST,PUT,PATCH,DELETE,OPTIONS');
-  res.header('Access-Control-Allow-Headers', 'Content-Type,Authorization,X-Requested-With,X-Amz-Date,X-Api-Key');
+  res.header('Access-Control-Allow-Headers', 'Content-Type,Authorization,X-Requested-With,X-Amz-Date,X-Api-Key,X-Public-Token');
   res.header('Access-Control-Max-Age', '86400');
   res.status(204).send();
 });

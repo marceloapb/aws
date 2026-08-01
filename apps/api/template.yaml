@@ -74,6 +74,7 @@ Resources:
           - X-Requested-With
           - X-Amz-Date
           - X-Api-Key
+          - X-Public-Token
         MaxAge: 86400
       Auth:
         DefaultAuthorizer: CognitoAuthorizer
