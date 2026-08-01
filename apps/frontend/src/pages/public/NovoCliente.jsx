@@ -167,10 +167,34 @@ export default function NovoCliente() {
     return null;
   };
 
-  const nextStep = () => {
+  const [checking, setChecking] = useState(false);
+
+  const nextStep = async () => {
     const err = validateStep();
     if (err) { setError(err); return; }
     setError('');
+
+    // Early existence check on Step 1
+    if (step === 0) {
+      setChecking(true);
+      try {
+        const res = await fetch(`${API}/public/novo-cliente/verificar`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-Public-Token': PUBLIC_TOKEN },
+          body: JSON.stringify({ email: form.email, cpf_cnpj: form.cpf_cnpj }),
+        });
+        const data = await res.json();
+        if (!data.success) {
+          setError(data.message || 'Dados já cadastrados.');
+          setChecking(false);
+          return;
+        }
+      } catch {
+        // Se falhar a verificação, segue (validação final no submit)
+      }
+      setChecking(false);
+    }
+
     setStep(s => Math.min(s + 1, STEPS.length - 1));
   };
 
@@ -215,11 +239,14 @@ export default function NovoCliente() {
           <div className="w-16 h-16 rounded-full bg-green-100 flex items-center justify-center mx-auto">
             <Check size={32} className="text-green-600" />
           </div>
-          <h1 className="text-2xl font-bold text-gray-900">Cadastro realizado!</h1>
-          <p className="text-gray-600">{success.message}</p>
+          <h1 className="text-2xl font-bold text-gray-900">Tudo certo!</h1>
+          <p className="text-gray-600">Seu cadastro foi realizado e o orçamento foi enviado para análise.</p>
+          <p className="text-sm text-gray-500">{success.message}</p>
           <div className="bg-orange-50 border border-orange-200 rounded-xl p-4 text-sm text-orange-800">
-            <p className="font-medium mb-1">Próximo passo:</p>
-            <p>Você receberá uma senha temporária. No primeiro acesso, será necessário criar uma nova senha.</p>
+            <p className="font-medium mb-1">Próximos passos:</p>
+            <p>1. Você receberá uma <strong>senha temporária</strong> para acessar o portal do cliente.</p>
+            <p className="mt-1">2. No primeiro acesso, será necessário criar uma nova senha.</p>
+            <p className="mt-1">3. Seu orçamento será analisado e você receberá uma proposta em breve.</p>
           </div>
           <button onClick={() => navigate('/login')} className="w-full py-3 text-white font-medium rounded-xl transition-opacity hover:opacity-90" style={{ backgroundColor: ACCENT }}>
             Ir para Login
@@ -297,8 +324,8 @@ export default function NovoCliente() {
             </button>
           )}
           {step < STEPS.length - 1 ? (
-            <button onClick={nextStep} className="flex-1 flex items-center justify-center gap-1 py-3 text-white rounded-xl text-sm font-medium transition-opacity hover:opacity-90" style={{ backgroundColor: ACCENT }}>
-              Próximo <ChevronRight size={16} />
+            <button onClick={nextStep} disabled={checking} className="flex-1 flex items-center justify-center gap-1 py-3 text-white rounded-xl text-sm font-medium transition-opacity hover:opacity-90 disabled:opacity-50" style={{ backgroundColor: ACCENT }}>
+              {checking ? <><Loader2 size={16} className="animate-spin" /> Verificando...</> : <>Próximo <ChevronRight size={16} /></>}
             </button>
           ) : (
             <button onClick={handleSubmit} disabled={submitting} className="flex-1 flex items-center justify-center gap-1 py-3 text-white rounded-xl text-sm font-medium transition-opacity hover:opacity-90 disabled:opacity-50" style={{ backgroundColor: ACCENT }}>

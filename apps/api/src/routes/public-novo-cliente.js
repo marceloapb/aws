@@ -100,6 +100,44 @@ router.get('/catalogo', validateToken, async (req, res) => {
 });
 
 // ═══════════════════════════════════════════════════════════
+// POST /public/novo-cliente/verificar — Verifica se email/CPF já existe (early validation)
+// ═══════════════════════════════════════════════════════════
+router.post('/verificar', validateToken, async (req, res) => {
+  try {
+    const { email, cpf_cnpj } = req.body;
+
+    // Verificar email no Cognito
+    if (email) {
+      try {
+        await cognito.send(new AdminGetUserCommand({ UserPoolId: USER_POOL_ID, Username: email }));
+        return res.json({ success: false, code: 'EMAIL_EXISTS', message: 'Já existe um cadastro com este e-mail.' });
+      } catch (err) {
+        if (err.name !== 'UserNotFoundException') throw err;
+      }
+    }
+
+    // Verificar CPF/CNPJ no DynamoDB
+    const documentoLimpo = (cpf_cnpj || '').replace(/\D/g, '');
+    if (documentoLimpo.length >= 11) {
+      const docCheck = await dynamo.send(new QueryCommand({
+        TableName: TABLE,
+        IndexName: 'GSI1',
+        KeyConditionExpression: 'GSI1PK = :pk',
+        ExpressionAttributeValues: { ':pk': `DOC#${documentoLimpo}` },
+        Limit: 1,
+      }));
+      if (docCheck.Items && docCheck.Items.length > 0) {
+        return res.json({ success: false, code: 'CPF_EXISTS', message: 'Já existe um cadastro com este CPF/CNPJ.' });
+      }
+    }
+
+    res.json({ success: true, message: 'Disponível' });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Erro ao verificar dados.' });
+  }
+});
+
+// ═══════════════════════════════════════════════════════════
 // POST /public/novo-cliente — Cadastro completo + Orçamento + Senha temporária
 // ═══════════════════════════════════════════════════════════
 router.post('/', validateToken, async (req, res) => {
