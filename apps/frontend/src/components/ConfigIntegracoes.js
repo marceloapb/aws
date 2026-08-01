@@ -50,11 +50,26 @@ export default function ConfigIntegracoes({ form, setForm }) {
     } catch {} finally { setSyncing(false); }
   };
 
+  const [renewingToken, setRenewingToken] = useState(false);
+  const [renewMsg, setRenewMsg] = useState('');
+
   const handleRenewIgToken = async () => {
+    setRenewingToken(true);
+    setRenewMsg('');
     try {
-      await authFetch('/admin/instagram/renew-token', { method: 'POST' });
+      const res = await authFetch('/admin/instagram/renew-token', { method: 'POST' });
+      const data = await res.json();
+      if (data.success) {
+        setRenewMsg(data.message || 'Token renovado com sucesso!');
+      } else {
+        setRenewMsg(data.message || 'Erro ao renovar token.');
+      }
       await loadStatuses();
-    } catch {}
+    } catch {
+      setRenewMsg('Erro de conexão ao renovar token.');
+    }
+    setRenewingToken(false);
+    setTimeout(() => setRenewMsg(''), 5000);
   };
 
   const handleTest = async (integracao) => {
@@ -220,8 +235,24 @@ export default function ConfigIntegracoes({ form, setForm }) {
           </div>
 
           {/* Ações */}
-          <div className="pt-2 border-t flex items-center gap-3 flex-wrap">
-            <TestButton integracao="instagram" />
+          <div className="pt-2 border-t space-y-3">
+            <div className="flex items-center gap-3 flex-wrap">
+              <button
+                onClick={handleRenewIgToken}
+                disabled={renewingToken}
+                className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white rounded-lg hover:opacity-90 transition disabled:opacity-50"
+                style={{ backgroundColor: '#EA580C' }}
+              >
+                <RefreshCw size={14} className={renewingToken ? 'animate-spin' : ''} />
+                {renewingToken ? 'Renovando...' : 'Renovar Token'}
+              </button>
+              <TestButton integracao="instagram" />
+            </div>
+            {renewMsg && (
+              <p className={`text-sm px-3 py-2 rounded-lg ${renewMsg.includes('sucesso') ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-red-50 text-red-700 border border-red-200'}`}>
+                {renewMsg}
+              </p>
+            )}
           </div>
           {testResult?.integracao === 'instagram' && <TestResultBanner />}
         </div>
