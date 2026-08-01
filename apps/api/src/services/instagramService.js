@@ -5,8 +5,8 @@
 const { env } = require('../config/env');
 const { getSignedDownloadUrl } = require('./s3Service');
 
-// Instagram API uses graph.instagram.com for IG tokens (IGAG... format)
-const getBaseUrl = () => `https://graph.instagram.com/v18.0/${env.INSTAGRAM_BUSINESS_ACCOUNT_ID}`;
+// Instagram Content Publishing API uses graph.facebook.com with EAA tokens
+const getBaseUrl = () => `https://graph.facebook.com/v18.0/${env.INSTAGRAM_BUSINESS_ACCOUNT_ID}`;
 const TIMEOUT_MS = 30000;
 const POLL_INTERVAL_MS = 5000;
 const MAX_POLL_ATTEMPTS = 30;
@@ -120,7 +120,7 @@ async function publicarCarrossel(s3Keys, caption) {
 
 async function aguardarProcessamento(containerId) {
   for (let i = 0; i < MAX_POLL_ATTEMPTS; i++) {
-    const response = await fetch(`https://graph.instagram.com/v18.0/${containerId}?fields=status_code&access_token=${env.INSTAGRAM_ACCESS_TOKEN}`, {
+    const response = await fetch(`https://graph.facebook.com/v18.0/${containerId}?fields=status_code&access_token=${env.INSTAGRAM_ACCESS_TOKEN}`, {
       signal: AbortSignal.timeout(TIMEOUT_MS),
     });
 
@@ -135,7 +135,7 @@ async function aguardarProcessamento(containerId) {
 
 async function buscarPermalink(mediaId) {
   try {
-    const response = await fetch(`https://graph.instagram.com/v18.0/${mediaId}?fields=permalink&access_token=${env.INSTAGRAM_ACCESS_TOKEN}`, {
+    const response = await fetch(`https://graph.facebook.com/v18.0/${mediaId}?fields=permalink&access_token=${env.INSTAGRAM_ACCESS_TOKEN}`, {
       signal: AbortSignal.timeout(TIMEOUT_MS),
     });
     const data = await response.json();

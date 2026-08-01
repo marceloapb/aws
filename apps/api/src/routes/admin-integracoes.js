@@ -73,7 +73,7 @@ router.post('/test/instagram', async (req, res) => {
     }
 
     const response = await fetch(
-      `https://graph.instagram.com/v18.0/${params.INSTAGRAM_BUSINESS_ACCOUNT_ID}?fields=username,account_type,media_count&access_token=${params.INSTAGRAM_ACCESS_TOKEN}`,
+      `https://graph.facebook.com/v18.0/${params.INSTAGRAM_BUSINESS_ACCOUNT_ID}?fields=username,media_count,name&access_token=${params.INSTAGRAM_ACCESS_TOKEN}`,
       { signal: AbortSignal.timeout(10000) }
     );
     const data = await response.json();
