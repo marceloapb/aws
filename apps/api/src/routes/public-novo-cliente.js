@@ -288,7 +288,7 @@ router.post('/', validateToken, async (req, res) => {
     // ─── Criar orçamento ───
     const orcamentoId = uuid();
     const orcamentoItem = {
-      PK: `CLIENT#${clienteId}`,
+      PK: `CLIENTE#${clienteId}`,
       SK: `ORCAMENTO#${orcamentoId}`,
       GSI1PK: 'ORCAMENTO',
       GSI1SK: `ORCAMENTO#${now}`,
