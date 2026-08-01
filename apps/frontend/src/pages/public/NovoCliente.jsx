@@ -54,7 +54,22 @@ export default function NovoCliente() {
     observacoes: '',
   });
 
-  const logoUrl = typeof window !== 'undefined' ? localStorage.getItem('mbf_logo_url') : null;
+  const [logoUrl, setLogoUrl] = useState(() => typeof window !== 'undefined' ? localStorage.getItem('mbf_logo_url') : null);
+
+  useEffect(() => {
+    // Buscar logo da API se não tiver em cache
+    if (!logoUrl) {
+      fetch(`${API}/public/site/config`)
+        .then(r => r.json())
+        .then(json => {
+          if (json.success && json.data) {
+            const logo = json.data.logo_url || json.data.logo_dark_url;
+            if (logo) { setLogoUrl(logo); localStorage.setItem('mbf_logo_url', logo); }
+          }
+        })
+        .catch(() => {});
+    }
+  }, []);
 
   useEffect(() => {
     fetch(`${API}/public/novo-cliente/catalogo`, { headers: { 'X-Public-Token': PUBLIC_TOKEN } })
@@ -177,7 +192,7 @@ export default function NovoCliente() {
         {logoUrl ? (
           <img src={logoUrl} alt="Logo" className="h-10 object-contain" />
         ) : (
-          <h1 className="text-xl font-bold" style={{ color: ACCENT }}>MBFoto</h1>
+          <div className="h-10" />
         )}
       </header>
 
