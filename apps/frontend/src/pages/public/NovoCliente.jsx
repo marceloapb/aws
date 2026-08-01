@@ -156,13 +156,29 @@ export default function NovoCliente() {
       if (!form.nome.trim() || form.nome.trim().length < 3) return 'Nome é obrigatório (mínimo 3 caracteres)';
       if (!form.email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) return 'E-mail válido é obrigatório';
       if (form.telefone.replace(/\D/g, '').length < 10) return 'Telefone/WhatsApp é obrigatório';
+      const cpfNums = form.cpf_cnpj.replace(/\D/g, '');
+      if (!cpfNums || (cpfNums.length !== 11 && cpfNums.length !== 14)) return 'CPF ou CNPJ é obrigatório';
       if (!validarDocumento(form.cpf_cnpj)) {
-        const nums = form.cpf_cnpj.replace(/\D/g, '');
-        return nums.length <= 11 ? 'CPF inválido' : 'CNPJ inválido';
+        return cpfNums.length <= 11 ? 'CPF inválido' : 'CNPJ inválido';
       }
+    }
+    if (step === 1) {
+      if (form.endereco_cep.replace(/\D/g, '').length < 8) return 'CEP é obrigatório';
+      if (!form.endereco_numero.trim()) return 'Número é obrigatório';
     }
     if (step === 2) {
       if (!form.nome_evento.trim()) return 'Nome do evento é obrigatório';
+      if (!form.data_evento) return 'Data prevista é obrigatória';
+      if (!form.horario_inicio) return 'Horário de início é obrigatório';
+      if (!form.horario_fim) return 'Horário de término é obrigatório';
+    }
+    if (step === 3) {
+      if (form.servicos_selecionados.length === 0 && !form.pacote_id) return 'Selecione pelo menos 1 serviço ou pacote';
+    }
+    if (step === 4) {
+      if (!form.local_nome.trim()) return 'Nome do local é obrigatório';
+      if (form.local_cep.replace(/\D/g, '').length < 8) return 'CEP do local é obrigatório';
+      if (!form.local_numero.trim()) return 'Número do local é obrigatório';
     }
     return null;
   };
@@ -349,7 +365,7 @@ function Step1({ form, update }) {
       <Field label="Nome completo *" value={form.nome} onChange={v => update('nome', v)} placeholder="Seu nome completo" />
       <Field label="E-mail *" type="email" value={form.email} onChange={v => update('email', v)} placeholder="seu@email.com" />
       <Field label="Telefone / WhatsApp *" value={form.telefone} onChange={v => update('telefone', formatTelefone(v))} placeholder="(11) 99999-9999" inputMode="numeric" />
-      <Field label="CPF / CNPJ" value={form.cpf_cnpj} onChange={v => update('cpf_cnpj', formatCPF_CNPJ(v))} placeholder="000.000.000-00" inputMode="numeric" />
+      <Field label="CPF / CNPJ *" value={form.cpf_cnpj} onChange={v => update('cpf_cnpj', formatCPF_CNPJ(v))} placeholder="000.000.000-00" inputMode="numeric" />
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-1">Instagram</label>
         <div className="relative">
@@ -365,11 +381,11 @@ function Step1({ form, update }) {
 function Step2({ form, update, onCepChange }) {
   return (
     <div className="space-y-4">
-      <p className="text-sm text-gray-500">Seu endereço pessoal (opcional, mas ajuda no contrato).</p>
-      <Field label="CEP" value={form.endereco_cep} onChange={v => onCepChange(v)} placeholder="00000-000" inputMode="numeric" maxLength={9} />
+      <p className="text-sm text-gray-500">Seu endereço pessoal (necessário para o contrato).</p>
+      <Field label="CEP *" value={form.endereco_cep} onChange={v => onCepChange(v)} placeholder="00000-000" inputMode="numeric" maxLength={9} />
       <Field label="Rua" value={form.endereco_rua} onChange={v => update('endereco_rua', v)} placeholder="Rua, Av, etc." />
       <div className="grid grid-cols-3 gap-3">
-        <Field label="Número" value={form.endereco_numero} onChange={v => update('endereco_numero', v)} placeholder="123" />
+        <Field label="Número *" value={form.endereco_numero} onChange={v => update('endereco_numero', v)} placeholder="123" />
         <div className="col-span-2">
           <Field label="Complemento" value={form.endereco_complemento} onChange={v => update('endereco_complemento', v)} placeholder="Apto, bloco..." />
         </div>
@@ -398,10 +414,10 @@ function Step3({ form, update }) {
         </select>
       </div>
       <Field label="Nome do Evento *" value={form.nome_evento} onChange={v => update('nome_evento', v)} placeholder="Ex: Casamento João e Maria" />
-      <Field label="Data prevista" type="date" value={form.data_evento} onChange={v => update('data_evento', v)} />
+      <Field label="Data prevista *" type="date" value={form.data_evento} onChange={v => update('data_evento', v)} />
       <div className="grid grid-cols-2 gap-3">
-        <Field label="Horário início" type="time" value={form.horario_inicio} onChange={v => update('horario_inicio', v)} />
-        <Field label="Horário término" type="time" value={form.horario_fim} onChange={v => update('horario_fim', v)} />
+        <Field label="Horário início *" type="time" value={form.horario_inicio} onChange={v => update('horario_inicio', v)} />
+        <Field label="Horário término *" type="time" value={form.horario_fim} onChange={v => update('horario_fim', v)} />
       </div>
     </div>
   );
@@ -417,7 +433,7 @@ function Step4({ form, update, catalogo }) {
 
   return (
     <div className="space-y-6">
-      <p className="text-sm text-gray-500">Selecione o pacote e serviços desejados.</p>
+      <p className="text-sm text-gray-500">Selecione pelo menos 1 pacote ou serviço desejado. *</p>
 
       {/* Pacotes */}
       {pacotes.length > 0 && (
@@ -482,12 +498,12 @@ function Step4({ form, update, catalogo }) {
 function Step5({ form, update, onCepChange }) {
   return (
     <div className="space-y-4">
-      <p className="text-sm text-gray-500">Onde será o evento? (opcional)</p>
-      <Field label="Nome do Local" value={form.local_nome} onChange={v => update('local_nome', v)} placeholder="Ex: Espaço das Flores" />
-      <Field label="CEP" value={form.local_cep} onChange={v => onCepChange(v)} placeholder="00000-000" inputMode="numeric" maxLength={9} />
+      <p className="text-sm text-gray-500">Onde será o evento?</p>
+      <Field label="Nome do Local *" value={form.local_nome} onChange={v => update('local_nome', v)} placeholder="Ex: Espaço das Flores" />
+      <Field label="CEP *" value={form.local_cep} onChange={v => onCepChange(v)} placeholder="00000-000" inputMode="numeric" maxLength={9} />
       <Field label="Logradouro" value={form.local_logradouro} onChange={v => update('local_logradouro', v)} placeholder="Rua, Av, etc." />
       <div className="grid grid-cols-3 gap-3">
-        <Field label="Número" value={form.local_numero} onChange={v => update('local_numero', v)} placeholder="123" />
+        <Field label="Número *" value={form.local_numero} onChange={v => update('local_numero', v)} placeholder="123" />
         <div className="col-span-2">
           <Field label="Complemento" value={form.local_complemento} onChange={v => update('local_complemento', v)} placeholder="Salão, bloco..." />
         </div>
