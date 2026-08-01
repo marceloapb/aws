@@ -90,4 +90,84 @@ async function enviarWhatsApp({ numero, template, parametros = [], components = 
   };
 }
 
-module.exports = { enviarWhatsApp };
+/**
+ * Envia template WhatsApp com mídia no header (imagem, vídeo ou documento)
+ * Monta automaticamente os components no formato correto da Meta API
+ *
+ * @param {Object} opts
+ * @param {string} opts.numero - Número do destinatário
+ * @param {string} opts.template - Nome do template aprovado na Meta
+ * @param {'image'|'video'|'document'} opts.mediaType - Tipo de mídia do header
+ * @param {string} opts.mediaUrl - URL pública da mídia (S3, CDN, etc)
+ * @param {string} [opts.filename] - Nome do arquivo (apenas para document)
+ * @param {string[]} [opts.parametrosBody] - Parâmetros de texto para o body
+ * @param {Array<{sub_type?: string, payload?: string, url?: string, text?: string}>} [opts.botoes] - Botões
+ * @param {string} [opts.categoria] - Categoria para custos: 'marketing' | 'utility' (default: 'marketing')
+ * @returns {Promise<Object>}
+ */
+async function enviarWhatsAppComMidia({ numero, template, mediaType, mediaUrl, filename, parametrosBody = [], botoes = [], categoria = 'marketing' }) {
+  if (!numero) throw new Error('numero é obrigatório');
+  if (!template) throw new Error('template é obrigatório');
+  if (!mediaUrl) throw new Error('mediaUrl é obrigatório');
+  if (!['image', 'video', 'document'].includes(mediaType)) {
+    throw new Error('mediaType deve ser: image, video ou document');
+  }
+
+  // Montar components
+  const components = [];
+
+  // Header com mídia
+  const headerParam = { type: mediaType };
+  headerParam[mediaType] = { link: mediaUrl };
+  if (mediaType === 'document' && filename) {
+    headerParam[mediaType].filename = filename;
+  }
+  components.push({
+    type: 'header',
+    parameters: [headerParam],
+  });
+
+  // Body com parâmetros de texto
+  if (parametrosBody.length > 0) {
+    components.push({
+      type: 'body',
+      parameters: parametrosBody.map(p => ({ type: 'text', text: String(p) })),
+    });
+  }
+
+  // Botões
+  for (let i = 0; i < botoes.length; i++) {
+    const btn = botoes[i];
+    const btnComponent = {
+      type: 'button',
+      sub_type: btn.sub_type || 'quick_reply',
+      index: String(i),
+    };
+
+    if (btn.sub_type === 'url' && btn.url) {
+      btnComponent.parameters = [{ type: 'text', text: btn.url }];
+    } else {
+      btnComponent.parameters = [{ type: 'payload', payload: btn.payload || btn.text || `btn_${i}` }];
+    }
+
+    components.push(btnComponent);
+  }
+
+  const result = await whatsappClient.enviarTemplate({
+    telefone: numero,
+    template_name: template,
+    language: 'pt_BR',
+    components,
+  });
+
+  // Registrar envio com categoria correta (marketing custa mais)
+  await registrarEnvio(result.phone || numero.replace(/\D/g, ''), template, result.message_id, categoria);
+
+  return {
+    success: true,
+    message_id: result.message_id,
+    numero: result.phone,
+  };
+}
+
+module.exports = { enviarWhatsApp, enviarWhatsAppComMidia };

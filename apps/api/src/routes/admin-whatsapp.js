@@ -1,5 +1,5 @@
 const { Router } = require('express');
-const { enviarTemplate, enviarNotificacaoOrcamento, enviarNotificacaoAlbum } = require('../services/whatsappService');
+const { enviarTemplate, enviarTemplateComImagem, enviarTemplateComVideo, enviarTemplateComDocumento, enviarNotificacaoOrcamento, enviarNotificacaoAlbum } = require('../services/whatsappService');
 const { dynamo, TABLE } = require('../config/dynamodb');
 const { QueryCommand, ScanCommand, PutCommand, UpdateCommand } = require('@aws-sdk/lib-dynamodb');
 
@@ -13,6 +13,61 @@ router.post('/enviar-template', async (req, res) => {
     const resultado = await enviarTemplate(numero, template, parametros || []);
     res.json({ success: true, data: resultado });
   } catch (error) {
+    res.status(400).json({ success: false, message: error.message });
+  }
+});
+
+// POST /api/admin/whatsapp/enviar-template-midia
+// Envia template com mídia no header (imagem, vídeo ou documento)
+// Body: { numero, template, media_type, media_url, filename?, parametros_body?, botoes?, categoria? }
+router.post('/enviar-template-midia', async (req, res) => {
+  try {
+    const { numero, template, media_type, media_url, filename, parametros_body, botoes, categoria } = req.body;
+
+    if (!numero || !template) {
+      return res.status(400).json({ success: false, message: 'numero e template são obrigatórios' });
+    }
+    if (!media_url) {
+      return res.status(400).json({ success: false, message: 'media_url é obrigatório (URL pública da imagem/vídeo/documento)' });
+    }
+    if (!media_type || !['image', 'video', 'document'].includes(media_type)) {
+      return res.status(400).json({ success: false, message: 'media_type é obrigatório e deve ser: image, video ou document' });
+    }
+
+    let resultado;
+
+    if (media_type === 'image') {
+      resultado = await enviarTemplateComImagem(numero, template, media_url, parametros_body || [], botoes || []);
+    } else if (media_type === 'video') {
+      resultado = await enviarTemplateComVideo(numero, template, media_url, parametros_body || [], botoes || []);
+    } else if (media_type === 'document') {
+      resultado = await enviarTemplateComDocumento(numero, template, media_url, filename || 'documento.pdf', parametros_body || [], botoes || []);
+    }
+
+    // Registrar envio no DynamoDB para histórico/custos
+    const phone = numero.replace(/\D/g, '');
+    const now = new Date();
+    await dynamo.send(new PutCommand({
+      TableName: TABLE,
+      Item: {
+        PK: `WHATSAPP#${phone.startsWith('55') ? phone : '55' + phone}`,
+        SK: `OUT#${now.toISOString()}#${resultado.message_id || Date.now()}`,
+        type: 'template',
+        templateNome: template,
+        categoria: categoria || 'marketing',
+        mediaType: media_type,
+        mediaUrl: media_url,
+        status: 'enviado',
+        messageId: resultado.message_id || null,
+        origem: 'admin',
+        createdAt: now.toISOString(),
+        timestamp: Math.floor(now.getTime() / 1000).toString(),
+      },
+    }));
+
+    res.json({ success: true, data: resultado });
+  } catch (error) {
+    console.error('[WHATSAPP] Erro ao enviar template com mídia:', error.message);
     res.status(400).json({ success: false, message: error.message });
   }
 });
@@ -196,6 +251,7 @@ router.get('/templates', async (req, res) => {
 
     // Mapear para formato do frontend
     const templates = (result.data || []).map(t => {
+      const headerComp = t.components?.find(c => c.type === 'HEADER');
       const bodyComp = t.components?.find(c => c.type === 'BODY');
       const footerComp = t.components?.find(c => c.type === 'FOOTER');
       const buttonsComp = t.components?.find(c => c.type === 'BUTTONS');
@@ -208,12 +264,20 @@ router.get('/templates', async (req, res) => {
         exemplo: bodyComp?.example?.body_text?.[0]?.[i] || '',
       }));
 
+      // Header info
+      const headerInfo = headerComp ? {
+        tipo: headerComp.format?.toLowerCase() || 'text', // text, image, video, document
+        texto: headerComp.text || null,
+        exemplo_url: headerComp.example?.header_handle?.[0] || headerComp.example?.header_url?.[0] || null,
+      } : null;
+
       return {
         id: t.id,
         nome: t.name,
         status: t.status === 'APPROVED' ? 'aprovado' : t.status === 'PENDING' ? 'pendente' : t.status === 'REJECTED' ? 'rejeitado' : t.status?.toLowerCase(),
         categoria: t.category?.toLowerCase(),
         idioma: t.language,
+        header: headerInfo,
         corpo: bodyComp?.text || '(gerado automaticamente pela Meta)',
         footer: footerComp?.text || '',
         botoes: buttonsComp?.buttons || [],
@@ -239,7 +303,7 @@ router.post('/templates', async (req, res) => {
 
     if (!token) return res.status(400).json({ success: false, message: 'Token WhatsApp não configurado' });
 
-    const { nome, categoria, idioma, corpo, variaveis, header } = req.body;
+    const { nome, categoria, idioma, corpo, variaveis, header, header_type, header_example_url } = req.body;
 
     if (!nome || !corpo) {
       return res.status(400).json({ success: false, message: 'Nome e corpo são obrigatórios' });
@@ -248,8 +312,15 @@ router.post('/templates', async (req, res) => {
     // Montar components
     const components = [];
 
-    // Header (opcional)
-    if (header) {
+    // Header (opcional) — suporta TEXT, IMAGE, VIDEO, DOCUMENT
+    if (header_type && ['IMAGE', 'VIDEO', 'DOCUMENT'].includes(header_type.toUpperCase())) {
+      const headerComp = { type: 'HEADER', format: header_type.toUpperCase() };
+      // A Meta exige um exemplo de mídia ao criar template com header de mídia
+      if (header_example_url) {
+        headerComp.example = { header_handle: [header_example_url] };
+      }
+      components.push(headerComp);
+    } else if (header) {
       components.push({ type: 'HEADER', format: 'TEXT', text: header });
     }
 
