@@ -1,13 +1,15 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { X, ChevronLeft, ChevronRight, ArrowLeft } from 'lucide-react';
 
 const API = process.env.REACT_APP_API_URL || '';
+const PAGE_SIZE = 20;
+const TARGET_ROW_HEIGHT = 280;
 
 // Protected image component - prevents download/save
-function ProtectedImg({ src, alt, className }) {
+function ProtectedImg({ src, alt, className, style }) {
   return (
-    <div className="relative select-none" style={{ WebkitTouchCallout: 'none' }}>
+    <div className="relative select-none h-full" style={{ WebkitTouchCallout: 'none' }}>
       <img
         src={src}
         alt={alt}
@@ -16,8 +18,8 @@ function ProtectedImg({ src, alt, className }) {
         onContextMenu={e => e.preventDefault()}
         onDragStart={e => e.preventDefault()}
         className={`${className} pointer-events-none`}
+        style={style}
       />
-      {/* Transparent overlay to block right-click save */}
       <div
         className="absolute inset-0 z-10"
         onContextMenu={e => e.preventDefault()}
@@ -27,19 +29,68 @@ function ProtectedImg({ src, alt, className }) {
   );
 }
 
+// Justified rows layout calculator
+function calculateJustifiedRows(photos, containerWidth, targetHeight = TARGET_ROW_HEIGHT, gap = 6) {
+  if (!containerWidth || photos.length === 0) return [];
+
+  const rows = [];
+  let currentRow = [];
+  let currentRowWidth = 0;
+
+  for (const photo of photos) {
+    const aspectRatio = (photo.width || 1600) / (photo.height || 1200);
+    const scaledWidth = targetHeight * aspectRatio;
+    currentRow.push({ ...photo, aspectRatio, scaledWidth });
+    currentRowWidth += scaledWidth;
+
+    const totalGaps = (currentRow.length - 1) * gap;
+    if (currentRowWidth + totalGaps >= containerWidth) {
+      // Row is full — justify it
+      const rowHeight = (containerWidth - totalGaps) / currentRow.reduce((sum, p) => sum + p.aspectRatio, 0);
+      rows.push({
+        height: rowHeight,
+        photos: currentRow.map(p => ({
+          ...p,
+          displayWidth: rowHeight * p.aspectRatio,
+          displayHeight: rowHeight,
+        })),
+      });
+      currentRow = [];
+      currentRowWidth = 0;
+    }
+  }
+
+  // Last row (don't stretch if incomplete)
+  if (currentRow.length > 0) {
+    const rowHeight = Math.min(targetHeight, (containerWidth - (currentRow.length - 1) * gap) / currentRow.reduce((sum, p) => sum + p.aspectRatio, 0));
+    rows.push({
+      height: rowHeight,
+      photos: currentRow.map(p => ({
+        ...p,
+        displayWidth: rowHeight * p.aspectRatio,
+        displayHeight: rowHeight,
+      })),
+    });
+  }
+
+  return rows;
+}
+
 export default function PortfolioGaleria() {
   const { categoriaId } = useParams();
   const [categoria, setCategoria] = useState(null);
   const [fotos, setFotos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [lightbox, setLightbox] = useState(null);
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+  const [containerWidth, setContainerWidth] = useState(0);
+  const containerRef = useRef(null);
+  const loaderRef = useRef(null);
 
-  // Protection: block right-click, Ctrl+S, Ctrl+P, PrintScreen on this page
+  // Protection: block right-click, Ctrl+S, Ctrl+P, PrintScreen
   useEffect(() => {
     const blockContext = (e) => e.preventDefault();
     const blockKeys = (e) => {
-      // Block Ctrl+S (save), Ctrl+P (print), Ctrl+U (view source), 
-      // Ctrl+Shift+I (devtools), Ctrl+Shift+J (console), PrintScreen, F12
       if ((e.ctrlKey && (e.key === 's' || e.key === 'p' || e.key === 'u')) ||
           (e.ctrlKey && e.shiftKey && (e.key === 'i' || e.key === 'I' || e.key === 'j' || e.key === 'J' || e.key === 'c' || e.key === 'C')) ||
           e.key === 'PrintScreen' || e.key === 'F12') {
@@ -50,29 +101,45 @@ export default function PortfolioGaleria() {
     };
     const blockDrag = (e) => e.preventDefault();
     const blockCopy = (e) => e.preventDefault();
-    
+
     document.addEventListener('contextmenu', blockContext);
     document.addEventListener('keydown', blockKeys);
     document.addEventListener('dragstart', blockDrag);
     document.addEventListener('copy', blockCopy);
-    
-    // Block devtools open detection
-    const devtoolsCheck = setInterval(() => {
-      const widthThreshold = window.outerWidth - window.innerWidth > 160;
-      const heightThreshold = window.outerHeight - window.innerHeight > 160;
-      if (widthThreshold || heightThreshold) {
-        document.body.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100vh;background:#000;color:#666;font-size:1.2rem;">Conteúdo protegido</div>';
-      }
-    }, 1000);
-    
+
     return () => {
       document.removeEventListener('contextmenu', blockContext);
       document.removeEventListener('keydown', blockKeys);
       document.removeEventListener('dragstart', blockDrag);
       document.removeEventListener('copy', blockCopy);
-      clearInterval(devtoolsCheck);
     };
   }, []);
+
+  // Measure container width
+  useEffect(() => {
+    if (!containerRef.current) return;
+    const ro = new ResizeObserver(entries => {
+      for (const entry of entries) setContainerWidth(entry.contentRect.width);
+    });
+    ro.observe(containerRef.current);
+    setContainerWidth(containerRef.current.clientWidth);
+    return () => ro.disconnect();
+  }, [loading]);
+
+  // Infinite scroll
+  useEffect(() => {
+    if (!loaderRef.current) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && visibleCount < fotos.length) {
+          setVisibleCount(prev => Math.min(prev + PAGE_SIZE, fotos.length));
+        }
+      },
+      { threshold: 0.1 }
+    );
+    observer.observe(loaderRef.current);
+    return () => observer.disconnect();
+  }, [visibleCount, fotos.length]);
 
   useEffect(() => {
     fetch(`${API}/public/portfolio`)
@@ -124,14 +191,29 @@ export default function PortfolioGaleria() {
     return () => { document.body.style.overflow = ''; };
   }, [lightbox]);
 
+  // Calculate justified rows for visible photos
+  const fotosVisiveis = fotos.slice(0, visibleCount);
+  const rows = calculateJustifiedRows(fotosVisiveis, containerWidth, TARGET_ROW_HEIGHT, 6);
+
+  // Map visible photo index to global index for lightbox
+  const getGlobalIndex = (rowIdx, photoIdx) => {
+    let count = 0;
+    for (let r = 0; r < rowIdx; r++) count += rows[r].photos.length;
+    return count + photoIdx;
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-stone-950 py-16">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6">
           <div className="h-8 w-48 bg-stone-800 rounded animate-pulse mb-8" />
-          <div className="columns-2 md:columns-3 gap-2">
-            {Array.from({ length: 9 }).map((_, i) => (
-              <div key={i} className="mb-2 bg-stone-900 rounded-lg animate-pulse" style={{ height: `${180 + (i % 3) * 60}px` }} />
+          <div className="space-y-2">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="flex gap-1.5">
+                {Array.from({ length: 3 + (i % 2) }).map((_, j) => (
+                  <div key={j} className="bg-stone-900 rounded animate-pulse" style={{ height: '200px', flex: `${1 + (j % 2) * 0.5}` }} />
+                ))}
+              </div>
             ))}
           </div>
         </div>
@@ -159,7 +241,6 @@ export default function PortfolioGaleria() {
         @media print { 
           .portfolio-protected { display: none !important; }
           body { display: none !important; }
-          html { display: none !important; }
         }
         .portfolio-protected img { 
           -webkit-user-drag: none; 
@@ -173,65 +254,82 @@ export default function PortfolioGaleria() {
           -ms-user-select: none;
           user-select: none;
         }
-        /* Invisible watermark overlay */
-        .photo-shield::after {
-          content: '';
-          position: absolute;
-          inset: 0;
-          z-index: 20;
-          background: transparent;
-          pointer-events: auto;
+        .photo-item {
+          transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        .photo-item:hover {
+          transform: scale(1.02);
+          box-shadow: 0 8px 30px rgba(234, 88, 12, 0.15);
+          z-index: 5;
         }
       `}</style>
 
       <div className="portfolio-protected">
         {/* Header with back link */}
-        <section className="py-12 sm:py-16">
-          <div className="max-w-6xl mx-auto px-4 sm:px-6">
+        <section className="py-10 sm:py-14">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6">
             <Link
               to="/portfolio"
-              className="inline-flex items-center gap-2 text-stone-400 hover:text-[#EA580C] transition-colors mb-6 text-sm font-medium"
+              className="inline-flex items-center gap-2 text-stone-400 hover:text-[#EA580C] transition-colors mb-5 text-sm font-medium"
             >
               <ArrowLeft size={16} />
               Voltar ao Portfólio
             </Link>
-            <h1 className="text-2xl sm:text-3xl font-bold text-stone-50 mb-2">
+            <h1 className="text-2xl sm:text-3xl font-bold text-stone-50 mb-1">
               {categoria.nome}
             </h1>
             {categoria.texto && (
-              <p className="text-stone-400 max-w-2xl">{categoria.texto}</p>
+              <p className="text-stone-400 max-w-2xl text-sm">{categoria.texto}</p>
             )}
+            <p className="text-stone-600 text-xs mt-2">{fotos.length} fotos</p>
           </div>
         </section>
 
-        {/* Photo Grid - Masonry */}
+        {/* Photo Grid - Justified Rows with Infinite Scroll */}
         <section className="pb-16">
-          <div className="max-w-6xl mx-auto px-4 sm:px-6">
+          <div ref={containerRef} className="max-w-7xl mx-auto px-4 sm:px-6">
             {fotos.length === 0 ? (
               <p className="text-center text-stone-500 py-12">Nenhuma foto nesta galeria ainda.</p>
             ) : (
-              <div className="columns-2 md:columns-3 gap-2">
-                {fotos.map((foto, idx) => (
-                  <button
-                    key={foto.id || idx}
-                    onClick={() => openLightbox(idx)}
-                    className="photo-shield group relative w-full mb-2 overflow-hidden bg-stone-900 block break-inside-avoid focus:outline-none focus:ring-2 focus:ring-[#EA580C]"
-                    style={{ border: '3px solid #EA580C', borderRadius: '10px' }}
-                    onContextMenu={e => e.preventDefault()}
-                  >
-                    <ProtectedImg
-                      src={foto.url || foto.thumb_url}
-                      alt={foto.titulo || ''}
-                      className="w-full h-auto object-cover transition-transform duration-500 group-hover:scale-105"
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-                    {foto.titulo && (
-                      <span className="absolute bottom-3 left-3 right-3 text-sm text-white font-medium opacity-0 group-hover:opacity-100 transition-opacity truncate">
-                        {foto.titulo}
-                      </span>
-                    )}
-                  </button>
+              <div className="space-y-1.5">
+                {rows.map((row, rowIdx) => (
+                  <div key={rowIdx} className="flex gap-1.5" style={{ height: row.height }}>
+                    {row.photos.map((photo, photoIdx) => (
+                      <button
+                        key={photo.id || `${rowIdx}-${photoIdx}`}
+                        onClick={() => openLightbox(getGlobalIndex(rowIdx, photoIdx))}
+                        className="photo-item relative overflow-hidden rounded-sm bg-stone-900 block focus:outline-none"
+                        style={{ width: photo.displayWidth, height: photo.displayHeight, flexShrink: 0 }}
+                        onContextMenu={e => e.preventDefault()}
+                      >
+                        <ProtectedImg
+                          src={photo.url || photo.thumb_url}
+                          alt={photo.titulo || ''}
+                          className="w-full h-full object-cover"
+                          style={{ width: '100%', height: '100%' }}
+                        />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent opacity-0 hover:opacity-100 transition-opacity duration-300" />
+                      </button>
+                    ))}
+                  </div>
                 ))}
+              </div>
+            )}
+
+            {/* Infinite scroll trigger */}
+            {visibleCount < fotos.length && (
+              <div ref={loaderRef} className="flex justify-center py-10">
+                <div className="flex items-center gap-3">
+                  <div className="w-5 h-5 border-2 border-[#EA580C]/30 border-t-[#EA580C] rounded-full animate-spin" />
+                  <span className="text-stone-500 text-sm">Carregando mais fotos...</span>
+                </div>
+              </div>
+            )}
+
+            {/* Photo count at bottom */}
+            {visibleCount >= fotos.length && fotos.length > 0 && (
+              <div className="text-center py-8">
+                <span className="text-stone-600 text-xs">{fotos.length} fotos</span>
               </div>
             )}
           </div>
@@ -240,7 +338,6 @@ export default function PortfolioGaleria() {
         {/* Lightbox */}
         {lightbox !== null && fotos[lightbox] && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/95">
-            {/* Close button */}
             <button
               onClick={closeLightbox}
               className="absolute top-4 right-4 z-10 w-10 h-10 rounded-full bg-stone-800/80 flex items-center justify-center text-stone-300 hover:text-white transition-colors"
@@ -249,7 +346,6 @@ export default function PortfolioGaleria() {
               <X size={24} />
             </button>
 
-            {/* Prev */}
             {fotos.length > 1 && (
               <button
                 onClick={prevPhoto}
@@ -260,14 +356,12 @@ export default function PortfolioGaleria() {
               </button>
             )}
 
-            {/* Image */}
             <ProtectedImg
               src={fotos[lightbox].url_full || fotos[lightbox].url || fotos[lightbox].thumb_url}
               alt={fotos[lightbox].titulo || ''}
               className="max-w-[90vw] max-h-[85vh] object-contain rounded-lg"
             />
 
-            {/* Next */}
             {fotos.length > 1 && (
               <button
                 onClick={nextPhoto}
@@ -278,8 +372,7 @@ export default function PortfolioGaleria() {
               </button>
             )}
 
-            {/* Counter */}
-            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 text-stone-400 text-sm">
+            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 text-stone-400 text-sm bg-black/60 px-3 py-1.5 rounded-full backdrop-blur-sm">
               {lightbox + 1} / {fotos.length}
             </div>
           </div>
