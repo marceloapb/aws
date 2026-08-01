@@ -294,7 +294,10 @@ router.post('/', validateToken, async (req, res) => {
       await whatsapp.enviarTemplate({
         telefone: telefoneLimpo,
         template_name: 'mbfoto_codigo_verificacao',
-        parameters: [nome.trim(), tempPass, 'MBFoto'],
+        components: [
+          { type: 'body', parameters: [{ type: 'text', text: tempPass }] },
+          { type: 'button', sub_type: 'url', index: '0', parameters: [{ type: 'text', text: tempPass }] },
+        ],
       });
       metodo_envio = 'whatsapp';
 
