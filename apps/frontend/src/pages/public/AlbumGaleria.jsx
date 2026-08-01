@@ -198,7 +198,15 @@ export default function AlbumGaleria() {
   };
 
   const handleDownload = async (foto) => {
-    const url = foto?.url_original || foto?.url;
+    // If we already have a direct URL, use it; otherwise fetch a signed URL
+    let url = foto?.url_original || foto?.url;
+    if (!url && foto?.id) {
+      try {
+        const res = await fetch(`${API}/public/album/${slug}/foto/${foto.id}/url`);
+        const json = await res.json();
+        if (json.success) url = json.data.url_original || json.data.url;
+      } catch {}
+    }
     if (!url) return;
     try {
       const response = await fetch(url);
@@ -219,19 +227,49 @@ export default function AlbumGaleria() {
     setDownloading(true);
     setDownloadProgress('Preparando...');
     try {
+      // Fetch signed URLs via batch endpoint
+      const fotoIds = fotos.map(f => f.id).filter(Boolean);
+      let signedUrls = {};
+      try {
+        const urlsRes = await fetch(`${API}/public/album/${slug}/fotos/urls`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ foto_ids: fotoIds }),
+        });
+        const urlsJson = await urlsRes.json();
+        if (urlsJson.success) signedUrls = urlsJson.data || {};
+      } catch (err) {
+        console.error('Failed to fetch signed URLs:', err);
+        setDownloading(false);
+        setDownloadProgress('');
+        return;
+      }
+
       const zip = new JSZip();
+      let downloadedCount = 0;
       for (let i = 0; i < fotos.length; i++) {
         const foto = fotos[i];
-        const url = foto.url_original || foto.url;
+        const url = signedUrls[foto.id] || foto.url_original || foto.url;
         if (!url) continue;
         setDownloadProgress(`${i + 1}/${fotos.length}`);
-        const response = await fetch(url);
-        const blob = await response.blob();
-        const ext = foto.content_type?.includes('png') ? 'png' : foto.content_type?.includes('webp') ? 'webp' : 'jpg';
-        const filename = foto.filename || `foto-${String(i + 1).padStart(3, '0')}.${ext}`;
-        zip.file(filename, blob);
+        try {
+          const response = await fetch(url);
+          if (!response.ok) continue;
+          const blob = await response.blob();
+          const ext = foto.content_type?.includes('png') ? 'png' : foto.content_type?.includes('webp') ? 'webp' : 'jpg';
+          const filename = foto.filename || `foto-${String(i + 1).padStart(3, '0')}.${ext}`;
+          zip.file(filename, blob);
+          downloadedCount++;
+        } catch { continue; }
       }
-      setDownloadProgress('ZIP...');
+
+      if (downloadedCount === 0) {
+        setDownloadProgress('Nenhuma foto disponível');
+        setTimeout(() => { setDownloading(false); setDownloadProgress(''); }, 2000);
+        return;
+      }
+
+      setDownloadProgress('Gerando ZIP...');
       const zipBlob = await zip.generateAsync({ type: 'blob' });
       const blobUrl = URL.createObjectURL(zipBlob);
       const a = document.createElement('a');
