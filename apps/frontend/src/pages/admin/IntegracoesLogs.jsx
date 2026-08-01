@@ -36,14 +36,20 @@ export default function IntegracoesLogs() {
     setClearing(true);
     try {
       const res = await authFetch('/admin/integracoes/logs', { method: 'DELETE' });
+      if (!res.ok) {
+        let msg = `Erro ${res.status}`;
+        try { const d = await res.json(); msg = d.message || msg; } catch { /* resposta não-JSON */ }
+        alert(`Falha ao limpar logs: ${msg}`);
+        return;
+      }
       const data = await res.json();
-      if (res.ok && data.success) {
+      if (data.success) {
         setLogs([]);
       } else {
         alert(data.message || 'Erro ao limpar logs');
       }
     } catch (err) {
-      alert('Erro de conexão ao limpar logs');
+      alert(`Erro ao limpar logs: ${err.message}`);
     } finally {
       setClearing(false);
     }

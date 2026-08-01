@@ -161,7 +161,6 @@ router.delete('/logs', async (req, res) => {
         IndexName: 'GSI1',
         KeyConditionExpression: 'GSI1PK = :pk',
         ExpressionAttributeValues: { ':pk': 'INTLOG' },
-        ProjectionExpression: 'PK, SK',
       };
       if (lastEvaluatedKey) params.ExclusiveStartKey = lastEvaluatedKey;
 
@@ -169,21 +168,25 @@ router.delete('/logs', async (req, res) => {
       const items = result.Items || [];
       lastEvaluatedKey = result.LastEvaluatedKey;
 
+      if (items.length === 0) break;
+
       // BatchWrite em lotes de 25 (limite do DynamoDB)
       for (let i = 0; i < items.length; i += 25) {
         const batch = items.slice(i, i + 25);
-        const deleteRequests = batch
-          .filter(item => item.PK && item.SK)
-          .map(item => ({
-            DeleteRequest: { Key: { PK: item.PK, SK: item.SK } },
-          }));
+        // Construir chave a partir do id (PK e SK são INTLOG#${id})
+        const deleteRequests = batch.map(item => ({
+          DeleteRequest: {
+            Key: {
+              PK: item.PK || `INTLOG#${item.id}`,
+              SK: item.SK || `INTLOG#${item.id}`,
+            },
+          },
+        }));
 
-        if (deleteRequests.length > 0) {
-          await dynamo.send(new BatchWriteCommand({
-            RequestItems: { [TABLE]: deleteRequests },
-          }));
-          totalRemovidos += deleteRequests.length;
-        }
+        await dynamo.send(new BatchWriteCommand({
+          RequestItems: { [TABLE]: deleteRequests },
+        }));
+        totalRemovidos += deleteRequests.length;
       }
     } while (lastEvaluatedKey);
 
