@@ -416,7 +416,6 @@ router.post('/', validateToken, async (req, res) => {
             telefone: adminPhone,
             template_name: 'notificacao_geral',
             parameters: [
-              'Admin',
               `Novo cliente + orçamento`,
               `${nome.trim()} (${email}) — Evento: ${nome_evento || 'não informado'}`,
             ],

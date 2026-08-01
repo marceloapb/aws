@@ -168,6 +168,9 @@ export default function Login() {
           </button>
 
           <p className="text-center text-sm text-gray-500">
+            <Link to="/recuperar-senha" className="font-medium" style={{ color: ACCENT }}>Esqueci minha senha</Link>
+          </p>
+          <p className="text-center text-sm text-gray-500">
             Não tem conta? <Link to="/cadastro" className="font-medium" style={{ color: ACCENT }}>Cadastre-se</Link>
           </p>
         </form>

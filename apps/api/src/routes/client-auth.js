@@ -253,10 +253,66 @@ router.post('/new-password', async (req, res) => {
 
 router.post('/forgot-password', async (req, res) => {
   try {
-    const { email } = req.body;
-    await cognito.send(new ForgotPasswordCommand({ ClientId: CLIENT_ID, Username: email }));
-    res.json({ success: true, message: 'Código de recuperação enviado para o e-mail' });
+    const { email, cpf_cnpj } = req.body;
+    let userEmail = email;
+
+    // Se informou CPF/CNPJ em vez de email, buscar o email associado
+    if (!userEmail && cpf_cnpj) {
+      const documentoLimpo = cpf_cnpj.replace(/\D/g, '');
+      if (documentoLimpo.length < 11) {
+        return res.status(400).json({ success: false, message: 'CPF/CNPJ inválido' });
+      }
+
+      // Buscar por GSI1 (clientes novos)
+      const docCheck = await docClient.send(new QueryCommand({
+        TableName: TABLE_NAME,
+        IndexName: 'GSI1',
+        KeyConditionExpression: 'GSI1PK = :pk',
+        ExpressionAttributeValues: { ':pk': `DOC#${documentoLimpo}` },
+        Limit: 1,
+      }));
+
+      if (docCheck.Items && docCheck.Items.length > 0) {
+        userEmail = docCheck.Items[0].email;
+      }
+
+      // Fallback: scan legacy fields
+      if (!userEmail) {
+        const cpfMasked = documentoLimpo.length === 11
+          ? documentoLimpo.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4')
+          : documentoLimpo.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/, '$1.$2.$3/$4-$5');
+        const { ScanCommand } = require('@aws-sdk/lib-dynamodb');
+        const legacyCheck = await docClient.send(new ScanCommand({
+          TableName: TABLE_NAME,
+          FilterExpression: '(cpf_cnpj = :doc OR cpf_cnpj = :docMask OR documento = :doc) AND SK = :sk',
+          ExpressionAttributeValues: { ':doc': documentoLimpo, ':docMask': cpfMasked, ':sk': 'PROFILE' },
+          ProjectionExpression: 'email',
+        }));
+        if (legacyCheck.Items && legacyCheck.Items.length > 0) {
+          userEmail = legacyCheck.Items[0].email;
+        }
+      }
+
+      if (!userEmail) {
+        return res.status(404).json({ success: false, message: 'Nenhum cadastro encontrado com este CPF/CNPJ' });
+      }
+    }
+
+    if (!userEmail) {
+      return res.status(400).json({ success: false, message: 'Informe seu e-mail ou CPF/CNPJ' });
+    }
+
+    await cognito.send(new ForgotPasswordCommand({ ClientId: CLIENT_ID, Username: userEmail }));
+
+    // Mascarar email na resposta
+    const parts = userEmail.split('@');
+    const masked = parts[0].slice(0, 2) + '***@' + parts[1];
+
+    res.json({ success: true, message: `Código de recuperação enviado para ${masked}`, email: userEmail });
   } catch (error) {
+    if (error.name === 'UserNotFoundException') {
+      return res.status(404).json({ success: false, message: 'Nenhum cadastro encontrado com estes dados' });
+    }
     res.status(400).json({ success: false, message: error.message });
   }
 });
