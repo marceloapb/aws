@@ -88,7 +88,7 @@ export default function Instagram() {
   };
 
   const loadPosts = () => api('/admin/instagram/posts').then(setPosts).catch(() => {});
-  const loadAlbuns = () => api('/admin/albuns').then(d => Array.isArray(d) ? setAlbuns(d) : null).catch(() => {});
+  const loadAlbuns = () => api('/admin/albuns').then(d => setAlbuns(d?.data || d || [])).catch(() => {});
   const loadTemplates = () => api('/admin/instagram/stories/templates').then(d => Array.isArray(d) ? setTemplates(d) : null).catch(() => {});
   const loadInsights = () => api('/admin/instagram/insights').then(setInsights).catch(() => {});
   const loadInsightsPosts = () => api('/admin/instagram/insights/posts').then(d => Array.isArray(d) ? setInsightsPosts(d) : null).catch(() => {});
