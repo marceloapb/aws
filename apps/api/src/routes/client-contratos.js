@@ -21,6 +21,7 @@ router.get('/', async (req, res) => {
 
 router.get('/:token', async (req, res) => {
   try {
+    const clienteId = req.clienteId || req.user?.sub;
     const result = await dynamo.send(new QueryCommand({
       TableName: TABLE,
       IndexName: 'GSI1',
@@ -29,7 +30,12 @@ router.get('/:token', async (req, res) => {
       ExpressionAttributeValues: { ':pk': 'CONTRATO', ':token': req.params.token },
     }));
     if (!result.Items || result.Items.length === 0) return res.status(404).json({ success: false, message: 'Contrato não encontrado' });
-    res.json({ success: true, data: result.Items[0] });
+    // Verify ownership
+    const contrato = result.Items[0];
+    if (contrato.cliente_id && contrato.cliente_id !== clienteId) {
+      return res.status(403).json({ success: false, message: 'Acesso negado' });
+    }
+    res.json({ success: true, data: contrato });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }

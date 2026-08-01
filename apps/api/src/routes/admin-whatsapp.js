@@ -112,8 +112,8 @@ router.get('/config', async (req, res) => {
         connected,
         status: connected ? 'connected' : 'disconnected',
         phoneNumber,
-        phoneNumberId: params.WHATSAPP_PHONE_NUMBER_ID || '',
-        verifyToken,
+        phoneNumberId: params.WHATSAPP_PHONE_NUMBER_ID ? '••••' + params.WHATSAPP_PHONE_NUMBER_ID.slice(-4) : '',
+        verifyTokenConfigured: !!params.WHATSAPP_VERIFY_TOKEN,
       },
     });
   } catch (error) {

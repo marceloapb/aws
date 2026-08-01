@@ -35,3 +35,6 @@ pb_migrations/
 
 # AWS
 .aws/
+
+# Scripts com credenciais sensíveis
+scripts/setup-*-ssm.sh

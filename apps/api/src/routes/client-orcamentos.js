@@ -46,7 +46,12 @@ router.get('/:id', async (req, res) => {
       ExpressionAttributeValues: { ':pk': 'ORCAMENTO', ':token': paramId },
     }));
     if (!result.Items || result.Items.length === 0) return res.status(404).json({ success: false, message: 'Orçamento não encontrado' });
-    res.json({ success: true, data: result.Items[0] });
+    // Verify ownership
+    const orc = result.Items[0];
+    if (orc.cliente_id && orc.cliente_id !== clienteId) {
+      return res.status(403).json({ success: false, message: 'Acesso negado' });
+    }
+    res.json({ success: true, data: orc });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }

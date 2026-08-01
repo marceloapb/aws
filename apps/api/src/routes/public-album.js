@@ -396,6 +396,9 @@ router.post('/fotos/urls', async (req, res) => {
     if (!foto_ids || !Array.isArray(foto_ids)) {
       return res.status(400).json({ success: false, message: 'foto_ids array é obrigatório' });
     }
+    if (foto_ids.length > 500) {
+      return res.status(400).json({ success: false, message: 'Máximo de 500 fotos por requisição' });
+    }
 
     const albumResult = await dynamo.send(new QueryCommand({
       TableName: TABLE,

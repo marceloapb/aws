@@ -1,10 +1,37 @@
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
+const rateLimit = require('express-rate-limit');
 const logger = require('./config/logger');
 const errorHandler = require('./middlewares/errorHandler');
+const responseSanitizer = require('./middlewares/responseSanitizer');
 const adminAuth = require('./middlewares/adminAuth');
 const clientAuth = require('./middlewares/clientAuth');
+
+// Rate limiters
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutos
+  max: 10, // 10 tentativas por IP
+  message: { success: false, message: 'Muitas tentativas. Tente novamente em 15 minutos.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+const signupLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000, // 1 hora
+  max: 5, // 5 cadastros por IP por hora
+  message: { success: false, message: 'Muitas tentativas de cadastro. Tente novamente mais tarde.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+const publicFormLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000, // 1 hora
+  max: 10, // 10 submissões por IP por hora
+  message: { success: false, message: 'Muitas solicitações. Tente novamente mais tarde.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
 
 // Rotas Admin
 const adminAgendaRoutes = require('./routes/admin-agenda');
@@ -90,6 +117,7 @@ app.use(cors({
   credentials: true,
 }));
 app.use(express.json({ limit: '10mb' }));
+app.use(responseSanitizer);
 
 // CORS preflight - responder OPTIONS antes de qualquer auth
 app.options('*', (req, res) => {
@@ -170,7 +198,7 @@ app.use('/client/catalogo', clientAuth, clientCatalogoRoutes);
 app.use('/client/notificacoes', clientAuth, clientNotificacoesRoutes);
 
 // Rotas Públicas (site institucional, sem auth)
-app.use('/public/novo-cliente', require('./routes/public-novo-cliente'));
+app.use('/public/novo-cliente', publicFormLimiter, require('./routes/public-novo-cliente'));
 app.use('/public/album/:slug/tema', publicAlbumTemaRoutes);
 app.use('/public/album/:slug', publicAlbumRoutes);
 app.use('/public/assinatura', publicAssinaturaRoutes);
@@ -179,7 +207,7 @@ app.use('/public/novidades', publicNovidadesRoutes);
 app.use('/public/site', publicSiteRoutes);
 
 // Auth pública (login/signup - sem auth)
-app.use('/auth', clientAuthRoutes);
+app.use('/auth', authLimiter, clientAuthRoutes);
 
 // Notificações in-app (admin) — MIGRADO para routes/admin-notificacoes.js
 

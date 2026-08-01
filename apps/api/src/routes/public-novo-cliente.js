@@ -360,6 +360,27 @@ router.post('/', validateToken, async (req, res) => {
       }
     }
 
+    // ─── Notificar admin via WhatsApp ───
+    try {
+      const { loadParams } = require('../config/env');
+      const params = await loadParams();
+      const adminPhone = params.ADMIN_WHATSAPP || params.WHATSAPP_ADMIN_PHONE || '';
+      if (adminPhone) {
+        await whatsapp.enviarTemplate({
+          telefone: adminPhone,
+          template_name: 'notificacao_geral',
+          parameters: [
+            'Admin',
+            `Novo cliente cadastrado`,
+            `${nome.trim()} (${email}) solicitou orçamento: ${nome_evento || 'Sem evento definido'}`,
+          ],
+        });
+      }
+    } catch (notifErr) {
+      // Não impede o fluxo se falhar a notificação ao admin
+      console.warn('[NOVO-CLIENTE] Falha ao notificar admin:', notifErr.message);
+    }
+
     // ─── Resposta ───
     const mensagens = {
       whatsapp: `Cadastro realizado! Sua senha temporária foi enviada para o WhatsApp (${telefoneLimpo.slice(-4)}).`,
