@@ -74,6 +74,228 @@ async function enviarLembreteAdmin(numero, tipoEvento, nomeCliente, data, horari
   return enviarTemplate(numero, 'lembrete_admin_evento', [tipoEvento, nomeCliente, data, horario, local || 'Não informado']);
 }
 
+/**
+ * Envia template com imagem no header (formato usado em campanhas/marketing)
+ * O template precisa estar aprovado na Meta com header do tipo IMAGE.
+ *
+ * @param {string} numero - Telefone do destinatário
+ * @param {string} templateName - Nome do template aprovado na Meta
+ * @param {string} imagemUrl - URL pública da imagem (ex: S3 presigned ou URL pública)
+ * @param {string[]} parametrosBody - Parâmetros de texto para o body do template
+ * @param {Array<{sub_type?: string, payload?: string, url?: string}>} botoes - Botões do template (opcional)
+ * @returns {Promise<{success: boolean, message_id: string}>}
+ */
+async function enviarTemplateComImagem(numero, templateName, imagemUrl, parametrosBody = [], botoes = []) {
+  const components = [];
+
+  // Header com imagem
+  components.push({
+    type: 'header',
+    parameters: [
+      {
+        type: 'image',
+        image: { link: imagemUrl },
+      },
+    ],
+  });
+
+  // Body com parâmetros de texto
+  if (parametrosBody.length > 0) {
+    components.push({
+      type: 'body',
+      parameters: parametrosBody.map((p) => ({ type: 'text', text: String(p) })),
+    });
+  }
+
+  // Botões (quick_reply ou url com sufixo dinâmico)
+  for (let i = 0; i < botoes.length; i++) {
+    const btn = botoes[i];
+    const btnComponent = {
+      type: 'button',
+      sub_type: btn.sub_type || 'quick_reply',
+      index: String(i),
+    };
+
+    if (btn.sub_type === 'url' && btn.url) {
+      // Botão de URL com sufixo dinâmico
+      btnComponent.parameters = [{ type: 'text', text: btn.url }];
+    } else {
+      // Quick reply com payload
+      btnComponent.parameters = [{ type: 'payload', payload: btn.payload || btn.text || `btn_${i}` }];
+    }
+
+    components.push(btnComponent);
+  }
+
+  const body = {
+    messaging_product: 'whatsapp',
+    to: formatarNumero(numero),
+    type: 'template',
+    template: {
+      name: templateName,
+      language: { code: 'pt_BR' },
+      components,
+    },
+  };
+
+  const response = await fetch(`${BASE_URL}/messages`, {
+    method: 'POST',
+    headers: getHeaders(),
+    body: JSON.stringify(body),
+    signal: AbortSignal.timeout(TIMEOUT_MS),
+  });
+
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.error?.message || 'Erro WhatsApp API');
+
+  return { success: true, message_id: data.messages?.[0]?.id };
+}
+
+/**
+ * Envia template com vídeo no header
+ * O template precisa estar aprovado na Meta com header do tipo VIDEO.
+ *
+ * @param {string} numero - Telefone do destinatário
+ * @param {string} templateName - Nome do template aprovado na Meta
+ * @param {string} videoUrl - URL pública do vídeo
+ * @param {string[]} parametrosBody - Parâmetros de texto para o body
+ * @param {Array} botoes - Botões do template (opcional)
+ * @returns {Promise<{success: boolean, message_id: string}>}
+ */
+async function enviarTemplateComVideo(numero, templateName, videoUrl, parametrosBody = [], botoes = []) {
+  const components = [];
+
+  components.push({
+    type: 'header',
+    parameters: [
+      {
+        type: 'video',
+        video: { link: videoUrl },
+      },
+    ],
+  });
+
+  if (parametrosBody.length > 0) {
+    components.push({
+      type: 'body',
+      parameters: parametrosBody.map((p) => ({ type: 'text', text: String(p) })),
+    });
+  }
+
+  for (let i = 0; i < botoes.length; i++) {
+    const btn = botoes[i];
+    const btnComponent = {
+      type: 'button',
+      sub_type: btn.sub_type || 'quick_reply',
+      index: String(i),
+    };
+
+    if (btn.sub_type === 'url' && btn.url) {
+      btnComponent.parameters = [{ type: 'text', text: btn.url }];
+    } else {
+      btnComponent.parameters = [{ type: 'payload', payload: btn.payload || btn.text || `btn_${i}` }];
+    }
+
+    components.push(btnComponent);
+  }
+
+  const body = {
+    messaging_product: 'whatsapp',
+    to: formatarNumero(numero),
+    type: 'template',
+    template: {
+      name: templateName,
+      language: { code: 'pt_BR' },
+      components,
+    },
+  };
+
+  const response = await fetch(`${BASE_URL}/messages`, {
+    method: 'POST',
+    headers: getHeaders(),
+    body: JSON.stringify(body),
+    signal: AbortSignal.timeout(TIMEOUT_MS),
+  });
+
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.error?.message || 'Erro WhatsApp API');
+
+  return { success: true, message_id: data.messages?.[0]?.id };
+}
+
+/**
+ * Envia template com documento (PDF) no header
+ * O template precisa estar aprovado na Meta com header do tipo DOCUMENT.
+ *
+ * @param {string} numero - Telefone do destinatário
+ * @param {string} templateName - Nome do template aprovado na Meta
+ * @param {string} documentUrl - URL pública do documento
+ * @param {string} filename - Nome do arquivo exibido para o cliente
+ * @param {string[]} parametrosBody - Parâmetros de texto para o body
+ * @param {Array} botoes - Botões do template (opcional)
+ * @returns {Promise<{success: boolean, message_id: string}>}
+ */
+async function enviarTemplateComDocumento(numero, templateName, documentUrl, filename, parametrosBody = [], botoes = []) {
+  const components = [];
+
+  components.push({
+    type: 'header',
+    parameters: [
+      {
+        type: 'document',
+        document: { link: documentUrl, filename: filename || 'documento.pdf' },
+      },
+    ],
+  });
+
+  if (parametrosBody.length > 0) {
+    components.push({
+      type: 'body',
+      parameters: parametrosBody.map((p) => ({ type: 'text', text: String(p) })),
+    });
+  }
+
+  for (let i = 0; i < botoes.length; i++) {
+    const btn = botoes[i];
+    const btnComponent = {
+      type: 'button',
+      sub_type: btn.sub_type || 'quick_reply',
+      index: String(i),
+    };
+
+    if (btn.sub_type === 'url' && btn.url) {
+      btnComponent.parameters = [{ type: 'text', text: btn.url }];
+    } else {
+      btnComponent.parameters = [{ type: 'payload', payload: btn.payload || btn.text || `btn_${i}` }];
+    }
+
+    components.push(btnComponent);
+  }
+
+  const body = {
+    messaging_product: 'whatsapp',
+    to: formatarNumero(numero),
+    type: 'template',
+    template: {
+      name: templateName,
+      language: { code: 'pt_BR' },
+      components,
+    },
+  };
+
+  const response = await fetch(`${BASE_URL}/messages`, {
+    method: 'POST',
+    headers: getHeaders(),
+    body: JSON.stringify(body),
+    signal: AbortSignal.timeout(TIMEOUT_MS),
+  });
+
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.error?.message || 'Erro WhatsApp API');
+
+  return { success: true, message_id: data.messages?.[0]?.id };
+}
+
 function formatarNumero(numero) {
   let limpo = numero.replace(/\D/g, '');
   if (!limpo.startsWith('55')) limpo = '55' + limpo;
@@ -82,6 +304,9 @@ function formatarNumero(numero) {
 
 module.exports = {
   enviarTemplate,
+  enviarTemplateComImagem,
+  enviarTemplateComVideo,
+  enviarTemplateComDocumento,
   enviarLembreteEvento,
   enviarLembreteAdmin,
   enviarNotificacaoOrcamento,
