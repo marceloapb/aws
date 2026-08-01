@@ -57,7 +57,7 @@ Resources:
       StageName: !Ref Stage
       CorsConfiguration:
         AllowOrigins:
-          - !Ref FrontendUrl
+          - 'https://www.marcelobloisefotografia.com.br'
           - 'https://marcelobloisefotografia.com.br'
           - 'https://www.mbfoto.com.br'
           - 'https://mbfoto.com.br'
