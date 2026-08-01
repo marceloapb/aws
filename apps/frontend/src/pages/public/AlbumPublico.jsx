@@ -304,19 +304,43 @@ export default function AlbumPublico() {
       const urlsMap = urlsJson.success ? urlsJson.data : {};
 
       const zip = new JSZip();
-      for (let i = 0; i < fotos.length; i++) {
-        const foto = fotos[i];
+      let completedCount = 0;
+      const total = fotos.length;
+      const CONCURRENCY = 6;
+
+      // Download function for a single photo
+      const downloadOne = async (foto, index) => {
         const url = urlsMap[foto.id] || foto.url_thumb;
-        if (!url) continue;
-        const percent = Math.round(((i + 1) / fotos.length) * 90);
+        if (!url) return;
+        try {
+          const response = await fetch(url);
+          if (!response.ok) return;
+          const blob = await response.blob();
+          const ext = foto.content_type?.includes('png') ? 'png' : foto.content_type?.includes('webp') ? 'webp' : 'jpg';
+          const filename = foto.filename || `foto-${String(index + 1).padStart(3, '0')}.${ext}`;
+          zip.file(filename, blob);
+        } catch {}
+        completedCount++;
+        const percent = Math.round((completedCount / total) * 90);
         setDownloadPercent(percent);
-        setDownloadProgress(`Baixando foto ${i + 1} de ${fotos.length}`);
-        const response = await fetch(url);
-        const blob = await response.blob();
-        const ext = foto.content_type?.includes('png') ? 'png' : foto.content_type?.includes('webp') ? 'webp' : 'jpg';
-        const filename = foto.filename || `foto-${String(i + 1).padStart(3, '0')}.${ext}`;
-        zip.file(filename, blob);
+        setDownloadProgress(`Baixando foto ${completedCount} de ${total}`);
+      };
+
+      // Parallel download with concurrency limit
+      const queue = fotos.map((foto, i) => () => downloadOne(foto, i));
+      const workers = [];
+      let taskIndex = 0;
+      const runWorker = async () => {
+        while (taskIndex < queue.length) {
+          const currentTask = queue[taskIndex++];
+          await currentTask();
+        }
+      };
+      for (let i = 0; i < Math.min(CONCURRENCY, queue.length); i++) {
+        workers.push(runWorker());
       }
+      await Promise.all(workers);
+
       setDownloadProgress('Gerando arquivo ZIP...');
       setDownloadPercent(95);
       const zipBlob = await zip.generateAsync({ type: 'blob' });

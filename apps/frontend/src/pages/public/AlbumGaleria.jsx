@@ -247,21 +247,40 @@ export default function AlbumGaleria() {
 
       const zip = new JSZip();
       let downloadedCount = 0;
-      for (let i = 0; i < fotos.length; i++) {
-        const foto = fotos[i];
+      let failedCount = 0;
+      const total = fotos.length;
+      const CONCURRENCY = 6;
+
+      // Download function for a single photo
+      const downloadOne = async (foto, index) => {
         const url = signedUrls[foto.id] || foto.url_original || foto.url;
-        if (!url) continue;
-        setDownloadProgress(`${i + 1}/${fotos.length}`);
+        if (!url) { failedCount++; return; }
         try {
           const response = await fetch(url);
-          if (!response.ok) continue;
+          if (!response.ok) { failedCount++; return; }
           const blob = await response.blob();
           const ext = foto.content_type?.includes('png') ? 'png' : foto.content_type?.includes('webp') ? 'webp' : 'jpg';
-          const filename = foto.filename || `foto-${String(i + 1).padStart(3, '0')}.${ext}`;
+          const filename = foto.filename || `foto-${String(index + 1).padStart(3, '0')}.${ext}`;
           zip.file(filename, blob);
           downloadedCount++;
-        } catch { continue; }
+        } catch { failedCount++; }
+        setDownloadProgress(`${downloadedCount + failedCount}/${total}`);
+      };
+
+      // Parallel download with concurrency limit
+      const queue = fotos.map((foto, i) => () => downloadOne(foto, i));
+      const workers = [];
+      let taskIndex = 0;
+      const runWorker = async () => {
+        while (taskIndex < queue.length) {
+          const currentTask = queue[taskIndex++];
+          await currentTask();
+        }
+      };
+      for (let i = 0; i < Math.min(CONCURRENCY, queue.length); i++) {
+        workers.push(runWorker());
       }
+      await Promise.all(workers);
 
       if (downloadedCount === 0) {
         setDownloadProgress('Nenhuma foto disponível');
