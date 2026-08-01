@@ -3,7 +3,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import {
   Instagram as IgIcon, Image, Calendar, BarChart3, Clock, DollarSign,
   Plus, Search, Filter, RefreshCw, Send, Trash2, Eye, Edit, X,
-  ChevronRight, AlertTriangle, CheckCircle, XCircle, Hash, Layers,
+  ChevronLeft, ChevronRight, AlertTriangle, CheckCircle, XCircle, Hash, Layers,
   Play, Sparkles, Settings, TrendingUp, Users, Heart, Bookmark, Share2, Loader2
 } from 'lucide-react';
 import { SortableHeader } from '../../components/ui';
@@ -217,6 +217,10 @@ export default function Instagram() {
     if (caption.length + tag.length + 1 <= 2200) setCaption(prev => prev + ' ' + tag);
   };
 
+  // Carousel preview navigation
+  const [previewIndex, setPreviewIndex] = useState(0);
+  useEffect(() => { setPreviewIndex(0); }, [selectedPhotos.length]);
+
 
   // ==================== RENDER ====================
   return (
@@ -350,7 +354,19 @@ export default function Instagram() {
                   <button type="button" onClick={async () => {
                     setGerandoCaption(true);
                     try {
-                      const r = await authFetch('/admin/instagram/gerar-caption', { method: 'POST', body: JSON.stringify({ tipo_evento: 'ensaio fotográfico', cliente_nome: '', tom: tomIA, contexto: contextIA, incluir_hashtags: true }) });
+                      // Use album data for better IA suggestions
+                      const albumData = albuns.find(a => a.id === selectedAlbumId);
+                      const r = await authFetch('/admin/instagram/gerar-caption', { method: 'POST', body: JSON.stringify({
+                        tipo_evento: albumData?.tipo_evento || 'ensaio fotográfico',
+                        cliente_nome: albumData?.cliente_nome || '',
+                        titulo_album: albumData?.titulo || '',
+                        data_evento: albumData?.data_evento || '',
+                        tom: tomIA,
+                        contexto: contextIA || `Álbum: ${albumData?.titulo || 'Sessão fotográfica'}`,
+                        incluir_hashtags: true,
+                        tipo_post: tipoPost,
+                        num_fotos: selectedPhotos.length,
+                      }) });
                       const d = await r.json();
                       if (d.success) setCaption(d.data.caption);
                     } catch {}
@@ -427,19 +443,47 @@ export default function Instagram() {
                   <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-orange-400 to-pink-500" />
                   <span className="text-sm font-semibold">seu_perfil</span>
                 </div>
-                {selectedPhotos[0] ? (
-                  <img src={selectedPhotos[0]} alt="Preview" className="w-full h-[320px] object-cover" />
-                ) : (
-                  <div className="w-full h-[320px] bg-gray-200 flex items-center justify-center text-gray-400">
-                    <Image size={48} />
-                  </div>
-                )}
+                {/* Photo area - supports carousel */}
+                <div className="relative">
+                  {selectedPhotos.length > 0 ? (
+                    <img src={selectedPhotos[previewIndex] || selectedPhotos[0]} alt="Preview" className="w-full h-[320px] object-cover" />
+                  ) : (
+                    <div className="w-full h-[320px] bg-gray-200 flex items-center justify-center text-gray-400">
+                      <Image size={48} />
+                    </div>
+                  )}
+                  {/* Carousel navigation */}
+                  {tipoPost === 'carrossel' && selectedPhotos.length > 1 && (
+                    <>
+                      {previewIndex > 0 && (
+                        <button onClick={() => setPreviewIndex(i => i - 1)} className="absolute left-2 top-1/2 -translate-y-1/2 w-7 h-7 rounded-full bg-white/90 shadow flex items-center justify-center text-gray-700 hover:bg-white">
+                          <ChevronLeft size={16} />
+                        </button>
+                      )}
+                      {previewIndex < selectedPhotos.length - 1 && (
+                        <button onClick={() => setPreviewIndex(i => i + 1)} className="absolute right-2 top-1/2 -translate-y-1/2 w-7 h-7 rounded-full bg-white/90 shadow flex items-center justify-center text-gray-700 hover:bg-white">
+                          <ChevronRight size={16} />
+                        </button>
+                      )}
+                      {/* Dots indicator */}
+                      <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1">
+                        {selectedPhotos.map((_, i) => (
+                          <div key={i} className={`w-1.5 h-1.5 rounded-full transition-colors ${i === previewIndex ? 'bg-[#EA580C]' : 'bg-white/60'}`} />
+                        ))}
+                      </div>
+                      {/* Carousel badge */}
+                      <div className="absolute top-3 right-3 bg-black/60 text-white text-xs px-2 py-0.5 rounded-full backdrop-blur-sm">
+                        {previewIndex + 1}/{selectedPhotos.length}
+                      </div>
+                    </>
+                  )}
+                </div>
                 <div className="p-3">
                   <p className="text-sm text-gray-700 line-clamp-3">{caption || 'Sua legenda aqui...'}</p>
                 </div>
               </div>
               {tipoPost === 'carrossel' && selectedPhotos.length > 1 && (
-                <p className="text-center text-xs text-gray-400 mt-2">{selectedPhotos.length} fotos no carrossel</p>
+                <p className="text-center text-xs text-gray-400 mt-2">Deslize para ver {selectedPhotos.length} fotos do carrossel</p>
               )}
             </div>
           </div>
