@@ -87,7 +87,7 @@ export default function Instagram() {
     return res.json();
   };
 
-  const loadPosts = () => api('/admin/instagram/posts').then(setPosts).catch(() => {});
+  const loadPosts = () => api('/admin/instagram').then(d => setPosts(d?.data || d || [])).catch(() => {});
   const loadAlbuns = () => api('/admin/albuns').then(d => setAlbuns(d?.data || d || [])).catch(() => {});
   const loadTemplates = () => api('/admin/instagram/stories/templates').then(d => Array.isArray(d) ? setTemplates(d) : null).catch(() => {});
   const loadInsights = () => api('/admin/instagram/insights').then(setInsights).catch(() => {});
@@ -121,30 +121,44 @@ export default function Instagram() {
     if (selectedPhotos.length === 0 || !caption.trim()) return;
     setPublishing(true);
     try {
+      // Get foto IDs from albumFotos (match by URL)
+      const fotos_ids = albumFotos
+        .filter(f => selectedPhotos.includes(f.url || f.url_thumb))
+        .map(f => f.id || f.SK?.replace('FOTO#', ''));
+
       const payload = {
-        fotos: selectedPhotos,
+        fotos_ids,
         caption,
-        ...(mode === 'agendar' && scheduleDate ? { scheduled_at: `${scheduleDate}T${scheduleTime || '12:00'}` } : {}),
-        ...(mode === 'rascunho' ? { rascunho: true } : {}),
+        album_id: selectedAlbumId || '',
+        ...(mode === 'agendar' && scheduleDate ? { agendado_para: `${scheduleDate}T${scheduleTime || '12:00'}` } : {}),
       };
-      const endpoint = tipoPost === 'carrossel' ? '/admin/instagram/carrossel' : '/admin/instagram/publicar';
-      await api(endpoint, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+
+      // Step 1: Create the publication record
+      const result = await api('/admin/instagram', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+
+      // Step 2: If publishing now (not just scheduling), trigger immediate publish
+      if (mode === 'publicar' && result?.data?.id) {
+        await api(`/admin/instagram/${result.data.id}/publicar-agora`, { method: 'POST' });
+      }
+
       setSelectedPhotos([]); setCaption(''); setAgendar(false); setScheduleDate(''); setScheduleTime('');
       loadPosts();
-      if (mode !== 'rascunho') setTab(0);
-    } catch {}
+      setTab(0);
+    } catch (err) {
+      console.error('Publish error:', err);
+    }
     setPublishing(false);
   };
 
   // Retry/Republish
   const handleRetry = async (postId) => {
-    await api('/admin/instagram/publicar', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ retry_post_id: postId }) });
+    await api(`/admin/instagram/${postId}/publicar-agora`, { method: 'POST' });
     loadPosts();
   };
 
   // Delete post
   const handleDelete = async (postId) => {
-    await api(`/admin/instagram/posts/${postId}`, { method: 'DELETE' });
+    await api(`/admin/instagram/${postId}`, { method: 'DELETE' });
     loadPosts();
   };
 
