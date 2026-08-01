@@ -92,6 +92,39 @@ router.post('/test/instagram', async (req, res) => {
   }
 });
 
+// POST /api/admin/integracoes/test/instagram-publish — Test publishing permissions
+router.post('/test/instagram-publish', async (req, res) => {
+  try {
+    const params = await loadParams();
+    if (!params.INSTAGRAM_ACCESS_TOKEN || !params.INSTAGRAM_BUSINESS_ACCOUNT_ID) {
+      await salvarLog('instagram', 'teste-publicacao', 'erro', 'Token ou Business Account ID não configurados');
+      return res.json({ success: false, message: 'Instagram não configurado.' });
+    }
+
+    // Test: try to get content publishing limit (validates publish permissions)
+    const response = await fetch(
+      `https://graph.facebook.com/v18.0/${params.INSTAGRAM_BUSINESS_ACCOUNT_ID}/content_publishing_limit?fields=config,quota_usage&access_token=${params.INSTAGRAM_ACCESS_TOKEN}`,
+      { signal: AbortSignal.timeout(10000) }
+    );
+    const data = await response.json();
+
+    if (response.ok && data.data) {
+      const limit = data.data[0];
+      const usage = limit?.quota_usage || 0;
+      const maxPublish = limit?.config?.quota_total || 25;
+      await salvarLog('instagram', 'teste-publicacao', 'sucesso', `API de publicação OK. Uso: ${usage}/${maxPublish} posts (últimas 24h)`);
+      res.json({ success: true, message: `API de publicação OK! Uso: ${usage}/${maxPublish} posts nas últimas 24h.` });
+    } else {
+      const errorMsg = data.error?.message || 'Sem permissão de publicação';
+      await salvarLog('instagram', 'teste-publicacao', 'erro', errorMsg);
+      res.json({ success: false, message: `Falha: ${errorMsg}` });
+    }
+  } catch (error) {
+    await salvarLog('instagram', 'teste-publicacao', 'erro', error.message);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
 // POST /api/admin/integracoes/test/google-calendar
 router.post('/test/google-calendar', async (req, res) => {
   try {

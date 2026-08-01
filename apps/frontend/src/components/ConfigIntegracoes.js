@@ -246,7 +246,8 @@ export default function ConfigIntegracoes({ form, setForm }) {
                 <RefreshCw size={14} className={renewingToken ? 'animate-spin' : ''} />
                 {renewingToken ? 'Renovando...' : 'Renovar Token'}
               </button>
-              <TestButton integracao="instagram" />
+              <TestButton integracao="instagram" label="Testar Conexão" />
+              <TestButton integracao="instagram-publish" label="Testar Publicação" />
             </div>
             {renewMsg && (
               <p className={`text-sm px-3 py-2 rounded-lg ${renewMsg.includes('sucesso') ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-red-50 text-red-700 border border-red-200'}`}>
@@ -254,7 +255,7 @@ export default function ConfigIntegracoes({ form, setForm }) {
               </p>
             )}
           </div>
-          {testResult?.integracao === 'instagram' && <TestResultBanner />}
+          {(testResult?.integracao === 'instagram' || testResult?.integracao === 'instagram-publish') && <TestResultBanner />}
         </div>
       )}
 
