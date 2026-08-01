@@ -141,7 +141,6 @@ router.post('/verificar', validateToken, async (req, res) => {
         TableName: TABLE,
         FilterExpression: '(cpf_cnpj = :doc OR cpf_cnpj = :docMask OR documento = :doc) AND SK = :sk',
         ExpressionAttributeValues: { ':doc': documentoLimpo, ':docMask': cpfMasked, ':sk': 'PROFILE' },
-        Limit: 1,
         ProjectionExpression: 'PK',
       }));
       if (legacyCheck.Items && legacyCheck.Items.length > 0) {
@@ -228,7 +227,6 @@ router.post('/', validateToken, async (req, res) => {
         TableName: TABLE,
         FilterExpression: '(cpf_cnpj = :doc OR cpf_cnpj = :docMask OR documento = :doc) AND SK = :sk',
         ExpressionAttributeValues: { ':doc': documentoLimpo, ':docMask': cpfMasked, ':sk': 'PROFILE' },
-        Limit: 1,
         ProjectionExpression: 'PK',
       }));
       if (legacyCheck.Items && legacyCheck.Items.length > 0) {
