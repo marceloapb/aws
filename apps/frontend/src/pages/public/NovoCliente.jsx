@@ -302,7 +302,7 @@ export default function NovoCliente() {
             </button>
           ) : (
             <button onClick={handleSubmit} disabled={submitting} className="flex-1 flex items-center justify-center gap-1 py-3 text-white rounded-xl text-sm font-medium transition-opacity hover:opacity-90 disabled:opacity-50" style={{ backgroundColor: ACCENT }}>
-              {submitting ? <><Loader2 size={16} className="animate-spin" /> Enviando...</> : <><Send size={16} /> Enviar Cadastro</>}
+              {submitting ? <><Loader2 size={16} className="animate-spin" /> Enviando...</> : <><Send size={16} /> Enviar Orçamento</>}
             </button>
           )}
         </div>
