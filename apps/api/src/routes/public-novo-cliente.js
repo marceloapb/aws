@@ -362,17 +362,25 @@ router.post('/', validateToken, async (req, res) => {
 
     // ─── Notificar admin via WhatsApp ───
     try {
-      const { loadParams } = require('../config/env');
-      const params = await loadParams();
-      const adminPhone = params.ADMIN_WHATSAPP || params.WHATSAPP_ADMIN_PHONE || '';
+      // Buscar telefone admin das configurações (TENANT#default/CONFIG#phone ou CONFIG#whatsappBusiness)
+      const configResult = await dynamo.send(new QueryCommand({
+        TableName: TABLE,
+        KeyConditionExpression: 'PK = :pk AND begins_with(SK, :sk)',
+        ExpressionAttributeValues: { ':pk': `TENANT#${TENANT}`, ':sk': 'CONFIG#' },
+      }));
+      const configMap = {};
+      for (const item of (configResult.Items || [])) {
+        configMap[item.chave] = item.valor;
+      }
+      const adminPhone = configMap.whatsappBusiness || configMap.phone || configMap.telefone || '';
       if (adminPhone) {
         await whatsapp.enviarTemplate({
           telefone: adminPhone,
           template_name: 'notificacao_geral',
           parameters: [
             'Admin',
-            `Novo cliente cadastrado`,
-            `${nome.trim()} (${email}) solicitou orçamento: ${nome_evento || 'Sem evento definido'}`,
+            `Novo cliente + orçamento`,
+            `${nome.trim()} (${email}) — Evento: ${nome_evento || 'não informado'}`,
           ],
         });
       }
