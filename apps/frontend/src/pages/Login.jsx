@@ -13,7 +13,7 @@ export default function Login() {
   const [error, setError] = useState('');
   const [logoUrl, setLogoUrl] = useState(() => localStorage.getItem('mbf_logo_url') || localStorage.getItem('mbf_logo_dark_url') || '');
   const [nomeSite, setNomeSite] = useState(() => localStorage.getItem('mbf_empresa_nome') || 'Marcelo Bloise Fotografia');
-  const { login, setUser, loading } = useAuth();
+  const { login, setUser, setToken, loading } = useAuth();
   const navigate = useNavigate();
 
   // NEW_PASSWORD_REQUIRED state
@@ -77,8 +77,7 @@ export default function Login() {
       if (!data.success) throw new Error(data.message || 'Erro ao definir nova senha');
       // Login successful after password change
       setUser(data.user);
-      localStorage.setItem('mbf_user', JSON.stringify(data.user));
-      localStorage.setItem('mbf_token', data.token);
+      setToken(data.token);
       navigate(data.user.role === 'admin' ? '/admin' : '/cliente');
     } catch (err) {
       setError(err.message);
