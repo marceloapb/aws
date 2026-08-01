@@ -43,6 +43,7 @@ export default function Instagram() {
   const [scheduleDate, setScheduleDate] = useState('');
   const [scheduleTime, setScheduleTime] = useState('');
   const [publishing, setPublishing] = useState(false);
+  const [actionMsg, setActionMsg] = useState(null); // { type: 'success'|'error', text: '' }
 
   // Stories state
   const [storyMode, setStoryMode] = useState('template');
@@ -116,14 +117,18 @@ export default function Instagram() {
     return result;
   }, [posts, filterStatus, filterPeriodo, filterBusca]);
 
+  const showMsg = (type, text) => {
+    setActionMsg({ type, text });
+    setTimeout(() => setActionMsg(null), 6000);
+  };
+
   // Publish handler
   const handlePublish = async (mode) => {
-    if (selectedPhotos.length === 0 || !caption.trim()) return;
+    if (selectedPhotos.length === 0) { showMsg('error', 'Selecione pelo menos 1 foto.'); return; }
+    if (!caption.trim()) { showMsg('error', 'Escreva uma legenda.'); return; }
     setPublishing(true);
     try {
-      // selectedPhotos now contains foto IDs directly
       const fotos_ids = selectedPhotos;
-
       const payload = {
         fotos_ids,
         caption,
@@ -134,29 +139,54 @@ export default function Instagram() {
       // Step 1: Create the publication record
       const result = await api('/admin/instagram', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
 
-      // Step 2: If publishing now (not just scheduling), trigger immediate publish
-      if (mode === 'publicar' && result?.data?.id) {
-        await api(`/admin/instagram/${result.data.id}/publicar-agora`, { method: 'POST' });
+      if (!result?.success) {
+        showMsg('error', `Erro ao criar publicação: ${result?.message || 'Erro desconhecido'}`);
+        setPublishing(false);
+        return;
+      }
+
+      if (mode === 'agendar') {
+        showMsg('success', `Publicação agendada para ${scheduleDate} às ${scheduleTime || '12:00'}.`);
+      } else if (mode === 'publicar') {
+        // Step 2: Trigger immediate publish
+        const pubResult = await api(`/admin/instagram/${result.data.id}/publicar-agora`, { method: 'POST' });
+        if (pubResult?.success) {
+          showMsg('success', `✓ Publicado no Instagram com sucesso!`);
+        } else {
+          showMsg('error', `Publicação criada mas falhou ao publicar: ${pubResult?.message || 'Erro ao conectar com Instagram'}`);
+        }
       }
 
       setSelectedPhotos([]); setCaption(''); setAgendar(false); setScheduleDate(''); setScheduleTime('');
       loadPosts();
-      setTab(0);
+      if (mode !== 'agendar') setTab(0);
     } catch (err) {
-      console.error('Publish error:', err);
+      showMsg('error', `Erro: ${err.message || 'Falha na comunicação com o servidor'}`);
     }
     setPublishing(false);
   };
 
   // Retry/Republish
   const handleRetry = async (postId) => {
-    await api(`/admin/instagram/${postId}/publicar-agora`, { method: 'POST' });
+    try {
+      const result = await api(`/admin/instagram/${postId}/publicar-agora`, { method: 'POST' });
+      if (result?.success) showMsg('success', '✓ Republicado com sucesso!');
+      else showMsg('error', `Falha ao republicar: ${result?.message || 'Erro desconhecido'}`);
+    } catch (err) {
+      showMsg('error', `Erro: ${err.message}`);
+    }
     loadPosts();
   };
 
   // Delete post
   const handleDelete = async (postId) => {
-    await api(`/admin/instagram/${postId}`, { method: 'DELETE' });
+    if (!window.confirm('Excluir esta publicação?')) return;
+    try {
+      await api(`/admin/instagram/${postId}`, { method: 'DELETE' });
+      showMsg('success', 'Publicação excluída.');
+    } catch (err) {
+      showMsg('error', `Erro ao excluir: ${err.message}`);
+    }
     loadPosts();
   };
 
@@ -237,6 +267,15 @@ export default function Instagram() {
   // ==================== RENDER ====================
   return (
     <div className="space-y-6">
+      {/* Feedback message */}
+      {actionMsg && (
+        <div className={`p-3 rounded-lg text-sm font-medium flex items-center gap-2 ${actionMsg.type === 'success' ? 'bg-green-50 border border-green-200 text-green-700' : 'bg-red-50 border border-red-200 text-red-700'}`}>
+          {actionMsg.type === 'success' ? <CheckCircle size={16} /> : <AlertTriangle size={16} />}
+          {actionMsg.text}
+          <button onClick={() => setActionMsg(null)} className="ml-auto text-current opacity-60 hover:opacity-100"><X size={14} /></button>
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold flex items-center gap-2">

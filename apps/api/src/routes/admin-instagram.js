@@ -1,8 +1,24 @@
 const { Router } = require('express');
+const crypto = require('crypto');
 const { dynamo, TABLE } = require('../config/dynamodb');
 const { QueryCommand, PutCommand, UpdateCommand, DeleteCommand } = require('@aws-sdk/lib-dynamodb');
 const { publicarCarrossel, publicarFotoUnica } = require('../services/instagramService');
 const { INSTAGRAM_STATUS } = require('../config/constants');
+
+async function salvarLog(tipo, resultado, detalhes = '') {
+  const id = crypto.randomUUID();
+  const now = new Date().toISOString();
+  try {
+    await dynamo.send(new PutCommand({
+      TableName: TABLE,
+      Item: {
+        PK: `INTLOG#${id}`, SK: `INTLOG#${id}`,
+        GSI1PK: 'INTLOG', GSI1SK: `INTLOG#${now}`,
+        id, integracao: 'instagram', tipo, resultado, detalhes, created: now,
+      },
+    }));
+  } catch {}
+}
 
 const router = Router();
 
@@ -114,8 +130,10 @@ router.post('/', async (req, res) => {
       created: new Date().toISOString(),
     };
     await dynamo.send(new PutCommand({ TableName: TABLE, Item: item }));
+    await salvarLog('agendar', 'sucesso', `${fotos_ids.length} foto(s) - ${agendado_para ? 'agendado' : 'imediato'}`);
     res.status(201).json({ success: true, data: item });
   } catch (error) {
+    await salvarLog('agendar', 'erro', error.message);
     res.status(400).json({ success: false, message: error.message });
   }
 });
@@ -187,11 +205,14 @@ router.post('/:id/publicar-agora', async (req, res) => {
           ':pp': resultado.instagram_permalink,
         },
       }));
+      await salvarLog('publicar', 'sucesso', `Post ${resultado.instagram_post_id} - ${fotosKeys.length} foto(s)`);
       res.json({ success: true, data: resultado });
     } else {
+      await salvarLog('publicar', 'erro', resultado.error || 'Erro desconhecido');
       throw new Error(resultado.error);
     }
   } catch (error) {
+    await salvarLog('publicar', 'erro', error.message);
     res.status(400).json({ success: false, message: error.message });
   }
 });
@@ -242,15 +263,18 @@ router.post('/renew-token', async (req, res) => {
       // Clear cached params to force reload on next request
       clearParamsCache();
 
+      await salvarLog('renovar-token', 'sucesso', `Expira em ${data.expires_in ? Math.round(data.expires_in / 86400) + ' dias' : '60 dias'}`);
       res.json({
         success: true,
         message: `Token renovado com sucesso. Expira em ${data.expires_in ? Math.round(data.expires_in / 86400) + ' dias' : '60 dias'}.`,
       });
     } else {
       const errorMsg = data.error?.message || 'Erro ao renovar token';
+      await salvarLog('renovar-token', 'erro', errorMsg);
       res.json({ success: false, message: `Falha: ${errorMsg}` });
     }
   } catch (error) {
+    await salvarLog('renovar-token', 'erro', error.message);
     res.status(500).json({ success: false, message: error.message });
   }
 });
