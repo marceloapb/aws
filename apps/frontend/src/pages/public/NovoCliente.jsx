@@ -92,6 +92,7 @@ export default function NovoCliente() {
     pacote_id: '', servicos_selecionados: [],
     local_nome: '', local_cep: '', local_logradouro: '', local_numero: '',
     local_complemento: '', local_bairro: '', local_cidade: '', local_uf: '',
+    locais: [],
     observacoes: '',
   });
 
@@ -136,20 +137,7 @@ export default function NovoCliente() {
     }
   };
 
-  const handleCepLocal = async (cepValue) => {
-    const formatted = formatCEP(cepValue);
-    update('local_cep', formatted);
-    const nums = formatted.replace(/\D/g, '');
-    if (nums.length === 8) {
-      try {
-        const res = await fetch(`https://viacep.com.br/ws/${nums}/json/`);
-        const data = await res.json();
-        if (!data.erro) {
-          setForm(prev => ({ ...prev, local_logradouro: data.logradouro || prev.local_logradouro, local_bairro: data.bairro || prev.local_bairro, local_cidade: data.localidade || prev.local_cidade, local_uf: data.uf || prev.local_uf }));
-        }
-      } catch {}
-    }
-  };
+
 
   const validateStep = () => {
     if (step === 0) {
@@ -176,9 +164,14 @@ export default function NovoCliente() {
       if (form.servicos_selecionados.length === 0 && !form.pacote_id) return 'Selecione pelo menos 1 serviço ou pacote';
     }
     if (step === 4) {
-      if (!form.local_nome.trim()) return 'Nome do local é obrigatório';
-      if (form.local_cep.replace(/\D/g, '').length < 8) return 'CEP do local é obrigatório';
-      if (!form.local_numero.trim()) return 'Número do local é obrigatório';
+      const locais = form.locais || [];
+      if (locais.length === 0) return 'Adicione pelo menos 1 local';
+      for (let i = 0; i < locais.length; i++) {
+        const l = locais[i];
+        if (!l.nome?.trim()) return `Local ${i + 1}: Nome do local é obrigatório`;
+        if ((l.cep || '').replace(/\D/g, '').length < 8) return `Local ${i + 1}: CEP é obrigatório`;
+        if (!l.numero?.trim()) return `Local ${i + 1}: Número é obrigatório`;
+      }
     }
     return null;
   };
@@ -225,8 +218,8 @@ export default function NovoCliente() {
         telefone: form.telefone.replace(/\D/g, ''),
         cpf_cnpj: form.cpf_cnpj.replace(/\D/g, ''),
         endereco_cep: form.endereco_cep.replace(/\D/g, ''),
-        local_cep: form.local_cep.replace(/\D/g, ''),
         instagram: form.instagram.replace('@', ''),
+        locais: (form.locais || []).map(l => ({ ...l, cep: (l.cep || '').replace(/\D/g, '') })),
       };
       const res = await fetch(`${API}/public/novo-cliente`, {
         method: 'POST',
@@ -326,7 +319,7 @@ export default function NovoCliente() {
           {step === 1 && <Step2 form={form} update={update} onCepChange={handleCepEndereco} />}
           {step === 2 && <Step3 form={form} update={update} />}
           {step === 3 && <Step4 form={form} update={update} catalogo={catalogo} />}
-          {step === 4 && <Step5 form={form} update={update} onCepChange={handleCepLocal} />}
+          {step === 4 && <Step5 form={form} update={update} />}
           {step === 5 && <Step6 form={form} update={update} catalogo={catalogo} />}
         </div>
       </main>
@@ -495,26 +488,80 @@ function Step4({ form, update, catalogo }) {
 }
 
 
-function Step5({ form, update, onCepChange }) {
+function Step5({ form, update }) {
+  const locais = form.locais || [];
+
+  const addLocal = () => {
+    update('locais', [...locais, { nome: '', cep: '', logradouro: '', numero: '', complemento: '', bairro: '', cidade: '', uf: '' }]);
+  };
+
+  const updateLocal = (index, field, value) => {
+    const updated = [...locais];
+    updated[index] = { ...updated[index], [field]: value };
+    update('locais', updated);
+  };
+
+  const removeLocal = (index) => {
+    update('locais', locais.filter((_, i) => i !== index));
+  };
+
+  const handleCepLocal = async (index, cepValue) => {
+    const formatted = formatCEP(cepValue);
+    updateLocal(index, 'cep', formatted);
+    const nums = formatted.replace(/\D/g, '');
+    if (nums.length === 8) {
+      try {
+        const res = await fetch(`https://viacep.com.br/ws/${nums}/json/`);
+        const data = await res.json();
+        if (!data.erro) {
+          const updated = [...locais];
+          updated[index] = { ...updated[index], cep: formatted, logradouro: data.logradouro || '', bairro: data.bairro || '', cidade: data.localidade || '', uf: data.uf || '' };
+          update('locais', updated);
+        }
+      } catch {}
+    }
+  };
+
+  // Se não tem nenhum local ainda, adiciona 1 automaticamente
+  if (locais.length === 0) {
+    addLocal();
+    return null;
+  }
+
   return (
-    <div className="space-y-4">
-      <p className="text-sm text-gray-500">Onde será o evento?</p>
-      <Field label="Nome do Local *" value={form.local_nome} onChange={v => update('local_nome', v)} placeholder="Ex: Espaço das Flores" />
-      <Field label="CEP *" value={form.local_cep} onChange={v => onCepChange(v)} placeholder="00000-000" inputMode="numeric" maxLength={9} />
-      <Field label="Logradouro" value={form.local_logradouro} onChange={v => update('local_logradouro', v)} placeholder="Rua, Av, etc." />
-      <div className="grid grid-cols-3 gap-3">
-        <Field label="Número *" value={form.local_numero} onChange={v => update('local_numero', v)} placeholder="123" />
-        <div className="col-span-2">
-          <Field label="Complemento" value={form.local_complemento} onChange={v => update('local_complemento', v)} placeholder="Salão, bloco..." />
+    <div className="space-y-6">
+      <p className="text-sm text-gray-500">Onde será o evento? Adicione um ou mais locais.</p>
+
+      {locais.map((local, i) => (
+        <div key={i} className="border border-gray-200 rounded-xl p-4 space-y-3 relative">
+          {locais.length > 1 && (
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-xs font-semibold text-gray-500 uppercase">Local {i + 1}</span>
+              <button type="button" onClick={() => removeLocal(i)} className="text-xs text-red-500 hover:text-red-700 font-medium">Remover</button>
+            </div>
+          )}
+          <Field label="Nome do Local *" value={local.nome} onChange={v => updateLocal(i, 'nome', v)} placeholder="Ex: Igreja, Salão, Espaço..." />
+          <Field label="CEP *" value={local.cep} onChange={v => handleCepLocal(i, v)} placeholder="00000-000" inputMode="numeric" maxLength={9} />
+          <Field label="Logradouro" value={local.logradouro} onChange={v => updateLocal(i, 'logradouro', v)} placeholder="Rua, Av, etc." />
+          <div className="grid grid-cols-3 gap-3">
+            <Field label="Número *" value={local.numero} onChange={v => updateLocal(i, 'numero', v)} placeholder="123" />
+            <div className="col-span-2">
+              <Field label="Complemento" value={local.complemento} onChange={v => updateLocal(i, 'complemento', v)} placeholder="Salão, bloco..." />
+            </div>
+          </div>
+          <Field label="Bairro" value={local.bairro} onChange={v => updateLocal(i, 'bairro', v)} placeholder="Bairro" />
+          <div className="grid grid-cols-3 gap-3">
+            <div className="col-span-2">
+              <Field label="Cidade" value={local.cidade} onChange={v => updateLocal(i, 'cidade', v)} placeholder="Cidade" />
+            </div>
+            <Field label="UF" value={local.uf} onChange={v => updateLocal(i, 'uf', v.toUpperCase().slice(0, 2))} placeholder="SP" maxLength={2} />
+          </div>
         </div>
-      </div>
-      <Field label="Bairro" value={form.local_bairro} onChange={v => update('local_bairro', v)} placeholder="Bairro" />
-      <div className="grid grid-cols-3 gap-3">
-        <div className="col-span-2">
-          <Field label="Cidade" value={form.local_cidade} onChange={v => update('local_cidade', v)} placeholder="Cidade" />
-        </div>
-        <Field label="UF" value={form.local_uf} onChange={v => update('local_uf', v.toUpperCase().slice(0, 2))} placeholder="SP" maxLength={2} />
-      </div>
+      ))}
+
+      <button type="button" onClick={addLocal} className="w-full py-3 border-2 border-dashed border-gray-300 rounded-xl text-sm font-medium text-gray-500 hover:border-orange-300 hover:text-orange-600 transition-colors">
+        + Adicionar outro local
+      </button>
     </div>
   );
 }
@@ -538,7 +585,7 @@ function Step6({ form, update, catalogo }) {
           {form.data_evento && <div><span className="text-gray-500">Data:</span> <span className="font-medium">{new Date(form.data_evento + 'T00:00').toLocaleDateString('pt-BR')}</span></div>}
           {pacoteNome && <div><span className="text-gray-500">Pacote:</span> <span className="font-medium">{pacoteNome}</span></div>}
           {numServicos > 0 && <div><span className="text-gray-500">Serviços:</span> <span className="font-medium">{numServicos} selecionado(s)</span></div>}
-          {form.local_nome && <div className="col-span-2"><span className="text-gray-500">Local:</span> <span className="font-medium">{form.local_nome}{form.local_cidade ? ` — ${form.local_cidade}/${form.local_uf}` : ''}</span></div>}
+          {form.locais?.length > 0 && <div className="col-span-2"><span className="text-gray-500">Locais:</span> <span className="font-medium">{form.locais.map(l => `${l.nome}${l.cidade ? ` (${l.cidade}/${l.uf})` : ''}`).join(' • ')}</span></div>}
         </div>
       </div>
 
