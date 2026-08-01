@@ -170,6 +170,7 @@ app.use('/client/catalogo', clientAuth, clientCatalogoRoutes);
 app.use('/client/notificacoes', clientAuth, clientNotificacoesRoutes);
 
 // Rotas Públicas (site institucional, sem auth)
+app.use('/public/novo-cliente', require('./routes/public-novo-cliente'));
 app.use('/public/album/:slug/tema', publicAlbumTemaRoutes);
 app.use('/public/album/:slug', publicAlbumRoutes);
 app.use('/public/assinatura', publicAssinaturaRoutes);

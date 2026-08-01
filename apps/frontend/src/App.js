@@ -16,6 +16,7 @@ import ContatoPage from './pages/public/ContatoPage';
 import ContratoAssinar from './pages/public/ContratoAssinar';
 import VerificarAssinatura from './pages/public/VerificarAssinatura';
 import AlbumPublico from './pages/public/AlbumPublico';
+import NovoCliente from './pages/public/NovoCliente';
 import Dashboard from './pages/admin/Dashboard';
 import ConfigEmpresa from './pages/admin/ConfigEmpresa';
 import Catalogo from './pages/admin/Catalogo';
@@ -131,6 +132,9 @@ function App() {
 
       {/* Álbum público - acesso via slug (sem auth) */}
       <Route path="/album/:slug" element={<AlbumPublico />} />
+
+      {/* Novo Cliente - wizard público (sem auth) */}
+      <Route path="/novo-cliente" element={<NovoCliente />} />
 
       {/* Admin */}
 

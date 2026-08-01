@@ -140,6 +140,18 @@ router.post('/login', async (req, res) => {
       ClientId: CLIENT_ID,
       AuthParameters: { USERNAME: email, PASSWORD: pwd },
     }));
+
+    // Handle NEW_PASSWORD_REQUIRED challenge (temp password from AdminCreateUser)
+    if (result.ChallengeName === 'NEW_PASSWORD_REQUIRED') {
+      return res.json({
+        success: true,
+        challenge: 'NEW_PASSWORD_REQUIRED',
+        session: result.Session,
+        email,
+        message: 'É necessário criar uma nova senha.',
+      });
+    }
+
     const tokens = result.AuthenticationResult;
 
     // Decodificar idToken para extrair dados do usuário
@@ -176,6 +188,66 @@ router.post('/login', async (req, res) => {
     });
   } catch (error) {
     res.status(401).json({ success: false, message: 'Credenciais inválidas' });
+  }
+});
+
+router.post('/new-password', async (req, res) => {
+  try {
+    const { email, session, newPassword } = req.body;
+    if (!email || !session || !newPassword) {
+      return res.status(400).json({ success: false, message: 'Email, session e newPassword são obrigatórios' });
+    }
+
+    const { RespondToAuthChallengeCommand } = require('@aws-sdk/client-cognito-identity-provider');
+    const result = await cognito.send(new RespondToAuthChallengeCommand({
+      ClientId: CLIENT_ID,
+      ChallengeName: 'NEW_PASSWORD_REQUIRED',
+      Session: session,
+      ChallengeResponses: {
+        USERNAME: email,
+        NEW_PASSWORD: newPassword,
+      },
+    }));
+
+    const tokens = result.AuthenticationResult;
+    if (!tokens) {
+      return res.status(400).json({ success: false, message: 'Erro ao definir nova senha. Tente novamente.' });
+    }
+
+    // Decodificar idToken
+    const payload = JSON.parse(Buffer.from(tokens.IdToken.split('.')[1], 'base64url').toString('utf8'));
+    const groups = payload['cognito:groups'] || [];
+    const role = groups.includes('admin') ? 'admin' : 'client';
+
+    // Buscar perfil_completo
+    let perfil_completo = false;
+    try {
+      const profileResult = await docClient.send(new GetCommand({
+        TableName: TABLE_NAME,
+        Key: { PK: `CLIENT#${payload.sub}`, SK: 'PROFILE' },
+        ProjectionExpression: 'perfil_completo'
+      }));
+      perfil_completo = profileResult.Item?.perfil_completo === true;
+    } catch {}
+
+    const user = {
+      id: payload.sub,
+      sub: payload.sub,
+      email: payload.email,
+      name: payload.name || payload.email.split('@')[0],
+      role,
+      groups,
+      perfil_completo,
+    };
+
+    res.json({
+      success: true,
+      user,
+      token: tokens.IdToken,
+      data: { idToken: tokens.IdToken, accessToken: tokens.AccessToken, refreshToken: tokens.RefreshToken },
+    });
+  } catch (error) {
+    res.status(400).json({ success: false, message: error.message || 'Erro ao definir nova senha' });
   }
 });
 

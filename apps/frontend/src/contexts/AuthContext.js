@@ -31,6 +31,8 @@ export function AuthProvider({ children }) {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || 'Erro ao fazer login');
+      // If challenge returned, don't set user/token yet
+      if (data.challenge) return data;
       setUser(data.user);
       setToken(data.token);
       return data;
