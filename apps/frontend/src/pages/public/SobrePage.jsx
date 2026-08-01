@@ -194,9 +194,9 @@ export default function SobrePage() {
         </div>
 
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 py-16 sm:py-24 w-full">
-          <div className={`grid md:grid-cols-2 gap-8 lg:gap-16 items-center transition-all duration-1000 ${heroVisible ? 'opacity-100' : 'opacity-0'}`}>
+          <div className={`grid md:grid-cols-2 gap-8 lg:gap-16 items-center transition-all duration-1000 opacity-100`}>
             {/* Photo with Modern Frame & Glow */}
-            <div className={`relative group ${heroVisible ? 'animate-fade-in-up' : 'opacity-0'}`}>
+            <div className="relative group animate-fade-in-up">>
               <div className="relative">
                 {/* Outer glow frame */}
                 <div className="absolute -inset-1 bg-gradient-to-br from-[#EA580C]/40 via-transparent to-[#EA580C]/20 rounded-2xl blur-sm opacity-75 group-hover:opacity-100 transition-opacity" />
@@ -227,7 +227,7 @@ export default function SobrePage() {
             </div>
 
             {/* Bio Content */}
-            <div className={`flex flex-col justify-center ${heroVisible ? 'animate-fade-in-up-delay-1' : 'opacity-0'}`}>
+            <div className="flex flex-col justify-center animate-fade-in-up-delay-1">
               {/* Title with accent keyword */}
               <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-stone-50 mb-2 leading-tight">
                 {titulo === 'Sobre' ? (
