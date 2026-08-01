@@ -222,8 +222,9 @@ router.delete('/logs', async (req, res) => {
   try {
     const { BatchWriteCommand } = require('@aws-sdk/lib-dynamodb');
     let totalRemovidos = 0;
-    let lastEvaluatedKey = undefined;
 
+    // 1) Apagar logs INTLOG (via GSI1)
+    let lastEvaluatedKey = undefined;
     do {
       const params = {
         TableName: TABLE,
@@ -238,7 +239,6 @@ router.delete('/logs', async (req, res) => {
       const items = result.Items || [];
       lastEvaluatedKey = result.LastEvaluatedKey;
 
-      // BatchWrite em lotes de 25 (limite do DynamoDB)
       for (let i = 0; i < items.length; i += 25) {
         const batch = items.slice(i, i + 25);
         const deleteRequests = batch
@@ -255,6 +255,39 @@ router.delete('/logs', async (req, res) => {
         }
       }
     } while (lastEvaluatedKey);
+
+    // 2) Apagar logs LOG_NTF (PK=TENANT#default, SK begins_with LOG_NTF#)
+    const TENANT = process.env.TENANT_ID || 'default';
+    let lastKey2 = undefined;
+    do {
+      const params2 = {
+        TableName: TABLE,
+        KeyConditionExpression: 'PK = :pk AND begins_with(SK, :sk)',
+        ExpressionAttributeValues: { ':pk': `TENANT#${TENANT}`, ':sk': 'LOG_NTF#' },
+        ProjectionExpression: 'PK, SK',
+      };
+      if (lastKey2) params2.ExclusiveStartKey = lastKey2;
+
+      const result2 = await dynamo.send(new QueryCommand(params2));
+      const items2 = result2.Items || [];
+      lastKey2 = result2.LastEvaluatedKey;
+
+      for (let i = 0; i < items2.length; i += 25) {
+        const batch = items2.slice(i, i + 25);
+        const deleteRequests = batch
+          .filter(item => item.PK && item.SK)
+          .map(item => ({
+            DeleteRequest: { Key: { PK: item.PK, SK: item.SK } },
+          }));
+
+        if (deleteRequests.length > 0) {
+          await dynamo.send(new BatchWriteCommand({
+            RequestItems: { [TABLE]: deleteRequests },
+          }));
+          totalRemovidos += deleteRequests.length;
+        }
+      }
+    } while (lastKey2);
 
     res.json({ success: true, message: `${totalRemovidos} logs removidos` });
   } catch (error) {
