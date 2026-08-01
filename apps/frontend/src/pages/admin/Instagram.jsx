@@ -385,7 +385,11 @@ export default function Instagram() {
                 } else { setAlbumFotos([]); }
               }} className="w-full border rounded-lg px-3 py-2 text-sm">
                 <option value="">Selecione um álbum...</option>
-                {albuns.map(a => <option key={a.id} value={a.id}>{a.titulo} ({a.total_fotos || '?'} fotos)</option>)}
+                {[...albuns].sort((a, b) => (b.data_evento || b.created || '').localeCompare(a.data_evento || a.created || '')).map(a => {
+                  const dataEvt = a.data_evento ? new Date(a.data_evento).toLocaleDateString('pt-BR') : '';
+                  const label = [dataEvt, a.cliente_nome, a.titulo].filter(Boolean).join(' — ');
+                  return <option key={a.id} value={a.id}>{label}</option>;
+                })}
               </select>
               {/* Grid de fotos do álbum selecionado */}
               <div className="grid grid-cols-4 gap-2 max-h-48 overflow-y-auto border rounded-lg p-2">
