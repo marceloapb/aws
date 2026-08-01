@@ -84,8 +84,6 @@ app.use(cors({
   origin: [
     'https://www.marcelobloisefotografia.com.br',
     'https://marcelobloisefotografia.com.br',
-    'https://www.mbfoto.com.br',
-    'https://mbfoto.com.br',
     'http://localhost:3000',
     'http://localhost:5173',
   ],
