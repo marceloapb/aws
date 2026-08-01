@@ -58,7 +58,7 @@ const ComunicacaoMensagens = MensagensSistema;
 import MeuPerfil from './pages/admin/MeuPerfil';
 import TrocarSenha from './pages/admin/TrocarSenha';
 import GatewayConfig from './pages/admin/GatewayConfig';
-import Onboarding from './pages/admin/Onboarding';
+
 import IntegracoesLogs from './pages/admin/IntegracoesLogs';
 import Integracoes from './pages/admin/Integracoes';
 import Novidades from './pages/admin/Novidades';
@@ -133,7 +133,7 @@ function App() {
       <Route path="/album/:slug" element={<AlbumPublico />} />
 
       {/* Admin */}
-      <Route path="/admin/onboarding" element={<PrivateRoute role="admin"><Onboarding /></PrivateRoute>} />
+
       <Route path="/admin/albuns/:id/preview" element={<PrivateRoute role="admin"><AlbumPreview /></PrivateRoute>} />
       <Route path="/admin" element={<PrivateRoute role="admin"><Layout /></PrivateRoute>}>
         <Route index element={<Dashboard />} />
