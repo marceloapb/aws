@@ -121,10 +121,8 @@ export default function Instagram() {
     if (selectedPhotos.length === 0 || !caption.trim()) return;
     setPublishing(true);
     try {
-      // Get foto IDs from albumFotos (match by URL)
-      const fotos_ids = albumFotos
-        .filter(f => selectedPhotos.includes(f.url || f.url_thumb))
-        .map(f => f.id || f.SK?.replace('FOTO#', ''));
+      // selectedPhotos now contains foto IDs directly
+      const fotos_ids = selectedPhotos;
 
       const payload = {
         fotos_ids,
@@ -221,10 +219,10 @@ export default function Instagram() {
   };
 
   // Photo toggle
-  const togglePhoto = (url) => {
-    if (tipoPost === 'unico') { setSelectedPhotos([url]); return; }
-    if (selectedPhotos.includes(url)) setSelectedPhotos(selectedPhotos.filter(p => p !== url));
-    else if (selectedPhotos.length < 10) setSelectedPhotos([...selectedPhotos, url]);
+  const togglePhoto = (fotoId) => {
+    if (tipoPost === 'unico') { setSelectedPhotos([fotoId]); return; }
+    if (selectedPhotos.includes(fotoId)) setSelectedPhotos(selectedPhotos.filter(p => p !== fotoId));
+    else if (selectedPhotos.length < 10) setSelectedPhotos([...selectedPhotos, fotoId]);
   };
 
   const addHashtag = (tag) => {
@@ -349,16 +347,19 @@ export default function Instagram() {
               {/* Grid de fotos do álbum selecionado */}
               <div className="grid grid-cols-4 gap-2 max-h-48 overflow-y-auto border rounded-lg p-2">
                 {albumFotos.length === 0 && <p className="col-span-4 text-center text-xs text-gray-400 py-4">{selectedAlbumId ? 'Nenhuma foto neste álbum' : 'Selecione um álbum acima'}</p>}
-                {albumFotos.map((foto, i) => (
-                  <div key={i} onClick={() => togglePhoto(foto.url || foto.url_thumb)} className={`relative cursor-pointer rounded-lg overflow-hidden border-2 ${selectedPhotos.includes(foto.url || foto.url_thumb) ? 'border-[#EA580C]' : 'border-transparent'}`}>
+                {albumFotos.map((foto, i) => {
+                  const fotoId = foto.id || foto.SK?.replace('FOTO#', '');
+                  return (
+                  <div key={i} onClick={() => togglePhoto(fotoId)} className={`relative cursor-pointer rounded-lg overflow-hidden border-2 ${selectedPhotos.includes(fotoId) ? 'border-[#EA580C]' : 'border-transparent'}`}>
                     <img src={foto.url_thumb || foto.url || ''} alt="" className="w-full h-16 object-cover" />
-                    {selectedPhotos.includes(foto.url || foto.url_thumb) && (
+                    {selectedPhotos.includes(fotoId) && (
                       <div className="absolute inset-0 bg-orange-500/30 flex items-center justify-center">
                         <CheckCircle size={18} className="text-white" />
                       </div>
                     )}
                   </div>
-                ))}
+                  );
+                })}
               </div>
 
               {/* Caption */}
@@ -460,7 +461,11 @@ export default function Instagram() {
                 {/* Photo area - supports carousel */}
                 <div className="relative">
                   {selectedPhotos.length > 0 ? (
-                    <img src={selectedPhotos[previewIndex] || selectedPhotos[0]} alt="Preview" className="w-full h-[320px] object-cover" />
+                    <img src={(() => {
+                      const fotoId = selectedPhotos[previewIndex] || selectedPhotos[0];
+                      const foto = albumFotos.find(f => (f.id || f.SK?.replace('FOTO#', '')) === fotoId);
+                      return foto?.url_thumb || foto?.url || '';
+                    })()} alt="Preview" className="w-full h-[320px] object-cover" />
                   ) : (
                     <div className="w-full h-[320px] bg-gray-200 flex items-center justify-center text-gray-400">
                       <Image size={48} />
