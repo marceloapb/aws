@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, Navigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import useDashboardPreferences from '../../hooks/useDashboardPreferences';
 import {
@@ -186,11 +186,6 @@ export default function Dashboard() {
     ...contracts.filter(c => ['signed', 'assinado'].includes(c.status)).map(c => ({ date: c.signedAt || c.assinado_em || c.updatedAt || c.updated, text: `Contrato assinado — ${c.clientName || c.cliente_nome || 'Cliente'}`, icon: CheckCircle2 })),
     ...charges.filter(c => ['paid', 'pago'].includes(c.status)).map(c => ({ date: c.pago_em || c.paidAt || c.pagoEm || c.updatedAt || c.updated, text: `Pagamento recebido — ${formatBRL(c.amount || c.valor)}`, icon: CreditCard })),
   ].filter(a => a.date).sort((a, b) => new Date(b.date) - new Date(a.date)).slice(0, 5);
-
-  // Redirect to onboarding if not completed
-  if (!localStorage.getItem('mbf_onboarding_done')) {
-    return <Navigate to="/admin/onboarding" replace />;
-  }
 
   if (loading) return (
     <div className="flex items-center justify-center h-64">
