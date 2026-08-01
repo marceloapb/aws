@@ -35,6 +35,51 @@ function formatCEP(v) {
   return n.length > 5 ? `${n.slice(0, 5)}-${n.slice(5)}` : n;
 }
 
+function validarEmail(email) {
+  const e = (email || '').trim().toLowerCase();
+  if (!e) return 'E-mail é obrigatório';
+
+  // Formato básico
+  if (!/^[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}$/.test(e)) return 'E-mail com formato inválido';
+
+  const [local, domain] = e.split('@');
+
+  // Local part checks
+  if (local.length < 2) return 'E-mail muito curto antes do @';
+  if (local.startsWith('.') || local.endsWith('.') || local.includes('..')) return 'E-mail com pontos inválidos';
+
+  // Domain checks
+  if (!domain || domain.length < 4) return 'Domínio do e-mail inválido';
+  const parts = domain.split('.');
+  if (parts.length < 2) return 'Domínio do e-mail inválido';
+  const tld = parts[parts.length - 1];
+  if (tld.length < 2) return 'Extensão do domínio inválida';
+
+  // Typos comuns em domínios populares
+  const domainTypos = {
+    'gmail.com': ['gmai.com', 'gmial.com', 'gmal.com', 'gmail.co', 'gmail.cm', 'gmail.con', 'gnail.com', 'gamil.com', 'gimail.com', 'gmail.com.br'],
+    'hotmail.com': ['hotmal.com', 'hotmial.com', 'hotmai.com', 'hotmail.co', 'hotmail.con', 'hotmaill.com', 'hotamil.com'],
+    'outlook.com': ['outlok.com', 'outllook.com', 'outloock.com', 'outlook.co', 'outlook.con'],
+    'yahoo.com': ['yaho.com', 'yahooo.com', 'yahoo.co', 'yahoo.con', 'yhaoo.com'],
+    'icloud.com': ['iclod.com', 'icloud.co', 'icoud.com'],
+    'uol.com.br': ['uol.com', 'uol.co.br', 'uol.cm.br'],
+    'terra.com.br': ['terra.com', 'terra.co.br'],
+    'bol.com.br': ['bol.com', 'bol.co.br'],
+  };
+
+  for (const [correct, typos] of Object.entries(domainTypos)) {
+    if (typos.includes(domain)) {
+      return `Você quis dizer @${correct}?`;
+    }
+  }
+
+  // Caracteres suspeitos
+  if (/[àáâãéèêíóôõúç]/.test(e)) return 'E-mail não pode conter acentos';
+  if (e.includes(' ')) return 'E-mail não pode conter espaços';
+
+  return null; // OK
+}
+
 function validarCPF(cpf) {
   const nums = cpf.replace(/\D/g, '');
   if (nums.length !== 11) return false;
@@ -143,6 +188,9 @@ export default function NovoCliente() {
     if (step === 0) {
       if (!form.nome.trim() || form.nome.trim().length < 3) return 'Nome é obrigatório (mínimo 3 caracteres)';
       if (!form.email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) return 'E-mail válido é obrigatório';
+      // Validação avançada de email
+      const emailErr = validarEmail(form.email);
+      if (emailErr) return emailErr;
       if (form.telefone.replace(/\D/g, '').length < 10) return 'Telefone/WhatsApp é obrigatório';
       const cpfNums = form.cpf_cnpj.replace(/\D/g, '');
       if (!cpfNums || (cpfNums.length !== 11 && cpfNums.length !== 14)) return 'CPF ou CNPJ é obrigatório';
