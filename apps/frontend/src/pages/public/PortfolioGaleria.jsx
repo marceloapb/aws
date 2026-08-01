@@ -4,7 +4,6 @@ import { X, ChevronLeft, ChevronRight, ArrowLeft } from 'lucide-react';
 
 const API = process.env.REACT_APP_API_URL || '';
 const PAGE_SIZE = 20;
-const TARGET_ROW_HEIGHT = 280;
 
 // Protected image component - prevents download/save
 function ProtectedImg({ src, alt, className, style }) {
@@ -29,53 +28,6 @@ function ProtectedImg({ src, alt, className, style }) {
   );
 }
 
-// Justified rows layout calculator
-function calculateJustifiedRows(photos, containerWidth, targetHeight = TARGET_ROW_HEIGHT, gap = 6) {
-  if (!containerWidth || photos.length === 0) return [];
-
-  const rows = [];
-  let currentRow = [];
-  let currentRowWidth = 0;
-
-  for (const photo of photos) {
-    const aspectRatio = (photo.width || 1600) / (photo.height || 1200);
-    const scaledWidth = targetHeight * aspectRatio;
-    currentRow.push({ ...photo, aspectRatio, scaledWidth });
-    currentRowWidth += scaledWidth;
-
-    const totalGaps = (currentRow.length - 1) * gap;
-    if (currentRowWidth + totalGaps >= containerWidth) {
-      // Row is full — justify it
-      const rowHeight = (containerWidth - totalGaps) / currentRow.reduce((sum, p) => sum + p.aspectRatio, 0);
-      rows.push({
-        height: rowHeight,
-        photos: currentRow.map(p => ({
-          ...p,
-          displayWidth: rowHeight * p.aspectRatio,
-          displayHeight: rowHeight,
-        })),
-      });
-      currentRow = [];
-      currentRowWidth = 0;
-    }
-  }
-
-  // Last row (don't stretch if incomplete)
-  if (currentRow.length > 0) {
-    const rowHeight = Math.min(targetHeight, (containerWidth - (currentRow.length - 1) * gap) / currentRow.reduce((sum, p) => sum + p.aspectRatio, 0));
-    rows.push({
-      height: rowHeight,
-      photos: currentRow.map(p => ({
-        ...p,
-        displayWidth: rowHeight * p.aspectRatio,
-        displayHeight: rowHeight,
-      })),
-    });
-  }
-
-  return rows;
-}
-
 export default function PortfolioGaleria() {
   const { categoriaId } = useParams();
   const [categoria, setCategoria] = useState(null);
@@ -83,8 +35,6 @@ export default function PortfolioGaleria() {
   const [loading, setLoading] = useState(true);
   const [lightbox, setLightbox] = useState(null);
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
-  const [containerWidth, setContainerWidth] = useState(0);
-  const containerRef = useRef(null);
   const loaderRef = useRef(null);
 
   // Protection: block right-click, Ctrl+S, Ctrl+P, PrintScreen
@@ -114,17 +64,6 @@ export default function PortfolioGaleria() {
       document.removeEventListener('copy', blockCopy);
     };
   }, []);
-
-  // Measure container width
-  useEffect(() => {
-    if (!containerRef.current) return;
-    const ro = new ResizeObserver(entries => {
-      for (const entry of entries) setContainerWidth(entry.contentRect.width);
-    });
-    ro.observe(containerRef.current);
-    setContainerWidth(containerRef.current.clientWidth);
-    return () => ro.disconnect();
-  }, [loading]);
 
   // Infinite scroll
   useEffect(() => {
@@ -191,16 +130,8 @@ export default function PortfolioGaleria() {
     return () => { document.body.style.overflow = ''; };
   }, [lightbox]);
 
-  // Calculate justified rows for visible photos
+  // Calculate visible photos for infinite scroll
   const fotosVisiveis = fotos.slice(0, visibleCount);
-  const rows = calculateJustifiedRows(fotosVisiveis, containerWidth, TARGET_ROW_HEIGHT, 6);
-
-  // Map visible photo index to global index for lightbox
-  const getGlobalIndex = (rowIdx, photoIdx) => {
-    let count = 0;
-    for (let r = 0; r < rowIdx; r++) count += rows[r].photos.length;
-    return count + photoIdx;
-  };
 
   if (loading) {
     return (
@@ -285,33 +216,33 @@ export default function PortfolioGaleria() {
           </div>
         </section>
 
-        {/* Photo Grid - Justified Rows with Infinite Scroll */}
+        {/* Photo Grid - Masonry (Mosaico) with Infinite Scroll */}
         <section className="pb-16">
-          <div ref={containerRef} className="max-w-7xl mx-auto px-4 sm:px-6">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6">
             {fotos.length === 0 ? (
               <p className="text-center text-stone-500 py-12">Nenhuma foto nesta galeria ainda.</p>
             ) : (
-              <div className="space-y-1.5">
-                {rows.map((row, rowIdx) => (
-                  <div key={rowIdx} className="flex gap-1.5" style={{ height: row.height }}>
-                    {row.photos.map((photo, photoIdx) => (
-                      <button
-                        key={photo.id || `${rowIdx}-${photoIdx}`}
-                        onClick={() => openLightbox(getGlobalIndex(rowIdx, photoIdx))}
-                        className="photo-item relative overflow-hidden rounded-sm bg-stone-900 block focus:outline-none"
-                        style={{ width: photo.displayWidth, height: photo.displayHeight, flexShrink: 0 }}
-                        onContextMenu={e => e.preventDefault()}
-                      >
-                        <ProtectedImg
-                          src={photo.url || photo.thumb_url}
-                          alt={photo.titulo || ''}
-                          className="w-full h-full object-cover"
-                          style={{ width: '100%', height: '100%' }}
-                        />
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent opacity-0 hover:opacity-100 transition-opacity duration-300" />
-                      </button>
-                    ))}
-                  </div>
+              <div className="columns-2 md:columns-3 gap-2">
+                {fotosVisiveis.map((photo, idx) => (
+                  <button
+                    key={photo.id || idx}
+                    onClick={() => openLightbox(idx)}
+                    className="photo-item relative w-full mb-2 overflow-hidden bg-stone-900 block break-inside-avoid focus:outline-none"
+                    style={{ border: '3px solid #EA580C', borderRadius: '10px' }}
+                    onContextMenu={e => e.preventDefault()}
+                  >
+                    <ProtectedImg
+                      src={photo.url || photo.thumb_url}
+                      alt={photo.titulo || ''}
+                      className="w-full h-auto object-cover"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent opacity-0 hover:opacity-100 transition-opacity duration-300" />
+                    {photo.titulo && (
+                      <span className="absolute bottom-3 left-3 right-3 text-sm text-white font-medium opacity-0 group-hover:opacity-100 transition-opacity truncate">
+                        {photo.titulo}
+                      </span>
+                    )}
+                  </button>
                 ))}
               </div>
             )}
