@@ -4,6 +4,7 @@ import { User, MapPin, Calendar, Package, MapPinned, Send, ChevronLeft, ChevronR
 
 const API = process.env.REACT_APP_API_URL || '';
 const ACCENT = '#EA580C';
+const PUBLIC_TOKEN = 'mbf-pub-2026-xK9mP4';
 const STEPS = ['Seus Dados', 'Endereço', 'O Evento', 'Serviços', 'Local do Evento', 'Finalização'];
 const STEP_ICONS = [User, MapPin, Calendar, Package, MapPinned, Send];
 const ORIGENS = ['Instagram', 'Google', 'Indicação de amigo', 'Facebook', 'TikTok', 'Pinterest', 'Evento/Feira', 'Outro'];
@@ -56,7 +57,7 @@ export default function NovoCliente() {
   const logoUrl = typeof window !== 'undefined' ? localStorage.getItem('mbf_logo_url') : null;
 
   useEffect(() => {
-    fetch(`${API}/public/novo-cliente/catalogo`)
+    fetch(`${API}/public/novo-cliente/catalogo`, { headers: { 'X-Public-Token': PUBLIC_TOKEN } })
       .then(r => r.json())
       .then(d => { if (d.success) setCatalogo(d.data); })
       .catch(() => {});
@@ -129,7 +130,7 @@ export default function NovoCliente() {
       };
       const res = await fetch(`${API}/public/novo-cliente`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'X-Public-Token': PUBLIC_TOKEN },
         body: JSON.stringify(payload),
       });
       const data = await res.json();

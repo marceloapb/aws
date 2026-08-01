@@ -16,10 +16,21 @@ const cognito = new CognitoIdentityProviderClient({ region: 'us-east-1' });
 const USER_POOL_ID = process.env.COGNITO_USER_POOL_ID || 'us-east-1_ENV0dsEJx';
 const TENANT = process.env.TENANT_ID || 'default';
 
+// Token de segurança para endpoints públicos (evita bots)
+const PUBLIC_TOKEN = process.env.PUBLIC_FORM_TOKEN || 'mbf-pub-2026-xK9mP4';
+
+function validateToken(req, res, next) {
+  const token = req.headers['x-public-token'] || req.query.token;
+  if (token !== PUBLIC_TOKEN) {
+    return res.status(403).json({ success: false, message: 'Acesso não autorizado' });
+  }
+  next();
+}
+
 // ═══════════════════════════════════════════════════════════
 // GET /public/novo-cliente/catalogo — Pacotes + Serviços ativos (sem auth)
 // ═══════════════════════════════════════════════════════════
-router.get('/catalogo', async (req, res) => {
+router.get('/catalogo', validateToken, async (req, res) => {
   try {
     // Buscar pacotes ativos
     const pacotesResult = await dynamo.send(new ScanCommand({
@@ -91,7 +102,7 @@ router.get('/catalogo', async (req, res) => {
 // ═══════════════════════════════════════════════════════════
 // POST /public/novo-cliente — Cadastro completo + Orçamento + Senha temporária
 // ═══════════════════════════════════════════════════════════
-router.post('/', async (req, res) => {
+router.post('/', validateToken, async (req, res) => {
   try {
     const {
       // Dados pessoais
