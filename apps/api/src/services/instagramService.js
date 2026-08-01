@@ -5,7 +5,8 @@
 const { env } = require('../config/env');
 const { getSignedDownloadUrl } = require('./s3Service');
 
-const BASE_URL = `https://graph.facebook.com/v18.0/${env.INSTAGRAM_BUSINESS_ACCOUNT_ID}`;
+// Instagram API uses graph.instagram.com for IG tokens (IGAG... format)
+const getBaseUrl = () => `https://graph.instagram.com/v18.0/${env.INSTAGRAM_BUSINESS_ACCOUNT_ID}`;
 const TIMEOUT_MS = 30000;
 const POLL_INTERVAL_MS = 5000;
 const MAX_POLL_ATTEMPTS = 30;
@@ -17,6 +18,7 @@ function getHeaders() {
 async function publicarFotoUnica(s3Key, caption) {
   try {
     const imageUrl = await getSignedDownloadUrl(s3Key, 3600);
+    const BASE_URL = getBaseUrl();
 
     // Criar container
     const containerResponse = await fetch(`${BASE_URL}/media?image_url=${encodeURIComponent(imageUrl)}&caption=${encodeURIComponent(caption)}&access_token=${env.INSTAGRAM_ACCESS_TOKEN}`, {
@@ -57,6 +59,7 @@ async function publicarFotoUnica(s3Key, caption) {
 
 async function publicarCarrossel(s3Keys, caption) {
   try {
+    const BASE_URL = getBaseUrl();
     const containerIds = [];
 
     // Criar containers individuais
@@ -117,7 +120,7 @@ async function publicarCarrossel(s3Keys, caption) {
 
 async function aguardarProcessamento(containerId) {
   for (let i = 0; i < MAX_POLL_ATTEMPTS; i++) {
-    const response = await fetch(`https://graph.facebook.com/v18.0/${containerId}?fields=status_code&access_token=${env.INSTAGRAM_ACCESS_TOKEN}`, {
+    const response = await fetch(`https://graph.instagram.com/v18.0/${containerId}?fields=status_code&access_token=${env.INSTAGRAM_ACCESS_TOKEN}`, {
       signal: AbortSignal.timeout(TIMEOUT_MS),
     });
 
@@ -132,7 +135,7 @@ async function aguardarProcessamento(containerId) {
 
 async function buscarPermalink(mediaId) {
   try {
-    const response = await fetch(`https://graph.facebook.com/v18.0/${mediaId}?fields=permalink&access_token=${env.INSTAGRAM_ACCESS_TOKEN}`, {
+    const response = await fetch(`https://graph.instagram.com/v18.0/${mediaId}?fields=permalink&access_token=${env.INSTAGRAM_ACCESS_TOKEN}`, {
       signal: AbortSignal.timeout(TIMEOUT_MS),
     });
     const data = await response.json();

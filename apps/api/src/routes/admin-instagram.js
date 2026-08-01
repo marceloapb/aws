@@ -21,7 +21,7 @@ router.get('/status', async (req, res) => {
       // Try to get account info from Meta Graph API
       try {
         const response = await fetch(
-          `https://graph.facebook.com/v18.0/${params.INSTAGRAM_BUSINESS_ACCOUNT_ID}?fields=username,account_type&access_token=${params.INSTAGRAM_ACCESS_TOKEN}`,
+          `https://graph.instagram.com/v18.0/${params.INSTAGRAM_BUSINESS_ACCOUNT_ID}?fields=username,account_type&access_token=${params.INSTAGRAM_ACCESS_TOKEN}`,
           { signal: AbortSignal.timeout(10000) }
         );
         if (response.ok) {
@@ -221,7 +221,7 @@ router.post('/renew-token', async (req, res) => {
 
     // Exchange for long-lived token via Meta Graph API
     const response = await fetch(
-      `https://graph.facebook.com/v18.0/oauth/access_token?grant_type=fb_exchange_token&client_id=${params.INSTAGRAM_APP_ID || params.FACEBOOK_APP_ID}&client_secret=${params.INSTAGRAM_APP_SECRET || params.FACEBOOK_APP_SECRET}&fb_exchange_token=${params.INSTAGRAM_ACCESS_TOKEN}`,
+      `https://graph.instagram.com/refresh_access_token?grant_type=ig_refresh_token&access_token=${params.INSTAGRAM_ACCESS_TOKEN}`,
       { signal: AbortSignal.timeout(15000) }
     );
     const data = await response.json();
