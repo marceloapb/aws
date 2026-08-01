@@ -374,15 +374,38 @@ router.post('/', validateToken, async (req, res) => {
       }
       const adminPhone = configMap.whatsappBusiness || configMap.phone || configMap.telefone || '';
       if (adminPhone) {
-        await whatsapp.enviarTemplate({
-          telefone: adminPhone,
-          template_name: 'notificacao_geral',
-          parameters: [
-            'Admin',
-            `Novo cliente + orçamento`,
-            `${nome.trim()} (${email}) — Evento: ${nome_evento || 'não informado'}`,
-          ],
-        });
+        try {
+          await whatsapp.enviarTemplate({
+            telefone: adminPhone,
+            template_name: 'notificacao_geral',
+            parameters: [
+              'Admin',
+              `Novo cliente + orçamento`,
+              `${nome.trim()} (${email}) — Evento: ${nome_evento || 'não informado'}`,
+            ],
+          });
+          // Log sucesso notificação admin
+          await dynamo.send(new PutCommand({
+            TableName: TABLE,
+            Item: {
+              PK: `TENANT#${TENANT}`, SK: `LOG_NTF#${uuid()}`,
+              id: uuid(), tipo_evento: 'novo_cliente_admin', canal: 'whatsapp',
+              status: 'enviado', destinatario: adminPhone, erro: null,
+              created: now,
+            },
+          }));
+        } catch (whatsAdminErr) {
+          // Log erro notificação admin
+          await dynamo.send(new PutCommand({
+            TableName: TABLE,
+            Item: {
+              PK: `TENANT#${TENANT}`, SK: `LOG_NTF#${uuid()}`,
+              id: uuid(), tipo_evento: 'novo_cliente_admin', canal: 'whatsapp',
+              status: 'erro', destinatario: adminPhone, erro: whatsAdminErr.message,
+              created: now,
+            },
+          }));
+        }
       }
     } catch (notifErr) {
       // Não impede o fluxo se falhar a notificação ao admin
