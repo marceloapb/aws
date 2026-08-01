@@ -1,5 +1,5 @@
 const { dynamo, TABLE } = require('../config/dynamodb');
-const { QueryCommand, UpdateCommand } = require('@aws-sdk/lib-dynamodb');
+const { QueryCommand, UpdateCommand, GetCommand } = require('@aws-sdk/lib-dynamodb');
 const { publicarCarrossel, publicarFotoUnica } = require('../services/instagramService');
 const { INSTAGRAM_STATUS } = require('../config/constants');
 
@@ -23,10 +23,19 @@ async function processarPublicacoes() {
         ExpressionAttributeValues: { ':s': INSTAGRAM_STATUS.PUBLICANDO },
       }));
 
-      const fotosResults = await Promise.all(pub.fotos_ids.map(fid =>
-        dynamo.send(new QueryCommand({ TableName: TABLE, IndexName: 'GSI1', KeyConditionExpression: 'GSI1PK = :pk AND GSI1SK = :sk', ExpressionAttributeValues: { ':pk': 'FOTO', ':sk': `FOTO#${fid}` } }))
-      ));
-      const fotosKeys = fotosResults.flatMap(r => (r.Items || []).map(f => f.s3_key));
+      // Buscar fotos do álbum
+      let fotosKeys = [];
+      if (pub.album_id) {
+        const fotosResults = await Promise.all(pub.fotos_ids.map(fid =>
+          dynamo.send(new GetCommand({ TableName: TABLE, Key: { PK: `ALBUM#${pub.album_id}`, SK: `FOTO#${fid}` } }))
+        ));
+        fotosKeys = fotosResults.filter(r => r.Item).map(r => r.Item.s3_key_original || r.Item.s3_key_media || r.Item.s3_key).filter(Boolean);
+      } else {
+        const fotosResults = await Promise.all(pub.fotos_ids.map(fid =>
+          dynamo.send(new QueryCommand({ TableName: TABLE, IndexName: 'GSI1', KeyConditionExpression: 'GSI1PK = :pk AND GSI1SK = :sk', ExpressionAttributeValues: { ':pk': 'FOTO', ':sk': `FOTO#${fid}` } }))
+        ));
+        fotosKeys = fotosResults.flatMap(r => (r.Items || []).map(f => f.s3_key)).filter(Boolean);
+      }
 
       const resultado = fotosKeys.length === 1
         ? await publicarFotoUnica(fotosKeys[0], pub.caption || '')

@@ -133,16 +133,39 @@ router.post('/:id/publicar-agora', async (req, res) => {
     const pub = pubResult.Items?.[0];
     if (!pub) return res.status(404).json({ success: false, message: 'Publicação não encontrada' });
 
-    // Buscar fotos
-    const fotosResults = await Promise.all(pub.fotos_ids.map(fid =>
-      dynamo.send(new QueryCommand({
-        TableName: TABLE,
-        IndexName: 'GSI1',
-        KeyConditionExpression: 'GSI1PK = :pk AND GSI1SK = :sk',
-        ExpressionAttributeValues: { ':pk': 'FOTO', ':sk': `FOTO#${fid}` },
-      }))
-    ));
-    const fotosKeys = fotosResults.flatMap(r => (r.Items || []).map(f => f.s3_key));
+    // Buscar fotos diretamente do álbum (PK=ALBUM#id, SK=FOTO#id)
+    const { GetCommand } = require('@aws-sdk/lib-dynamodb');
+    const albumId = pub.album_id;
+    let fotosKeys = [];
+
+    if (albumId) {
+      // Fetch each photo from the album
+      const fotosResults = await Promise.all(pub.fotos_ids.map(fid =>
+        dynamo.send(new GetCommand({
+          TableName: TABLE,
+          Key: { PK: `ALBUM#${albumId}`, SK: `FOTO#${fid}` },
+        }))
+      ));
+      fotosKeys = fotosResults
+        .filter(r => r.Item)
+        .map(r => r.Item.s3_key_original || r.Item.s3_key_media || r.Item.s3_key)
+        .filter(Boolean);
+    } else {
+      // Fallback: try GSI1 lookup (legacy)
+      const fotosResults = await Promise.all(pub.fotos_ids.map(fid =>
+        dynamo.send(new QueryCommand({
+          TableName: TABLE,
+          IndexName: 'GSI1',
+          KeyConditionExpression: 'GSI1PK = :pk AND GSI1SK = :sk',
+          ExpressionAttributeValues: { ':pk': 'FOTO', ':sk': `FOTO#${fid}` },
+        }))
+      ));
+      fotosKeys = fotosResults.flatMap(r => (r.Items || []).map(f => f.s3_key)).filter(Boolean);
+    }
+
+    if (fotosKeys.length === 0) {
+      return res.status(400).json({ success: false, message: 'Nenhuma foto encontrada para publicar' });
+    }
 
     let resultado;
     if (fotosKeys.length === 1) {
