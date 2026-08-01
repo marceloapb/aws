@@ -119,6 +119,7 @@ router.post('/verificar', validateToken, async (req, res) => {
     // Verificar CPF/CNPJ no DynamoDB
     const documentoLimpo = (cpf_cnpj || '').replace(/\D/g, '');
     if (documentoLimpo.length >= 11) {
+      // Método 1: GSI1 (clientes novos com DOC# indexado)
       const docCheck = await dynamo.send(new QueryCommand({
         TableName: TABLE,
         IndexName: 'GSI1',
@@ -127,6 +128,23 @@ router.post('/verificar', validateToken, async (req, res) => {
         Limit: 1,
       }));
       if (docCheck.Items && docCheck.Items.length > 0) {
+        return res.json({ success: false, code: 'CPF_EXISTS', message: 'Já existe um cadastro com este CPF/CNPJ.' });
+      }
+
+      // Método 2: Scan nos campos cpf_cnpj e documento (clientes legados)
+      const { ScanCommand: ScanCmd } = require('@aws-sdk/lib-dynamodb');
+      // Formatar com máscara para comparar com dados legados
+      const cpfMasked = documentoLimpo.length === 11
+        ? documentoLimpo.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4')
+        : documentoLimpo.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/, '$1.$2.$3/$4-$5');
+      const legacyCheck = await dynamo.send(new ScanCmd({
+        TableName: TABLE,
+        FilterExpression: '(cpf_cnpj = :doc OR cpf_cnpj = :docMask OR documento = :doc) AND SK = :sk',
+        ExpressionAttributeValues: { ':doc': documentoLimpo, ':docMask': cpfMasked, ':sk': 'PROFILE' },
+        Limit: 1,
+        ProjectionExpression: 'PK',
+      }));
+      if (legacyCheck.Items && legacyCheck.Items.length > 0) {
         return res.json({ success: false, code: 'CPF_EXISTS', message: 'Já existe um cadastro com este CPF/CNPJ.' });
       }
     }
@@ -196,6 +214,24 @@ router.post('/', validateToken, async (req, res) => {
         Limit: 1,
       }));
       if (docCheck.Items && docCheck.Items.length > 0) {
+        return res.status(409).json({
+          success: false,
+          code: 'ALREADY_EXISTS',
+          message: 'Já existe um cadastro com este CPF/CNPJ. Faça login para acessar.',
+        });
+      }
+      // Fallback: scan legacy fields (cpf_cnpj com máscara, documento sem máscara)
+      const cpfMasked = documentoLimpo.length === 11
+        ? documentoLimpo.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4')
+        : documentoLimpo.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/, '$1.$2.$3/$4-$5');
+      const legacyCheck = await dynamo.send(new ScanCommand({
+        TableName: TABLE,
+        FilterExpression: '(cpf_cnpj = :doc OR cpf_cnpj = :docMask OR documento = :doc) AND SK = :sk',
+        ExpressionAttributeValues: { ':doc': documentoLimpo, ':docMask': cpfMasked, ':sk': 'PROFILE' },
+        Limit: 1,
+        ProjectionExpression: 'PK',
+      }));
+      if (legacyCheck.Items && legacyCheck.Items.length > 0) {
         return res.status(409).json({
           success: false,
           code: 'ALREADY_EXISTS',
