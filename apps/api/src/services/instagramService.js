@@ -2,11 +2,10 @@
 // SERVICES/INSTAGRAM-SERVICE.JS — Meta Graph API (Instagram)
 // ══════════════════════════════════════════════════════════════
 
-const { env } = require('../config/env');
+const { loadParams } = require('../config/env');
 const { getSignedDownloadUrl } = require('./s3Service');
 
 // Instagram Content Publishing API uses graph.facebook.com with EAA tokens
-const getBaseUrl = () => `https://graph.facebook.com/v18.0/${env.INSTAGRAM_BUSINESS_ACCOUNT_ID}`;
 const TIMEOUT_MS = 30000;
 const POLL_INTERVAL_MS = 5000;
 const MAX_POLL_ATTEMPTS = 30;
@@ -17,11 +16,13 @@ function getHeaders() {
 
 async function publicarFotoUnica(s3Key, caption) {
   try {
+    const params = await loadParams();
+    const BASE_URL = `https://graph.facebook.com/v18.0/${params.INSTAGRAM_BUSINESS_ACCOUNT_ID}`;
+    const ACCESS_TOKEN = params.INSTAGRAM_ACCESS_TOKEN;
     const imageUrl = await getSignedDownloadUrl(s3Key, 3600);
-    const BASE_URL = getBaseUrl();
 
     // Criar container
-    const containerResponse = await fetch(`${BASE_URL}/media?image_url=${encodeURIComponent(imageUrl)}&caption=${encodeURIComponent(caption)}&access_token=${env.INSTAGRAM_ACCESS_TOKEN}`, {
+    const containerResponse = await fetch(`${BASE_URL}/media?image_url=${encodeURIComponent(imageUrl)}&caption=${encodeURIComponent(caption)}&access_token=${ACCESS_TOKEN}`, {
       method: 'POST',
       headers: getHeaders(),
       signal: AbortSignal.timeout(TIMEOUT_MS),
@@ -34,7 +35,7 @@ async function publicarFotoUnica(s3Key, caption) {
     await aguardarProcessamento(containerData.id);
 
     // Publicar
-    const publishResponse = await fetch(`${BASE_URL}/media_publish?creation_id=${containerData.id}&access_token=${env.INSTAGRAM_ACCESS_TOKEN}`, {
+    const publishResponse = await fetch(`${BASE_URL}/media_publish?creation_id=${containerData.id}&access_token=${ACCESS_TOKEN}`, {
       method: 'POST',
       headers: getHeaders(),
       signal: AbortSignal.timeout(TIMEOUT_MS),
@@ -59,14 +60,16 @@ async function publicarFotoUnica(s3Key, caption) {
 
 async function publicarCarrossel(s3Keys, caption) {
   try {
-    const BASE_URL = getBaseUrl();
+    const params = await loadParams();
+    const BASE_URL = `https://graph.facebook.com/v18.0/${params.INSTAGRAM_BUSINESS_ACCOUNT_ID}`;
+    const ACCESS_TOKEN = params.INSTAGRAM_ACCESS_TOKEN;
     const containerIds = [];
 
     // Criar containers individuais
     for (const key of s3Keys) {
       const imageUrl = await getSignedDownloadUrl(key, 3600);
 
-      const response = await fetch(`${BASE_URL}/media?image_url=${encodeURIComponent(imageUrl)}&is_carousel_item=true&access_token=${env.INSTAGRAM_ACCESS_TOKEN}`, {
+      const response = await fetch(`${BASE_URL}/media?image_url=${encodeURIComponent(imageUrl)}&is_carousel_item=true&access_token=${ACCESS_TOKEN}`, {
         method: 'POST',
         headers: getHeaders(),
         signal: AbortSignal.timeout(TIMEOUT_MS),
@@ -84,7 +87,7 @@ async function publicarCarrossel(s3Keys, caption) {
     }
 
     // Criar container do carrossel
-    const carouselResponse = await fetch(`${BASE_URL}/media?media_type=CAROUSEL&children=${containerIds.join(',')}&caption=${encodeURIComponent(caption)}&access_token=${env.INSTAGRAM_ACCESS_TOKEN}`, {
+    const carouselResponse = await fetch(`${BASE_URL}/media?media_type=CAROUSEL&children=${containerIds.join(',')}&caption=${encodeURIComponent(caption)}&access_token=${ACCESS_TOKEN}`, {
       method: 'POST',
       headers: getHeaders(),
       signal: AbortSignal.timeout(TIMEOUT_MS),
@@ -96,7 +99,7 @@ async function publicarCarrossel(s3Keys, caption) {
     await aguardarProcessamento(carouselData.id);
 
     // Publicar
-    const publishResponse = await fetch(`${BASE_URL}/media_publish?creation_id=${carouselData.id}&access_token=${env.INSTAGRAM_ACCESS_TOKEN}`, {
+    const publishResponse = await fetch(`${BASE_URL}/media_publish?creation_id=${carouselData.id}&access_token=${ACCESS_TOKEN}`, {
       method: 'POST',
       headers: getHeaders(),
       signal: AbortSignal.timeout(TIMEOUT_MS),
@@ -119,8 +122,9 @@ async function publicarCarrossel(s3Keys, caption) {
 }
 
 async function aguardarProcessamento(containerId) {
+  const params = await loadParams();
   for (let i = 0; i < MAX_POLL_ATTEMPTS; i++) {
-    const response = await fetch(`https://graph.facebook.com/v18.0/${containerId}?fields=status_code&access_token=${env.INSTAGRAM_ACCESS_TOKEN}`, {
+    const response = await fetch(`https://graph.facebook.com/v18.0/${containerId}?fields=status_code&access_token=${params.INSTAGRAM_ACCESS_TOKEN}`, {
       signal: AbortSignal.timeout(TIMEOUT_MS),
     });
 
@@ -135,7 +139,8 @@ async function aguardarProcessamento(containerId) {
 
 async function buscarPermalink(mediaId) {
   try {
-    const response = await fetch(`https://graph.facebook.com/v18.0/${mediaId}?fields=permalink&access_token=${env.INSTAGRAM_ACCESS_TOKEN}`, {
+    const params = await loadParams();
+    const response = await fetch(`https://graph.facebook.com/v18.0/${mediaId}?fields=permalink&access_token=${params.INSTAGRAM_ACCESS_TOKEN}`, {
       signal: AbortSignal.timeout(TIMEOUT_MS),
     });
     const data = await response.json();
