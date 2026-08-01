@@ -148,13 +148,17 @@ export default function Instagram() {
       if (mode === 'agendar') {
         showMsg('success', `Publicação agendada para ${scheduleDate} às ${scheduleTime || '12:00'}.`);
       } else if (mode === 'publicar') {
-        // Step 2: Trigger immediate publish
-        const pubResult = await api(`/admin/instagram/${result.data.id}/publicar-agora`, { method: 'POST' });
-        if (pubResult?.success) {
-          showMsg('success', `✓ Publicado no Instagram com sucesso!`);
-        } else {
-          showMsg('error', `Publicação criada mas falhou ao publicar: ${pubResult?.message || 'Erro ao conectar com Instagram'}`);
-        }
+        // Step 2: Trigger immediate publish (fire-and-forget - may take 30-60s)
+        // Don't await - the Lambda continues in background even if API Gateway times out
+        api(`/admin/instagram/${result.data.id}/publicar-agora`, { method: 'POST' })
+          .then(pubResult => {
+            if (pubResult?.success) {
+              showMsg('success', `✓ Publicado no Instagram com sucesso!`);
+            }
+            loadPosts();
+          })
+          .catch(() => {});
+        showMsg('success', `📸 Publicação em andamento! Pode levar até 1 minuto. Acompanhe na aba Feed.`);
       }
 
       setSelectedPhotos([]); setCaption(''); setAgendar(false); setScheduleDate(''); setScheduleTime('');
