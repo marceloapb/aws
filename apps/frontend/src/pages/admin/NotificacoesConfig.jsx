@@ -133,7 +133,21 @@ export default function NotificacoesConfig() {
 
   // Load templates for selection
   useEffect(() => {
-    authFetch('/admin/whatsapp/templates').then(r => r.json()).then(d => { if (d.data) setWhatsappTemplates(d.data); }).catch(() => {});
+    authFetch('/admin/whatsapp/templates').then(r => r.json()).then(d => {
+      if (d.data) {
+        // Filtrar: se existe versão _img, esconder a versão sem _img do dropdown
+        const nomes = d.data.map(t => t.name || t.nome);
+        const filtered = d.data.filter(t => {
+          const nome = t.name || t.nome;
+          // Se NÃO termina em _img, verificar se existe versão _img
+          if (!nome.endsWith('_img')) {
+            return !nomes.includes(nome + '_img');
+          }
+          return true;
+        });
+        setWhatsappTemplates(filtered);
+      }
+    }).catch(() => {});
     authFetch('/admin/email-templates').then(r => r.json()).then(d => { if (d.data) setEmailTemplates(d.data); }).catch(() => {});
   }, [authFetch]);
 

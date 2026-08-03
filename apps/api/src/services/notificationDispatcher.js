@@ -164,7 +164,6 @@ async function despacharCanal(canal, regra, evento, dados) {
 
     case 'whatsapp': {
       const { enviarWhatsApp } = require('../adapters/notificacoes/whatsappAdapter');
-      const { getTemplateHeaderImageUrl } = require('./whatsappService');
 
       // Textos descritivos por tipo de evento (quando não há template customizado na regra)
       const textosDescritivos = {
@@ -181,23 +180,23 @@ async function despacharCanal(canal, regra, evento, dados) {
           mensagem: `O contrato de ${dados.cliente_nome || 'cliente'} para ${dados.tipo_evento || 'o evento'} foi enviado e aguarda assinatura digital.`,
         },
         'contrato_assinado': {
-          titulo: `Contrato Assinado com Sucesso! 🎉`,
+          titulo: `Contrato Assinado com Sucesso!`,
           mensagem: `${dados.cliente_nome || 'O cliente'} assinou o contrato para ${dados.tipo_evento || 'o evento'}. Tudo certo para seguir com o planejamento!`,
         },
         'pagamento_confirmado': {
-          titulo: `Pagamento Confirmado! 💰`,
+          titulo: `Pagamento Confirmado!`,
           mensagem: `Pagamento de ${dados.cliente_nome || 'cliente'} no valor de R$ ${dados.valor ? Number(dados.valor).toLocaleString('pt-BR', { minimumFractionDigits: 2 }) : '—'} foi confirmado com sucesso.`,
         },
         'pagamento_vencido': {
-          titulo: `Pagamento Vencido ⚠️`,
+          titulo: `Pagamento Vencido`,
           mensagem: `O pagamento de ${dados.cliente_nome || 'cliente'} no valor de R$ ${dados.valor ? Number(dados.valor).toLocaleString('pt-BR', { minimumFractionDigits: 2 }) : '—'} está vencido desde ${dados.data_vencimento || 'data não informada'}. Verifique com o cliente.`,
         },
         'album_publicado': {
-          titulo: `Álbum Publicado! 📸`,
+          titulo: `Álbum Publicado!`,
           mensagem: `O álbum "${dados.titulo || dados.album_titulo || 'Fotos'}" de ${dados.cliente_nome || 'cliente'} está disponível para visualização e download.`,
         },
         'evento_confirmado': {
-          titulo: `Evento Confirmado! ✅`,
+          titulo: `Evento Confirmado!`,
           mensagem: `O evento de ${dados.cliente_nome || 'cliente'} (${dados.tipo_evento || 'sessão'}) no dia ${dados.data_evento ? new Date(dados.data_evento + 'T00:00').toLocaleDateString('pt-BR') : '—'} foi confirmado.`,
         },
         'evento_criado': {
@@ -205,11 +204,11 @@ async function despacharCanal(canal, regra, evento, dados) {
           mensagem: `Evento criado para ${dados.cliente_nome || 'cliente'}: ${dados.tipo_evento || 'sessão'} no dia ${dados.data_evento ? new Date(dados.data_evento + 'T00:00').toLocaleDateString('pt-BR') : '—'}.`,
         },
         'evento_realizado': {
-          titulo: `Evento Realizado! 🎬`,
+          titulo: `Evento Realizado!`,
           mensagem: `O evento de ${dados.cliente_nome || 'cliente'} (${dados.tipo_evento || 'sessão'}) foi marcado como realizado. Próximos passos: edição e entrega.`,
         },
         'feedback_respondido': {
-          titulo: `Novo Feedback Recebido ⭐`,
+          titulo: `Novo Feedback Recebido`,
           mensagem: `${dados.cliente_nome || 'Um cliente'} respondeu a pesquisa de satisfação. Confira a avaliação no sistema.`,
         },
       };
@@ -235,88 +234,41 @@ async function despacharCanal(canal, regra, evento, dados) {
         throw new Error('Número WhatsApp do destinatário não configurado');
       }
 
-      // Resolver template
+      // Resolver template — as regras já apontam diretamente para _img quando disponível
+      // Fallback por evento só para casos onde não há regra com whatsapp_template definido
       const templatePorEvento = {
-        'orcamento_solicitado': 'novo_orcamento',
-        'orcamento_criado': 'novo_orcamento',
-        'contrato_enviado': 'contrato_assinatura',
-        'contrato_assinado': 'contrato_assinado_aviso',
-        'pagamento_confirmado': 'pagamento_confirmado',
-        'pagamento_vencido': 'pagamento_vencido',
-        'album_publicado': 'album_pronto',
-        'evento_confirmado': 'evento_confirmado',
-        'evento_criado': 'notificacao_geral',
-        'evento_realizado': 'notificacao_geral',
-        'album_baixado': 'notificacao_geral',
-        'feedback_respondido': 'notificacao_geral',
-        'mensagem_recebida': 'notificacao_geral',
+        'orcamento_solicitado': 'novo_orcamento_img',
+        'orcamento_criado': 'novo_orcamento_img',
+        'contrato_enviado': 'contrato_assinatura_img',
+        'contrato_assinado': 'contrato_assinado_aviso_img',
+        'pagamento_confirmado': 'pagamento_confirmado_img',
+        'pagamento_vencido': 'pagamento_vencido_img',
+        'album_publicado': 'album_pronto_img',
+        'evento_confirmado': 'evento_confirmado_img',
+        'evento_criado': 'notificacao_geral_img',
+        'evento_realizado': 'notificacao_geral_img',
+        'album_baixado': 'notificacao_geral_img',
+        'feedback_respondido': 'feedback_solicitacao',
+        'mensagem_recebida': 'notificacao_geral_img',
       };
 
-      const templateName = regra.whatsapp_template || templatePorEvento[evento.tipo_evento] || 'notificacao_geral';
+      const templateName = regra.whatsapp_template || templatePorEvento[evento.tipo_evento] || 'notificacao_geral_img';
 
-      // Verificar se o template na Meta suporta header IMAGE
-      let imagemUrl = null;
-      let templateSuportaImagem = false;
+      // Se a regra tem header_image_key, enviar com imagem no header
+      // Os templates _img já aceitam header IMAGE na Meta
       if (regra.header_image_key) {
         const CDN_BASE = 'https://d2112x4m4e89fv.cloudfront.net';
-        imagemUrl = `${CDN_BASE}/${regra.header_image_key}`;
+        const imagemUrl = `${CDN_BASE}/${regra.header_image_key}`;
 
-        // Usar versão _img do template (que tem header IMAGE na Meta)
-        const templateImgName = templateName + '_img';
-        const metaHeaderUrl = await getTemplateHeaderImageUrl(templateImgName);
-        if (metaHeaderUrl !== null) {
-          // Template _img existe e suporta header IMAGE — usar ele
-          templateSuportaImagem = true;
-        } else {
-          // Fallback: verificar se o template original suporta imagem
-          const originalHeaderUrl = await getTemplateHeaderImageUrl(templateName);
-          templateSuportaImagem = originalHeaderUrl !== null;
-        }
-      }
-
-      if (imagemUrl && templateSuportaImagem) {
-        // Usar template _img (com header IMAGE) — funciona fora da janela 24h
-        const tplToUse = templateName + '_img';
-        await enviarWhatsApp({
-          numero,
-          template: tplToUse,
-          parametros: [dados.cliente_nome || 'Cliente', titulo, mensagem],
-          mediaType: 'image',
-          mediaUrl: imagemUrl,
-        });
-      } else if (imagemUrl && !templateSuportaImagem) {
-        // Template _img não existe ainda — tentar enviar imagem como mensagem separada
-        // NOTA: mensagem de mídia só funciona dentro da janela 24h
-        const whatsappClient = require('../lib/whatsapp/client');
-
-        try {
-          const config = await whatsappClient.getConfig();
-          let phone = numero.replace(/\D/g, '');
-          if (!phone.startsWith('55')) phone = '55' + phone;
-
-          await fetch(`https://graph.facebook.com/v20.0/${config.phoneNumberId}/messages`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${config.accessToken}` },
-            body: JSON.stringify({
-              messaging_product: 'whatsapp',
-              to: phone,
-              type: 'image',
-              image: { link: imagemUrl },
-            }),
-          });
-        } catch (imgErr) {
-          // Falhou (provavelmente fora da janela 24h) — segue sem imagem
-          console.warn(`[DISPATCHER] Não foi possível enviar imagem separada: ${imgErr.message}`);
-        }
-
-        // Enviar template normalmente (sem imagem no header)
         await enviarWhatsApp({
           numero,
           template: templateName,
           parametros: [dados.cliente_nome || 'Cliente', titulo, mensagem],
+          mediaType: 'image',
+          mediaUrl: imagemUrl,
         });
       } else {
-        // Sem imagem — enviar template normalmente
+        // Sem imagem — enviar template normalmente (templates _img aceitam header image vazio)
         await enviarWhatsApp({
           numero,
           template: templateName,
