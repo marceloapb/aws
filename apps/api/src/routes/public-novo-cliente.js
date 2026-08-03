@@ -322,6 +322,37 @@ router.post('/', validateToken, async (req, res) => {
 
     await dynamo.send(new PutCommand({ TableName: TABLE, Item: orcamentoItem }));
 
+    // ─── Criar evento na Agenda automaticamente (se data_evento informada) ───
+    if (data_evento) {
+      try {
+        const eventoId = uuid();
+        const agendaItem = {
+          PK: `TENANT#${TENANT}`,
+          SK: `AGENDA#${data_evento}#${eventoId}`,
+          GSI1PK: 'AGENDA',
+          GSI1SK: `AGENDA#${eventoId}`,
+          id: eventoId,
+          titulo: nome_evento || `Sessão - ${nome.trim()}`,
+          tipo_evento: nome_evento || 'Sessão',
+          data_evento,
+          horario_inicio: horario_inicio || null,
+          horario_fim: horario_fim || null,
+          cliente_id: clienteId,
+          cliente_nome: nome.trim(),
+          cliente_telefone: telefoneLimpo,
+          orcamento_id: orcamentoId,
+          status: 'pendente',
+          origem: 'formulario_publico',
+          sync_status: 'pendente',
+          created: now,
+        };
+        await dynamo.send(new PutCommand({ TableName: TABLE, Item: agendaItem }));
+      } catch (agendaErr) {
+        console.error('[NOVO-CLIENTE] Erro ao criar evento na agenda:', agendaErr.message);
+        // Não impede o fluxo principal
+      }
+    }
+
     // ─── Enviar senha via cascata: WhatsApp → Email ───
     let metodo_envio = null;
     const logBase = { tipo_evento: 'novo_cliente_senha', created: now };
