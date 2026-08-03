@@ -261,22 +261,31 @@ async function despacharCanal(canal, regra, evento, dados) {
         const CDN_BASE = 'https://d2112x4m4e89fv.cloudfront.net';
         imagemUrl = `${CDN_BASE}/${regra.header_image_key}`;
 
-        // Verificar se o template na Meta tem header IMAGE configurado
-        const metaHeaderUrl = await getTemplateHeaderImageUrl(templateName);
-        templateSuportaImagem = metaHeaderUrl !== null;
+        // Usar versão _img do template (que tem header IMAGE na Meta)
+        const templateImgName = templateName + '_img';
+        const metaHeaderUrl = await getTemplateHeaderImageUrl(templateImgName);
+        if (metaHeaderUrl !== null) {
+          // Template _img existe e suporta header IMAGE — usar ele
+          templateSuportaImagem = true;
+        } else {
+          // Fallback: verificar se o template original suporta imagem
+          const originalHeaderUrl = await getTemplateHeaderImageUrl(templateName);
+          templateSuportaImagem = originalHeaderUrl !== null;
+        }
       }
 
       if (imagemUrl && templateSuportaImagem) {
-        // Template suporta header IMAGE — enviar com imagem no header
+        // Usar template _img (com header IMAGE) — funciona fora da janela 24h
+        const tplToUse = templateName + '_img';
         await enviarWhatsApp({
           numero,
-          template: templateName,
+          template: tplToUse,
           parametros: [dados.cliente_nome || 'Cliente', titulo, mensagem],
           mediaType: 'image',
           mediaUrl: imagemUrl,
         });
       } else if (imagemUrl && !templateSuportaImagem) {
-        // Template NÃO suporta header IMAGE — tentar enviar imagem como mensagem separada + template
+        // Template _img não existe ainda — tentar enviar imagem como mensagem separada
         // NOTA: mensagem de mídia só funciona dentro da janela 24h
         const whatsappClient = require('../lib/whatsapp/client');
 
