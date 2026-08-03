@@ -275,8 +275,8 @@ export default function NotificacoesConfig() {
         body: JSON.stringify({ filename: file.name, contentType: file.type, folder: 'template-headers' }),
       });
       const data = await res.json();
-      const uploadUrl = data.uploadUrl || data.upload_url;
-      const key = data.key || (data.fileUrl ? data.fileUrl.replace(`${CDN_BASE}/`, '') : null);
+      const uploadUrl = data.data?.upload_url || data.uploadUrl || data.upload_url;
+      const key = data.data?.key || data.key || (data.fileUrl ? data.fileUrl.replace(`${CDN_BASE}/`, '') : null);
 
       if (!uploadUrl) {
         toast.error('Erro ao obter URL de upload');
