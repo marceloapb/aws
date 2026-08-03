@@ -8,11 +8,91 @@ const router = Router();
 // POST /api/admin/whatsapp/enviar-template
 router.post('/enviar-template', async (req, res) => {
   try {
-    const { numero, template, parametros } = req.body;
+    let { numero, template, parametros, clienteId, templateId, variaveis, media_type, media_url } = req.body;
+
+    // Resolver clienteId → numero (telefone do cliente)
+    if (!numero && clienteId) {
+      const cliResult = await dynamo.send(new QueryCommand({
+        TableName: TABLE,
+        IndexName: 'GSI1',
+        KeyConditionExpression: 'GSI1PK = :pk AND GSI1SK = :sk',
+        ExpressionAttributeValues: { ':pk': 'CLIENTE', ':sk': `CLIENTE#${clienteId}` },
+      }));
+      const cliente = cliResult.Items?.[0];
+      if (!cliente) return res.status(404).json({ success: false, message: 'Cliente não encontrado' });
+      numero = cliente.whatsapp || cliente.whatsapp_numero || cliente.telefone;
+      if (!numero) return res.status(400).json({ success: false, message: 'Cliente sem WhatsApp cadastrado' });
+    }
+
+    // Resolver templateId → nome do template
+    if (!template && templateId) {
+      const { loadParams } = require('../config/env');
+      const params = await loadParams();
+      const token = params.WHATSAPP_ACCESS_TOKEN;
+      const wabaId = params.WHATSAPP_WABA_ID || '2163797757810981';
+
+      const tplResp = await fetch(`https://graph.facebook.com/v20.0/${wabaId}/message_templates?limit=100`, {
+        headers: { 'Authorization': `Bearer ${token}` },
+        signal: AbortSignal.timeout(10000),
+      });
+      const tplData = await tplResp.json();
+      const found = (tplData.data || []).find(t => t.id === templateId);
+      if (!found) return res.status(404).json({ success: false, message: 'Template não encontrado na Meta' });
+      template = found.name;
+
+      // Detectar se template tem header de imagem → enviar com mídia automaticamente
+      const headerComp = found.components?.find(c => c.type === 'HEADER');
+      if (headerComp?.format === 'IMAGE' && !media_type) {
+        media_type = 'image';
+        // Usar a URL de exemplo do template se disponível
+        media_url = media_url || headerComp.example?.header_handle?.[0] || headerComp.example?.header_url?.[0] || null;
+      }
+    }
+
     if (!numero || !template) return res.status(400).json({ success: false, message: 'numero e template são obrigatórios' });
-    const resultado = await enviarTemplate(numero, template, parametros || []);
+
+    // Compatibilidade: variaveis → parametros
+    if (!parametros && variaveis) parametros = variaveis;
+
+    let resultado;
+
+    // Se tem mídia, enviar com imagem/video/documento
+    if (media_type && media_url) {
+      if (media_type === 'image') {
+        resultado = await enviarTemplateComImagem(numero, template, media_url, parametros || []);
+      } else if (media_type === 'video') {
+        resultado = await enviarTemplateComVideo(numero, template, media_url, parametros || []);
+      } else if (media_type === 'document') {
+        resultado = await enviarTemplateComDocumento(numero, template, media_url, 'documento.pdf', parametros || []);
+      }
+    } else {
+      resultado = await enviarTemplate(numero, template, parametros || []);
+    }
+
+    // Registrar envio no histórico
+    const phone = numero.replace(/\D/g, '');
+    const now = new Date();
+    await dynamo.send(new PutCommand({
+      TableName: TABLE,
+      Item: {
+        PK: `WHATSAPP#${phone.startsWith('55') ? phone : '55' + phone}`,
+        SK: `OUT#${now.toISOString()}#${resultado.message_id || Date.now()}`,
+        type: 'template',
+        templateNome: template,
+        categoria: media_type ? 'marketing' : 'utility',
+        mediaType: media_type || null,
+        mediaUrl: media_url || null,
+        status: 'enviado',
+        messageId: resultado.message_id || null,
+        origem: 'admin',
+        createdAt: now.toISOString(),
+        timestamp: Math.floor(now.getTime() / 1000).toString(),
+      },
+    }));
+
     res.json({ success: true, data: resultado });
   } catch (error) {
+    console.error('[WHATSAPP] Erro ao enviar template:', error.message);
     res.status(400).json({ success: false, message: error.message });
   }
 });
@@ -742,22 +822,36 @@ router.post('/enviar-texto', async (req, res) => {
     const { clienteId, texto } = req.body;
     if (!clienteId || !texto) return res.status(400).json({ success: false, message: 'clienteId e texto são obrigatórios' });
 
+    // Resolver clienteId → telefone
+    const cliResult = await dynamo.send(new QueryCommand({
+      TableName: TABLE,
+      IndexName: 'GSI1',
+      KeyConditionExpression: 'GSI1PK = :pk AND GSI1SK = :sk',
+      ExpressionAttributeValues: { ':pk': 'CLIENTE', ':sk': `CLIENTE#${clienteId}` },
+    }));
+    const cliente = cliResult.Items?.[0];
+    if (!cliente) return res.status(404).json({ success: false, message: 'Cliente não encontrado' });
+    const telefone = cliente.whatsapp || cliente.whatsapp_numero || cliente.telefone;
+    if (!telefone) return res.status(400).json({ success: false, message: 'Cliente sem WhatsApp cadastrado' });
+
     const whatsapp = require('../lib/whatsapp/client');
 
     // Enviar via WhatsApp Cloud API
-    const result = await whatsapp.enviarTexto({ telefone: clienteId, texto });
+    const result = await whatsapp.enviarTexto({ telefone, texto });
 
     // Salvar mensagem de saída no DynamoDB
     const now = new Date();
+    const phone = result.phone || telefone.replace(/\D/g, '');
     await dynamo.send(new PutCommand({
       TableName: TABLE,
       Item: {
-        PK: `WHATSAPP#${result.phone || clienteId.replace(/\D/g, '')}`,
+        PK: `WHATSAPP#${phone.startsWith('55') ? phone : '55' + phone}`,
         SK: `OUT#${now.toISOString()}#${result.message_id || Date.now()}`,
         type: 'text',
         text: texto,
         status: 'enviado',
         messageId: result.message_id,
+        destinatario: cliente.nome || telefone,
         createdAt: now.toISOString(),
         timestamp: Math.floor(now.getTime() / 1000).toString(),
       },
@@ -765,6 +859,7 @@ router.post('/enviar-texto', async (req, res) => {
 
     res.json({ success: true, data: result });
   } catch (error) {
+    console.error('[WHATSAPP] Erro ao enviar texto:', error.message);
     res.status(400).json({ success: false, message: error.message });
   }
 });

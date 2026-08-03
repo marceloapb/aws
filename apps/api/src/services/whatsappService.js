@@ -2,19 +2,34 @@
 // SERVICES/WHATSAPP-SERVICE.JS — Meta WhatsApp Business API
 // ══════════════════════════════════════════════════════════════
 
-const { env } = require('../config/env');
+const { loadParams } = require('../config/env');
 
-const BASE_URL = `https://graph.facebook.com/v18.0/${env.WHATSAPP_PHONE_NUMBER_ID}`;
 const TIMEOUT_MS = 15000;
 
-function getHeaders() {
+/**
+ * Carrega credenciais do WhatsApp via SSM (com cache)
+ */
+async function getWhatsAppConfig() {
+  const params = await loadParams();
+  const phoneNumberId = params.WHATSAPP_PHONE_NUMBER_ID;
+  const accessToken = params.WHATSAPP_ACCESS_TOKEN;
+
+  if (!phoneNumberId || !accessToken) {
+    throw new Error('WhatsApp não configurado: WHATSAPP_PHONE_NUMBER_ID ou WHATSAPP_ACCESS_TOKEN não encontrados no SSM');
+  }
+
   return {
-    'Content-Type': 'application/json',
-    'Authorization': `Bearer ${env.WHATSAPP_ACCESS_TOKEN}`,
+    baseUrl: `https://graph.facebook.com/v20.0/${phoneNumberId}`,
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${accessToken}`,
+    },
   };
 }
 
 async function enviarTemplate(numero, templateName, parametros = []) {
+  const config = await getWhatsAppConfig();
+
   const body = {
     messaging_product: 'whatsapp',
     to: formatarNumero(numero),
@@ -29,15 +44,15 @@ async function enviarTemplate(numero, templateName, parametros = []) {
     },
   };
 
-  const response = await fetch(`${BASE_URL}/messages`, {
+  const response = await fetch(`${config.baseUrl}/messages`, {
     method: 'POST',
-    headers: getHeaders(),
+    headers: config.headers,
     body: JSON.stringify(body),
     signal: AbortSignal.timeout(TIMEOUT_MS),
   });
 
   const data = await response.json();
-  if (!response.ok) throw new Error(data.error?.message || 'Erro WhatsApp API');
+  if (!response.ok) throw new Error(data.error?.message || `Erro WhatsApp API: ${JSON.stringify(data.error || data)}`);
 
   return { success: true, message_id: data.messages?.[0]?.id };
 }
@@ -86,6 +101,7 @@ async function enviarLembreteAdmin(numero, tipoEvento, nomeCliente, data, horari
  * @returns {Promise<{success: boolean, message_id: string}>}
  */
 async function enviarTemplateComImagem(numero, templateName, imagemUrl, parametrosBody = [], botoes = []) {
+  const config = await getWhatsAppConfig();
   const components = [];
 
   // Header com imagem
@@ -117,10 +133,8 @@ async function enviarTemplateComImagem(numero, templateName, imagemUrl, parametr
     };
 
     if (btn.sub_type === 'url' && btn.url) {
-      // Botão de URL com sufixo dinâmico
       btnComponent.parameters = [{ type: 'text', text: btn.url }];
     } else {
-      // Quick reply com payload
       btnComponent.parameters = [{ type: 'payload', payload: btn.payload || btn.text || `btn_${i}` }];
     }
 
@@ -138,15 +152,15 @@ async function enviarTemplateComImagem(numero, templateName, imagemUrl, parametr
     },
   };
 
-  const response = await fetch(`${BASE_URL}/messages`, {
+  const response = await fetch(`${config.baseUrl}/messages`, {
     method: 'POST',
-    headers: getHeaders(),
+    headers: config.headers,
     body: JSON.stringify(body),
     signal: AbortSignal.timeout(TIMEOUT_MS),
   });
 
   const data = await response.json();
-  if (!response.ok) throw new Error(data.error?.message || 'Erro WhatsApp API');
+  if (!response.ok) throw new Error(data.error?.message || `Erro WhatsApp API: ${JSON.stringify(data.error || data)}`);
 
   return { success: true, message_id: data.messages?.[0]?.id };
 }
@@ -154,15 +168,9 @@ async function enviarTemplateComImagem(numero, templateName, imagemUrl, parametr
 /**
  * Envia template com vídeo no header
  * O template precisa estar aprovado na Meta com header do tipo VIDEO.
- *
- * @param {string} numero - Telefone do destinatário
- * @param {string} templateName - Nome do template aprovado na Meta
- * @param {string} videoUrl - URL pública do vídeo
- * @param {string[]} parametrosBody - Parâmetros de texto para o body
- * @param {Array} botoes - Botões do template (opcional)
- * @returns {Promise<{success: boolean, message_id: string}>}
  */
 async function enviarTemplateComVideo(numero, templateName, videoUrl, parametrosBody = [], botoes = []) {
+  const config = await getWhatsAppConfig();
   const components = [];
 
   components.push({
@@ -210,15 +218,15 @@ async function enviarTemplateComVideo(numero, templateName, videoUrl, parametros
     },
   };
 
-  const response = await fetch(`${BASE_URL}/messages`, {
+  const response = await fetch(`${config.baseUrl}/messages`, {
     method: 'POST',
-    headers: getHeaders(),
+    headers: config.headers,
     body: JSON.stringify(body),
     signal: AbortSignal.timeout(TIMEOUT_MS),
   });
 
   const data = await response.json();
-  if (!response.ok) throw new Error(data.error?.message || 'Erro WhatsApp API');
+  if (!response.ok) throw new Error(data.error?.message || `Erro WhatsApp API: ${JSON.stringify(data.error || data)}`);
 
   return { success: true, message_id: data.messages?.[0]?.id };
 }
@@ -226,16 +234,9 @@ async function enviarTemplateComVideo(numero, templateName, videoUrl, parametros
 /**
  * Envia template com documento (PDF) no header
  * O template precisa estar aprovado na Meta com header do tipo DOCUMENT.
- *
- * @param {string} numero - Telefone do destinatário
- * @param {string} templateName - Nome do template aprovado na Meta
- * @param {string} documentUrl - URL pública do documento
- * @param {string} filename - Nome do arquivo exibido para o cliente
- * @param {string[]} parametrosBody - Parâmetros de texto para o body
- * @param {Array} botoes - Botões do template (opcional)
- * @returns {Promise<{success: boolean, message_id: string}>}
  */
 async function enviarTemplateComDocumento(numero, templateName, documentUrl, filename, parametrosBody = [], botoes = []) {
+  const config = await getWhatsAppConfig();
   const components = [];
 
   components.push({
@@ -283,15 +284,15 @@ async function enviarTemplateComDocumento(numero, templateName, documentUrl, fil
     },
   };
 
-  const response = await fetch(`${BASE_URL}/messages`, {
+  const response = await fetch(`${config.baseUrl}/messages`, {
     method: 'POST',
-    headers: getHeaders(),
+    headers: config.headers,
     body: JSON.stringify(body),
     signal: AbortSignal.timeout(TIMEOUT_MS),
   });
 
   const data = await response.json();
-  if (!response.ok) throw new Error(data.error?.message || 'Erro WhatsApp API');
+  if (!response.ok) throw new Error(data.error?.message || `Erro WhatsApp API: ${JSON.stringify(data.error || data)}`);
 
   return { success: true, message_id: data.messages?.[0]?.id };
 }
