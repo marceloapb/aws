@@ -45,8 +45,9 @@ export default function WhatsApp() {
   // Templates
   const [templates, setTemplates] = useState([]);
   const [tplModal, setTplModal] = useState(false);
-  const [tplForm, setTplForm] = useState({ nome: '', categoria: 'utility', idioma: 'pt_BR', corpo: '', variaveis: [], evento: '' });
+  const [tplForm, setTplForm] = useState({ nome: '', categoria: 'utility', idioma: 'pt_BR', corpo: '', variaveis: [], evento: '', header: '', header_type: 'TEXT', header_image_key: '' });
   const [editTplId, setEditTplId] = useState(null);
+  const [uploadingHeaderImg, setUploadingHeaderImg] = useState(false);
 
   // Envios
   const [envios, setEnvios] = useState([]);
@@ -103,18 +104,18 @@ export default function WhatsApp() {
     return (
       <div className="space-y-4">
         {/* Status Card */}
-        <div className="bg-white border rounded-lg p-4 flex items-center justify-between">
+        <div className="bg-white border rounded-lg p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
           <div className="flex items-center gap-3">
             {online ? <Wifi className="text-green-500" size={24} /> : <WifiOff className="text-red-500" size={24} />}
             <div>
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <Badge color={online ? 'green' : 'red'}>{online ? 'Conectado' : 'Desconectado'}</Badge>
                 {conexao.verificacao && <Badge color={verBadge[conexao.verificacao] || 'gray'}>{conexao.verificacao}</Badge>}
               </div>
-              <p className="text-sm text-gray-600 mt-1">{conexao.telefone || '—'} • WABA: {conexao.wabaId || '—'}</p>
+              <p className="text-sm text-gray-600 mt-1 break-all">{conexao.telefone || '—'} • WABA: {conexao.wabaId || '—'}</p>
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 shrink-0">
             <span className="text-xs text-gray-500">Modo:</span>
             <button onClick={toggleModo} className="px-3 py-1 rounded text-xs font-medium border" style={conexao.modo === 'producao' ? { background: ACCENT, color: '#fff', borderColor: ACCENT } : {}}>
               {conexao.modo === 'producao' ? 'Produção' : 'Desenvolvimento'}
@@ -173,23 +174,45 @@ export default function WhatsApp() {
 
 
   // === Templates handlers ===
-  const openNewTpl = () => { setTplForm({ nome: '', categoria: 'UTILITY', idioma: 'pt_BR', corpo: '', variaveis: [], evento: '', header: '' }); setEditTplId(null); setTplModal(true); };
+  const openNewTpl = () => { setTplForm({ nome: '', categoria: 'UTILITY', idioma: 'pt_BR', corpo: '', variaveis: [], evento: '', header: '', header_type: 'TEXT', header_image_key: '' }); setEditTplId(null); setTplModal(true); };
   const openEditTpl = (t) => {
-    setTplForm({ nome: t.nome, categoria: t.categoria, idioma: t.idioma, corpo: t.corpo, variaveis: t.variaveis || [], evento: '', header: '' });
+    setTplForm({ nome: t.nome, categoria: t.categoria, idioma: t.idioma, corpo: t.corpo, variaveis: t.variaveis || [], evento: '', header: t.header?.texto || '', header_type: (t.header?.tipo || 'TEXT').toUpperCase(), header_image_key: t.header?.exemplo_url || '' });
     setEditTplId(t.id);
     setTplModal(true);
   };
   const saveTpl = async () => {
     try {
+      const payload = { ...tplForm };
+      // Se header é imagem, montar campos para a API
+      if (tplForm.header_type === 'IMAGE' && tplForm.header_image_key) {
+        const CDN_BASE = 'https://d2112x4m4e89fv.cloudfront.net';
+        payload.header_type = 'IMAGE';
+        // Se já é URL completa (editando template existente), usar diretamente
+        payload.header_example_url = tplForm.header_image_key.startsWith('http')
+          ? tplForm.header_image_key
+          : `${CDN_BASE}/${tplForm.header_image_key}`;
+        payload.header = '';
+      } else if (tplForm.header_type === 'TEXT') {
+        // header texto normal — não enviar header_type para usar lógica de texto
+        delete payload.header_type;
+        delete payload.header_image_key;
+      } else {
+        // NONE — sem header
+        payload.header = '';
+        delete payload.header_type;
+        delete payload.header_image_key;
+      }
+      // Limpar campos internos do form que não vão para a API
+      delete payload.evento;
+      delete payload.header_image_key;
+
       if (editTplId) {
-        // Editar template existente na Meta
-        const resp = await authFetch(`${API}/templates/${editTplId}`, { method: 'PUT', body: JSON.stringify(tplForm) });
+        const resp = await authFetch(`${API}/templates/${editTplId}`, { method: 'PUT', body: JSON.stringify(payload) });
         const data = await resp.json();
         if (!data.success) { alert(data.message || 'Erro ao editar template'); return; }
         alert('Template atualizado! Ficará pendente de re-aprovação pela Meta.');
       } else {
-        // Criar novo
-        const resp = await authFetch(`${API}/templates`, { method: 'POST', body: JSON.stringify(tplForm) });
+        const resp = await authFetch(`${API}/templates`, { method: 'POST', body: JSON.stringify(payload) });
         const data = await resp.json();
         if (!data.success) { alert(data.message || 'Erro ao criar template'); return; }
         alert(`Template criado! Status: ${data.data?.status || 'PENDING'}`);
@@ -207,6 +230,32 @@ export default function WhatsApp() {
   const syncTodos = () => { loadTab(); };
   const addVariavel = () => { setTplForm({ ...tplForm, variaveis: [...tplForm.variaveis, { indice: tplForm.variaveis.length + 1, descricao: '', exemplo: '' }] }); };
 
+  // Upload de imagem do header do template
+  const handleTplHeaderImageUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) { alert('Selecione um arquivo de imagem'); return; }
+    if (file.size > 5 * 1024 * 1024) { alert('Imagem deve ter no máximo 5MB'); return; }
+
+    setUploadingHeaderImg(true);
+    try {
+      const res = await authFetch('/admin/upload/presign', {
+        method: 'POST',
+        body: JSON.stringify({ filename: file.name, contentType: file.type, folder: 'template-headers' }),
+      });
+      const data = await res.json();
+      if (!data.success) { alert(data.message || 'Erro ao obter URL de upload'); return; }
+
+      const uploadUrl = data.data.upload_url;
+      const key = data.data.key;
+
+      await fetch(uploadUrl, { method: 'PUT', headers: { 'Content-Type': file.type }, body: file });
+
+      setTplForm(prev => ({ ...prev, header_image_key: key }));
+    } catch (err) { alert('Erro ao enviar imagem: ' + err.message); }
+    finally { setUploadingHeaderImg(false); e.target.value = ''; }
+  };
+
   const highlightVars = (text) => {
     if (!text) return text;
     return text.split(/(\{\{\d+\}\})/).map((part, i) => /\{\{\d+\}\}/.test(part) ? <span key={i} style={{ color: ACCENT, fontWeight: 600 }}>{part}</span> : part);
@@ -223,20 +272,26 @@ export default function WhatsApp() {
         </div>
         <div className="grid gap-3">
           {templates.map(t => (
-            <div key={t.id} className="bg-white border rounded-lg p-4">
-              <div className="flex items-center justify-between mb-2">
-                <div className="flex items-center gap-2">
-                  <span className="font-medium text-sm font-mono">{t.nome}</span>
+            <div key={t.id} className="bg-white border rounded-lg p-4 overflow-hidden">
+              <div className="flex items-start justify-between mb-2 gap-2">
+                <div className="flex flex-wrap items-center gap-2 min-w-0">
+                  <span className="font-medium text-sm font-mono break-all">{t.nome}</span>
                   <Badge color={catColor[t.categoria] || 'gray'}>{t.categoria}</Badge>
                   <Badge color={stColor[t.status] || 'gray'}>{t.status}</Badge>
                   <span className="text-xs text-gray-400">{t.idioma}</span>
                 </div>
-                <div className="flex items-center gap-1">
+                <div className="flex items-center gap-1 shrink-0">
                   {t.categoria !== 'authentication' && <button onClick={() => openEditTpl(t)} className="p-1 text-gray-400 hover:text-blue-600" title="Editar texto"><Edit size={14} /></button>}
                   <button onClick={() => deleteTpl(t.nome)} className="p-1 text-gray-400 hover:text-red-600" title="Deletar"><Trash2 size={14} /></button>
                 </div>
               </div>
-              <p className="text-sm text-gray-600">{highlightVars(t.corpo)}</p>
+              <p className="text-sm text-gray-600 break-words">{highlightVars(t.corpo)}</p>
+              {t.header?.tipo === 'image' && t.header?.exemplo_url && (
+                <img src={t.header.exemplo_url} alt="Header" className="w-full max-h-32 object-cover rounded mt-2 border" loading="lazy" />
+              )}
+              {t.header?.tipo === 'text' && t.header?.texto && (
+                <p className="text-xs text-gray-500 mt-1 font-medium">📌 {t.header.texto}</p>
+              )}
               {t.footer && <p className="text-xs text-gray-400 mt-1">{t.footer}</p>}
               {t.botoes?.length > 0 && (
                 <div className="flex gap-2 mt-2">
@@ -275,9 +330,39 @@ export default function WhatsApp() {
               </div>
             </div>
             <div>
-              <label className="text-xs text-gray-500">Cabeçalho (opcional, texto fixo)</label>
-              <input value={tplForm.header} onChange={e => setTplForm({ ...tplForm, header: e.target.value })} className="w-full border rounded px-2 py-1.5 text-sm mt-1" placeholder="ex: Marcelo Bloise Fotografia - Notificação" />
+              <label className="text-xs text-gray-500">Tipo de Cabeçalho</label>
+              <select value={tplForm.header_type} onChange={e => setTplForm({ ...tplForm, header_type: e.target.value, header: '', header_image_key: '' })} className="w-full border rounded px-2 py-1.5 text-sm mt-1">
+                <option value="NONE">Nenhum</option>
+                <option value="TEXT">Texto</option>
+                <option value="IMAGE">Imagem</option>
+              </select>
             </div>
+            {tplForm.header_type === 'TEXT' && (
+              <div>
+                <label className="text-xs text-gray-500">Texto do Cabeçalho</label>
+                <input value={tplForm.header} onChange={e => setTplForm({ ...tplForm, header: e.target.value })} className="w-full border rounded px-2 py-1.5 text-sm mt-1" placeholder="ex: Marcelo Bloise Fotografia - Notificação" />
+              </div>
+            )}
+            {tplForm.header_type === 'IMAGE' && (
+              <div>
+                <label className="text-xs text-gray-500">Imagem do Cabeçalho (obrigatório para aprovação)</label>
+                {tplForm.header_image_key ? (
+                  <div className="mt-2 space-y-2">
+                    <img src={tplForm.header_image_key.startsWith('http') ? tplForm.header_image_key : `https://d2112x4m4e89fv.cloudfront.net/${tplForm.header_image_key}`} alt="Header" className="w-full max-h-40 object-cover rounded border" />
+                    <button onClick={() => setTplForm({ ...tplForm, header_image_key: '' })} className="text-xs text-red-500 hover:text-red-700">Remover imagem</button>
+                  </div>
+                ) : (
+                  <div className="mt-2">
+                    <label className={`inline-flex items-center gap-2 px-3 py-2 rounded border text-sm cursor-pointer hover:bg-gray-50 ${uploadingHeaderImg ? 'opacity-50 pointer-events-none' : ''}`}>
+                      <Upload size={14} />
+                      {uploadingHeaderImg ? 'Enviando...' : 'Selecionar imagem'}
+                      <input type="file" accept="image/*" onChange={handleTplHeaderImageUpload} className="hidden" />
+                    </label>
+                    <p className="text-xs text-gray-400 mt-1">JPG ou PNG, máx 5MB. A Meta recomenda 820x312px.</p>
+                  </div>
+                )}
+              </div>
+            )}
             <div>
               <label className="text-xs text-gray-500">Corpo da mensagem</label>
               <textarea value={tplForm.corpo} onChange={e => setTplForm({ ...tplForm, corpo: e.target.value })} rows={5} className="w-full border rounded px-2 py-1.5 text-sm mt-1 font-mono" placeholder={"Olá {{1}}, seu orçamento de {{2}} está pronto!\n\nAcesse: {{3}}"} />
@@ -509,9 +594,9 @@ export default function WhatsApp() {
         <div className="flex justify-end">
           <button onClick={refreshConversas} className="flex items-center gap-1 text-sm text-gray-600 hover:text-gray-800 px-3 py-1.5 border rounded"><RefreshCw size={14} /> Atualizar</button>
         </div>
-        <div className="flex border rounded-lg bg-white overflow-hidden" style={{ height: 480 }}>
+        <div className="flex flex-col md:flex-row border rounded-lg bg-white overflow-hidden" style={{ minHeight: 480 }}>
         {/* Sidebar */}
-        <div className="w-52 border-r overflow-y-auto">
+        <div className={`${selectedCliente ? 'hidden md:block' : 'block'} w-full md:w-52 border-b md:border-b-0 md:border-r overflow-y-auto md:max-h-[480px] max-h-60`}>
           {conversas.map(c => (
             <button key={c.clienteId} onClick={() => loadMensagens(c.clienteId)} className={`w-full text-left p-3 border-b hover:bg-gray-50 ${selectedCliente === c.clienteId ? 'bg-orange-50' : ''}`}>
               <div className="flex items-center justify-between">
@@ -525,16 +610,19 @@ export default function WhatsApp() {
         </div>
 
         {/* Chat */}
-        <div className="flex-1 flex flex-col">
+        <div className="flex-1 flex flex-col min-h-[380px] md:min-h-0">
           {selectedCliente ? (
             <>
               {/* Header */}
               <div className="px-4 py-2 border-b flex items-center justify-between bg-gray-50">
-                <div>
-                  <span className="text-sm font-medium">{clienteSel?.nome}</span>
-                  <span className="text-xs text-gray-400 ml-2">+{clienteSel?.telefone}</span>
+                <div className="flex items-center gap-2 min-w-0">
+                  <button onClick={() => setSelectedCliente(null)} className="md:hidden p-1 text-gray-500 hover:text-gray-700">
+                    <ChevronDown size={16} className="rotate-90" />
+                  </button>
+                  <span className="text-sm font-medium truncate">{clienteSel?.nome}</span>
+                  <span className="text-xs text-gray-400 hidden sm:inline">+{clienteSel?.telefone}</span>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 shrink-0">
                   {janelaAberta ? <Badge color="green">Janela até {janelaAte}</Badge> : <Badge color="gray">Janela fechada</Badge>}
                   <button onClick={() => loadMensagens(selectedCliente)} className="text-gray-400 hover:text-gray-600"><RefreshCw size={14} /></button>
                 </div>
@@ -594,12 +682,12 @@ export default function WhatsApp() {
               </div>
               {/* Input */}
               <div className="border-t p-3 flex gap-2">
-                <textarea value={resposta} onChange={e => setResposta(e.target.value)} disabled={!janelaAberta} placeholder={janelaAberta ? 'Digite sua resposta...' : 'Janela 24h fechada'} rows={1} className="flex-1 border rounded px-3 py-2 text-sm resize-none disabled:bg-gray-100 disabled:cursor-not-allowed" />
+                <textarea value={resposta} onChange={e => setResposta(e.target.value)} disabled={!janelaAberta} placeholder={janelaAberta ? 'Digite sua resposta...' : 'Janela 24h fechada'} rows={1} className="flex-1 min-w-0 border rounded px-3 py-2 text-sm resize-none disabled:bg-gray-100 disabled:cursor-not-allowed" />
                 <button onClick={enviarResposta} disabled={!janelaAberta || !resposta.trim()} className="px-3 py-2 rounded text-white disabled:opacity-50" style={{ background: ACCENT }}><Send size={16} /></button>
               </div>
             </>
           ) : (
-            <div className="flex-1 flex items-center justify-center text-sm text-gray-400">Selecione uma conversa à esquerda</div>
+            <div className="flex-1 flex items-center justify-center text-sm text-gray-400 hidden md:flex">Selecione uma conversa à esquerda</div>
           )}
         </div>
       </div>
@@ -683,7 +771,7 @@ export default function WhatsApp() {
 
   // === RENDER ===
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 overflow-x-hidden">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold flex items-center gap-2">
           <MessageCircle style={{ color: ACCENT }} size={24} /> WhatsApp Business
