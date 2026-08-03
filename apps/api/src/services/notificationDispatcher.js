@@ -164,6 +164,7 @@ async function despacharCanal(canal, regra, evento, dados) {
 
     case 'whatsapp': {
       const { enviarWhatsApp } = require('../adapters/notificacoes/whatsappAdapter');
+      const { getTemplateHeaderImageUrl } = require('./whatsappService');
 
       // Textos descritivos por tipo de evento (quando não há template customizado na regra)
       const textosDescritivos = {
@@ -253,10 +254,20 @@ async function despacharCanal(canal, regra, evento, dados) {
 
       const templateName = regra.whatsapp_template || templatePorEvento[evento.tipo_evento] || 'notificacao_geral';
 
-      // Enviar com ou sem imagem de header
+      // Verificar se o template na Meta suporta header IMAGE
+      let imagemUrl = null;
+      let templateSuportaImagem = false;
       if (regra.header_image_key) {
         const CDN_BASE = 'https://d2112x4m4e89fv.cloudfront.net';
-        const imagemUrl = `${CDN_BASE}/${regra.header_image_key}`;
+        imagemUrl = `${CDN_BASE}/${regra.header_image_key}`;
+
+        // Verificar se o template na Meta tem header IMAGE configurado
+        const metaHeaderUrl = await getTemplateHeaderImageUrl(templateName);
+        templateSuportaImagem = metaHeaderUrl !== null;
+      }
+
+      if (imagemUrl && templateSuportaImagem) {
+        // Template suporta header IMAGE — enviar com imagem no header
         await enviarWhatsApp({
           numero,
           template: templateName,
@@ -264,7 +275,39 @@ async function despacharCanal(canal, regra, evento, dados) {
           mediaType: 'image',
           mediaUrl: imagemUrl,
         });
+      } else if (imagemUrl && !templateSuportaImagem) {
+        // Template NÃO suporta header IMAGE — tentar enviar imagem como mensagem separada + template
+        // NOTA: mensagem de mídia só funciona dentro da janela 24h
+        const whatsappClient = require('../lib/whatsapp/client');
+
+        try {
+          const config = await whatsappClient.getConfig();
+          let phone = numero.replace(/\D/g, '');
+          if (!phone.startsWith('55')) phone = '55' + phone;
+
+          await fetch(`https://graph.facebook.com/v20.0/${config.phoneNumberId}/messages`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${config.accessToken}` },
+            body: JSON.stringify({
+              messaging_product: 'whatsapp',
+              to: phone,
+              type: 'image',
+              image: { link: imagemUrl },
+            }),
+          });
+        } catch (imgErr) {
+          // Falhou (provavelmente fora da janela 24h) — segue sem imagem
+          console.warn(`[DISPATCHER] Não foi possível enviar imagem separada: ${imgErr.message}`);
+        }
+
+        // Enviar template normalmente (sem imagem no header)
+        await enviarWhatsApp({
+          numero,
+          template: templateName,
+          parametros: [dados.cliente_nome || 'Cliente', titulo, mensagem],
+        });
       } else {
+        // Sem imagem — enviar template normalmente
         await enviarWhatsApp({
           numero,
           template: templateName,
