@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
-import { Album, Save, Clock, Bell, CalendarPlus, ShieldOff } from 'lucide-react';
+import { Album, Save, Clock, Bell, CalendarPlus, ShieldOff, Trash2 } from 'lucide-react';
 
 const ACCENT = '#EA580C';
 
@@ -18,6 +18,7 @@ const DEFAULT_CONFIG = {
   bloquear_visualizacao: true,
   bloquear_download: true,
   mensagem_album_expirado: '',
+  retencao_dias: 14,
 };
 
 export default function AlbumConfig() {
@@ -286,6 +287,60 @@ export default function AlbumConfig() {
                 ))}
               </tbody>
             </table>
+          </div>
+        </div>
+
+        {/* Seção: Retenção após expiração */}
+        <div className="bg-white rounded-xl border border-gray-200 p-6">
+          <div className="flex items-center gap-2 mb-4">
+            <Trash2 size={18} style={{ color: ACCENT }} />
+            <h2 className="text-lg font-semibold text-gray-900">Retenção após expiração</h2>
+          </div>
+
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Manter fotos por quantos dias após o vencimento?
+              </label>
+              <div className="flex items-center gap-3">
+                <input
+                  type="number"
+                  min={1}
+                  value={form.retencao_dias}
+                  onChange={e => updateField('retencao_dias', Number(e.target.value))}
+                  className="w-32 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-200 focus:border-orange-400"
+                />
+                <span className="text-sm text-gray-600">dias</span>
+              </div>
+              <p className="text-xs text-gray-500 mt-1">
+                Após expirar, as fotos ficam armazenadas por esse período. Se o cliente pagar a extensão dentro desse prazo, o álbum é reativado sem perda de dados.
+              </p>
+              <p className="text-xs text-red-500 mt-1">
+                Após esse período, as fotos são excluídas permanentemente e não podem ser recuperadas.
+              </p>
+            </div>
+
+            {/* Presets rápidos */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Atalhos</label>
+              <div className="flex flex-wrap gap-2">
+                {[7, 14, 30, 60, 90].map(dias => (
+                  <button
+                    key={dias}
+                    type="button"
+                    onClick={() => updateField('retencao_dias', dias)}
+                    className={`px-3 py-1.5 rounded-lg text-sm font-medium border transition-colors ${
+                      form.retencao_dias === dias
+                        ? 'text-white border-transparent'
+                        : 'text-gray-600 border-gray-300 hover:border-gray-400'
+                    }`}
+                    style={form.retencao_dias === dias ? { background: ACCENT } : {}}
+                  >
+                    {dias} dias
+                  </button>
+                ))}
+              </div>
+            </div>
           </div>
         </div>
 

@@ -25,6 +25,7 @@ const DEFAULTS = {
   bloquear_visualizacao: true,
   bloquear_download: true,
   mensagem_album_expirado: 'Este álbum expirou. Entre em contato para solicitar uma extensão.',
+  retencao_dias: 14,
 };
 
 // GET /admin/album/config — retorna config ou defaults
@@ -79,6 +80,10 @@ router.put('/', async (req, res) => {
       }
     }
 
+    if (body.retencao_dias != null && (typeof body.retencao_dias !== 'number' || body.retencao_dias < 1)) {
+      return res.status(400).json({ success: false, message: 'retencao_dias deve ser um número >= 1' });
+    }
+
     const item = {
       PK: `TENANT#${tenantId}`,
       SK: 'CONFIG#ALBUM',
@@ -92,6 +97,7 @@ router.put('/', async (req, res) => {
       bloquear_visualizacao: body.bloquear_visualizacao ?? DEFAULTS.bloquear_visualizacao,
       bloquear_download: body.bloquear_download ?? DEFAULTS.bloquear_download,
       mensagem_album_expirado: body.mensagem_album_expirado ?? DEFAULTS.mensagem_album_expirado,
+      retencao_dias: body.retencao_dias ?? DEFAULTS.retencao_dias,
       updated_at: new Date().toISOString(),
     };
 

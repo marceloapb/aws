@@ -1,14 +1,26 @@
 const { dynamo, TABLE } = require('../config/dynamodb');
-const { QueryCommand, UpdateCommand, DeleteCommand } = require('@aws-sdk/lib-dynamodb');
+const { QueryCommand, UpdateCommand, DeleteCommand, GetCommand } = require('@aws-sdk/lib-dynamodb');
 const { deleteAlbumFolder } = require('../services/s3Service');
 const { ALBUM_STATUS } = require('../config/constants');
 const { enviarAvisosExpiracao } = require('../services/albumExpiracaoService');
 
-const DIAS_GRACA = 7;
 const TENANT = process.env.TENANT_ID || 'default';
+
+async function getRetencaoDias() {
+  try {
+    const result = await dynamo.send(new GetCommand({
+      TableName: TABLE,
+      Key: { PK: `TENANT#${TENANT}`, SK: 'CONFIG#ALBUM' },
+    }));
+    return result.Item?.retencao_dias || 14;
+  } catch {
+    return 14;
+  }
+}
 
 async function processarRetencao() {
   const hoje = new Date();
+  const retencaoDias = await getRetencaoDias();
 
   // ALB-10: Enviar avisos de expiração ANTES das transições de status
   try {
@@ -32,14 +44,15 @@ async function processarRetencao() {
     await dynamo.send(new UpdateCommand({ TableName: TABLE, Key: { PK: album.PK, SK: album.SK }, UpdateExpression: 'SET #s = :s', ExpressionAttributeNames: { '#s': 'status' }, ExpressionAttributeValues: { ':s': ALBUM_STATUS.EXPIRADO } }));
   }
 
-  // 2. Expirado → Em Graça
-  const dataGraca = new Date(hoje.getTime() - DIAS_GRACA * 86400000).toISOString().split('T')[0];
+  // 2. Expirado → Em Graça (metade do período de retenção)
+  const metadeRetencao = Math.floor(retencaoDias / 2);
+  const dataGraca = new Date(hoje.getTime() - metadeRetencao * 86400000).toISOString().split('T')[0];
   for (const album of albuns.filter(a => a.status === ALBUM_STATUS.EXPIRADO && !a.protegido && a.data_expiracao && a.data_expiracao <= dataGraca)) {
     await dynamo.send(new UpdateCommand({ TableName: TABLE, Key: { PK: album.PK, SK: album.SK }, UpdateExpression: 'SET #s = :s', ExpressionAttributeNames: { '#s': 'status' }, ExpressionAttributeValues: { ':s': ALBUM_STATUS.EM_GRACA } }));
   }
 
-  // 3. Em Graça → Pronto Exclusão
-  const dataExclusao = new Date(hoje.getTime() - DIAS_GRACA * 2 * 86400000).toISOString().split('T')[0];
+  // 3. Em Graça → Pronto Exclusão (período de retenção completo)
+  const dataExclusao = new Date(hoje.getTime() - retencaoDias * 86400000).toISOString().split('T')[0];
   for (const album of albuns.filter(a => a.status === ALBUM_STATUS.EM_GRACA && !a.protegido && a.data_expiracao && a.data_expiracao <= dataExclusao)) {
     await dynamo.send(new UpdateCommand({ TableName: TABLE, Key: { PK: album.PK, SK: album.SK }, UpdateExpression: 'SET #s = :s', ExpressionAttributeNames: { '#s': 'status' }, ExpressionAttributeValues: { ':s': ALBUM_STATUS.PRONTO_EXCLUSAO } }));
   }
