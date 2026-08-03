@@ -234,7 +234,7 @@ function gerarRodapeIntegridade(contrato) {
     <div class="rodape">
       <p>Documento gerado em ${new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })}</p>
       <p style="font-family:monospace;font-size:9px;">Verificação de integridade: ${hashAtual}</p>
-      <p>MBFoto - Plataforma de Gestão Fotográfica</p>
+      <p>Marcelo Bloise Fotografia - Plataforma de Gestão Fotográfica</p>
     </div>
   `;
 }

@@ -90,20 +90,20 @@ async function notificar({
         Source: fromEmail,
         Destination: { ToAddresses: [destinatario_email] },
         Message: {
-          Subject: { Data: `[MBFoto] ${titulo}` },
+          Subject: { Data: `[Marcelo Bloise Fotografia] ${titulo}` },
           Body: {
             Html: {
               Data: `
                 <div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:20px;">
                   <div style="background:#EA580C;padding:15px 20px;border-radius:8px 8px 0 0;">
-                    <h2 style="color:white;margin:0;font-size:18px;">📸 MBFoto</h2>
+                    <h2 style="color:white;margin:0;font-size:18px;">📸 Marcelo Bloise Fotografia</h2>
                   </div>
                   <div style="background:white;padding:20px;border:1px solid #e5e7eb;border-top:none;border-radius:0 0 8px 8px;">
                     <h3 style="margin:0 0 10px;">${titulo}</h3>
                     <p style="color:#4b5563;line-height:1.6;">${mensagem}</p>
                     ${dados.link ? `<a href="${dados.link}" style="display:inline-block;margin-top:15px;padding:10px 20px;background:#EA580C;color:white;text-decoration:none;border-radius:6px;font-weight:bold;">Ver no sistema</a>` : ''}
                   </div>
-                  <p style="color:#9ca3af;font-size:12px;margin-top:10px;text-align:center;">Você recebeu este email pois está cadastrado no sistema MBFoto.</p>
+                  <p style="color:#9ca3af;font-size:12px;margin-top:10px;text-align:center;">Você recebeu este email pois está cadastrado no sistema Marcelo Bloise Fotografia.</p>
                 </div>
               `,
             },
@@ -136,7 +136,7 @@ async function notificar({
         const whatsapp = require('../lib/whatsapp/client');
         await whatsapp.enviarTexto({
           telefone: destinatario_whatsapp,
-          texto: `📸 *MBFoto*\n\n*${titulo}*\n${mensagem}`,
+          texto: `📸 *Marcelo Bloise Fotografia*\n\n*${titulo}*\n${mensagem}`,
         });
         resultados.whatsapp = { success: true, fallback: 'texto' };
         registrarLog('whatsapp', tipo, 'sucesso', `WhatsApp texto "${titulo}" enviado para ${destinatario_whatsapp} (fallback)`);

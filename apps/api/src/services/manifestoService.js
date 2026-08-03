@@ -139,7 +139,7 @@ function gerarHTMLManifesto(dados) {
   <footer style="margin-top: 40px; border-top: 2px solid #333; padding-top: 10px; font-size: 9px; color: #6b7280; text-align: center;">
     <p>Este manifesto é prova técnica da assinatura eletrônica e deve ser armazenado por 5 anos.</p>
     <p>Código de verificação: ${codigo_verificacao}</p>
-    <p>Gerado automaticamente em ${formatarDataHoraBR(gerado_em)} — MBFoto Platform</p>
+    <p>Gerado automaticamente em ${formatarDataHoraBR(gerado_em)} — Marcelo Bloise Fotografia</p>
   </footer>
 </body>
 </html>`;

@@ -1,6 +1,6 @@
 # WhatsApp Templates — Novos (Para Submissão na Meta)
 
-**Conta:** MBFoto (Marcelo Bloise Fotografia)  
+**Conta:** Marcelo Bloise Fotografia  
 **Idioma:** Português (Brasil) — `pt_BR`  
 **Data de criação:** 2026-08-03  
 
@@ -32,8 +32,8 @@
 | Campo | Valor |
 |-------|-------|
 | **Categoria** | MARKETING |
-| **Header** | IMAGE (logo MBFoto ou foto de boas-vindas) |
-| **Footer** | MBFoto • Marcelo Bloise Fotografia |
+| **Header** | IMAGE (logo ou foto de boas-vindas) |
+| **Footer** | Marcelo Bloise Fotografia |
 | **Botões** | QUICK_REPLY: `Ver portfólio` · `Falar com Marcelo` |
 
 **Body:**
@@ -41,7 +41,7 @@
 ```
 Olá, {{1}}! 👋
 
-Seja muito bem-vindo(a) à MBFoto! Sou Marcelo Bloise e estou muito feliz por você fazer parte da nossa família.
+Seja muito bem-vindo(a)! Sou Marcelo Bloise e estou muito feliz por você fazer parte da nossa família.
 
 📸 Aqui, cada momento é tratado com dedicação e arte. Estou à disposição para transformar seus momentos em memórias inesquecíveis.
 
@@ -61,7 +61,7 @@ Se tiver qualquer dúvida ou quiser conhecer nosso trabalho, é só me chamar!
 |-------|-------|
 | **Categoria** | UTILITY |
 | **Header** | TEXT: `⚠️ Seu álbum está expirando` |
-| **Footer** | MBFoto • Marcelo Bloise Fotografia |
+| **Footer** | Marcelo Bloise Fotografia |
 | **Botões** | URL: `Acessar álbum` → `{{1}}` |
 
 **Body:**
@@ -91,7 +91,7 @@ Caso precise de mais tempo, entre em contato que verificamos as opções dispon�
 |-------|-------|
 | **Categoria** | UTILITY |
 | **Header** | NONE |
-| **Footer** | MBFoto • Marcelo Bloise Fotografia |
+| **Footer** | Marcelo Bloise Fotografia |
 | **Botões** | QUICK_REPLY: `Ver contrato` · `Falar com Marcelo` |
 
 **Body:**
@@ -124,7 +124,7 @@ Obrigado pela confiança! Estou animado para registrar esse momento especial. �
 |-------|-------|
 | **Categoria** | UTILITY |
 | **Header** | TEXT: `📅 Lembrete: Seu evento é amanhã!` |
-| **Footer** | MBFoto • Marcelo Bloise Fotografia |
+| **Footer** | Marcelo Bloise Fotografia |
 | **Botões** | QUICK_REPLY: `Confirmar` · `Preciso ajustar algo` |
 
 **Body:**
@@ -159,7 +159,7 @@ Nos vemos amanhã! 📸
 |-------|-------|
 | **Categoria** | UTILITY |
 | **Header** | IMAGE (preview/capa do ensaio) |
-| **Footer** | MBFoto • Marcelo Bloise Fotografia |
+| **Footer** | Marcelo Bloise Fotografia |
 | **Botões** | URL: `Ver fotos` → `{{1}}` |
 
 **Body:**
@@ -195,7 +195,7 @@ Espero que ame o resultado! 💛
 |-------|-------|
 | **Categoria** | UTILITY |
 | **Header** | NONE |
-| **Footer** | MBFoto • Marcelo Bloise Fotografia |
+| **Footer** | Marcelo Bloise Fotografia |
 | **Botões** | URL: `Pagar agora` → `{{1}}` |
 
 **Body:**
@@ -229,7 +229,7 @@ Caso já tenha realizado o pagamento, por favor desconsidere esta mensagem. 😊
 |-------|-------|
 | **Categoria** | UTILITY |
 | **Header** | TEXT: `📷 Seleção de fotos disponível` |
-| **Footer** | MBFoto • Marcelo Bloise Fotografia |
+| **Footer** | Marcelo Bloise Fotografia |
 | **Botões** | URL: `Fazer seleção` → `{{1}}` |
 
 **Body:**
@@ -263,7 +263,7 @@ Se tiver dúvidas sobre o processo, estou à disposição! 📸
 |-------|-------|
 | **Categoria** | UTILITY |
 | **Header** | NONE |
-| **Footer** | MBFoto • Marcelo Bloise Fotografia |
+| **Footer** | Marcelo Bloise Fotografia |
 | **Botões** | URL: `Assinar contrato` → `{{1}}` · QUICK_REPLY: `Tenho dúvidas` |
 
 **Body:**
@@ -297,7 +297,7 @@ Se tiver alguma dúvida sobre os termos, estou à disposição para esclarecer! 
 |-------|-------|
 | **Categoria** | MARKETING |
 | **Header** | NONE |
-| **Footer** | MBFoto • Marcelo Bloise Fotografia |
+| **Footer** | Marcelo Bloise Fotografia |
 | **Botões** | QUICK_REPLY: `Quero prorrogar` · `Não preciso` |
 
 **Body:**
@@ -331,8 +331,8 @@ Seus momentos são preciosos e merecem ser guardados. Se quiser reativar o acess
 | Campo | Valor |
 |-------|-------|
 | **Categoria** | MARKETING |
-| **Header** | IMAGE (arte de feliz aniversário com branding MBFoto) |
-| **Footer** | MBFoto • Marcelo Bloise Fotografia |
+| **Header** | IMAGE (arte de feliz aniversário com branding Marcelo Bloise) |
+| **Footer** | Marcelo Bloise Fotografia |
 | **Botões** | QUICK_REPLY: `Obrigado! 🎉` · `Quero agendar ensaio` |
 
 **Body:**
@@ -342,7 +342,7 @@ Olá, {{1}}! 🎂🎉
 
 Feliz aniversário! Que este novo ano seja repleto de momentos incríveis e muitas memórias felizes.
 
-Da parte de toda a equipe MBFoto, desejamos um dia maravilhoso para você! 🥳✨
+Da parte de toda a equipe Marcelo Bloise Fotografia, desejamos um dia maravilhoso para você! 🥳✨
 
 E se quiser eternizar esse novo ciclo com um ensaio fotográfico especial, estamos aqui para tornar isso realidade. 📸💛
 ```
@@ -351,7 +351,7 @@ E se quiser eternizar esse novo ciclo com um ensaio fotográfico especial, estam
 - Variável `{{1}}`: nome do cliente.
 - Disparar no dia do aniversário do cliente (manhã, ~8h).
 - Categoria MARKETING pois contém sugestão de novo serviço.
-- Usar arte personalizada com a marca MBFoto no header.
+- Usar arte personalizada com a marca Marcelo Bloise Fotografia no header.
 - O botão "Quero agendar ensaio" abre conversa para agendamento.
 
 ---

@@ -424,7 +424,7 @@ router.post('/', validateToken, async (req, res) => {
       try {
         await enviarEmail({
           para: email,
-          assunto: 'Sua senha temporária - MBFoto',
+          assunto: 'Sua senha temporária - Marcelo Bloise Fotografia',
           html: `
             <div style="font-family:Arial,sans-serif;max-width:480px;margin:0 auto;padding:20px;">
               <h2 style="color:#EA580C;">Bem-vindo(a), ${nome.trim()}!</h2>

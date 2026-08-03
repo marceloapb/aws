@@ -137,7 +137,7 @@ async function enviarViaSMS(cliente, codigo, contratoId) {
   // Formatar número para E.164
   const numeroFormatado = formatarE164(numero);
 
-  const mensagem = `MBFoto - Seu codigo de assinatura do contrato: ${codigo}. Valido por 10 min. Nao compartilhe.`;
+  const mensagem = `Marcelo Bloise Fotografia - Seu codigo de assinatura do contrato: ${codigo}. Valido por 10 min. Nao compartilhe.`;
 
   await sns.send(new PublishCommand({
     PhoneNumber: numeroFormatado,
@@ -149,7 +149,7 @@ async function enviarViaSMS(cliente, codigo, contratoId) {
       },
       'AWS.SNS.SMS.SenderID': {
         DataType: 'String',
-        StringValue: 'MBFoto',
+        StringValue: 'MarceloBloise',
       },
     },
   }));

@@ -90,7 +90,7 @@ function interpolar(texto, dados) {
  */
 function montarHtml(titulo, corpo, { logoUrl, corPrimaria, remetenteNome, rodapeTexto } = {}) {
   const cor = corPrimaria || '#EA580C';
-  const nome = remetenteNome || 'MBFoto';
+  const nome = remetenteNome || 'Marcelo Bloise Fotografia';
   const rodape = rodapeTexto || 'Você recebeu este email pois está cadastrado no sistema.';
 
   const headerContent = logoUrl

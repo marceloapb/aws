@@ -337,7 +337,7 @@ async function renderizarTemplate(tipo, variaveis = {}) {
   // Variáveis do sistema
   const todasVariaveis = {
     ...variaveis,
-    empresa_nome: config.remetente_nome || variaveis.empresa_nome || 'MBFoto',
+    empresa_nome: config.remetente_nome || variaveis.empresa_nome || 'Marcelo Bloise Fotografia',
     logo: logoHtml,
   };
 
@@ -359,13 +359,13 @@ async function renderizarTemplate(tipo, variaveis = {}) {
 <body style="margin:0;padding:0;background:#f3f4f6;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
   <div style="max-width:600px;margin:0 auto;padding:20px;">
     <div style="background:${corPrimaria};padding:20px;border-radius:8px 8px 0 0;text-align:center;">
-      ${logoHtml || `<h2 style="color:white;margin:0;font-size:20px;">${config.remetente_nome || 'MBFoto'}</h2>`}
+      ${logoHtml || `<h2 style="color:white;margin:0;font-size:20px;">${config.remetente_nome || 'Marcelo Bloise Fotografia'}</h2>`}
     </div>
     <div style="background:white;padding:30px;border:1px solid #e5e7eb;border-top:none;border-radius:0 0 8px 8px;">
       ${corpo}
     </div>
     <div style="text-align:center;padding:15px;color:#9ca3af;font-size:12px;">
-      ${config.rodape_texto || `Você recebeu este email pois está cadastrado no sistema ${config.remetente_nome || 'MBFoto'}.`}
+      ${config.rodape_texto || `Você recebeu este email pois está cadastrado no sistema ${config.remetente_nome || 'Marcelo Bloise Fotografia'}.`}
     </div>
   </div>
 </body>
