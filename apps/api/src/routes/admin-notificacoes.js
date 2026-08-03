@@ -197,6 +197,13 @@ router.put('/regras/:id', async (req, res) => {
     delete updates.PK;
     delete updates.SK;
 
+    // Remover campos com valor null/undefined (DynamoDB não aceita null em SET)
+    Object.keys(updates).forEach(k => {
+      if (updates[k] === null || updates[k] === undefined) {
+        delete updates[k];
+      }
+    });
+
     const keys = Object.keys(updates);
     if (keys.length === 0) return res.status(400).json({ success: false, message: 'Nenhum campo para atualizar' });
 

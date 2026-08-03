@@ -210,7 +210,7 @@ export default function NotificacoesConfig() {
 
       const res = await authFetch(url, {
         method,
-        body: JSON.stringify({ ...form, titulo_template: form.titulo_inapp, mensagem_template: form.corpo_inapp, whatsapp_template: form.template_whatsapp, header_image_key: form.header_image_key || null }),
+        body: JSON.stringify({ ...form, titulo_template: form.titulo_inapp, mensagem_template: form.corpo_inapp, whatsapp_template: form.template_whatsapp, header_image_key: form.header_image_key || '' }),
       });
       const data = await res.json();
 
@@ -907,7 +907,7 @@ export default function NotificacoesConfig() {
                 {form.header_image_key ? (
                   <div className="relative inline-block">
                     <img
-                      src={`${CDN_BASE}/${form.header_image_key}`}
+                      src={`${CDN_BASE}/${form.header_image_key}?v=${Date.now()}`}
                       alt="Header preview"
                       className="w-full max-w-[240px] h-auto rounded-lg border border-gray-200 object-cover"
                     />
