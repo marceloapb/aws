@@ -2,7 +2,7 @@ const { Router } = require('express');
 const crypto = require('crypto');
 const { v4: uuid } = require('uuid');
 const { dynamo, TABLE } = require('../config/dynamodb');
-const { ScanCommand, PutCommand, QueryCommand } = require('@aws-sdk/lib-dynamodb');
+const { ScanCommand, PutCommand, QueryCommand, UpdateCommand } = require('@aws-sdk/lib-dynamodb');
 const {
   CognitoIdentityProviderClient,
   AdminCreateUserCommand,
@@ -347,6 +347,37 @@ router.post('/', validateToken, async (req, res) => {
           created: now,
         };
         await dynamo.send(new PutCommand({ TableName: TABLE, Item: agendaItem }));
+
+        // Sincronizar com Google Calendar (se integração ativa)
+        const { features } = require('../config/env');
+        if (features.googleCalendar) {
+          try {
+            const { criarEvento } = require('../services/googleCalendarService');
+            const googleEvent = await criarEvento({
+              titulo: agendaItem.titulo,
+              tipo_evento: agendaItem.tipo_evento,
+              data_evento,
+              horario_inicio: horario_inicio || null,
+              horario_fim: horario_fim || null,
+              cliente_nome: nome.trim(),
+              cliente_telefone: telefoneLimpo,
+            });
+            await dynamo.send(new UpdateCommand({
+              TableName: TABLE,
+              Key: { PK: agendaItem.PK, SK: agendaItem.SK },
+              UpdateExpression: 'SET google_event_id = :g, sync_status = :s',
+              ExpressionAttributeValues: { ':g': googleEvent.id, ':s': 'sincronizado' },
+            }));
+          } catch (syncErr) {
+            console.error('[NOVO-CLIENTE] Erro sync Google Calendar:', syncErr.message);
+            await dynamo.send(new UpdateCommand({
+              TableName: TABLE,
+              Key: { PK: agendaItem.PK, SK: agendaItem.SK },
+              UpdateExpression: 'SET sync_status = :s, erro = :e',
+              ExpressionAttributeValues: { ':s': 'erro', ':e': syncErr.message },
+            }));
+          }
+        }
       } catch (agendaErr) {
         console.error('[NOVO-CLIENTE] Erro ao criar evento na agenda:', agendaErr.message);
         // Não impede o fluxo principal
