@@ -44,7 +44,6 @@ import Equipamentos from './pages/admin/Equipamentos';
 import Portfolio from './pages/admin/Portfolio';
 import Instagram from './pages/admin/Instagram';
 import WhatsApp from './pages/admin/WhatsApp';
-import Followup from './pages/admin/Followup';
 import ImportCSV from './pages/admin/ImportCSV';
 import Storage from './pages/admin/Storage';
 import Notificacoes from './pages/admin/Notificacoes';
@@ -192,7 +191,6 @@ function App() {
         <Route path="whatsapp" element={<WhatsApp />} />
         <Route path="integracoes" element={<Integracoes />} />
         <Route path="integracoes/logs" element={<IntegracoesLogs />} />
-        <Route path="followup" element={<Followup />} />
         <Route path="novidades" element={<Novidades />} />
         <Route path="novidades/novo" element={<NovidadesEditor />} />
         <Route path="novidades/:id/editar" element={<NovidadesEditor />} />

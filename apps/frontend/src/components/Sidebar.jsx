@@ -39,7 +39,6 @@ const adminSections = [
     links: [
       { to: '/admin/feedback', icon: Star, label: 'Feedback' },
       { to: '/admin/instagram', icon: Instagram, label: 'Instagram' },
-      { to: '/admin/followup', icon: Zap, label: 'Follow-up' },
     ],
   },
   {
