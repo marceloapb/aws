@@ -254,15 +254,54 @@ async function despacharCanal(canal, regra, evento, dados) {
       const templateName = regra.whatsapp_template || templatePorEvento[evento.tipo_evento] || 'notificacao_geral';
 
       // Enviar com ou sem imagem de header
+      // 1) Se a regra tem header_image_key explícito, usar ele
+      // 2) Senão, verificar se o template na Meta tem header IMAGE e usar automaticamente
+      let mediaType = null;
+      let mediaUrl = null;
+
       if (regra.header_image_key) {
         const CDN_BASE = 'https://d2112x4m4e89fv.cloudfront.net';
-        const imagemUrl = `${CDN_BASE}/${regra.header_image_key}`;
+        mediaType = 'image';
+        mediaUrl = `${CDN_BASE}/${regra.header_image_key}`;
+      } else {
+        // Auto-detectar header de imagem do template na Meta
+        try {
+          const { loadParams } = require('../config/env');
+          const params = await loadParams();
+          const token = params.WHATSAPP_ACCESS_TOKEN;
+          const wabaId = params.WHATSAPP_WABA_ID || '2163797757810981';
+
+          if (token) {
+            const tplResp = await fetch(`https://graph.facebook.com/v20.0/${wabaId}/message_templates?name=${templateName}&limit=5`, {
+              headers: { 'Authorization': `Bearer ${token}` },
+              signal: AbortSignal.timeout(8000),
+            });
+            const tplData = await tplResp.json();
+            const tpl = (tplData.data || []).find(t => t.name === templateName && t.status === 'APPROVED');
+            if (tpl) {
+              const headerComp = tpl.components?.find(c => c.type === 'HEADER');
+              if (headerComp?.format === 'IMAGE') {
+                const exemploUrl = headerComp.example?.header_handle?.[0] || headerComp.example?.header_url?.[0];
+                if (exemploUrl) {
+                  mediaType = 'image';
+                  mediaUrl = exemploUrl;
+                }
+              }
+            }
+          }
+        } catch (e) {
+          // Se falhar a consulta à Meta, enviar sem imagem (não bloquear o envio)
+          console.warn('[DISPATCHER] Falha ao verificar header do template na Meta:', e.message);
+        }
+      }
+
+      if (mediaType && mediaUrl) {
         await enviarWhatsApp({
           numero,
           template: templateName,
           parametros: [dados.cliente_nome || 'Cliente', titulo, mensagem],
-          mediaType: 'image',
-          mediaUrl: imagemUrl,
+          mediaType,
+          mediaUrl,
         });
       } else {
         await enviarWhatsApp({
