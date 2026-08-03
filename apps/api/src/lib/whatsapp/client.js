@@ -20,9 +20,9 @@ async function getConfig() {
 
 /**
  * Envia mensagem via template do WhatsApp Cloud API
- * @param {{ telefone: string, template_name: string, language?: string, parameters?: Array<{type: string, text: string}>, components?: Array }} opts
+ * @param {{ telefone: string, template_name: string, language?: string, parameters?: Array<{type: string, text: string}>, header_image_url?: string, components?: Array }} opts
  */
-async function enviarTemplate({ telefone, template_name, language = 'pt_BR', parameters = [], components = null }) {
+async function enviarTemplate({ telefone, template_name, language = 'pt_BR', parameters = [], header_image_url = null, components = null }) {
   const config = await getConfig();
 
   // Formata telefone (remove não-numéricos, adiciona 55 se necessário)
@@ -42,14 +42,34 @@ async function enviarTemplate({ telefone, template_name, language = 'pt_BR', par
   // Se components customizados foram passados, usar diretamente
   if (components) {
     body.template.components = components;
-  } else if (parameters.length > 0) {
-    body.template.components = [{
-      type: 'body',
-      parameters: parameters.map(p => ({
-        type: 'text',
-        text: p.text || p,
-      })),
-    }];
+  } else {
+    const templateComponents = [];
+
+    // Header com imagem (se o template tem header tipo IMAGE)
+    if (header_image_url) {
+      templateComponents.push({
+        type: 'header',
+        parameters: [{
+          type: 'image',
+          image: { link: header_image_url },
+        }],
+      });
+    }
+
+    // Body parameters
+    if (parameters.length > 0) {
+      templateComponents.push({
+        type: 'body',
+        parameters: parameters.map(p => ({
+          type: 'text',
+          text: p.text || p,
+        })),
+      });
+    }
+
+    if (templateComponents.length > 0) {
+      body.template.components = templateComponents;
+    }
   }
 
   const response = await fetch(
