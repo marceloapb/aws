@@ -187,10 +187,21 @@ export default function WhatsApp() {
       if (tplForm.header_type === 'IMAGE' && tplForm.header_image_key) {
         const CDN_BASE = 'https://d2112x4m4e89fv.cloudfront.net';
         payload.header_type = 'IMAGE';
-        // Se já é URL completa (editando template existente), usar diretamente
-        payload.header_example_url = tplForm.header_image_key.startsWith('http')
+        const imageUrl = tplForm.header_image_key.startsWith('http')
           ? tplForm.header_image_key
           : `${CDN_BASE}/${tplForm.header_image_key}`;
+
+        // Fazer upload da imagem para a Meta e obter o handle
+        const handleResp = await authFetch(`${API}/upload-media-handle`, {
+          method: 'POST',
+          body: JSON.stringify({ image_url: imageUrl, content_type: 'image/png' }),
+        });
+        const handleData = await handleResp.json();
+        if (!handleData.success || !handleData.data?.handle) {
+          alert(handleData.message || 'Erro ao fazer upload da imagem para a Meta. Tente novamente.');
+          return;
+        }
+        payload.header_example_url = handleData.data.handle;
         payload.header = '';
       } else if (tplForm.header_type === 'TEXT') {
         // header texto normal — não enviar header_type para usar lógica de texto

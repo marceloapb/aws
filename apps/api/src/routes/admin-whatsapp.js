@@ -645,4 +645,68 @@ router.get('/custos', async (req, res) => {
   }
 });
 
+// POST /api/admin/whatsapp/upload-media-handle — Upload imagem para Meta e retorna handle para templates
+router.post('/upload-media-handle', async (req, res) => {
+  try {
+    const { loadParams } = require('../config/env');
+    const params = await loadParams();
+    const token = params.WHATSAPP_ACCESS_TOKEN;
+    const appId = params.META_APP_ID || params.WHATSAPP_APP_ID || '951738347255153';
+
+    if (!token) return res.status(400).json({ success: false, message: 'Token WhatsApp não configurado' });
+
+    const { image_url, content_type } = req.body;
+    if (!image_url) return res.status(400).json({ success: false, message: 'image_url é obrigatório' });
+
+    const mimeType = content_type || 'image/png';
+
+    // 1) Baixar a imagem do CDN/S3
+    const imageResp = await fetch(image_url, { signal: AbortSignal.timeout(15000) });
+    if (!imageResp.ok) {
+      return res.status(400).json({ success: false, message: `Erro ao baixar imagem: ${imageResp.status}` });
+    }
+    const imageBuffer = Buffer.from(await imageResp.arrayBuffer());
+    const fileSize = imageBuffer.length;
+
+    // 2) Criar sessão de upload resumable na Meta
+    const sessionResp = await fetch(
+      `https://graph.facebook.com/v20.0/${appId}/uploads?file_length=${fileSize}&file_type=${encodeURIComponent(mimeType)}&access_token=${token}`,
+      { method: 'POST', signal: AbortSignal.timeout(15000) }
+    );
+    const sessionData = await sessionResp.json();
+
+    if (!sessionResp.ok || !sessionData.id) {
+      return res.status(400).json({ success: false, message: sessionData.error?.message || 'Erro ao criar sessão de upload na Meta' });
+    }
+
+    const uploadSessionId = sessionData.id;
+
+    // 3) Fazer upload do arquivo para a sessão
+    const uploadResp = await fetch(
+      `https://graph.facebook.com/v20.0/${uploadSessionId}`,
+      {
+        method: 'POST',
+        headers: {
+          'Authorization': `OAuth ${token}`,
+          'file_offset': '0',
+          'Content-Type': mimeType,
+        },
+        body: imageBuffer,
+        signal: AbortSignal.timeout(30000),
+      }
+    );
+    const uploadData = await uploadResp.json();
+
+    if (!uploadResp.ok || !uploadData.h) {
+      return res.status(400).json({ success: false, message: uploadData.error?.message || 'Erro ao fazer upload para Meta' });
+    }
+
+    // 4) Retornar o handle
+    res.json({ success: true, data: { handle: uploadData.h } });
+  } catch (error) {
+    console.error('[WHATSAPP] Erro upload-media-handle:', error.message);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
 module.exports = router;
