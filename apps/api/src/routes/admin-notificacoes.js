@@ -141,7 +141,7 @@ router.get('/regras', async (req, res) => {
 // POST /regras — criar regra de notificação
 router.post('/regras', async (req, res) => {
   try {
-    const { tipo_evento, tipos_evento, canais, destinatario, titulo_template, mensagem_template, email_destinatario, whatsapp_destinatario, whatsapp_template } = req.body;
+    const { tipo_evento, tipos_evento, canais, destinatario, titulo_template, mensagem_template, email_destinatario, whatsapp_destinatario, whatsapp_template, header_image_key } = req.body;
 
     // Validações
     if (!tipo_evento && (!tipos_evento || tipos_evento.length === 0)) {
@@ -176,6 +176,7 @@ router.post('/regras', async (req, res) => {
       email_destinatario: email_destinatario || '',
       whatsapp_destinatario: whatsapp_destinatario || '',
       whatsapp_template: whatsapp_template || '',
+      header_image_key: header_image_key || '',
       status: 'ativa',
       created: now,
       updated: now,

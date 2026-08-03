@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useToast } from '../../components/ui/Toast';
-import { Settings2, Plus, Edit2, Trash2, Bell, Mail, MessageCircle, ClipboardList, CheckCircle, XCircle, Clock, Filter, Zap } from 'lucide-react';
+import { Settings2, Plus, Edit2, Trash2, Bell, Mail, MessageCircle, ClipboardList, CheckCircle, XCircle, Clock, Filter, Zap, Upload, X } from 'lucide-react';
 import Button from '../../components/ui/Button';
 import Badge from '../../components/ui/Badge';
 import Modal from '../../components/ui/Modal';
@@ -9,6 +9,7 @@ import Input from '../../components/ui/Input';
 import Select from '../../components/ui/Select';
 
 const ACCENT = '#EA580C';
+const CDN_BASE = 'https://d2112x4m4e89fv.cloudfront.net';
 
 const TIPOS_EVENTO = [
   'album.baixado',
@@ -77,6 +78,7 @@ const EMPTY_FORM = {
   corpo_inapp: '',
   template_email: '',
   template_whatsapp: '',
+  header_image_key: '',
   ativa: true,
 };
 
@@ -112,6 +114,7 @@ export default function NotificacoesConfig() {
   const [emailTemplates, setEmailTemplates] = useState([]);
   const [testing, setTesting] = useState(false);
   const [filtroDestinatario, setFiltroDestinatario] = useState('');
+  const [uploadingHeader, setUploadingHeader] = useState(false);
 
   const loadRegras = useCallback(async () => {
     setLoading(true);
@@ -172,6 +175,7 @@ export default function NotificacoesConfig() {
       corpo_inapp: rule.corpo_inapp || rule.mensagem_template || '',
       template_email: rule.template_email || '',
       template_whatsapp: rule.template_whatsapp || rule.whatsapp_template || '',
+      header_image_key: rule.header_image_key || '',
       ativa: rule.ativa !== false,
     });
     setModalOpen(true);
@@ -192,7 +196,7 @@ export default function NotificacoesConfig() {
 
       const res = await authFetch(url, {
         method,
-        body: JSON.stringify({ ...form, titulo_template: form.titulo_inapp, mensagem_template: form.corpo_inapp, whatsapp_template: form.template_whatsapp }),
+        body: JSON.stringify({ ...form, titulo_template: form.titulo_inapp, mensagem_template: form.corpo_inapp, whatsapp_template: form.template_whatsapp, header_image_key: form.header_image_key || null }),
       });
       const data = await res.json();
 
@@ -248,6 +252,55 @@ export default function NotificacoesConfig() {
         ? prev.canais.filter(c => c !== canal)
         : [...prev.canais, canal],
     }));
+  };
+
+  // Header image upload for WhatsApp templates
+  const handleHeaderImageUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      toast.error('Selecione um arquivo de imagem');
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('Imagem deve ter no máximo 5MB');
+      return;
+    }
+
+    setUploadingHeader(true);
+    try {
+      const res = await authFetch('/admin/upload/presign', {
+        method: 'POST',
+        body: JSON.stringify({ filename: file.name, contentType: file.type, folder: 'template-headers' }),
+      });
+      const data = await res.json();
+      const uploadUrl = data.uploadUrl || data.upload_url;
+      const key = data.key || (data.fileUrl ? data.fileUrl.replace(`${CDN_BASE}/`, '') : null);
+
+      if (!uploadUrl) {
+        toast.error('Erro ao obter URL de upload');
+        return;
+      }
+
+      await fetch(uploadUrl, {
+        method: 'PUT',
+        headers: { 'Content-Type': file.type },
+        body: file,
+      });
+
+      setForm(prev => ({ ...prev, header_image_key: key }));
+      toast.success('Imagem enviada!');
+    } catch {
+      toast.error('Erro ao enviar imagem');
+    } finally {
+      setUploadingHeader(false);
+      e.target.value = '';
+    }
+  };
+
+  const handleRemoveHeaderImage = () => {
+    setForm(prev => ({ ...prev, header_image_key: '' }));
   };
 
   // Calendar rules functions
@@ -833,6 +886,50 @@ export default function NotificacoesConfig() {
                   />
                 </div>
               )}
+
+              {/* Header Image Upload */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Imagem do Header</label>
+                {form.header_image_key ? (
+                  <div className="relative inline-block">
+                    <img
+                      src={`${CDN_BASE}/${form.header_image_key}`}
+                      alt="Header preview"
+                      className="w-full max-w-[240px] h-auto rounded-lg border border-gray-200 object-cover"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleRemoveHeaderImage}
+                      className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600 transition-colors shadow-sm"
+                      aria-label="Remover imagem"
+                    >
+                      <X size={12} />
+                    </button>
+                  </div>
+                ) : (
+                  <label className={`flex items-center gap-2 px-3 py-2 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-green-400 hover:bg-green-50/30 transition-colors ${uploadingHeader ? 'opacity-60 pointer-events-none' : ''}`}>
+                    <input
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp"
+                      onChange={handleHeaderImageUpload}
+                      className="sr-only"
+                      disabled={uploadingHeader}
+                    />
+                    {uploadingHeader ? (
+                      <>
+                        <span className="animate-spin w-4 h-4 border-2 border-green-500 border-t-transparent rounded-full" />
+                        <span className="text-sm text-gray-500">Enviando...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Upload size={16} className="text-gray-400" />
+                        <span className="text-sm text-gray-500">Clique para enviar imagem (JPEG, PNG ou WebP, max 5MB)</span>
+                      </>
+                    )}
+                  </label>
+                )}
+                <p className="text-[10px] text-gray-400 mt-1">Imagem exibida no header da mensagem WhatsApp.</p>
+              </div>
             </div>
           )}
 

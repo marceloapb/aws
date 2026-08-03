@@ -38,9 +38,11 @@ async function registrarEnvio(phone, template, messageId, categoria) {
  * @param {string} opts.template - Nome do template aprovado no Meta
  * @param {Array} opts.parametros - Parâmetros para substituição no template
  * @param {Array} opts.components - Components customizados (body, button, etc)
+ * @param {'image'|'video'|'document'} [opts.mediaType] - Tipo de mídia para header
+ * @param {string} [opts.mediaUrl] - URL pública da mídia para header
  * @returns {Promise<Object>}
  */
-async function enviarWhatsApp({ numero, template, parametros = [], components = null }) {
+async function enviarWhatsApp({ numero, template, parametros = [], components = null, mediaType = null, mediaUrl = null }) {
   if (!numero) {
     throw new Error('numero é obrigatório para envio de WhatsApp');
   }
@@ -59,6 +61,46 @@ async function enviarWhatsApp({ numero, template, parametros = [], components = 
 
     // Registrar envio para custos
     await registrarEnvio(result.phone || numero.replace(/\D/g, ''), template, result.message_id, 'utility');
+
+    return {
+      success: true,
+      message_id: result.message_id,
+      numero: result.phone,
+    };
+  }
+
+  // Se mediaType e mediaUrl estão presentes, montar components com header de mídia + body
+  if (mediaType && mediaUrl) {
+    const autoComponents = [];
+
+    // Header com mídia
+    const headerParam = { type: mediaType };
+    headerParam[mediaType] = { link: mediaUrl };
+    autoComponents.push({
+      type: 'header',
+      parameters: [headerParam],
+    });
+
+    // Body com parâmetros de texto
+    if (parametros.length > 0) {
+      autoComponents.push({
+        type: 'body',
+        parameters: parametros.map(p => {
+          if (typeof p === 'string') return { type: 'text', text: p };
+          return p;
+        }),
+      });
+    }
+
+    const result = await whatsappClient.enviarTemplate({
+      telefone: numero,
+      template_name: template,
+      language: 'pt_BR',
+      components: autoComponents,
+    });
+
+    // Registrar envio para custos (marketing por ter mídia)
+    await registrarEnvio(result.phone || numero.replace(/\D/g, ''), template, result.message_id, 'marketing');
 
     return {
       success: true,

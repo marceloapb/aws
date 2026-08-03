@@ -164,13 +164,62 @@ async function despacharCanal(canal, regra, evento, dados) {
 
     case 'whatsapp': {
       const { enviarWhatsApp } = require('../adapters/notificacoes/whatsappAdapter');
-      const titulo = regra.titulo_template || evento.tipo_evento;
-      const mensagem = regra.mensagem_template || dados.descricao || evento.tipo_evento;
+
+      // Textos descritivos por tipo de evento (quando não há template customizado na regra)
+      const textosDescritivos = {
+        'orcamento_solicitado': {
+          titulo: `Novo Orçamento Solicitado`,
+          mensagem: `${dados.cliente_nome || 'Um cliente'} solicitou orçamento para ${dados.tipo_evento || dados.nome_evento || 'evento'}. Data: ${dados.data_evento ? new Date(dados.data_evento + 'T00:00').toLocaleDateString('pt-BR') : 'a definir'}. Acesse o sistema para montar a proposta.`,
+        },
+        'orcamento_criado': {
+          titulo: `Novo Orçamento Solicitado`,
+          mensagem: `${dados.cliente_nome || 'Um cliente'} solicitou orçamento para ${dados.tipo_evento || dados.nome_evento || 'evento'}. Data: ${dados.data_evento ? new Date(dados.data_evento + 'T00:00').toLocaleDateString('pt-BR') : 'a definir'}. Acesse o sistema para montar a proposta.`,
+        },
+        'contrato_enviado': {
+          titulo: `Contrato Enviado para Assinatura`,
+          mensagem: `O contrato de ${dados.cliente_nome || 'cliente'} para ${dados.tipo_evento || 'o evento'} foi enviado e aguarda assinatura digital.`,
+        },
+        'contrato_assinado': {
+          titulo: `Contrato Assinado com Sucesso! 🎉`,
+          mensagem: `${dados.cliente_nome || 'O cliente'} assinou o contrato para ${dados.tipo_evento || 'o evento'}. Tudo certo para seguir com o planejamento!`,
+        },
+        'pagamento_confirmado': {
+          titulo: `Pagamento Confirmado! 💰`,
+          mensagem: `Pagamento de ${dados.cliente_nome || 'cliente'} no valor de R$ ${dados.valor ? Number(dados.valor).toLocaleString('pt-BR', { minimumFractionDigits: 2 }) : '—'} foi confirmado com sucesso.`,
+        },
+        'pagamento_vencido': {
+          titulo: `Pagamento Vencido ⚠️`,
+          mensagem: `O pagamento de ${dados.cliente_nome || 'cliente'} no valor de R$ ${dados.valor ? Number(dados.valor).toLocaleString('pt-BR', { minimumFractionDigits: 2 }) : '—'} está vencido desde ${dados.data_vencimento || 'data não informada'}. Verifique com o cliente.`,
+        },
+        'album_publicado': {
+          titulo: `Álbum Publicado! 📸`,
+          mensagem: `O álbum "${dados.titulo || dados.album_titulo || 'Fotos'}" de ${dados.cliente_nome || 'cliente'} está disponível para visualização e download.`,
+        },
+        'evento_confirmado': {
+          titulo: `Evento Confirmado! ✅`,
+          mensagem: `O evento de ${dados.cliente_nome || 'cliente'} (${dados.tipo_evento || 'sessão'}) no dia ${dados.data_evento ? new Date(dados.data_evento + 'T00:00').toLocaleDateString('pt-BR') : '—'} foi confirmado.`,
+        },
+        'evento_criado': {
+          titulo: `Novo Evento Agendado`,
+          mensagem: `Evento criado para ${dados.cliente_nome || 'cliente'}: ${dados.tipo_evento || 'sessão'} no dia ${dados.data_evento ? new Date(dados.data_evento + 'T00:00').toLocaleDateString('pt-BR') : '—'}.`,
+        },
+        'evento_realizado': {
+          titulo: `Evento Realizado! 🎬`,
+          mensagem: `O evento de ${dados.cliente_nome || 'cliente'} (${dados.tipo_evento || 'sessão'}) foi marcado como realizado. Próximos passos: edição e entrega.`,
+        },
+        'feedback_respondido': {
+          titulo: `Novo Feedback Recebido ⭐`,
+          mensagem: `${dados.cliente_nome || 'Um cliente'} respondeu a pesquisa de satisfação. Confira a avaliação no sistema.`,
+        },
+      };
+
+      const textoEvento = textosDescritivos[evento.tipo_evento];
+      const titulo = regra.titulo_template || textoEvento?.titulo || evento.tipo_evento;
+      const mensagem = regra.mensagem_template || textoEvento?.mensagem || dados.descricao || evento.tipo_evento;
 
       // Resolver destinatário: regra > dados > config admin
       let numero = regra.whatsapp_destinatario || dados.whatsapp;
       if (!numero) {
-        // Buscar número admin das configs
         try {
           const configResult = await dynamo.send(new QueryCommand({
             TableName: TABLE,
@@ -185,7 +234,7 @@ async function despacharCanal(canal, regra, evento, dados) {
         throw new Error('Número WhatsApp do destinatário não configurado');
       }
 
-      // Resolver template: regra > mapeamento por evento > fallback genérico
+      // Resolver template
       const templatePorEvento = {
         'orcamento_solicitado': 'novo_orcamento',
         'orcamento_criado': 'novo_orcamento',
@@ -204,11 +253,24 @@ async function despacharCanal(canal, regra, evento, dados) {
 
       const templateName = regra.whatsapp_template || templatePorEvento[evento.tipo_evento] || 'notificacao_geral';
 
-      await enviarWhatsApp({
-        numero,
-        template: templateName,
-        parametros: [dados.cliente_nome || 'Cliente', titulo, mensagem],
-      });
+      // Enviar com ou sem imagem de header
+      if (regra.header_image_key) {
+        const CDN_BASE = 'https://d2112x4m4e89fv.cloudfront.net';
+        const imagemUrl = `${CDN_BASE}/${regra.header_image_key}`;
+        await enviarWhatsApp({
+          numero,
+          template: templateName,
+          parametros: [dados.cliente_nome || 'Cliente', titulo, mensagem],
+          mediaType: 'image',
+          mediaUrl: imagemUrl,
+        });
+      } else {
+        await enviarWhatsApp({
+          numero,
+          template: templateName,
+          parametros: [dados.cliente_nome || 'Cliente', titulo, mensagem],
+        });
+      }
       break;
     }
 
