@@ -389,7 +389,20 @@ export default function WhatsApp() {
 
   // === Envios handlers ===
   const enviarTemplate = async () => {
-    await authFetch(`${API}/enviar-template`, { method: 'POST', body: JSON.stringify({ clienteId: sendForm.clienteId, templateId: sendForm.templateId, variaveis: sendForm.variaveis }) });
+    const payload = { clienteId: sendForm.clienteId, templateId: sendForm.templateId, variaveis: sendForm.variaveis };
+
+    // Se o template selecionado tem header de imagem, incluir info de mídia
+    const selectedTpl = templates.find(t => t.id === sendForm.templateId);
+    if (selectedTpl?.header?.tipo === 'image' && selectedTpl?.header?.exemplo_url) {
+      payload.media_type = 'image';
+      payload.media_url = selectedTpl.header.exemplo_url;
+    }
+
+    try {
+      const resp = await authFetch(`${API}/enviar-template`, { method: 'POST', body: JSON.stringify(payload) });
+      const data = await resp.json();
+      if (!data.success) { alert(data.message || 'Erro ao enviar template'); return; }
+    } catch (err) { alert('Erro ao enviar: ' + err.message); }
     setSendTplModal(false); setSendForm({ clienteId: '', templateId: '', variaveis: [], texto: '' }); loadTab();
   };
   const enviarTexto = async () => {
@@ -489,9 +502,22 @@ export default function WhatsApp() {
             <label className="text-xs text-gray-500">Template</label>
             <select value={sendForm.templateId} onChange={e => setSendForm({ ...sendForm, templateId: e.target.value, variaveis: [] })} className="w-full border rounded px-2 py-1.5 text-sm mt-1">
               <option value="">Selecione</option>
-              {templates.filter(t => t.status === 'aprovado').map(t => <option key={t.id} value={t.id}>{t.nome}</option>)}
+              {templates.filter(t => t.status === 'aprovado').map(t => <option key={t.id} value={t.id}>{t.nome}{t.header?.tipo === 'image' ? ' 🖼️' : ''}</option>)}
             </select>
           </div>
+          {/* Preview do header de imagem se template selecionado tiver */}
+          {sendForm.templateId && (() => {
+            const tpl = templates.find(t => t.id === sendForm.templateId);
+            if (tpl?.header?.tipo === 'image' && tpl?.header?.exemplo_url) {
+              return (
+                <div className="bg-green-50 border border-green-200 rounded p-2">
+                  <p className="text-xs text-green-700 font-medium mb-1">📸 Este template inclui imagem no cabeçalho</p>
+                  <img src={tpl.header.exemplo_url} alt="Header" className="w-full max-h-24 object-cover rounded" loading="lazy" />
+                </div>
+              );
+            }
+            return null;
+          })()}
           {selectedTplVars.map((v, i) => (
             <div key={i}>
               <label className="text-xs text-gray-500">{`{{${v.indice}}} — ${v.descricao}`}</label>
