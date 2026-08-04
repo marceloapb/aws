@@ -221,6 +221,9 @@ export default function WhatsApp() {
           return;
         }
         payload.header_example_url = handleData.data.handle;
+        // Manter header_image_key no payload para o backend salvar a CDN URL
+        // associada ao template (usada no envio de mensagens)
+        payload.header_image_key = tplForm.header_image_key;
         payload.header = '';
       } else if (tplForm.header_type === 'TEXT') {
         // header texto normal — não enviar header_type para usar lógica de texto
@@ -234,7 +237,6 @@ export default function WhatsApp() {
       }
       // Limpar campos internos do form que não vão para a API
       delete payload.evento;
-      delete payload.header_image_key;
 
       if (editTplId) {
         // Verificar se é um rascunho local (ID começa com tpl_) — nesse caso, criar novo na Meta

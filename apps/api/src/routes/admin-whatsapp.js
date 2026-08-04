@@ -1,6 +1,6 @@
 const { Router } = require('express');
 const { enviarTemplate, enviarNotificacaoOrcamento, enviarNotificacaoAlbum, getTemplatesFromMeta } = require('../services/whatsappService');
-const { getTemplateImageUrl, isImageTemplate } = require('../services/whatsappTemplateCache');
+const { getTemplateImageUrl, resolveTemplateImageUrl, saveTemplateImageUrl, isImageTemplate } = require('../services/whatsappTemplateCache');
 const { dynamo, TABLE } = require('../config/dynamodb');
 const { QueryCommand, PutCommand, DeleteCommand } = require('@aws-sdk/lib-dynamodb');
 
@@ -59,7 +59,7 @@ router.post('/enviar-template', async (req, res) => {
         if (headerComp?.format === 'IMAGE' && !header_image_url) {
           // Usar media_url do frontend, ou resolver via mapeamento CDN
           // NUNCA usar header_handle da Meta (é referência interna, não URL pública)
-          header_image_url = media_url || getTemplateImageUrl(found.name);
+          header_image_url = media_url || await resolveTemplateImageUrl(found.name);
         }
       }
     }
@@ -69,9 +69,9 @@ router.post('/enviar-template', async (req, res) => {
       header_image_url = media_url;
     }
 
-    // Se template _img e ainda sem header_image_url, resolver via CDN
+    // Se template _img e ainda sem header_image_url, resolver via DynamoDB/CDN
     if (!header_image_url && template && isImageTemplate(template)) {
-      header_image_url = getTemplateImageUrl(template);
+      header_image_url = await resolveTemplateImageUrl(template);
     }
 
     if (!numero || !template) return res.status(400).json({ success: false, message: 'numero e template são obrigatórios' });
@@ -385,7 +385,7 @@ router.post('/templates', async (req, res) => {
 
     if (!token) return res.status(400).json({ success: false, message: 'Token WhatsApp não configurado' });
 
-    const { nome, categoria, idioma, corpo, variaveis, header, header_type, header_example_url } = req.body;
+    const { nome, categoria, idioma, corpo, variaveis, header, header_type, header_example_url, header_image_key } = req.body;
 
     if (!nome || !corpo) {
       return res.status(400).json({ success: false, message: 'Nome e corpo são obrigatórios' });
@@ -434,6 +434,16 @@ router.post('/templates', async (req, res) => {
 
     if (!response.ok) {
       return res.status(400).json({ success: false, message: result.error?.message || 'Erro ao criar template na Meta' });
+    }
+
+    // Se template tem header IMAGE, salvar a CDN URL no DynamoDB para uso no envio
+    if (header_type?.toUpperCase() === 'IMAGE' && header_image_key) {
+      const cdnUrl = header_image_key.startsWith('http')
+        ? header_image_key
+        : `https://d2112x4m4e89fv.cloudfront.net/${header_image_key}`;
+      await saveTemplateImageUrl(nome, cdnUrl, header_image_key).catch(err => {
+        console.warn(`[WHATSAPP] Aviso: não salvou imagem do template ${nome}: ${err.message}`);
+      });
     }
 
     res.json({ success: true, data: { id: result.id, status: result.status, category: result.category } });
