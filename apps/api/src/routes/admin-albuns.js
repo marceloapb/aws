@@ -643,6 +643,15 @@ router.post('/:id/fotos/confirmar-batch', async (req, res) => {
       }));
     }
 
+    // Remover tag 'upload-status=pending' para marcar como confirmado (evita lifecycle delete)
+    const { S3Client: S3C, DeleteObjectTaggingCommand } = require('@aws-sdk/client-s3');
+    const s3Confirm = new S3C({});
+    const bucketName = process.env.S3_BUCKET_NAME;
+    // Fire and forget — não bloqueia resposta
+    Promise.all(created.map(foto =>
+      s3Confirm.send(new DeleteObjectTaggingCommand({ Bucket: bucketName, Key: foto.s3_key })).catch(() => {})
+    )).catch(() => {});
+
     // Update album total_fotos
     const albumResult = await dynamo.send(new QueryCommand({
       TableName: TABLE,

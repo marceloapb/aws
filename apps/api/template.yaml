@@ -226,6 +226,24 @@ Resources:
           Properties:
             Schedule: cron(0 3 * * ? *)
 
+  OrphanCleanupFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub 'mbf-${Stage}-orphan-cleanup'
+      Handler: src/jobs/orphanCleanupJob.handler
+      CodeUri: .
+      Timeout: 300
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref TableName
+        - S3CrudPolicy:
+            BucketName: !Ref FotosBucketName
+      Events:
+        Schedule:
+          Type: Schedule
+          Properties:
+            Schedule: cron(0 4 ? * SUN *)
+
   BackupFunction:
     Type: AWS::Serverless::Function
     Properties:

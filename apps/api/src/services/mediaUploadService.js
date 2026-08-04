@@ -108,6 +108,7 @@ async function generateUploadUrl({ tenant_id, contexto, entidade_id, filename, c
     Bucket: bucket,
     Key: key,
     ContentType: content_type,
+    Tagging: 'upload-status=pending',
     Metadata: {
       'tenant-id': tenant_id,
       'contexto': contexto,
