@@ -8,7 +8,7 @@ import { useAuth } from '../../contexts/AuthContext';
 
 const ACCENT = '#EA580C';
 const STEPS = ['Cliente', 'Opções', 'Valores', 'Pagamento', 'Envio'];
-const EVENTO_TIPOS = ['Cerimônia', 'Recepção', 'Festa', 'Ensaio', 'Making Of', 'Outro'];
+const EVENTO_TIPOS = ['Cerimônia', 'Ensaio', 'Festa', 'Making Of', 'Recepção', 'Outro'];
 
 const emptyEvento = () => ({ tipo: '', data: '', hora_inicio: '', hora_fim: '', local: '' });
 const emptyOpcao = () => ({

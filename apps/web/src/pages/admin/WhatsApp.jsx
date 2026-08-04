@@ -96,11 +96,11 @@ export default function WhatsApp() {
               <div>
                 <label className="block text-sm font-medium text-gray-700">Template</label>
                 <select value={form.template} onChange={(e) => setForm({ ...form, template: e.target.value })} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md text-sm">
+                  <option value="album_pronto">Álbum Pronto</option>
+                  <option value="contrato_assinatura">Contrato para Assinatura</option>
                   <option value="lembrete_evento">Lembrete de Evento</option>
                   <option value="orcamento_pronto">Orçamento Pronto</option>
-                  <option value="album_pronto">Álbum Pronto</option>
                   <option value="pagamento_confirmado">Pagamento Confirmado</option>
-                  <option value="contrato_assinatura">Contrato para Assinatura</option>
                 </select>
               </div>
               <div className="flex justify-end gap-3 pt-4">

@@ -256,9 +256,9 @@ export default function Aditivos() {
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Meio de Devolução</label>
                 <select value={reembolsoForm.meio} onChange={e => setReembolsoForm({ ...reembolsoForm, meio: e.target.value })} className="w-full px-3 py-2.5 border rounded-lg">
+                  <option value="credito">Crédito em conta</option>
                   <option value="pix">PIX</option>
                   <option value="transferencia">Transferência</option>
-                  <option value="credito">Crédito em conta</option>
                 </select>
               </div>
               <div>

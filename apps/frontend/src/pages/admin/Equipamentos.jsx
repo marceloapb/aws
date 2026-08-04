@@ -12,8 +12,8 @@ const STATUS_OPTIONS = [
   { value: 'manutencao', label: 'Manutenção', color: 'bg-yellow-100 text-yellow-800' },
 ];
 const PRESET_COLORS = ['#EF4444','#F59E0B','#10B981','#3B82F6','#8B5CF6','#EC4899','#06B6D4','#84CC16','#F97316','#6366F1'];
-const DEFAULT_CATEGORIES = ['Câmeras','Lentes','Flash','Iluminação','Tripés','Drones','Estabilizadores','Áudio','Acessórios','Outros'];
-const EVENT_TYPES = ['Casamento','Ensaio','Corporativo','Aniversário','Formatura','Outros'];
+const DEFAULT_CATEGORIES = ['Acessórios','Áudio','Câmeras','Drones','Estabilizadores','Flash','Iluminação','Lentes','Tripés','Outros'];
+const EVENT_TYPES = ['Aniversário','Casamento','Corporativo','Ensaio','Formatura','Outros'];
 
 export default function Equipamentos() {
   const { authFetch } = useAuth();

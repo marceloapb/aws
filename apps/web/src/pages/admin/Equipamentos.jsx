@@ -128,7 +128,7 @@ export default function Equipamentos() {
                   <label className="block text-sm font-medium text-gray-700">Tipo</label>
                   <select value={form.tipo} onChange={(e) => setForm({ ...form, tipo: e.target.value })} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md text-sm">
                     <option value="">Selecione...</option>
-                    {['camera','lente','flash','tripe','iluminacao','drone','acessorio'].map((t) => <option key={t} value={t}>{t.charAt(0).toUpperCase() + t.slice(1)}</option>)}
+                    {['acessorio','camera','drone','flash','iluminacao','lente','tripe'].map((t) => <option key={t} value={t}>{t.charAt(0).toUpperCase() + t.slice(1)}</option>)}
                   </select>
                 </div>
                 <div>

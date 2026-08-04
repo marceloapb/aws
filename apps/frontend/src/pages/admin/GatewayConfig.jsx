@@ -6,15 +6,15 @@ const ACCENT = '#EA580C';
 
 const PROVIDERS = [
   { slug: 'asaas', name: 'Asaas', logo: '💳' },
+  { slug: 'banco-inter', name: 'Banco Inter', logo: '🟠' },
+  { slug: 'infinitepay', name: 'InfinitePay', logo: '🟣' },
   { slug: 'mercadopago', name: 'Mercado Pago', logo: '💰' },
-  { slug: 'stripe', name: 'Stripe', logo: '🟣' },
   { slug: 'pagarme', name: 'Pagar.me', logo: '🟢' },
   { slug: 'pagbank', name: 'PagBank', logo: '🟡' },
   { slug: 'picpay', name: 'PicPay', logo: '🟢' },
-  { slug: 'sumup', name: 'SumUp', logo: '🔵' },
-  { slug: 'banco-inter', name: 'Banco Inter', logo: '🟠' },
   { slug: 'stone', name: 'Stone', logo: '⚫' },
-  { slug: 'infinitepay', name: 'InfinitePay', logo: '🟣' },
+  { slug: 'stripe', name: 'Stripe', logo: '🟣' },
+  { slug: 'sumup', name: 'SumUp', logo: '🔵' },
   { slug: 'manual', name: 'Controle Manual', logo: '✍️' },
 ];
 

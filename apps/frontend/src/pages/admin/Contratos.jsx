@@ -12,7 +12,7 @@ import useSortable from '../../hooks/useSortable';
 
 const ACCENT = '#EA580C';
 const STATUS_TABS = ['Todos', 'Gerado', 'Enviado', 'Assinado', 'Expirado'];
-const TIPOS_EVENTO = ['Casamento', 'Aniversário', 'Corporativo', 'Formatura', 'Ensaio', 'Outro'];
+const TIPOS_EVENTO = ['Aniversário', 'Casamento', 'Corporativo', 'Ensaio', 'Formatura', 'Outro'];
 const STATUS_MAP = {
   gerado: { label: 'Gerado', cls: 'text-gray-700 bg-gray-100' },
   enviado: { label: 'Enviado', cls: 'text-blue-700 bg-blue-50' },
