@@ -318,7 +318,7 @@ export default function WhatsApp() {
               </div>
               <p className="text-sm text-gray-600 break-words">{highlightVars(t.corpo)}</p>
               {t.header?.tipo === 'image' && t.header?.exemplo_url && (
-                <img src={t.header.exemplo_url} alt="Header" className="w-full max-h-32 object-cover rounded mt-2 border" loading="lazy" />
+                <img src={t.header.exemplo_url} alt="Header" className="w-full max-h-48 object-contain rounded mt-2 border bg-gray-50" loading="lazy" />
               )}
               {t.header?.tipo === 'text' && t.header?.texto && (
                 <p className="text-xs text-gray-500 mt-1 font-medium">📌 {t.header.texto}</p>
@@ -379,7 +379,7 @@ export default function WhatsApp() {
                 <label className="text-xs text-gray-500">Imagem do Cabeçalho (obrigatório para aprovação)</label>
                 {tplForm.header_image_key ? (
                   <div className="mt-2 space-y-2">
-                    <img src={tplForm.header_image_key.startsWith('http') ? tplForm.header_image_key : `https://d2112x4m4e89fv.cloudfront.net/${tplForm.header_image_key}`} alt="Header" className="w-full max-h-40 object-cover rounded border" />
+                    <img src={tplForm.header_image_key.startsWith('http') ? tplForm.header_image_key : `https://d2112x4m4e89fv.cloudfront.net/${tplForm.header_image_key}`} alt="Header" className="w-full max-h-48 object-contain rounded border bg-gray-50" />
                     <button onClick={() => setTplForm({ ...tplForm, header_image_key: '' })} className="text-xs text-red-500 hover:text-red-700">Remover imagem</button>
                   </div>
                 ) : (
