@@ -1,7 +1,7 @@
 const { Router } = require('express');
 const { enviarTemplate, enviarNotificacaoOrcamento, enviarNotificacaoAlbum, getTemplatesFromMeta } = require('../services/whatsappService');
 const { dynamo, TABLE } = require('../config/dynamodb');
-const { QueryCommand, PutCommand } = require('@aws-sdk/lib-dynamodb');
+const { QueryCommand, PutCommand, DeleteCommand } = require('@aws-sdk/lib-dynamodb');
 
 const router = Router();
 
@@ -760,8 +760,21 @@ router.post('/templates/gerar-img-variants', async (req, res) => {
     const TENANT = process.env.TENANT_ID || '1';
     const criados = [];
 
+    // Buscar rascunhos já existentes para evitar duplicação por nome
+    const existentes = await dynamo.send(new QueryCommand({
+      TableName: TABLE,
+      IndexName: 'GSI1',
+      KeyConditionExpression: 'GSI1PK = :pk',
+      ExpressionAttributeValues: { ':pk': 'WA_TEMPLATE' },
+    }));
+    const nomesExistentes = (existentes.Items || []).map(t => t.nome);
+
     for (const tpl of semImg) {
       const nomeImg = tpl.name + '_img';
+
+      // Pular se já existe rascunho com esse nome
+      if (nomesExistentes.includes(nomeImg)) continue;
+
       const id = `tpl_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 
       // Extrair componentes do template original
@@ -856,6 +869,27 @@ router.get('/templates/rascunhos', async (req, res) => {
   } catch (error) {
     console.error('[WHATSAPP] Erro ao buscar rascunhos:', error.message);
     res.json({ success: true, data: [] });
+  }
+});
+
+// DELETE /api/admin/whatsapp/templates/rascunhos/:id - Excluir rascunho local
+router.delete('/templates/rascunhos/:id', async (req, res) => {
+  try {
+    const TENANT = process.env.TENANT_ID || '1';
+    const id = req.params.id;
+
+    await dynamo.send(new DeleteCommand({
+      TableName: TABLE,
+      Key: {
+        PK: `TENANT#${TENANT}`,
+        SK: `TEMPLATE_WPP#${id}`,
+      },
+    }));
+
+    res.json({ success: true, message: 'Rascunho excluído' });
+  } catch (error) {
+    console.error('[WHATSAPP] Erro ao excluir rascunho:', error.message);
+    res.status(500).json({ success: false, message: error.message });
   }
 });
 
