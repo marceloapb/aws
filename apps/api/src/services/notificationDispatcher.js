@@ -6,6 +6,7 @@ const crypto = require('crypto');
 const { QueryCommand, PutCommand } = require('@aws-sdk/lib-dynamodb');
 const { dynamo, TABLE } = require('../config/dynamodb');
 const { verificarDedup, marcarProcessado } = require('./dedupService');
+const { getTemplateImageUrl } = require('./whatsappTemplateCache');
 
 const TENANT = process.env.TENANT_ID || 'default';
 
@@ -288,10 +289,7 @@ async function despacharCanal(canal, regra, evento, dados) {
           imagemUrl = `${CDN_BASE}/${regra.header_image_key}`;
         } else {
           // 2) Buscar imagem cadastrada no template na Meta (cache em memória)
-          try {
-            const { getTemplateImageUrl } = require('./whatsappTemplateCache');
-            imagemUrl = await getTemplateImageUrl(templateName);
-          } catch {}
+          imagemUrl = await getTemplateImageUrl(templateName);
         }
 
         if (!imagemUrl) {
