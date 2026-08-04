@@ -46,6 +46,7 @@ export default function Feedback() {
   const [showSolicitar, setShowSolicitar] = useState(false);
   const [solicitarCliente, setSolicitarCliente] = useState('');
   const [solicitarEvento, setSolicitarEvento] = useState('');
+  const [clienteEventos, setClienteEventos] = useState([]);
   const [showRecusaModal, setShowRecusaModal] = useState(false);
   const [recusaOrcamento, setRecusaOrcamento] = useState('');
   const [recusaMotivos, setRecusaMotivos] = useState([]);
@@ -582,7 +583,19 @@ export default function Feedback() {
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Cliente</label>
-                <select value={solicitarCliente} onChange={e => setSolicitarCliente(e.target.value)}
+                <select value={solicitarCliente} onChange={async (e) => {
+                    const cid = e.target.value;
+                    setSolicitarCliente(cid);
+                    setSolicitarEvento('');
+                    setClienteEventos([]);
+                    if (cid) {
+                      try {
+                        const r = await authFetch(`/admin/agenda?cliente_id=${cid}`);
+                        const j = await r.json();
+                        if (j.success) setClienteEventos(j.data || []);
+                      } catch {}
+                    }
+                  }}
                   className="w-full px-3 py-2.5 border rounded-lg text-sm">
                   <option value="">Selecione o cliente...</option>
                   {clientes.map(c => (
@@ -595,8 +608,8 @@ export default function Feedback() {
                 <select value={solicitarEvento} onChange={e => setSolicitarEvento(e.target.value)}
                   className="w-full px-3 py-2.5 border rounded-lg text-sm">
                   <option value="">Selecione o evento...</option>
-                  {clientes.find(c => c.id === solicitarCliente)?.eventos?.map(ev => (
-                    <option key={ev.id} value={ev.id}>{ev.titulo || ev.nome}</option>
+                  {clienteEventos.map(ev => (
+                    <option key={ev.id} value={ev.id}>{ev.titulo || ev.tipo_evento || ev.nome} — {ev.data_evento ? new Date(ev.data_evento + 'T00:00').toLocaleDateString('pt-BR') : ''}</option>
                   ))}
                 </select>
               </div>
