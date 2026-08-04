@@ -49,6 +49,8 @@ export default function WhatsApp() {
   const [tplForm, setTplForm] = useState({ nome: '', categoria: 'utility', idioma: 'pt_BR', corpo: '', variaveis: [], evento: '', header: '', header_type: 'TEXT', header_image_key: '' });
   const [editTplId, setEditTplId] = useState(null);
   const [uploadingHeaderImg, setUploadingHeaderImg] = useState(false);
+  const [gerandoImgVariants, setGerandoImgVariants] = useState(false);
+  const [rascunhos, setRascunhos] = useState([]);
 
   // Envios
   const [envios, setEnvios] = useState([]);
@@ -244,6 +246,29 @@ export default function WhatsApp() {
     loadTab();
   };
   const syncTodos = () => { loadTab(); };
+  const gerarImgVariants = async () => {
+    if (!window.confirm('Gerar rascunhos _img para todos os templates sem imagem? (Não submete à Meta)')) return;
+    setGerandoImgVariants(true);
+    try {
+      const resp = await authFetch(`${API}/templates/gerar-img-variants`, { method: 'POST' });
+      const data = await resp.json();
+      if (data.success) {
+        alert(data.message || `${data.data?.criados || 0} rascunho(s) criado(s)!`);
+        loadRascunhos();
+      } else {
+        alert(data.message || 'Erro ao gerar variantes _img');
+      }
+    } catch (err) { alert('Erro: ' + err.message); }
+    finally { setGerandoImgVariants(false); }
+  };
+  const loadRascunhos = async () => {
+    try {
+      const resp = await authFetch(`${API}/templates/rascunhos`);
+      const data = await resp.json();
+      if (data.success) setRascunhos(data.data || []);
+    } catch {}
+  };
+  useEffect(() => { if (tab === 1) loadRascunhos(); }, [tab]);
   const addVariavel = () => { setTplForm({ ...tplForm, variaveis: [...tplForm.variaveis, { indice: tplForm.variaveis.length + 1, descricao: '', exemplo: '' }] }); };
 
   // Upload de imagem do header do template
@@ -299,7 +324,12 @@ export default function WhatsApp() {
               <button key={o.key} onClick={() => setTplSort(o.key)} className={`text-xs px-2 py-1 rounded ${tplSort === o.key ? 'bg-orange-100 text-orange-700 font-medium' : 'text-gray-500 hover:bg-gray-100'}`}>{o.label}</button>
             ))}
           </div>
-          <button onClick={openNewTpl} className="flex items-center gap-1 px-3 py-2 rounded text-sm text-white font-medium" style={{ background: ACCENT }}><Plus size={14} /> Novo Template</button>
+          <div className="flex items-center gap-2">
+            <button onClick={openNewTpl} className="flex items-center gap-1 px-3 py-2 rounded text-sm text-white font-medium" style={{ background: ACCENT }}><Plus size={14} /> Novo Template</button>
+            <button onClick={gerarImgVariants} disabled={gerandoImgVariants} className="flex items-center gap-1 px-3 py-2 rounded text-sm font-medium border border-orange-300 text-orange-700 hover:bg-orange-50 disabled:opacity-50" title="Cria rascunhos _img para templates sem imagem (não submete à Meta)">
+              <Upload size={14} /> {gerandoImgVariants ? 'Gerando...' : 'Gerar _img'}
+            </button>
+          </div>
         </div>
         <div className="grid gap-3">
           {sorted.map(t => (
@@ -335,6 +365,32 @@ export default function WhatsApp() {
           ))}
           {templates.length === 0 && <p className="text-sm text-gray-400 text-center py-8">Nenhum template encontrado na Meta</p>}
         </div>
+
+        {/* Rascunhos _img (locais, não submetidos à Meta) */}
+        {rascunhos.length > 0 && (
+          <div className="mt-6">
+            <h3 className="text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
+              <Clock size={14} className="text-orange-500" />
+              Rascunhos _img (aguardando imagem e submissão)
+            </h3>
+            <p className="text-xs text-gray-400 mb-3">Estes templates foram criados localmente. Adicione a imagem de header e submeta à Meta para aprovação.</p>
+            <div className="grid gap-2">
+              {rascunhos.map(r => (
+                <div key={r.id} className="bg-orange-50/50 border border-orange-200 rounded-lg p-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex flex-wrap items-center gap-2 min-w-0">
+                      <span className="font-medium text-sm font-mono break-all">{r.nome}</span>
+                      <Badge color="gray">rascunho</Badge>
+                      <Badge color={r.categoria === 'marketing' ? 'orange' : 'blue'}>{r.categoria}</Badge>
+                    </div>
+                    {r.nome_original && <span className="text-xs text-gray-400">baseado em: {r.nome_original}</span>}
+                  </div>
+                  <p className="text-xs text-gray-600 mt-1 break-words">{r.corpo}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Modal Template */}
         <Modal open={tplModal} onClose={() => setTplModal(false)} title={editTplId ? 'Editar Template' : 'Novo Template (Meta WhatsApp)'}>
