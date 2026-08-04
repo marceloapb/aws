@@ -280,10 +280,10 @@ export default function AlbumPublico() {
       const a = document.createElement('a');
       a.href = blobUrl;
       a.download = foto.filename || `foto-${foto.id}.jpg`;
+      a.style.cssText = 'position:fixed;top:-9999px;left:-9999px;opacity:0;pointer-events:none';
       document.body.appendChild(a);
       a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(blobUrl);
+      setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(blobUrl); }, 1000);
     } catch { window.open(url, '_blank'); }
   };
 
@@ -348,10 +348,10 @@ export default function AlbumPublico() {
       const a = document.createElement('a');
       a.href = blobUrl;
       a.download = `${album?.titulo || 'album'}-fotos.zip`;
+      a.style.cssText = 'position:fixed;top:-9999px;left:-9999px;opacity:0;pointer-events:none';
       document.body.appendChild(a);
       a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(blobUrl);
+      setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(blobUrl); }, 1000);
       setDownloadPercent(100);
     } catch (err) { console.error('Download ZIP error:', err); }
     setTimeout(() => {

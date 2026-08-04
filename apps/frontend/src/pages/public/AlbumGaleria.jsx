@@ -215,10 +215,10 @@ export default function AlbumGaleria() {
       const a = document.createElement('a');
       a.href = blobUrl;
       a.download = foto.filename || `foto-${foto.id}.jpg`;
+      a.style.cssText = 'position:fixed;top:-9999px;left:-9999px;opacity:0;pointer-events:none';
       document.body.appendChild(a);
       a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(blobUrl);
+      setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(blobUrl); }, 1000);
     } catch { window.open(url, '_blank'); }
   };
 
@@ -294,10 +294,10 @@ export default function AlbumGaleria() {
       const a = document.createElement('a');
       a.href = blobUrl;
       a.download = `${data.album_titulo || 'album'}-fotos.zip`;
+      a.style.cssText = 'position:fixed;top:-9999px;left:-9999px;opacity:0;pointer-events:none';
       document.body.appendChild(a);
       a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(blobUrl);
+      setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(blobUrl); }, 1000);
     } catch (err) { console.error('Download ZIP error:', err); }
     setDownloading(false);
     setDownloadProgress('');
@@ -331,7 +331,7 @@ export default function AlbumGaleria() {
   const layout = tema.layout || 'grade';
 
   return (
-    <div className="min-h-screen" style={{ backgroundColor: bgColor, color: textColor, fontFamily: tema.fonte_corpo || 'Inter' }}>
+    <div className="min-h-screen overflow-x-hidden" style={{ backgroundColor: bgColor, color: textColor, fontFamily: tema.fonte_corpo || 'Inter' }}>
       <style>{`.scrollbar-hide::-webkit-scrollbar { display: none; } .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }`}</style>
 
       {/* Header */}
