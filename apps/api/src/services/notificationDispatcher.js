@@ -275,22 +275,20 @@ async function despacharCanal(canal, regra, evento, dados) {
       };
       const parametros = templateParams[templateName] || [dados.cliente_nome || 'Cliente', titulo, mensagem];
 
-      // Templates _img EXIGEM header IMAGE — sempre enviar imagem
-      // Se regra tem header_image_key, usa ela. Senão, usa logo padrão.
+      // Templates _img têm header IMAGE cadastrado na Meta
+      // Só enviar mediaUrl se a regra tem header_image_key customizado (sobrescreve a do template)
+      // Se não tem, a Meta usa a imagem que já está cadastrada no template
       const CDN_BASE = 'https://d2112x4m4e89fv.cloudfront.net';
-      const isImgTemplate = templateName.endsWith('_img');
+      const isImgTemplate = templateName.endsWith('_img') || templateName.endsWith('_img_v2');
 
-      if (isImgTemplate) {
-        const imagemUrl = regra.header_image_key
-          ? `${CDN_BASE}/${regra.header_image_key}`
-          : `${CDN_BASE}/template-headers/logo-default.png`;
-
+      if (isImgTemplate && regra.header_image_key) {
+        // Regra tem imagem customizada — sobrescrever header do template
         await enviarWhatsApp({
           numero,
           template: templateName,
           parametros,
           mediaType: 'image',
-          mediaUrl: imagemUrl,
+          mediaUrl: `${CDN_BASE}/${regra.header_image_key}`,
         });
       } else {
         // Template sem _img — enviar normalmente sem imagem
