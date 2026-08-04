@@ -5,7 +5,7 @@ const { deleteAlbumFolder } = require('../services/s3Service');
 const { generateUploadUrl } = require('../services/mediaUploadService');
 const { ALBUM_STATUS, COBRANCA_STATUS } = require('../config/constants');
 const { slugify } = require('../utils/slugify');
-const { SQSClient, SendMessageCommand } = require('@aws-sdk/client-sqs');
+const { SQSClient, SendMessageCommand, SendMessageBatchCommand } = require('@aws-sdk/client-sqs');
 const { listarProrrogacoes, aprovarProrrogacao } = require('../services/albumProrrogacaoService');
 const crypto = require('crypto');
 
@@ -585,9 +585,10 @@ router.post('/:id/fotos/confirmar-batch', async (req, res) => {
     const now = new Date().toISOString();
     const created = [];
 
+    // Preparar todos os items
     for (const foto of fotos) {
       const id = foto.foto_id || crypto.randomUUID();
-      const item = {
+      created.push({
         PK: `ALBUM#${albumId}`,
         SK: `FOTO#${id}`,
         GSI1PK: 'FOTO',
@@ -603,12 +604,20 @@ router.post('/:id/fotos/confirmar-batch', async (req, res) => {
         filename: foto.filename || null,
         content_type: foto.content_type || 'image/jpeg',
         status_processamento: 'pendente',
-        ordem,
+        ordem: ordem++,
         created: now,
-      };
-      await dynamo.send(new PutCommand({ TableName: TABLE, Item: item }));
-      created.push(item);
-      ordem++;
+      });
+    }
+
+    // BatchWrite em chunks de 25
+    const { BatchWriteCommand } = require('@aws-sdk/lib-dynamodb');
+    for (let i = 0; i < created.length; i += 25) {
+      const batch = created.slice(i, i + 25);
+      await dynamo.send(new BatchWriteCommand({
+        RequestItems: {
+          [TABLE]: batch.map(item => ({ PutRequest: { Item: item } })),
+        },
+      }));
     }
 
     // Update album total_fotos
@@ -628,24 +637,32 @@ router.post('/:id/fotos/confirmar-batch', async (req, res) => {
       }));
     }
 
-    // Push SQS message for processing
+    // Push SQS messages for processing (fire and forget)
     const QUEUE_URL = process.env.MEDIA_QUEUE_URL;
     if (QUEUE_URL) {
-      for (const foto of created) {
-        await sqs.send(new SendMessageCommand({
-          QueueUrl: QUEUE_URL,
-          MessageBody: JSON.stringify({
-            action: 'process_foto',
-            tenant_id: foto.tenant_id,
-            album_id: albumId,
-            galeria_id: foto.galeria_id,
-            foto_id: foto.id,
-            s3_key_original: foto.s3_key_original || foto.s3_key,
-            s3_key: foto.s3_key,
-            content_type: foto.content_type,
-          }),
-        }));
+      const sqsBatches = [];
+      for (let i = 0; i < created.length; i += 10) {
+        const batch = created.slice(i, i + 10);
+        sqsBatches.push(
+          sqs.send(new SendMessageBatchCommand({
+            QueueUrl: QUEUE_URL,
+            Entries: batch.map((foto, idx) => ({
+              Id: `${i + idx}`,
+              MessageBody: JSON.stringify({
+                action: 'process_foto',
+                tenant_id: foto.tenant_id,
+                album_id: albumId,
+                galeria_id: foto.galeria_id,
+                foto_id: foto.id,
+                s3_key_original: foto.s3_key_original || foto.s3_key,
+                s3_key: foto.s3_key,
+                content_type: foto.content_type,
+              }),
+            })),
+          })).catch(() => {}) // non-critical
+        );
       }
+      await Promise.all(sqsBatches);
     }
 
     res.json({ success: true, data: { confirmadas: created.length, fotos: created } });
