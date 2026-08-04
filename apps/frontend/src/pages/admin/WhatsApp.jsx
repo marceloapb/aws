@@ -268,6 +268,33 @@ export default function WhatsApp() {
       if (data.success) setRascunhos(data.data || []);
     } catch {}
   };
+  const openEditRascunho = (r) => {
+    setTplForm({
+      nome: r.nome,
+      categoria: (r.categoria || 'UTILITY').toUpperCase(),
+      idioma: r.idioma || 'pt_BR',
+      corpo: r.corpo || '',
+      variaveis: r.variaveis || [],
+      evento: '',
+      header: '',
+      header_type: 'IMAGE',
+      header_image_key: r.header?.exemplo_url || r.header?.valor || '',
+    });
+    setEditTplId(r.id);
+    setTplModal(true);
+  };
+  const deleteRascunho = async (id) => {
+    if (!window.confirm('Excluir este rascunho _img?')) return;
+    try {
+      const resp = await authFetch(`${API}/templates/rascunhos/${id}`, { method: 'DELETE' });
+      const data = await resp.json();
+      if (data.success) {
+        setRascunhos(prev => prev.filter(r => r.id !== id));
+      } else {
+        alert(data.message || 'Erro ao excluir rascunho');
+      }
+    } catch (err) { alert('Erro: ' + err.message); }
+  };
   useEffect(() => { if (tab === 1) loadRascunhos(); }, [tab]);
   const addVariavel = () => { setTplForm({ ...tplForm, variaveis: [...tplForm.variaveis, { indice: tplForm.variaveis.length + 1, descricao: '', exemplo: '' }] }); };
 
@@ -315,18 +342,18 @@ export default function WhatsApp() {
 
     return (
       <div className="space-y-4">
-        <div className="flex justify-between items-center">
-          <div className="flex items-center gap-2">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+          <div className="flex items-center gap-2 flex-wrap">
             <button onClick={syncTodos} className="flex items-center gap-1 text-sm text-gray-600 hover:text-gray-800"><RefreshCw size={14} /> Atualizar</button>
-            <span className="text-gray-300">|</span>
-            <span className="text-xs text-gray-500">Ordenar:</span>
+            <span className="text-gray-300 hidden sm:inline">|</span>
+            <span className="text-xs text-gray-500 hidden sm:inline">Ordenar:</span>
             {[{ key: '', label: 'Padrão' }, { key: 'nome', label: 'Nome' }, { key: 'status', label: 'Status' }].map(o => (
               <button key={o.key} onClick={() => setTplSort(o.key)} className={`text-xs px-2 py-1 rounded ${tplSort === o.key ? 'bg-orange-100 text-orange-700 font-medium' : 'text-gray-500 hover:bg-gray-100'}`}>{o.label}</button>
             ))}
           </div>
-          <div className="flex items-center gap-2">
-            <button onClick={openNewTpl} className="flex items-center gap-1 px-3 py-2 rounded text-sm text-white font-medium" style={{ background: ACCENT }}><Plus size={14} /> Novo Template</button>
-            <button onClick={gerarImgVariants} disabled={gerandoImgVariants} className="flex items-center gap-1 px-3 py-2 rounded text-sm font-medium border border-orange-300 text-orange-700 hover:bg-orange-50 disabled:opacity-50" title="Cria rascunhos _img para templates sem imagem (não submete à Meta)">
+          <div className="flex items-center gap-2 flex-wrap w-full sm:w-auto">
+            <button onClick={openNewTpl} className="flex items-center gap-1 px-3 py-2 rounded text-sm text-white font-medium flex-1 sm:flex-none justify-center" style={{ background: ACCENT }}><Plus size={14} /> Novo Template</button>
+            <button onClick={gerarImgVariants} disabled={gerandoImgVariants} className="flex items-center gap-1 px-3 py-2 rounded text-sm font-medium border border-orange-300 text-orange-700 hover:bg-orange-50 disabled:opacity-50 flex-1 sm:flex-none justify-center" title="Cria rascunhos _img para templates sem imagem (não submete à Meta)">
               <Upload size={14} /> {gerandoImgVariants ? 'Gerando...' : 'Gerar _img'}
             </button>
           </div>
@@ -377,15 +404,24 @@ export default function WhatsApp() {
             <div className="grid gap-2">
               {rascunhos.map(r => (
                 <div key={r.id} className="bg-orange-50/50 border border-orange-200 rounded-lg p-3">
-                  <div className="flex items-center justify-between gap-2">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                     <div className="flex flex-wrap items-center gap-2 min-w-0">
                       <span className="font-medium text-sm font-mono break-all">{r.nome}</span>
                       <Badge color="gray">rascunho</Badge>
                       <Badge color={r.categoria === 'marketing' ? 'orange' : 'blue'}>{r.categoria}</Badge>
+                      {r.nome_original && <span className="text-xs text-gray-400 hidden sm:inline">← {r.nome_original}</span>}
                     </div>
-                    {r.nome_original && <span className="text-xs text-gray-400">baseado em: {r.nome_original}</span>}
+                    <div className="flex items-center gap-1 shrink-0">
+                      <button onClick={() => openEditRascunho(r)} className="p-1.5 rounded hover:bg-orange-100 text-gray-500 hover:text-orange-700 transition-colors" title="Editar rascunho">
+                        <Edit size={14} />
+                      </button>
+                      <button onClick={() => deleteRascunho(r.id)} className="p-1.5 rounded hover:bg-red-100 text-gray-500 hover:text-red-600 transition-colors" title="Excluir rascunho">
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
                   </div>
-                  <p className="text-xs text-gray-600 mt-1 break-words">{r.corpo}</p>
+                  <p className="text-xs text-gray-600 mt-1.5 break-words line-clamp-2">{r.corpo}</p>
+                  {r.nome_original && <p className="text-xs text-gray-400 mt-1 sm:hidden">← baseado em: {r.nome_original}</p>}
                 </div>
               ))}
             </div>
