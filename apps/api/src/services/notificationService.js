@@ -125,7 +125,7 @@ async function notificar({
       const whatsapp = require('../lib/whatsapp/client');
       await whatsapp.enviarTemplate({
         telefone: destinatario_whatsapp,
-        template_name: tipo === 'orcamento_solicitado' ? 'novo_orcamento' : 'notificacao_geral',
+        template_name: tipo === 'orcamento_solicitado' ? 'mbf_novo_orcamento_img' : 'mbf_notificacao_geral_img',
         parameters: [{ text: titulo }, { text: mensagem }],
       });
       resultados.whatsapp = { success: true };
