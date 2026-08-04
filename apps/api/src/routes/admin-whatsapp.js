@@ -1,5 +1,6 @@
 const { Router } = require('express');
 const { enviarTemplate, enviarNotificacaoOrcamento, enviarNotificacaoAlbum, getTemplatesFromMeta } = require('../services/whatsappService');
+const { getTemplateImageUrl, isImageTemplate } = require('../services/whatsappTemplateCache');
 const { dynamo, TABLE } = require('../config/dynamodb');
 const { QueryCommand, PutCommand, DeleteCommand } = require('@aws-sdk/lib-dynamodb');
 
@@ -52,12 +53,13 @@ router.post('/enviar-template', async (req, res) => {
 
       if (!template) return res.status(404).json({ success: false, message: 'Template não encontrado' });
 
-      // Detectar se template tem header de imagem → enviar com mídia automaticamente
+      // Detectar se template tem header de imagem → resolver URL via CDN
       if (found) {
         const headerComp = found.components?.find(c => c.type === 'HEADER');
         if (headerComp?.format === 'IMAGE' && !header_image_url) {
-          // Usar media_url do frontend ou fallback para o exemplo do template
-          header_image_url = media_url || headerComp.example?.header_handle?.[0] || null;
+          // Usar media_url do frontend, ou resolver via mapeamento CDN
+          // NUNCA usar header_handle da Meta (é referência interna, não URL pública)
+          header_image_url = media_url || getTemplateImageUrl(found.name);
         }
       }
     }
@@ -65,6 +67,11 @@ router.post('/enviar-template', async (req, res) => {
     // Se media_url foi enviada mas header_image_url não foi setado acima
     if (!header_image_url && media_type === 'image' && media_url) {
       header_image_url = media_url;
+    }
+
+    // Se template _img e ainda sem header_image_url, resolver via CDN
+    if (!header_image_url && template && isImageTemplate(template)) {
+      header_image_url = getTemplateImageUrl(template);
     }
 
     if (!numero || !template) return res.status(400).json({ success: false, message: 'numero e template são obrigatórios' });
