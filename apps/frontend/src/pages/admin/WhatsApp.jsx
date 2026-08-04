@@ -391,7 +391,7 @@ export default function WhatsApp() {
         </div>
         <div className="grid gap-3">
           {sorted.map(t => (
-            <div key={t.id} className="bg-white border rounded-lg p-4 overflow-hidden">
+            <div key={t.id} className="bg-white border rounded-lg p-4">
               <div className="flex items-start justify-between mb-2 gap-2">
                 <div className="flex flex-wrap items-center gap-2 min-w-0">
                   <span className="font-medium text-sm font-mono break-all">{t.nome}</span>
@@ -407,7 +407,7 @@ export default function WhatsApp() {
               </div>
               <p className="text-sm text-gray-600 break-words">{highlightVars(t.corpo)}</p>
               {t.header?.tipo === 'image' && t.header?.exemplo_url && (
-                <img src={t.header.exemplo_url} alt="Header" className="w-full max-h-48 object-contain rounded mt-2 border bg-gray-50" loading="lazy" />
+                <img src={t.header.exemplo_url} alt="Header" className="w-full max-h-60 object-contain rounded mt-2 border bg-gray-50" loading="lazy" />
               )}
               {t.header?.tipo === 'text' && t.header?.texto && (
                 <p className="text-xs text-gray-500 mt-1 font-medium">📌 {t.header.texto}</p>
