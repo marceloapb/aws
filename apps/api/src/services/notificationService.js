@@ -123,10 +123,13 @@ async function notificar({
   if (canais.includes('whatsapp') && destinatario_whatsapp) {
     try {
       const whatsapp = require('../lib/whatsapp/client');
+      const { getTemplateImageUrl } = require('./whatsappTemplateCache');
+      const templateName = tipo === 'orcamento_solicitado' ? 'mbf_novo_orcamento_img' : 'mbf_notificacao_geral_img';
       await whatsapp.enviarTemplate({
         telefone: destinatario_whatsapp,
-        template_name: tipo === 'orcamento_solicitado' ? 'novo_orcamento' : 'notificacao_geral',
+        template_name: templateName,
         parameters: [{ text: titulo }, { text: mensagem }],
+        header_image_url: getTemplateImageUrl(templateName),
       });
       resultados.whatsapp = { success: true };
       registrarLog('whatsapp', tipo, 'sucesso', `WhatsApp "${titulo}" enviado para ${destinatario_whatsapp}`);

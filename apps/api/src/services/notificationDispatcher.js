@@ -238,41 +238,41 @@ async function despacharCanal(canal, regra, evento, dados) {
         throw new Error('Número WhatsApp do destinatário não configurado');
       }
 
-      // Resolver template — as regras já apontam diretamente para _img quando disponível
+      // Resolver template — todos os templates agora usam prefixo mbf_ e sufixo _img
       // Fallback por evento só para casos onde não há regra com whatsapp_template definido
       const templatePorEvento = {
-        'orcamento_solicitado': 'novo_orcamento_img',
-        'orcamento_criado': 'novo_orcamento_img',
-        'contrato_enviado': 'contrato_assinatura_img',
-        'contrato_assinado': 'contrato_assinado_aviso_img',
-        'pagamento_confirmado': 'pagamento_confirmado_img',
-        'pagamento_vencido': 'pagamento_vencido_img',
-        'album_publicado': 'fotos_prontas',
-        'evento_confirmado': 'evento_confirmado_img',
-        'evento_criado': 'notificacao_geral_img',
-        'evento_realizado': 'notificacao_geral_img',
-        'album_baixado': 'notificacao_geral_img',
-        'feedback_respondido': 'feedback_solicitacao',
-        'mensagem_recebida': 'notificacao_geral_img',
+        'orcamento_solicitado': 'mbf_novo_orcamento_img',
+        'orcamento_criado': 'mbf_novo_orcamento_img',
+        'contrato_enviado': 'mbf_contrato_assinatura_img',
+        'contrato_assinado': 'mbf_contrato_assinado_img',
+        'pagamento_confirmado': 'mbf_pagamento_confirmado_img',
+        'pagamento_vencido': 'mbf_pagamento_vencido_img',
+        'album_publicado': 'mbf_fotos_prontas_img',
+        'evento_confirmado': 'mbf_evento_confirmado_img',
+        'evento_criado': 'mbf_notificacao_geral_img',
+        'evento_realizado': 'mbf_notificacao_geral_img',
+        'album_baixado': 'mbf_notificacao_geral_img',
+        'feedback_respondido': 'mbf_feedback_img',
+        'mensagem_recebida': 'mbf_notificacao_geral_img',
       };
 
-      const templateName = regra.whatsapp_template || templatePorEvento[evento.tipo_evento] || 'notificacao_geral_img';
+      const templateName = regra.whatsapp_template || templatePorEvento[evento.tipo_evento] || 'mbf_notificacao_geral_img';
 
       // Mapear parâmetros corretos por template (cada um tem número diferente de params)
       const templateParams = {
-        'notificacao_geral_img': [titulo, mensagem],                        // 2 params
-        'novo_orcamento_img': [dados.cliente_nome || 'Cliente', titulo],    // 2 params
-        'contrato_assinado_aviso_img': [titulo, mensagem],                  // 2 params
-        'contrato_assinatura_img': [dados.cliente_nome || 'Cliente', titulo], // 2 params
-        'pagamento_vencido_img': [dados.cliente_nome || 'Cliente', titulo, mensagem], // 3 params
-        'pagamento_confirmado_img': [dados.cliente_nome || 'Cliente', titulo, mensagem], // 3 params
-        'evento_confirmado_img': [dados.cliente_nome || 'Cliente', titulo, mensagem], // 3 params
-        'evento_confirmado_img_v2': [dados.cliente_nome || 'Cliente', titulo, mensagem], // 3 params
-        'feedback_solicitacao': [dados.cliente_nome || 'Cliente', titulo],  // 2 params
-        'orcamento_pronto': [dados.cliente_nome || 'Cliente', titulo, mensagem], // 3 params
-        'lembrete_evento': [dados.cliente_nome || 'Cliente', dados.tipo_evento || titulo, dados.data_evento || 'a definir', dados.hora_evento || '—'], // 4 params
-        'fotos_prontas': [dados.cliente_nome || 'Cliente', titulo, dados.total_fotos || '—', dados.dias_expiracao || '30'], // 4 params
-        'album_pronto_img_v2': [dados.cliente_nome || 'Cliente', titulo, mensagem], // 3 params
+        'mbf_notificacao_geral_img': [titulo, mensagem],                                   // 2 params
+        'mbf_novo_orcamento_img': [dados.cliente_nome || 'Cliente', titulo],                // 2 params
+        'mbf_contrato_assinado_img': [titulo, mensagem],                                   // 2 params
+        'mbf_contrato_assinatura_img': [dados.cliente_nome || 'Cliente', titulo],           // 2 params
+        'mbf_pagamento_vencido_img': [dados.cliente_nome || 'Cliente', titulo, mensagem],   // 3 params
+        'mbf_pagamento_confirmado_img': [dados.cliente_nome || 'Cliente', titulo, mensagem], // 3 params
+        'mbf_evento_confirmado_img': [dados.cliente_nome || 'Cliente', titulo, mensagem],   // 3 params
+        'mbf_feedback_img': [dados.cliente_nome || 'Cliente', titulo],                     // 2 params
+        'mbf_orcamento_pronto_img': [dados.cliente_nome || 'Cliente', titulo, mensagem],    // 3 params
+        'mbf_lembrete_evento_img': [dados.cliente_nome || 'Cliente', dados.tipo_evento || titulo, dados.data_evento || 'a definir', dados.hora_evento || '—'], // 4 params
+        'mbf_fotos_prontas_img': [dados.cliente_nome || 'Cliente', titulo, dados.total_fotos || '—', dados.dias_expiracao || '30'], // 4 params
+        'mbf_album_pronto_img': [dados.cliente_nome || 'Cliente', titulo, mensagem],        // 3 params
+        'mbf_lembrete_admin_img': [titulo, mensagem],                                      // 2 params
       };
       const parametros = templateParams[templateName] || [dados.cliente_nome || 'Cliente', titulo, mensagem];
 
