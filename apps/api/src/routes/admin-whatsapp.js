@@ -728,4 +728,135 @@ router.post('/upload-media-handle', async (req, res) => {
   }
 });
 
+// POST /api/admin/whatsapp/templates/gerar-img-variants
+// Busca templates da Meta que NÃO possuem sufixo _img e cria rascunhos _img no DynamoDB
+// NÃO submete à Meta — apenas salva localmente como rascunho
+router.post('/templates/gerar-img-variants', async (req, res) => {
+  try {
+    const metaTemplates = await getTemplatesFromMeta();
+
+    if (!metaTemplates || metaTemplates.length === 0) {
+      return res.json({ success: true, data: { criados: 0, templates: [] }, message: 'Nenhum template encontrado na Meta' });
+    }
+
+    const nomes = metaTemplates.map(t => t.name);
+
+    // Filtrar templates que NÃO terminam em _img/_img_v2 e NÃO possuem par _img correspondente
+    const semImg = metaTemplates.filter(t => {
+      const nome = t.name;
+      // Ignorar os que já são _img ou _img_v2
+      if (nome.endsWith('_img') || nome.endsWith('_img_v2')) return false;
+      // Ignorar se já existe variante _img na Meta
+      if (nomes.includes(nome + '_img')) return false;
+      // Apenas templates aprovados
+      if (t.status !== 'APPROVED') return false;
+      return true;
+    });
+
+    if (semImg.length === 0) {
+      return res.json({ success: true, data: { criados: 0, templates: [] }, message: 'Todos os templates já possuem variante _img' });
+    }
+
+    const TENANT = process.env.TENANT_ID || '1';
+    const criados = [];
+
+    for (const tpl of semImg) {
+      const nomeImg = tpl.name + '_img';
+      const id = `tpl_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+
+      // Extrair componentes do template original
+      const bodyComp = tpl.components?.find(c => c.type === 'BODY');
+      const footerComp = tpl.components?.find(c => c.type === 'FOOTER');
+      const buttonsComp = tpl.components?.find(c => c.type === 'BUTTONS');
+
+      // Extrair variáveis do body
+      const corpo = bodyComp?.text || '';
+      const varMatches = corpo.match(/\{\{\d+\}\}/g) || [];
+      const variaveis = varMatches.map((v, i) => ({
+        indice: i + 1,
+        descricao: '',
+        exemplo: bodyComp?.example?.body_text?.[0]?.[i] || 'exemplo',
+      }));
+
+      const now = new Date().toISOString();
+
+      const item = {
+        PK: `TENANT#${TENANT}`,
+        SK: `TEMPLATE_WPP#${id}`,
+        GSI1PK: 'WA_TEMPLATE',
+        GSI1SK: `WA_TEMPLATE#${id}`,
+        id,
+        nome: nomeImg,
+        nome_original: tpl.name,
+        categoria: (tpl.category || 'UTILITY').toLowerCase(),
+        idioma: tpl.language || 'pt_BR',
+        corpo,
+        variaveis,
+        header: { tipo: 'image', valor: '' },
+        footer: footerComp?.text || '',
+        botoes: buttonsComp?.buttons || [],
+        status: 'rascunho',
+        meta_template_id: null,
+        meta_status: null,
+        motivo_rejeicao: null,
+        created_at: now,
+        updated_at: now,
+      };
+
+      await dynamo.send(new PutCommand({
+        TableName: TABLE,
+        Item: item,
+        ConditionExpression: 'attribute_not_exists(SK)',
+      })).catch(() => {
+        // Se já existe, ignora (idempotente)
+      });
+
+      criados.push({ id, nome: nomeImg, original: tpl.name, categoria: item.categoria });
+    }
+
+    res.json({
+      success: true,
+      data: { criados: criados.length, templates: criados },
+      message: `${criados.length} rascunho(s) _img criado(s) no DynamoDB. Adicione a imagem e submeta à Meta quando pronto.`,
+    });
+  } catch (error) {
+    console.error('[WHATSAPP] Erro ao gerar _img variants:', error.message);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// GET /api/admin/whatsapp/templates/rascunhos
+// Lista templates rascunhos locais (salvos no DynamoDB, não submetidos à Meta)
+router.get('/templates/rascunhos', async (req, res) => {
+  try {
+    const result = await dynamo.send(new QueryCommand({
+      TableName: TABLE,
+      IndexName: 'GSI1',
+      KeyConditionExpression: 'GSI1PK = :pk',
+      ExpressionAttributeValues: { ':pk': 'WA_TEMPLATE' },
+    }));
+
+    const templates = (result.Items || []).map(t => ({
+      id: t.id,
+      nome: t.nome,
+      nome_original: t.nome_original || null,
+      categoria: t.categoria,
+      idioma: t.idioma,
+      corpo: t.corpo,
+      variaveis: t.variaveis || [],
+      header: t.header || null,
+      footer: t.footer || '',
+      botoes: t.botoes || [],
+      status: t.status || 'rascunho',
+      meta_template_id: t.meta_template_id || null,
+      created_at: t.created_at,
+    }));
+
+    res.json({ success: true, data: templates });
+  } catch (error) {
+    console.error('[WHATSAPP] Erro ao buscar rascunhos:', error.message);
+    res.json({ success: true, data: [] });
+  }
+});
+
 module.exports = router;
