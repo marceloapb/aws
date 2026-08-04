@@ -292,6 +292,22 @@ export default function WhatsApp() {
     } catch (err) { alert('Erro: ' + err.message); }
     finally { setGerandoImgVariants(false); }
   };
+  const [migrando, setMigrando] = useState(false);
+  const migrarTemplates = async () => {
+    if (!window.confirm('ATENÇÃO: Isso vai DELETAR todos os templates antigos e CRIAR os novos mbf_*_img na Meta.\n\nApós a migração, entre em cada template novo e faça upload da imagem.\n\nDeseja continuar?')) return;
+    setMigrando(true);
+    try {
+      const resp = await authFetch(`${API}/templates/migrar`, { method: 'POST' });
+      const data = await resp.json();
+      if (data.success) {
+        alert(`Migração concluída!\n\n${data.message}\n\nPróximo passo: entre em cada template, suba a imagem e salve.`);
+        loadTab();
+      } else {
+        alert(data.message || 'Erro na migração');
+      }
+    } catch (err) { alert('Erro: ' + err.message); }
+    finally { setMigrando(false); }
+  };
   const loadRascunhos = async () => {
     try {
       const resp = await authFetch(`${API}/templates/rascunhos`);
@@ -384,6 +400,9 @@ export default function WhatsApp() {
           </div>
           <div className="flex items-center gap-2 flex-wrap w-full sm:w-auto">
             <button onClick={openNewTpl} className="flex items-center gap-1 px-3 py-2 rounded text-sm text-white font-medium flex-1 sm:flex-none justify-center" style={{ background: ACCENT }}><Plus size={14} /> Novo Template</button>
+            <button onClick={migrarTemplates} disabled={migrando} className="flex items-center gap-1 px-3 py-2 rounded text-sm font-medium border border-red-300 text-red-700 hover:bg-red-50 disabled:opacity-50 flex-1 sm:flex-none justify-center" title="Deleta antigos e cria novos mbf_*_img na Meta">
+              <Upload size={14} /> {migrando ? 'Migrando...' : 'Migrar p/ mbf_'}
+            </button>
             <button onClick={gerarImgVariants} disabled={gerandoImgVariants} className="flex items-center gap-1 px-3 py-2 rounded text-sm font-medium border border-orange-300 text-orange-700 hover:bg-orange-50 disabled:opacity-50 flex-1 sm:flex-none justify-center" title="Cria rascunhos _img para templates sem imagem (não submete à Meta)">
               <Upload size={14} /> {gerandoImgVariants ? 'Gerando...' : 'Gerar _img'}
             </button>
