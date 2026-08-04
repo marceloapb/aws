@@ -98,7 +98,7 @@ async function enviarTemplate(numero, templateName, parametros = [], headerImage
  * Envia lembrete de evento para o cliente
  */
 async function enviarLembreteEvento(numero, nomeCliente, tipoEvento, data, horario) {
-  return enviarTemplate(numero, 'lembrete_evento', [nomeCliente, tipoEvento, data, horario]);
+  return enviarTemplate(numero, 'mbf_lembrete_evento_img', [nomeCliente, tipoEvento, data, horario]);
 }
 
 /**
@@ -109,19 +109,19 @@ async function enviarLembreteAdmin(numero, tipoEvento, nomeCliente, data, horari
   const titulo = `Evento Amanhã: ${tipoEvento}`;
   const mensagem = `${nomeCliente} - ${data} às ${horario}${local ? ` | ${local}` : ''}`;
 
-  return enviarTemplate(numero, 'notificacao_geral_img', [titulo, mensagem]);
+  return enviarTemplate(numero, 'mbf_lembrete_admin_img', [titulo, mensagem]);
 }
 
 async function enviarNotificacaoOrcamento(numero, nomeCliente, valor, link) {
-  return enviarTemplate(numero, 'orcamento_pronto', [nomeCliente, `R$ ${valor.toFixed(2)}`, link]);
+  return enviarTemplate(numero, 'mbf_orcamento_pronto_img', [nomeCliente, `R$ ${valor.toFixed(2)}`, link]);
 }
 
 async function enviarNotificacaoAlbum(numero, nomeCliente, tituloAlbum, link) {
-  return enviarTemplate(numero, 'album_pronto_img_v2', [nomeCliente, tituloAlbum, link]);
+  return enviarTemplate(numero, 'mbf_album_pronto_img', [nomeCliente, tituloAlbum, link]);
 }
 
 async function enviarNotificacaoPagamento(numero, nomeCliente, valor, status) {
-  return enviarTemplate(numero, 'pagamento_confirmado_img', [nomeCliente, `R$ ${valor.toFixed(2)}`, status]);
+  return enviarTemplate(numero, 'mbf_pagamento_confirmado_img', [nomeCliente, `R$ ${valor.toFixed(2)}`, status]);
 }
 
 function formatarNumero(numero) {
