@@ -8,7 +8,7 @@ import { CollageGallery } from '../../utils/galleryLayouts/collageGroups';
 import JSZip from 'jszip';
 
 const API = process.env.REACT_APP_API_URL || '';
-const PAGE_SIZE = 40;
+const PAGE_SIZE = 24;
 
 export default function AlbumGaleria() {
   const { slug, galeriaId } = useParams();

@@ -26,6 +26,7 @@ export default function GalleryPhoto({
   className = '',
   children,
 }) {
+  const [loaded, setLoaded] = React.useState(false);
   const animacaoScroll = tema.animacao_scroll || 'none';
   const animacaoHover = tema.animacao_hover || 'none';
   const animacaoOverlay = tema.animacao_overlay || 'none';
@@ -69,7 +70,12 @@ export default function GalleryPhoto({
         alt=""
         loading="lazy"
         decoding="async"
+        onLoad={() => setLoaded(true)}
+        style={{ opacity: loaded ? 1 : 0, transition: 'opacity 0.3s ease' }}
       />
+      {!loaded && (
+        <div style={{ position: 'absolute', inset: 0, background: '#f3f4f6' }} />
+      )}
 
       {/* Overlay element (for overlay animations) */}
       {animacaoOverlay !== 'none' && (
