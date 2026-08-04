@@ -44,6 +44,7 @@ export default function WhatsApp() {
 
   // Templates
   const [templates, setTemplates] = useState([]);
+  const [tplSort, setTplSort] = useState('');
   const [tplModal, setTplModal] = useState(false);
   const [tplForm, setTplForm] = useState({ nome: '', categoria: 'utility', idioma: 'pt_BR', corpo: '', variaveis: [], evento: '', header: '', header_type: 'TEXT', header_image_key: '' });
   const [editTplId, setEditTplId] = useState(null);
@@ -279,14 +280,29 @@ export default function WhatsApp() {
   const renderTemplates = () => {
     const catColor = { utility: 'blue', marketing: 'orange', authentication: 'green' };
     const stColor = { aprovado: 'green', pendente: 'yellow', rejeitado: 'red' };
+
+    // Ordenação
+    const sorted = [...templates].sort((a, b) => {
+      if (tplSort === 'nome') return a.nome.localeCompare(b.nome);
+      if (tplSort === 'status') return (a.status || '').localeCompare(b.status || '');
+      return 0; // default: ordem da Meta
+    });
+
     return (
       <div className="space-y-4">
         <div className="flex justify-between items-center">
-          <button onClick={syncTodos} className="flex items-center gap-1 text-sm text-gray-600 hover:text-gray-800"><RefreshCw size={14} /> Atualizar</button>
+          <div className="flex items-center gap-2">
+            <button onClick={syncTodos} className="flex items-center gap-1 text-sm text-gray-600 hover:text-gray-800"><RefreshCw size={14} /> Atualizar</button>
+            <span className="text-gray-300">|</span>
+            <span className="text-xs text-gray-500">Ordenar:</span>
+            {[{ key: '', label: 'Padrão' }, { key: 'nome', label: 'Nome' }, { key: 'status', label: 'Status' }].map(o => (
+              <button key={o.key} onClick={() => setTplSort(o.key)} className={`text-xs px-2 py-1 rounded ${tplSort === o.key ? 'bg-orange-100 text-orange-700 font-medium' : 'text-gray-500 hover:bg-gray-100'}`}>{o.label}</button>
+            ))}
+          </div>
           <button onClick={openNewTpl} className="flex items-center gap-1 px-3 py-2 rounded text-sm text-white font-medium" style={{ background: ACCENT }}><Plus size={14} /> Novo Template</button>
         </div>
         <div className="grid gap-3">
-          {templates.map(t => (
+          {sorted.map(t => (
             <div key={t.id} className="bg-white border rounded-lg p-4 overflow-hidden">
               <div className="flex items-start justify-between mb-2 gap-2">
                 <div className="flex flex-wrap items-center gap-2 min-w-0">
