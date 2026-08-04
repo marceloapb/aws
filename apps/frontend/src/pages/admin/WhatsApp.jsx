@@ -183,6 +183,22 @@ export default function WhatsApp() {
     setEditTplId(t.id);
     setTplModal(true);
   };
+  const duplicateTpl = (t) => {
+    const novoNome = t.nome + '_copia';
+    setTplForm({
+      nome: novoNome,
+      categoria: (t.categoria || 'UTILITY').toUpperCase(),
+      idioma: t.idioma || 'pt_BR',
+      corpo: t.corpo || '',
+      variaveis: (t.variaveis || []).map(v => ({ ...v })),
+      evento: '',
+      header: t.header?.texto || '',
+      header_type: (t.header?.tipo || 'TEXT').toUpperCase(),
+      header_image_key: t.header?.exemplo_url || '',
+    });
+    setEditTplId(null); // null = criar novo, não editar
+    setTplModal(true);
+  };
   const saveTpl = async () => {
     try {
       const payload = { ...tplForm };
@@ -370,6 +386,7 @@ export default function WhatsApp() {
                 </div>
                 <div className="flex items-center gap-1 shrink-0">
                   {t.categoria !== 'authentication' && <button onClick={() => openEditTpl(t)} className="p-1 text-gray-400 hover:text-blue-600" title="Editar texto"><Edit size={14} /></button>}
+                  {t.categoria !== 'authentication' && <button onClick={() => duplicateTpl(t)} className="p-1 text-gray-400 hover:text-green-600" title="Duplicar template"><Copy size={14} /></button>}
                   <button onClick={() => deleteTpl(t.nome)} className="p-1 text-gray-400 hover:text-red-600" title="Deletar"><Trash2 size={14} /></button>
                 </div>
               </div>
