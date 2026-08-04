@@ -11,8 +11,8 @@ import useSortable from '../../hooks/useSortable';
 const ACCENT = '#EA580C';
 const TABS = ['Visão Geral', 'Cobranças', 'Despesas', 'Fluxo de Caixa', 'Rentabilidade'];
 const STATUS_TABS = ['Todas', 'Em aberto', 'Pagas', 'Atrasadas', 'Canceladas'];
-const MEIOS_PAGAMENTO = ['PIX', 'Boleto', 'Cartão', 'Dinheiro', 'Transferência'];
-const CATEGORIAS_DESPESA = ['Equipamento', 'Transporte', 'Alimentação', 'Terceirizado', 'Marketing', 'Aluguel', 'Software', 'Outros'];
+const MEIOS_PAGAMENTO = ['Boleto', 'Cartão', 'Dinheiro', 'PIX', 'Transferência'];
+const CATEGORIAS_DESPESA = ['Alimentação', 'Aluguel', 'Equipamento', 'Marketing', 'Software', 'Terceirizado', 'Transporte', 'Outros'];
 const PERIODOS = ['Este mês', 'Trimestre', 'Ano', 'Custom'];
 
 const fmt = (v) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v || 0);

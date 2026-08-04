@@ -8,11 +8,11 @@ import {
 
 const ACCENT = '#EA580C';
 const MOTIVOS_RECUSA = [
-  'Preço alto',
-  'Prazo não atende',
-  'Escolheu outro fotógrafo',
-  'Desistiu do evento',
   'Atendimento insatisfatório',
+  'Desistiu do evento',
+  'Escolheu outro fotógrafo',
+  'Prazo não atende',
+  'Preço alto',
   'Outro'
 ];
 

@@ -11,7 +11,7 @@ const TABS = [
   { id: 'email', label: '📧 Email' },
 ];
 
-const GATEWAYS = ['asaas','stripe','mercadopago','pagarme','pagbank','picpay','sumup','banco-inter','stone','infinitepay'];
+const GATEWAYS = ['asaas','banco-inter','infinitepay','mercadopago','pagarme','pagbank','picpay','stone','stripe','sumup'];
 
 export default function Configuracoes() {
   const [config, setConfig] = useState({});
