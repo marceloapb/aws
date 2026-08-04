@@ -438,29 +438,34 @@ export default function NotificacoesConfig() {
         </div>
         {activeTab === 'regras' && (
           <div className="flex items-center gap-2">
-            <Button
-              icon={Zap}
-              variant="secondary"
-              loading={testing}
-              onClick={async () => {
-                if (!window.confirm('Disparar notificação de teste para todas as regras de ADMIN? (não envia para clientes)')) return;
-                setTesting(true);
-                try {
-                  const res = await authFetch('/admin/notificacoes/testar', { method: 'POST', body: JSON.stringify({}) });
-                  const json = await res.json();
-                  if (json.success) {
-                    toast.success(json.message || 'Testes disparados!');
-                  } else {
-                    toast.error(json.message || 'Erro ao testar');
-                  }
-                } catch {
-                  toast.error('Erro ao disparar testes');
-                }
-                setTesting(false);
-              }}
-            >
-              {testing ? 'Testando...' : 'Testar Todas'}
-            </Button>
+            <div className="relative inline-block">
+              <select
+                disabled={testing}
+                onChange={async (e) => {
+                  const canal = e.target.value;
+                  if (!canal) return;
+                  e.target.value = '';
+                  const label = canal === 'todos' ? 'TODOS os canais' : canal === 'inapp' ? 'In-App' : canal === 'email' ? 'E-mail' : 'WhatsApp';
+                  if (!window.confirm(`Disparar teste via ${label} para regras de ADMIN?`)) return;
+                  setTesting(true);
+                  try {
+                    const res = await authFetch('/admin/notificacoes/testar', { method: 'POST', body: JSON.stringify({ canal: canal === 'todos' ? '' : canal }) });
+                    const json = await res.json();
+                    if (json.success) toast.success(json.message || 'Testes disparados!');
+                    else toast.error(json.message || 'Erro ao testar');
+                  } catch { toast.error('Erro ao disparar testes'); }
+                  setTesting(false);
+                }}
+                className="px-3 py-2 text-sm font-medium border rounded-lg bg-white hover:bg-gray-50 cursor-pointer disabled:opacity-50"
+                style={{ borderColor: ACCENT, color: ACCENT }}
+              >
+                <option value="">{testing ? 'Testando...' : '⚡ Testar'}</option>
+                <option value="todos">Todos os canais</option>
+                <option value="inapp">Só In-App</option>
+                <option value="email">Só E-mail</option>
+                <option value="whatsapp">Só WhatsApp</option>
+              </select>
+            </div>
             <Button icon={Plus} onClick={openCreate}>
               Nova Regra
             </Button>

@@ -56,6 +56,27 @@ router.get('/', async (req, res) => {
     const bucket = process.env.S3_BUCKET_NAME;
 
     const dataEnriquecida = await Promise.all(data.map(async (album) => {
+      // Contar fotos reais (FOTO# items) para garantir precisão
+      let total_fotos = album.total_fotos || 0;
+      try {
+        const countResult = await dynamo.send(new QueryCommand({
+          TableName: TABLE,
+          KeyConditionExpression: 'PK = :pk AND begins_with(SK, :sk)',
+          ExpressionAttributeValues: { ':pk': `ALBUM#${album.id}`, ':sk': 'FOTO#' },
+          Select: 'COUNT',
+        }));
+        total_fotos = countResult.Count || 0;
+        // Atualizar no banco se divergiu (background, non-blocking)
+        if (total_fotos !== (album.total_fotos || 0)) {
+          dynamo.send(new UpdateCommand({
+            TableName: TABLE,
+            Key: { PK: album.PK, SK: album.SK },
+            UpdateExpression: 'SET total_fotos = :t',
+            ExpressionAttributeValues: { ':t': total_fotos },
+          })).catch(() => {});
+        }
+      } catch {}
+
       // Buscar nome do cliente se existir cliente_id
       let cliente_nome = album.cliente_nome || null;
       if (!cliente_nome && album.cliente_id) {
@@ -131,7 +152,7 @@ router.get('/', async (req, res) => {
       } catch {}
 
       if (!album.orcamento_id) {
-        return { ...album, cliente_nome, percentual_pago: null, pode_publicar: true, thumbnail_url };
+        return { ...album, cliente_nome, total_fotos, percentual_pago: null, pode_publicar: true, thumbnail_url };
       }
       try {
         const cobrancasResult = await dynamo.send(new QueryCommand({
@@ -147,9 +168,9 @@ router.get('/', async (req, res) => {
           .filter(c => c.status === COBRANCA_STATUS.PAGO)
           .reduce((sum, c) => sum + (c.valor || 0), 0);
         const percentual_pago = totalValor > 0 ? Math.round((totalPago / totalValor) * 100) : 0;
-        return { ...album, cliente_nome, percentual_pago, pode_publicar: percentual_pago >= 70, thumbnail_url };
+        return { ...album, cliente_nome, total_fotos, percentual_pago, pode_publicar: percentual_pago >= 70, thumbnail_url };
       } catch {
-        return { ...album, cliente_nome, percentual_pago: null, pode_publicar: true, thumbnail_url };
+        return { ...album, cliente_nome, total_fotos, percentual_pago: null, pode_publicar: true, thumbnail_url };
       }
     }));
 
@@ -178,11 +199,12 @@ router.get('/:id', async (req, res) => {
     }));
     const fotos = (fotosResult.Items || []).sort((a, b) => (a.ordem || 0) - (b.ordem || 0));
 
-    // Gerar presigned URLs em lotes (máx 100 para não dar timeout)
+    // Usar CDN diretamente para thumbs (sem presigned URLs — muito mais rápido)
     const { S3Client, GetObjectCommand } = require('@aws-sdk/client-s3');
     const { getSignedUrl } = require('@aws-sdk/s3-request-presigner');
     const s3 = new S3Client({});
     const bucket = process.env.S3_BUCKET_NAME;
+    const CDN = 'https://d2112x4m4e89fv.cloudfront.net';
 
     const fotosComUrl = await Promise.all(fotos.map(async (foto) => {
       const keyThumb = (foto.s3_key_thumb && foto.s3_key_thumb !== null) ? foto.s3_key_thumb : null;
@@ -190,15 +212,16 @@ router.get('/:id', async (req, res) => {
       const keyOriginal = foto.s3_key_original || foto.s3_key || foto.key;
       const keyForGrid = keyThumb || keyMedia || keyOriginal;
       if (!keyForGrid) return foto;
-      try {
-        const url = await getSignedUrl(s3, new GetObjectCommand({ Bucket: bucket, Key: keyForGrid }), { expiresIn: 3600 });
-        const url_full = (keyForGrid !== keyOriginal && keyOriginal)
-          ? await getSignedUrl(s3, new GetObjectCommand({ Bucket: bucket, Key: keyOriginal }), { expiresIn: 3600 })
-          : url;
-        return { ...foto, url, url_full };
-      } catch {
-        return foto;
+      // Usar CDN para grid (thumb/media) — instantâneo, sem presigned URL
+      const url = `${CDN}/${keyForGrid}`;
+      // Presigned URL só para full (sob demanda do lightbox)
+      let url_full = url;
+      if (keyForGrid !== keyOriginal && keyOriginal) {
+        try {
+          url_full = await getSignedUrl(s3, new GetObjectCommand({ Bucket: bucket, Key: keyOriginal }), { expiresIn: 3600 });
+        } catch { url_full = `${CDN}/${keyOriginal}`; }
       }
+      return { ...foto, url, url_full, thumbnail_url: `${CDN}/${keyThumb || keyMedia || keyOriginal}` };
     }));
 
     res.json({ success: true, data: { ...album, fotos: fotosComUrl } });

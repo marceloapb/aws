@@ -315,19 +315,30 @@ router.get('/log', async (req, res) => {
 router.post('/testar', async (req, res) => {
   try {
     const { processarEvento } = require('../services/notificationDispatcher');
+    const canalFiltro = req.body?.canal || ''; // '', 'inapp', 'email', 'whatsapp'
 
     // Buscar apenas regras com destinatario = admin
+    let filterExpr = '#status = :ativa AND destinatario = :admin';
+    const exprNames = { '#status': 'status' };
+    const exprVals = {
+      ':pk': `TENANT#${TENANT}`,
+      ':sk': 'REGRA_NTF#',
+      ':ativa': 'ativa',
+      ':admin': 'admin',
+    };
+
+    // Se canal especificado, filtrar regras que contenham esse canal
+    if (canalFiltro) {
+      filterExpr += ' AND contains(canais, :canal)';
+      exprVals[':canal'] = canalFiltro;
+    }
+
     const regrasResult = await dynamo.send(new QueryCommand({
       TableName: TABLE,
       KeyConditionExpression: 'PK = :pk AND begins_with(SK, :sk)',
-      FilterExpression: '#status = :ativa AND destinatario = :admin',
-      ExpressionAttributeNames: { '#status': 'status' },
-      ExpressionAttributeValues: {
-        ':pk': `TENANT#${TENANT}`,
-        ':sk': 'REGRA_NTF#',
-        ':ativa': 'ativa',
-        ':admin': 'admin',
-      },
+      FilterExpression: filterExpr,
+      ExpressionAttributeNames: exprNames,
+      ExpressionAttributeValues: exprVals,
     }));
 
     const regras = regrasResult.Items || [];

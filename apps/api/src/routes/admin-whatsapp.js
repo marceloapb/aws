@@ -551,7 +551,26 @@ router.put('/templates/:id', async (req, res) => {
         return res.status(400).json({ success: false, message: userMsg });
       }
 
-      return res.json({ success: true, data: createResult, recreated: true, newName, message: `Template não pôde ser editado (limite 24h). Criado novo: "${newName}". Aguardando aprovação da Meta.` });
+      // Atualizar regras de disparo que usavam o nome antigo
+      const TENANT = process.env.TENANT_ID || 'default';
+      try {
+        const regrasResult = await dynamo.send(new QueryCommand({
+          TableName: TABLE,
+          KeyConditionExpression: 'PK = :pk AND begins_with(SK, :sk)',
+          FilterExpression: 'whatsapp_template = :old',
+          ExpressionAttributeValues: { ':pk': `TENANT#${TENANT}`, ':sk': 'REGRA_NTF#', ':old': templateName },
+        }));
+        for (const regra of (regrasResult.Items || [])) {
+          await dynamo.send(new UpdateCommand({
+            TableName: TABLE,
+            Key: { PK: regra.PK, SK: regra.SK },
+            UpdateExpression: 'SET whatsapp_template = :n, template_whatsapp = :n, updated = :u',
+            ExpressionAttributeValues: { ':n': newName, ':u': new Date().toISOString() },
+          }));
+        }
+      } catch {}
+
+      return res.json({ success: true, data: createResult, recreated: true, newName, message: `Template criado: "${newName}". Regras de disparo atualizadas. Aguardando aprovação da Meta.` });
     }
 
     // Outro erro

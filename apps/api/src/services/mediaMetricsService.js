@@ -32,7 +32,7 @@ async function getStorageMetrics(contexto) {
 
   // Map contexto to S3 prefix (estrutura real do bucket)
   const prefixMap = {
-    album: `${TENANT}/album/`,
+    album: `3438a468-a031-7040-2d21-abc059a80915/album/`,
     portfolio: '1/portfolio/',
     perfil: 'fotos/',
     avatars: 'avatars/',
