@@ -441,15 +441,16 @@ router.put('/templates/:id', async (req, res) => {
     const { loadParams } = require('../config/env');
     const params = await loadParams();
     const token = params.WHATSAPP_ACCESS_TOKEN;
+    const wabaId = params.WHATSAPP_WABA_ID || '2163797757810981';
 
     if (!token) return res.status(400).json({ success: false, message: 'Token WhatsApp não configurado' });
 
-    const { corpo, variaveis, header, header_type, header_example_url } = req.body;
+    const { nome, corpo, variaveis, header, header_type, header_example_url, categoria, idioma } = req.body;
     const templateId = req.params.id;
 
     if (!corpo) return res.status(400).json({ success: false, message: 'Corpo é obrigatório' });
 
-    // Montar components para update
+    // Montar components
     const components = [];
 
     if (header_type && ['IMAGE', 'VIDEO', 'DOCUMENT'].includes(header_type.toUpperCase())) {
@@ -470,6 +471,7 @@ router.put('/templates/:id', async (req, res) => {
     }
     components.push(bodyComponent);
 
+    // Tentar editar primeiro
     const response = await fetch(
       `https://graph.facebook.com/v20.0/${templateId}`,
       {
@@ -481,11 +483,66 @@ router.put('/templates/:id', async (req, res) => {
     );
     const result = await response.json();
 
-    if (!response.ok) {
-      return res.status(400).json({ success: false, message: result.error?.message || 'Erro ao editar template' });
+    if (response.ok) {
+      return res.json({ success: true, data: result });
     }
 
-    res.json({ success: true, data: result });
+    // Se não pode editar (PENDING ou APPROVED), fazer delete + recreate
+    const errorSubcode = result.error?.error_subcode;
+    if (errorSubcode === 2388003 || result.error?.message?.includes('cannot be edited')) {
+      // Buscar info do template para saber o nome
+      let templateName = nome;
+      if (!templateName) {
+        const infoResp = await fetch(
+          `https://graph.facebook.com/v20.0/${templateId}?access_token=${token}`,
+          { signal: AbortSignal.timeout(10000) }
+        );
+        const infoData = await infoResp.json();
+        templateName = infoData.name;
+      }
+
+      if (!templateName) {
+        return res.status(400).json({ success: false, message: 'Template não pode ser editado (PENDING/APPROVED). Não foi possível obter o nome para recriar.' });
+      }
+
+      // 1) Deletar template antigo
+      const deleteResp = await fetch(
+        `https://graph.facebook.com/v20.0/${wabaId}/message_templates?name=${templateName}`,
+        { method: 'DELETE', headers: { 'Authorization': `Bearer ${token}` }, signal: AbortSignal.timeout(15000) }
+      );
+      const deleteResult = await deleteResp.json();
+      if (!deleteResp.ok) {
+        return res.status(400).json({ success: false, message: `Erro ao deletar template para recriar: ${deleteResult.error?.message || 'erro desconhecido'}` });
+      }
+
+      // 2) Recriar com os novos dados
+      const createPayload = {
+        name: templateName,
+        category: (categoria || 'UTILITY').toUpperCase(),
+        language: idioma || 'pt_BR',
+        components,
+      };
+
+      const createResp = await fetch(
+        `https://graph.facebook.com/v20.0/${wabaId}/message_templates`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+          body: JSON.stringify(createPayload),
+          signal: AbortSignal.timeout(15000),
+        }
+      );
+      const createResult = await createResp.json();
+
+      if (!createResp.ok) {
+        return res.status(400).json({ success: false, message: `Template deletado mas erro ao recriar: ${createResult.error?.message || 'erro'}. Recrie manualmente.` });
+      }
+
+      return res.json({ success: true, data: createResult, recreated: true, message: 'Template recriado com sucesso! Aguardando aprovação da Meta.' });
+    }
+
+    // Outro erro
+    return res.status(400).json({ success: false, message: result.error?.message || 'Erro ao editar template' });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
@@ -701,8 +758,11 @@ router.post('/upload-media-handle', async (req, res) => {
       return res.status(400).json({ success: false, message: uploadData.error?.message || 'Erro ao fazer upload para Meta' });
     }
 
+    // A Meta pode retornar múltiplos handles separados por \n — usar o primeiro
+    const handle = uploadData.h.split('\n')[0].trim();
+
     // 4) Retornar o handle
-    res.json({ success: true, data: { handle: uploadData.h } });
+    res.json({ success: true, data: { handle } });
   } catch (error) {
     console.error('[WHATSAPP] Erro upload-media-handle:', error.message);
     res.status(500).json({ success: false, message: error.message });

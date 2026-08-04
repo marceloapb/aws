@@ -221,7 +221,11 @@ export default function WhatsApp() {
         const resp = await authFetch(`${API}/templates/${editTplId}`, { method: 'PUT', body: JSON.stringify(payload) });
         const data = await resp.json();
         if (!data.success) { alert(data.message || 'Erro ao editar template'); return; }
-        alert('Template atualizado! Ficará pendente de re-aprovação pela Meta.');
+        if (data.recreated) {
+          alert('Template recriado com nova imagem! Aguardando aprovação da Meta (pode levar minutos).');
+        } else {
+          alert('Template atualizado! Ficará pendente de re-aprovação pela Meta.');
+        }
       } else {
         const resp = await authFetch(`${API}/templates`, { method: 'POST', body: JSON.stringify(payload) });
         const data = await resp.json();
