@@ -158,6 +158,83 @@ router.delete('/:id', async (req, res) => {
   }
 });
 
+// POST /api/admin/fotos/batch-delete — Excluir múltiplas fotos de uma vez
+router.post('/batch-delete', async (req, res) => {
+  try {
+    const { foto_ids, album_id } = req.body;
+    if (!Array.isArray(foto_ids) || foto_ids.length === 0) {
+      return res.status(400).json({ success: false, message: 'foto_ids é obrigatório (array)' });
+    }
+    if (!album_id) {
+      return res.status(400).json({ success: false, message: 'album_id é obrigatório' });
+    }
+
+    let deletados = 0;
+    let erros = 0;
+
+    // Deletar em chunks de 25 (limite BatchWrite do DynamoDB)
+    for (let i = 0; i < foto_ids.length; i += 25) {
+      const chunk = foto_ids.slice(i, i + 25);
+      const deleteRequests = chunk.map(fotoId => ({
+        DeleteRequest: {
+          Key: { PK: `ALBUM#${album_id}`, SK: `FOTO#${fotoId}` },
+        },
+      }));
+
+      try {
+        const { BatchWriteCommand } = require('@aws-sdk/lib-dynamodb');
+        await dynamo.send(new BatchWriteCommand({
+          RequestItems: { [TABLE]: deleteRequests },
+        }));
+        deletados += chunk.length;
+      } catch (err) {
+        // Fallback: deletar um por um se batch falhar
+        for (const fotoId of chunk) {
+          try {
+            await dynamo.send(new DeleteCommand({
+              TableName: TABLE,
+              Key: { PK: `ALBUM#${album_id}`, SK: `FOTO#${fotoId}` },
+            }));
+            deletados++;
+          } catch {
+            erros++;
+          }
+        }
+      }
+    }
+
+    // Atualizar contagem do álbum
+    try {
+      const { QueryCommand: QC } = require('@aws-sdk/lib-dynamodb');
+      const albumResult = await dynamo.send(new QC({
+        TableName: TABLE,
+        IndexName: 'GSI1',
+        KeyConditionExpression: 'GSI1PK = :pk AND GSI1SK = :sk',
+        ExpressionAttributeValues: { ':pk': 'ALBUM', ':sk': `ALBUM#${album_id}` },
+      }));
+      if (albumResult.Items?.length > 0) {
+        const album = albumResult.Items[0];
+        const totalResult = await dynamo.send(new QC({
+          TableName: TABLE,
+          KeyConditionExpression: 'PK = :pk AND begins_with(SK, :sk)',
+          ExpressionAttributeValues: { ':pk': `ALBUM#${album_id}`, ':sk': 'FOTO#' },
+          Select: 'COUNT',
+        }));
+        await dynamo.send(new UpdateCommand({
+          TableName: TABLE,
+          Key: { PK: album.PK, SK: album.SK },
+          UpdateExpression: 'SET total_fotos = :t',
+          ExpressionAttributeValues: { ':t': totalResult.Count || 0 },
+        }));
+      }
+    } catch {}
+
+    res.json({ success: true, data: { deletados, erros, total: foto_ids.length } });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
 // PUT /api/admin/fotos/reordenar
 router.put('/reordenar', async (req, res) => {
   try {
