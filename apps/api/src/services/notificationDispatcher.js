@@ -246,7 +246,7 @@ async function despacharCanal(canal, regra, evento, dados) {
         'contrato_assinado': 'contrato_assinado_aviso_img',
         'pagamento_confirmado': 'pagamento_confirmado_img',
         'pagamento_vencido': 'pagamento_vencido_img',
-        'album_publicado': 'album_pronto_img',
+        'album_publicado': 'fotos_prontas',
         'evento_confirmado': 'evento_confirmado_img',
         'evento_criado': 'notificacao_geral_img',
         'evento_realizado': 'notificacao_geral_img',
@@ -267,9 +267,11 @@ async function despacharCanal(canal, regra, evento, dados) {
         'pagamento_confirmado_img': [dados.cliente_nome || 'Cliente', titulo, mensagem], // 3 params
         'evento_confirmado_img': [dados.cliente_nome || 'Cliente', titulo, mensagem], // 3 params
         'evento_confirmado_img_v2': [dados.cliente_nome || 'Cliente', titulo, mensagem], // 3 params
-        'feedback_solicitacao': [dados.cliente_nome || 'Cliente', titulo, mensagem], // 3 params
+        'feedback_solicitacao': [dados.cliente_nome || 'Cliente', titulo],  // 2 params
         'orcamento_pronto': [dados.cliente_nome || 'Cliente', titulo, mensagem], // 3 params
-        'lembrete_evento': [dados.cliente_nome || 'Cliente', titulo, mensagem], // 3 params
+        'lembrete_evento': [dados.cliente_nome || 'Cliente', dados.tipo_evento || titulo, dados.data_evento || 'a definir', dados.hora_evento || '—'], // 4 params
+        'fotos_prontas': [dados.cliente_nome || 'Cliente', titulo, dados.total_fotos || '—', dados.dias_expiracao || '30'], // 4 params
+        'album_pronto_img_v2': [dados.cliente_nome || 'Cliente', titulo, mensagem], // 3 params
       };
       const parametros = templateParams[templateName] || [dados.cliente_nome || 'Cliente', titulo, mensagem];
 
