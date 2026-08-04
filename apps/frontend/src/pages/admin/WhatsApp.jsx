@@ -237,13 +237,28 @@ export default function WhatsApp() {
       delete payload.header_image_key;
 
       if (editTplId) {
-        const resp = await authFetch(`${API}/templates/${editTplId}`, { method: 'PUT', body: JSON.stringify(payload) });
-        const data = await resp.json();
-        if (!data.success) { alert(data.message || 'Erro ao editar template'); return; }
-        if (data.recreated) {
-          alert(data.message || `Template recriado como "${data.newName}". Aguardando aprovação da Meta.`);
+        // Verificar se é um rascunho local (ID começa com tpl_) — nesse caso, criar novo na Meta
+        const isRascunhoLocal = editTplId.startsWith('tpl_');
+
+        if (isRascunhoLocal) {
+          // Rascunho local → criar na Meta como novo template
+          const resp = await authFetch(`${API}/templates`, { method: 'POST', body: JSON.stringify(payload) });
+          const data = await resp.json();
+          if (!data.success) { alert(data.message || 'Erro ao criar template'); return; }
+          // Após criar na Meta com sucesso, excluir o rascunho local
+          await authFetch(`${API}/templates/rascunhos/${editTplId}`, { method: 'DELETE' }).catch(() => {});
+          alert(`Template criado na Meta! Status: ${data.data?.status || 'PENDING'}`);
+          loadRascunhos();
         } else {
-          alert('Template atualizado! Ficará pendente de re-aprovação pela Meta.');
+          // Template da Meta → atualizar via PUT
+          const resp = await authFetch(`${API}/templates/${editTplId}`, { method: 'PUT', body: JSON.stringify(payload) });
+          const data = await resp.json();
+          if (!data.success) { alert(data.message || 'Erro ao editar template'); return; }
+          if (data.recreated) {
+            alert(data.message || `Template recriado como "${data.newName}". Aguardando aprovação da Meta.`);
+          } else {
+            alert('Template atualizado! Ficará pendente de re-aprovação pela Meta.');
+          }
         }
       } else {
         const resp = await authFetch(`${API}/templates`, { method: 'POST', body: JSON.stringify(payload) });
@@ -449,11 +464,15 @@ export default function WhatsApp() {
         <Modal open={tplModal} onClose={() => setTplModal(false)} title={editTplId ? 'Editar Template' : 'Novo Template (Meta WhatsApp)'}>
           <div className="space-y-3">
             <p className="text-xs text-gray-500 bg-yellow-50 border border-yellow-200 rounded p-2">
-              {editTplId ? 'Ao salvar, o template voltará para pendente de aprovação pela Meta.' : 'O template será criado diretamente na Meta e ficará pendente de aprovação (normalmente em minutos).'}
+              {editTplId && editTplId.startsWith('tpl_')
+                ? 'Este é um rascunho local. Ao salvar, será criado na Meta e ficará pendente de aprovação.'
+                : editTplId
+                  ? 'Ao salvar, o template voltará para pendente de aprovação pela Meta.'
+                  : 'O template será criado diretamente na Meta e ficará pendente de aprovação (normalmente em minutos).'}
             </p>
             <div>
               <label className="text-xs text-gray-500">Nome (slug, apenas letras minúsculas e _)</label>
-              <input value={tplForm.nome} onChange={e => setTplForm({ ...tplForm, nome: e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, '_') })} disabled={!!editTplId} className="w-full border rounded px-2 py-1.5 text-sm mt-1 disabled:bg-gray-100" placeholder="ex: lembrete_sessao" />
+              <input value={tplForm.nome} onChange={e => setTplForm({ ...tplForm, nome: e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, '_') })} disabled={editTplId && !editTplId.startsWith('tpl_')} className="w-full border rounded px-2 py-1.5 text-sm mt-1 disabled:bg-gray-100" placeholder="ex: lembrete_sessao" />
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
@@ -518,7 +537,7 @@ export default function WhatsApp() {
               ))}
               <button onClick={addVariavel} className="text-xs mt-1" style={{ color: ACCENT }}>+ Adicionar variável</button>
             </div>
-            <button onClick={saveTpl} disabled={!tplForm.nome || !tplForm.corpo} className="w-full py-2 rounded text-sm text-white font-medium mt-2 disabled:opacity-50" style={{ background: ACCENT }}>{editTplId ? 'Salvar Alterações' : 'Criar Template na Meta'}</button>
+            <button onClick={saveTpl} disabled={!tplForm.nome || !tplForm.corpo} className="w-full py-2 rounded text-sm text-white font-medium mt-2 disabled:opacity-50" style={{ background: ACCENT }}>{editTplId ? (editTplId.startsWith('tpl_') ? 'Criar Template na Meta' : 'Salvar Alterações') : 'Criar Template na Meta'}</button>
           </div>
         </Modal>
       </div>
