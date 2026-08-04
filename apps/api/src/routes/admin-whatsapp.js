@@ -760,8 +760,21 @@ router.post('/templates/gerar-img-variants', async (req, res) => {
     const TENANT = process.env.TENANT_ID || '1';
     const criados = [];
 
+    // Buscar rascunhos já existentes para evitar duplicação por nome
+    const existentes = await dynamo.send(new QueryCommand({
+      TableName: TABLE,
+      IndexName: 'GSI1',
+      KeyConditionExpression: 'GSI1PK = :pk',
+      ExpressionAttributeValues: { ':pk': 'WA_TEMPLATE' },
+    }));
+    const nomesExistentes = (existentes.Items || []).map(t => t.nome);
+
     for (const tpl of semImg) {
       const nomeImg = tpl.name + '_img';
+
+      // Pular se já existe rascunho com esse nome
+      if (nomesExistentes.includes(nomeImg)) continue;
+
       const id = `tpl_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 
       // Extrair componentes do template original
