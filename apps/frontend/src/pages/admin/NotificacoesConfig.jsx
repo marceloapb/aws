@@ -577,6 +577,9 @@ export default function NotificacoesConfig() {
                           {canal === 'inapp' ? 'Sininho' : canal === 'email' ? 'E-mail' : 'WhatsApp'}
                         </Badge>
                       ))}
+                      {rule.whatsapp_template && (
+                        <span className="text-xs text-gray-400 font-mono ml-1">📋 {rule.whatsapp_template}</span>
+                      )}
                     </div>
                   </div>
 
