@@ -1,63 +1,74 @@
 // ══════════════════════════════════════════════════════════════
-// SERVICES/WHATSAPP-TEMPLATE-CACHE.JS — Cache de URLs de imagem dos templates Meta
+// SERVICES/WHATSAPP-TEMPLATE-CACHE.JS — Resolução de imagens para templates WhatsApp
+// ══════════════════════════════════════════════════════════════
+//
+// IMPORTANTE: O header_handle retornado pela API de templates da Meta
+// é uma referência interna criptografada usada APENAS no registro do template.
+// Ele NÃO funciona como URL pública para envio de mensagens.
+//
+// Para enviar templates com header IMAGE, a Meta exige:
+//   - Uma URL HTTPS pública acessível (CDN/S3) via { image: { link: "https://..." } }
+//   - Ou um media_id de mídia previamente uploaded via { image: { id: "media_id" } }
+//
+// Referência: https://developers.facebook.com/docs/whatsapp/cloud-api/guides/send-message-templates
 // ══════════════════════════════════════════════════════════════
 
-const { loadParams } = require('../config/env');
+const CDN_BASE = 'https://d2112x4m4e89fv.cloudfront.net';
 
-// Cache em memória (dura enquanto a Lambda estiver quente)
-let templateImageCache = {};
-let cacheTimestamp = 0;
-const CACHE_TTL = 60 * 60 * 1000; // 1 hora
+// Mapeamento de templates para suas imagens de header no CDN
+// Cada template _img deve ter sua imagem correspondente no S3/CloudFront
+const TEMPLATE_IMAGE_MAP = {
+  'notificacao_geral_img': `${CDN_BASE}/template-headers/notificacao-geral.png`,
+  'novo_orcamento_img': `${CDN_BASE}/template-headers/novo-orcamento.png`,
+  'contrato_assinatura_img': `${CDN_BASE}/template-headers/contrato-assinatura.png`,
+  'contrato_assinado_aviso_img': `${CDN_BASE}/template-headers/contrato-assinado.png`,
+  'pagamento_confirmado_img': `${CDN_BASE}/template-headers/pagamento-confirmado.png`,
+  'pagamento_vencido_img': `${CDN_BASE}/template-headers/pagamento-vencido.png`,
+  'evento_confirmado_img': `${CDN_BASE}/template-headers/evento-confirmado.png`,
+  'evento_confirmado_img_v2': `${CDN_BASE}/template-headers/evento-confirmado.png`,
+  'album_pronto_img_v2': `${CDN_BASE}/template-headers/album-pronto.png`,
+  'fotos_prontas': `${CDN_BASE}/template-headers/fotos-prontas.png`,
+};
+
+// Imagem fallback quando não há mapeamento específico
+const DEFAULT_HEADER_IMAGE = `${CDN_BASE}/template-headers/logo-default.png`;
 
 /**
- * Busca a URL da imagem header de um template na Meta
- * Com cache em memória para não fazer request a cada envio
+ * Retorna a URL pública da imagem de header para um template.
+ * Usa mapeamento estático (CDN) ao invés de header_handle da Meta.
+ *
+ * @param {string} templateName - Nome do template aprovado na Meta
+ * @returns {string} URL pública da imagem (nunca retorna null)
  */
-async function getTemplateImageUrl(templateName) {
-  // Verificar cache
-  if (templateImageCache[templateName] && (Date.now() - cacheTimestamp) < CACHE_TTL) {
-    return templateImageCache[templateName];
-  }
-
-  try {
-    const params = await loadParams();
-    const token = params.WHATSAPP_ACCESS_TOKEN;
-    const wabaId = params.WHATSAPP_WABA_ID || '2163797757810981';
-
-    if (!token) return null;
-
-    const resp = await fetch(
-      `https://graph.facebook.com/v20.0/${wabaId}/message_templates?name=${templateName}&access_token=${token}`,
-      { signal: AbortSignal.timeout(10000) }
-    );
-    const data = await resp.json();
-
-    if (!data.data || data.data.length === 0) return null;
-
-    const template = data.data[0];
-    const headerComp = template.components?.find(c => c.type === 'HEADER' && c.format === 'IMAGE');
-
-    if (!headerComp?.example?.header_handle?.[0]) return null;
-
-    const imageUrl = headerComp.example.header_handle[0];
-    
-    // Guardar no cache
-    templateImageCache[templateName] = imageUrl;
-    cacheTimestamp = Date.now();
-
-    return imageUrl;
-  } catch (err) {
-    console.warn(`[TEMPLATE CACHE] Erro ao buscar imagem de ${templateName}: ${err.message}`);
-    return null;
-  }
+function getTemplateImageUrl(templateName) {
+  return TEMPLATE_IMAGE_MAP[templateName] || DEFAULT_HEADER_IMAGE;
 }
 
 /**
- * Limpa o cache (útil quando templates são atualizados)
+ * Verifica se um template requer header de imagem
+ * @param {string} templateName
+ * @returns {boolean}
  */
-function clearTemplateCache() {
-  templateImageCache = {};
-  cacheTimestamp = 0;
+function isImageTemplate(templateName) {
+  return templateName.endsWith('_img') || templateName.endsWith('_img_v2');
 }
 
-module.exports = { getTemplateImageUrl, clearTemplateCache };
+/**
+ * Registra/atualiza a URL de imagem para um template (usado pelo admin ao configurar)
+ * @param {string} templateName
+ * @param {string} imageUrl - URL pública HTTPS da imagem
+ */
+function setTemplateImageUrl(templateName, imageUrl) {
+  if (templateName && imageUrl) {
+    TEMPLATE_IMAGE_MAP[templateName] = imageUrl;
+  }
+}
+
+module.exports = {
+  getTemplateImageUrl,
+  isImageTemplate,
+  setTemplateImageUrl,
+  DEFAULT_HEADER_IMAGE,
+  CDN_BASE,
+  TEMPLATE_IMAGE_MAP,
+};

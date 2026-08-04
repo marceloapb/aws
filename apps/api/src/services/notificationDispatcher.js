@@ -6,9 +6,9 @@ const crypto = require('crypto');
 const { QueryCommand, PutCommand } = require('@aws-sdk/lib-dynamodb');
 const { dynamo, TABLE } = require('../config/dynamodb');
 const { verificarDedup, marcarProcessado } = require('./dedupService');
-const { getTemplateImageUrl } = require('./whatsappTemplateCache');
+const { getTemplateImageUrl, isImageTemplate } = require('./whatsappTemplateCache');
 
-const TENANT = process.env.TENANT_ID || 'default';
+const TENANT = process.env.TENANT_ID || '1';
 
 /**
  * Processa um evento e dispara notificações conforme regras ativas
@@ -276,25 +276,25 @@ async function despacharCanal(canal, regra, evento, dados) {
       };
       const parametros = templateParams[templateName] || [dados.cliente_nome || 'Cliente', titulo, mensagem];
 
-      // Templates _img EXIGEM header IMAGE a cada envio
-      // A Meta não usa automaticamente a imagem do template — precisa enviar mediaUrl sempre
+      // Templates _img EXIGEM header IMAGE a cada envio.
+      // A Meta NÃO usa automaticamente a imagem do template — precisa enviar mediaUrl SEMPRE.
+      //
+      // IMPORTANTE: O header_handle retornado pela API de templates da Meta é uma
+      // referência interna criptografada e NÃO funciona como URL pública no envio.
+      // Devemos SEMPRE usar URLs públicas (CDN/S3) para o campo image.link.
+      //
+      // Ref: https://developers.facebook.com/docs/whatsapp/cloud-api/guides/send-message-templates
       const CDN_BASE = 'https://d2112x4m4e89fv.cloudfront.net';
-      const isImgTemplate = templateName.endsWith('_img') || templateName.endsWith('_img_v2');
 
-      if (isImgTemplate) {
-        let imagemUrl = null;
+      if (isImageTemplate(templateName)) {
+        let imagemUrl;
 
         if (regra.header_image_key) {
-          // 1) Regra tem imagem customizada
+          // 1) Regra tem imagem customizada no CDN
           imagemUrl = `${CDN_BASE}/${regra.header_image_key}`;
         } else {
-          // 2) Buscar imagem cadastrada no template na Meta (cache em memória)
-          imagemUrl = await getTemplateImageUrl(templateName);
-        }
-
-        if (!imagemUrl) {
-          // 3) Fallback: logo padrão
-          imagemUrl = `${CDN_BASE}/template-headers/logo-default.png`;
+          // 2) Mapeamento CDN por template (sempre retorna URL válida, nunca null)
+          imagemUrl = getTemplateImageUrl(templateName);
         }
 
         await enviarWhatsApp({
