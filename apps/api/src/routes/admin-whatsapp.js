@@ -900,4 +900,222 @@ router.delete('/templates/rascunhos/:id', async (req, res) => {
   }
 });
 
+// ══════════════════════════════════════════════════════════════
+// MIGRAÇÃO DE TEMPLATES — Tela de imagens + recriação automática
+// ══════════════════════════════════════════════════════════════
+
+// Definição dos 15 templates (nome amigável + nome técnico + corpo)
+const TEMPLATE_DEFINITIONS = [
+  { key: 'notificacao_geral', name: 'mbf_notificacao_geral_img', label: 'Notificação Geral', category: 'UTILITY', body: '*{{1}}*\n\n{{2}}', examples: ['Novo orçamento recebido', 'João solicitou orçamento para Casamento.'] },
+  { key: 'novo_orcamento', name: 'mbf_novo_orcamento_img', label: 'Novo Orçamento', category: 'UTILITY', body: '📋 *Nova Solicitação de Orçamento*\n\nCliente: *{{1}}*\nDetalhes: {{2}}', examples: ['Maria Silva', 'Ensaio Gestante - Data: 15/03/2026'] },
+  { key: 'lembrete_evento', name: 'mbf_lembrete_evento_img', label: 'Lembrete de Evento', category: 'UTILITY', body: 'Olá *{{1}}*! 👋\n\nLembrando que sua sessão de *{{2}}* está marcada para o dia *{{3}}* às *{{4}}*.\n\nQualquer dúvida, é só responder aqui! 😊', examples: ['Maria', 'Ensaio Gestante', '15/03/2026', '14:00'] },
+  { key: 'orcamento_pronto', name: 'mbf_orcamento_pronto_img', label: 'Orçamento Pronto', category: 'UTILITY', body: 'Olá *{{1}}*! 👋\n\nSeu orçamento no valor de *{{2}}* está pronto para visualização.\n\nAcesse pelo link abaixo para conferir todos os detalhes:\n{{3}}', examples: ['João', 'R$ 3.500,00', 'https://www.marcelobloisefotografia.com.br/orcamento/abc123'] },
+  { key: 'fotos_prontas', name: 'mbf_fotos_prontas_img', label: 'Fotos Prontas', category: 'UTILITY', body: 'Olá *{{1}}*! 🎉\n\nSeu álbum *{{2}}* está disponível para visualização e download!\n\nSão *{{3}}* fotos que ficarão disponíveis por *{{4}} dias*.\n\nAcesse e aproveite! ❤️', examples: ['Maria', 'Casamento - Maria e João', '150', '30'] },
+  { key: 'pagamento_confirmado', name: 'mbf_pagamento_confirmado_img', label: 'Pagamento Confirmado', category: 'UTILITY', body: 'Olá *{{1}}*!\n\n✅ Confirmamos o recebimento do pagamento de *{{2}}*.\n\nStatus: *{{3}}*\n\nObrigado pela confiança! 🙏', examples: ['João', 'R$ 1.500,00', 'Confirmado'] },
+  { key: 'pagamento_vencido', name: 'mbf_pagamento_vencido_img', label: 'Pagamento Vencido', category: 'UTILITY', body: 'Olá *{{1}}*!\n\n⚠️ Identificamos que o pagamento de *{{2}}* está pendente.\n\n{{3}}\n\nSe já pagou, pode desconsiderar. Dúvidas? Responda aqui! 🙂', examples: ['João', 'R$ 1.000,00', 'Vencimento: 10/03/2026. Por favor, regularize.'] },
+  { key: 'contrato_assinatura', name: 'mbf_contrato_assinatura_img', label: 'Contrato p/ Assinatura', category: 'UTILITY', body: 'Olá *{{1}}*! 👋\n\nSeu contrato está pronto para revisão e assinatura digital.\n\n{{2}}\n\nQualquer dúvida, é só responder! 😊', examples: ['Maria', 'Acesse o link enviado por e-mail para assinar.'] },
+  { key: 'contrato_assinado', name: 'mbf_contrato_assinado_img', label: 'Contrato Assinado', category: 'UTILITY', body: '🎉 *{{1}}*\n\n{{2}}', examples: ['Contrato Assinado!', 'Maria assinou o contrato para Ensaio Gestante.'] },
+  { key: 'evento_confirmado', name: 'mbf_evento_confirmado_img', label: 'Evento Confirmado', category: 'UTILITY', body: 'Olá *{{1}}*! 🎉\n\nSua sessão de *{{2}}* está confirmada!\n\n{{3}}\n\nNos vemos em breve! 📸', examples: ['Maria', 'Ensaio Gestante', 'Data: 15/03/2026 às 14:00.'] },
+  { key: 'feedback', name: 'mbf_feedback_img', label: 'Feedback / Avaliação', category: 'UTILITY', body: 'Olá *{{1}}*! 👋\n\nGostaríamos de saber sua opinião sobre o serviço.\n\n{{2}}\n\nSua opinião é muito importante! ❤️', examples: ['Maria', 'Deixe sua avaliação respondendo aqui.'] },
+  { key: 'codigo_verificacao', name: 'mbf_codigo_verificacao_img', label: 'Código Verificação', category: 'AUTHENTICATION', body: '*{{1}}* é seu código de verificação.\n\nPara sua segurança, não compartilhe este código.', examples: ['482913'] },
+  { key: 'lembrete_admin', name: 'mbf_lembrete_admin_img', label: 'Lembrete Admin', category: 'UTILITY', body: '📅 *{{1}}*\n\n{{2}}', examples: ['Evento Amanhã: Ensaio Gestante', 'Maria Silva - 15/03/2026 às 14:00'] },
+  { key: 'boas_vindas', name: 'mbf_boas_vindas_img', label: 'Boas-Vindas', category: 'UTILITY', body: 'Olá *{{1}}*! 👋\n\nBem-vindo(a) ao portal da Marcelo Bloise Fotografia!\n\nSua senha temporária: *{{2}}*\n\nNo primeiro acesso, você será solicitado(a) a criar uma nova senha.\n\nAcesse: www.marcelobloisefotografia.com.br/login', examples: ['Maria', 'Xk9mP2z'] },
+  { key: 'album_pronto', name: 'mbf_album_pronto_img', label: 'Álbum Pronto', category: 'UTILITY', body: 'Olá *{{1}}*! 🎉\n\nSeu álbum *{{2}}* está pronto!\n\n{{3}}\n\nEspero que goste! ❤️', examples: ['Maria', 'Ensaio Gestante', 'Acesse o link enviado por e-mail.'] },
+];
+
+// GET /api/admin/whatsapp/template-images — Lista templates com status das imagens
+router.get('/template-images', async (req, res) => {
+  try {
+    const TENANT = process.env.TENANT_ID || '1';
+
+    // Buscar imagens já salvas no DynamoDB
+    const result = await dynamo.send(new QueryCommand({
+      TableName: TABLE,
+      KeyConditionExpression: 'PK = :pk AND begins_with(SK, :sk)',
+      ExpressionAttributeValues: { ':pk': `TENANT#${TENANT}`, ':sk': 'TPL_IMG#' },
+    }));
+
+    const savedImages = {};
+    for (const item of (result.Items || [])) {
+      savedImages[item.template_name] = { image_url: item.image_url, s3_key: item.s3_key, updated_at: item.updated_at };
+    }
+
+    // Montar resposta com todas as definições + status da imagem
+    const templates = TEMPLATE_DEFINITIONS.map(tpl => ({
+      ...tpl,
+      image_url: savedImages[tpl.name]?.image_url || null,
+      s3_key: savedImages[tpl.name]?.s3_key || null,
+      has_image: !!savedImages[tpl.name]?.image_url,
+      updated_at: savedImages[tpl.name]?.updated_at || null,
+    }));
+
+    const total = templates.length;
+    const com_imagem = templates.filter(t => t.has_image).length;
+
+    res.json({ success: true, data: { templates, total, com_imagem, pronto: com_imagem === total } });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// POST /api/admin/whatsapp/template-images/:key — Salva imagem de um template
+router.post('/template-images/:key', async (req, res) => {
+  try {
+    const { key } = req.params;
+    const { s3_key } = req.body;
+
+    const tpl = TEMPLATE_DEFINITIONS.find(t => t.key === key);
+    if (!tpl) return res.status(404).json({ success: false, message: `Template "${key}" não encontrado` });
+    if (!s3_key) return res.status(400).json({ success: false, message: 's3_key é obrigatório' });
+
+    const CDN_BASE = 'https://d2112x4m4e89fv.cloudfront.net';
+    const image_url = `${CDN_BASE}/${s3_key}`;
+    const TENANT = process.env.TENANT_ID || '1';
+
+    await dynamo.send(new PutCommand({
+      TableName: TABLE,
+      Item: {
+        PK: `TENANT#${TENANT}`,
+        SK: `TPL_IMG#${tpl.name}`,
+        template_name: tpl.name,
+        template_key: key,
+        image_url,
+        s3_key,
+        updated_at: new Date().toISOString(),
+      },
+    }));
+
+    res.json({ success: true, data: { template_name: tpl.name, image_url } });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// POST /api/admin/whatsapp/template-images/recriar-todos
+// Deleta templates antigos na Meta e recria TODOS os novos com as imagens salvas
+router.post('/template-images/recriar-todos', async (req, res) => {
+  try {
+    const { loadParams } = require('../config/env');
+    const params = await loadParams();
+    const token = params.WHATSAPP_ACCESS_TOKEN;
+    const wabaId = params.WHATSAPP_WABA_ID || '2163797757810981';
+    const appId = params.META_APP_ID || params.WHATSAPP_APP_ID || '951738347255153';
+    const TENANT = process.env.TENANT_ID || '1';
+
+    if (!token) return res.status(400).json({ success: false, message: 'Token WhatsApp não configurado' });
+
+    // Buscar imagens salvas
+    const imgResult = await dynamo.send(new QueryCommand({
+      TableName: TABLE,
+      KeyConditionExpression: 'PK = :pk AND begins_with(SK, :sk)',
+      ExpressionAttributeValues: { ':pk': `TENANT#${TENANT}`, ':sk': 'TPL_IMG#' },
+    }));
+    const savedImages = {};
+    for (const item of (imgResult.Items || [])) {
+      savedImages[item.template_name] = item.image_url;
+    }
+
+    // Verificar se todos têm imagem
+    const semImagem = TEMPLATE_DEFINITIONS.filter(t => !savedImages[t.name]);
+    if (semImagem.length > 0) {
+      return res.status(400).json({
+        success: false,
+        message: `Faltam imagens em ${semImagem.length} template(s): ${semImagem.map(t => t.label).join(', ')}`,
+        data: { faltam: semImagem.map(t => ({ key: t.key, label: t.label })) },
+      });
+    }
+
+    const resultados = { deletados: [], criados: [], erros: [] };
+
+    // ── FASE 1: Deletar templates antigos ──
+    const ANTIGOS = [
+      'notificacao_geral', 'notificacao_geral_img', 'novo_orcamento', 'novo_orcamento_img',
+      'lembrete_evento', 'lembrete_evento_img', 'orcamento_pronto', 'orcamento_pronto_img',
+      'album_pronto', 'album_pronto_img_v2', 'fotos_prontas',
+      'pagamento_confirmado', 'pagamento_confirmado_img', 'pagamento_vencido', 'pagamento_vencido_img',
+      'contrato_assinatura', 'contrato_assinatura_img', 'contrato_assinado_aviso', 'contrato_assinado_aviso_img',
+      'evento_confirmado', 'evento_confirmado_img', 'evento_confirmado_img_v2',
+      'feedback_solicitacao', 'mbfoto_codigo_verificacao',
+      'selecao_fotos_pronta_img', 'contrato_lembrete_img',
+    ];
+
+    for (const name of ANTIGOS) {
+      try {
+        await fetch(`https://graph.facebook.com/v21.0/${wabaId}/message_templates?name=${name}`, {
+          method: 'DELETE', headers: { 'Authorization': `Bearer ${token}` }, signal: AbortSignal.timeout(10000),
+        });
+        resultados.deletados.push(name);
+      } catch {}
+    }
+
+    // ── FASE 2: Para cada template, upload imagem para Meta + criar template ──
+    for (const tpl of TEMPLATE_DEFINITIONS) {
+      try {
+        const imageUrl = savedImages[tpl.name];
+
+        // 2a) Baixar imagem do CDN
+        const imgResp = await fetch(imageUrl, { signal: AbortSignal.timeout(15000) });
+        if (!imgResp.ok) { resultados.erros.push({ name: tpl.name, error: `Erro ao baixar imagem: ${imgResp.status}` }); continue; }
+        const imgBuffer = Buffer.from(await imgResp.arrayBuffer());
+        const mimeType = imgResp.headers.get('content-type') || 'image/png';
+
+        // 2b) Upload resumable para Meta
+        const sessResp = await fetch(
+          `https://graph.facebook.com/v21.0/${appId}/uploads?file_length=${imgBuffer.length}&file_type=${encodeURIComponent(mimeType)}&access_token=${token}`,
+          { method: 'POST', signal: AbortSignal.timeout(15000) }
+        );
+        const sessData = await sessResp.json();
+        if (!sessData.id) { resultados.erros.push({ name: tpl.name, error: sessData.error?.message || 'Erro sessão upload' }); continue; }
+
+        const upResp = await fetch(`https://graph.facebook.com/v21.0/${sessData.id}`, {
+          method: 'POST',
+          headers: { 'Authorization': `OAuth ${token}`, 'file_offset': '0', 'Content-Type': mimeType },
+          body: imgBuffer, signal: AbortSignal.timeout(30000),
+        });
+        const upData = await upResp.json();
+        if (!upData.h) { resultados.erros.push({ name: tpl.name, error: upData.error?.message || 'Erro upload imagem' }); continue; }
+        const handle = upData.h.split('\n')[0].trim();
+
+        // 2c) Criar template na Meta com a imagem
+        const varMatches = tpl.body.match(/\{\{\d+\}\}/g) || [];
+        const components = [
+          { type: 'HEADER', format: 'IMAGE', example: { header_handle: [handle] } },
+          { type: 'BODY', text: tpl.body, ...(varMatches.length > 0 && { example: { body_text: [tpl.examples] } }) },
+          { type: 'FOOTER', text: 'Marcelo Bloise Fotografia' },
+        ];
+
+        const createResp = await fetch(`https://graph.facebook.com/v21.0/${wabaId}/message_templates`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+          body: JSON.stringify({ name: tpl.name, category: tpl.category, language: 'pt_BR', components }),
+          signal: AbortSignal.timeout(15000),
+        });
+        const createData = await createResp.json();
+
+        if (createResp.ok) {
+          resultados.criados.push({ name: tpl.name, id: createData.id, label: tpl.label });
+        } else {
+          const msg = createData.error?.message || '';
+          if (msg.includes('already exists')) {
+            resultados.criados.push({ name: tpl.name, label: tpl.label, already_exists: true });
+          } else {
+            resultados.erros.push({ name: tpl.name, label: tpl.label, error: msg });
+          }
+        }
+      } catch (err) {
+        resultados.erros.push({ name: tpl.name, label: tpl.label, error: err.message });
+      }
+    }
+
+    res.json({
+      success: true,
+      message: `Criados: ${resultados.criados.length} | Deletados: ${resultados.deletados.length} | Erros: ${resultados.erros.length}`,
+      data: resultados,
+    });
+  } catch (error) {
+    console.error('[WHATSAPP] Erro ao recriar templates:', error.message);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
 module.exports = router;
