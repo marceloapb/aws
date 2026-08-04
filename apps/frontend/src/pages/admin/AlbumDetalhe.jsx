@@ -208,8 +208,8 @@ export default function AlbumDetalhe() {
       const ur = await authFetch(`/admin/albuns/${id}/upload-urls`, { method: 'POST', body: JSON.stringify({ files: fd }) });
       const uj = await ur.json(); if (!uj.success) { setUploading(false); alert(uj.message || 'Erro'); return; }
       const ups = uj.data;
-      for (let i = 0; i < bf.length; i += 8) {
-        const chunk = bf.slice(i, i + 8);
+      for (let i = 0; i < bf.length; i += 15) {
+        const chunk = bf.slice(i, i + 15);
         await Promise.all(chunk.map(async (file, j) => { const u = ups[i + j]; try { await fetch(u.upload_url, { method: 'PUT', body: file, headers: { 'Content-Type': file.type } }); confirmList.push({ foto_id: u.foto_id, key: u.key, content_type: file.type, filename: file.name }); } catch { errors++; } }));
         uploaded += chunk.length; setUploadProgress(Math.round((uploaded / files.length) * 100));
       }
