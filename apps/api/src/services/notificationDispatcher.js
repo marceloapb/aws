@@ -254,6 +254,22 @@ async function despacharCanal(canal, regra, evento, dados) {
 
       const templateName = regra.whatsapp_template || templatePorEvento[evento.tipo_evento] || 'notificacao_geral_img';
 
+      // Mapear parâmetros corretos por template (cada um tem número diferente de params)
+      const templateParams = {
+        'notificacao_geral_img': [titulo, mensagem],                        // 2 params
+        'novo_orcamento_img': [dados.cliente_nome || 'Cliente', titulo],    // 2 params
+        'contrato_assinado_aviso_img': [titulo, mensagem],                  // 2 params
+        'contrato_assinatura_img': [dados.cliente_nome || 'Cliente', titulo], // 2 params
+        'pagamento_vencido_img': [dados.cliente_nome || 'Cliente', titulo, mensagem], // 3 params
+        'pagamento_confirmado_img': [dados.cliente_nome || 'Cliente', titulo, mensagem], // 3 params
+        'evento_confirmado_img': [dados.cliente_nome || 'Cliente', titulo, mensagem], // 3 params
+        'evento_confirmado_img_v2': [dados.cliente_nome || 'Cliente', titulo, mensagem], // 3 params
+        'feedback_solicitacao': [dados.cliente_nome || 'Cliente', titulo, mensagem], // 3 params
+        'orcamento_pronto': [dados.cliente_nome || 'Cliente', titulo, mensagem], // 3 params
+        'lembrete_evento': [dados.cliente_nome || 'Cliente', titulo, mensagem], // 3 params
+      };
+      const parametros = templateParams[templateName] || [dados.cliente_nome || 'Cliente', titulo, mensagem];
+
       // Templates _img EXIGEM header IMAGE — sempre enviar imagem
       // Se regra tem header_image_key, usa ela. Senão, usa logo padrão.
       const CDN_BASE = 'https://d2112x4m4e89fv.cloudfront.net';
@@ -267,7 +283,7 @@ async function despacharCanal(canal, regra, evento, dados) {
         await enviarWhatsApp({
           numero,
           template: templateName,
-          parametros: [dados.cliente_nome || 'Cliente', titulo, mensagem],
+          parametros,
           mediaType: 'image',
           mediaUrl: imagemUrl,
         });
@@ -276,7 +292,7 @@ async function despacharCanal(canal, regra, evento, dados) {
         await enviarWhatsApp({
           numero,
           template: templateName,
-          parametros: [dados.cliente_nome || 'Cliente', titulo, mensagem],
+          parametros,
         });
       }
       break;
