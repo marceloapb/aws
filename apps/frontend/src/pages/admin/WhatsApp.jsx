@@ -222,7 +222,7 @@ export default function WhatsApp() {
         const data = await resp.json();
         if (!data.success) { alert(data.message || 'Erro ao editar template'); return; }
         if (data.recreated) {
-          alert('Template recriado com nova imagem! Aguardando aprovação da Meta (pode levar minutos).');
+          alert(data.message || `Template recriado como "${data.newName}". Aguardando aprovação da Meta.`);
         } else {
           alert('Template atualizado! Ficará pendente de re-aprovação pela Meta.');
         }

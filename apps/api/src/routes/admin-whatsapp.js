@@ -488,9 +488,14 @@ router.put('/templates/:id', async (req, res) => {
     }
 
     // Se não pode editar (PENDING ou APPROVED), fazer delete + recreate
+    // Se não pode editar (PENDING, limit 24h, etc), fazer delete + recreate
     const errorSubcode = result.error?.error_subcode;
-    if (errorSubcode === 2388003 || result.error?.message?.includes('cannot be edited')) {
-      // Buscar info do template para saber o nome
+    const isEditRestriction = (errorSubcode >= 2388000 && errorSubcode <= 2389000) || result.error?.message?.includes('cannot be edited');
+    if (isEditRestriction) {
+      // Subcode 2388124 = "só pode editar 1x a cada 24h"
+      // Subcode 2388003 = "template PENDING não pode ser editado"
+      // Subcode 2388023 = "nome bloqueado por 4 semanas após delete"
+      // Estratégia: criar com nome novo (sufixo _v2, _v3...)
       let templateName = nome;
       if (!templateName) {
         const infoResp = await fetch(
@@ -502,22 +507,28 @@ router.put('/templates/:id', async (req, res) => {
       }
 
       if (!templateName) {
-        return res.status(400).json({ success: false, message: 'Template não pode ser editado (PENDING/APPROVED). Não foi possível obter o nome para recriar.' });
+        return res.status(400).json({ success: false, message: 'Template não pode ser editado agora. A Meta limita edições a 1x por 24 horas.' });
       }
 
-      // 1) Deletar template antigo
-      const deleteResp = await fetch(
-        `https://graph.facebook.com/v20.0/${wabaId}/message_templates?name=${templateName}`,
-        { method: 'DELETE', headers: { 'Authorization': `Bearer ${token}` }, signal: AbortSignal.timeout(15000) }
-      );
-      const deleteResult = await deleteResp.json();
-      if (!deleteResp.ok) {
-        return res.status(400).json({ success: false, message: `Erro ao deletar template para recriar: ${deleteResult.error?.message || 'erro desconhecido'}` });
+      // Gerar nome novo com sufixo incremental
+      let newName = templateName;
+      const baseMatch = templateName.match(/^(.+?)(_v\d+)?$/);
+      const baseName = baseMatch ? baseMatch[1] : templateName;
+      // Tentar _v2, _v3... até encontrar um nome livre
+      for (let v = 2; v <= 10; v++) {
+        newName = `${baseName}_v${v}`;
+        // Verificar se já existe
+        const checkResp = await fetch(
+          `https://graph.facebook.com/v20.0/${wabaId}/message_templates?name=${newName}&access_token=${token}`,
+          { signal: AbortSignal.timeout(10000) }
+        );
+        const checkData = await checkResp.json();
+        if (!checkData.data || checkData.data.length === 0) break; // Nome livre
       }
 
-      // 2) Recriar com os novos dados
+      // Criar com nome novo
       const createPayload = {
-        name: templateName,
+        name: newName,
         category: (categoria || 'UTILITY').toUpperCase(),
         language: idioma || 'pt_BR',
         components,
@@ -535,10 +546,12 @@ router.put('/templates/:id', async (req, res) => {
       const createResult = await createResp.json();
 
       if (!createResp.ok) {
-        return res.status(400).json({ success: false, message: `Template deletado mas erro ao recriar: ${createResult.error?.message || 'erro'}. Recrie manualmente.` });
+        // Se tudo falhar, informar sobre limitação de 24h
+        const userMsg = result.error?.error_user_msg || 'A Meta limita edições de templates a 1x por 24 horas. Tente novamente amanhã.';
+        return res.status(400).json({ success: false, message: userMsg });
       }
 
-      return res.json({ success: true, data: createResult, recreated: true, message: 'Template recriado com sucesso! Aguardando aprovação da Meta.' });
+      return res.json({ success: true, data: createResult, recreated: true, newName, message: `Template não pôde ser editado (limite 24h). Criado novo: "${newName}". Aguardando aprovação da Meta.` });
     }
 
     // Outro erro
