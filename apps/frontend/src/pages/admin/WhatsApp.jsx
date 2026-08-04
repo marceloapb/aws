@@ -8,9 +8,11 @@ import {
 import { SortableHeader } from '../../components/ui';
 import useSortable from '../../hooks/useSortable';
 
+import WhatsAppTemplateImages from './WhatsAppTemplateImages';
+
 const ACCENT = '#EA580C';
 const API = '/admin/whatsapp';
-const TABS = ['Envios', 'Templates', 'Conversas', 'Custos'];
+const TABS = ['Envios', 'Templates', 'Imagens', 'Conversas', 'Custos'];
 const EVENTOS = ['orcamento_enviado', 'contrato_pronto', 'pagamento_confirmado', 'album_publicado', 'lembrete_sessao'];
 const STATUS_ENVIO = { enviado: { icon: Check, color: 'text-gray-500' }, entregue: { icon: CheckCheck, color: 'text-gray-500' }, lido: { icon: CheckCheck, color: 'text-blue-500' }, falhou: { icon: X, color: 'text-red-500' } };
 
@@ -82,8 +84,10 @@ export default function WhatsApp() {
       } else if (tab === 1) {
         const t = await authFetch(`${API}/templates`).then(r => r.json()); setTemplates(t.data || []);
       } else if (tab === 2) {
-        const r = await authFetch(`${API}/conversas`); const d = await r.json(); setConversas(d.data || []);
+        // Imagens tab — componente próprio gerencia seu estado
       } else if (tab === 3) {
+        const r = await authFetch(`${API}/conversas`); const d = await r.json(); setConversas(d.data || []);
+      } else if (tab === 4) {
         const r = await authFetch(`${API}/custos`); const d = await r.json(); setCustos(d.data);
       }
     } catch {}
@@ -1001,8 +1005,9 @@ export default function WhatsApp() {
         <>
           {tab === 0 && renderEnvios()}
           {tab === 1 && renderTemplates()}
-          {tab === 2 && renderConversas()}
-          {tab === 3 && renderCustos()}
+          {tab === 2 && <WhatsAppTemplateImages authFetch={authFetch} />}
+          {tab === 3 && renderConversas()}
+          {tab === 4 && renderCustos()}
         </>
       )}
     </div>
