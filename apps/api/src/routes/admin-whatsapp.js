@@ -488,89 +488,16 @@ router.put('/templates/:id', async (req, res) => {
     }
 
     // Se não pode editar (PENDING ou APPROVED), fazer delete + recreate
-    // Se não pode editar (PENDING, limit 24h, etc), fazer delete + recreate
+    // Se não pode editar, informar ao usuário
     const errorSubcode = result.error?.error_subcode;
     const isEditRestriction = (errorSubcode >= 2388000 && errorSubcode <= 2389000) || result.error?.message?.includes('cannot be edited');
     if (isEditRestriction) {
-      // Subcode 2388124 = "só pode editar 1x a cada 24h"
-      // Subcode 2388003 = "template PENDING não pode ser editado"
-      // Subcode 2388023 = "nome bloqueado por 4 semanas após delete"
-      // Estratégia: criar com nome novo (sufixo _v2, _v3...)
-      let templateName = nome;
-      if (!templateName) {
-        const infoResp = await fetch(
-          `https://graph.facebook.com/v20.0/${templateId}?access_token=${token}`,
-          { signal: AbortSignal.timeout(10000) }
-        );
-        const infoData = await infoResp.json();
-        templateName = infoData.name;
-      }
-
-      if (!templateName) {
-        return res.status(400).json({ success: false, message: 'Template não pode ser editado agora. A Meta limita edições a 1x por 24 horas.' });
-      }
-
-      // Gerar nome novo com sufixo incremental
-      let newName = templateName;
-      const baseMatch = templateName.match(/^(.+?)(_v\d+)?$/);
-      const baseName = baseMatch ? baseMatch[1] : templateName;
-      // Tentar _v2, _v3... até encontrar um nome livre
-      for (let v = 2; v <= 10; v++) {
-        newName = `${baseName}_v${v}`;
-        // Verificar se já existe
-        const checkResp = await fetch(
-          `https://graph.facebook.com/v20.0/${wabaId}/message_templates?name=${newName}&access_token=${token}`,
-          { signal: AbortSignal.timeout(10000) }
-        );
-        const checkData = await checkResp.json();
-        if (!checkData.data || checkData.data.length === 0) break; // Nome livre
-      }
-
-      // Criar com nome novo
-      const createPayload = {
-        name: newName,
-        category: (categoria || 'UTILITY').toUpperCase(),
-        language: idioma || 'pt_BR',
-        components,
+      const msgs = {
+        2388124: 'A Meta só permite editar um template 1x a cada 24 horas. Tente novamente amanhã.',
+        2388003: 'Este template está pendente de aprovação. Aguarde a Meta aprovar antes de editar novamente.',
       };
-
-      const createResp = await fetch(
-        `https://graph.facebook.com/v20.0/${wabaId}/message_templates`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-          body: JSON.stringify(createPayload),
-          signal: AbortSignal.timeout(15000),
-        }
-      );
-      const createResult = await createResp.json();
-
-      if (!createResp.ok) {
-        // Se tudo falhar, informar sobre limitação de 24h
-        const userMsg = result.error?.error_user_msg || 'A Meta limita edições de templates a 1x por 24 horas. Tente novamente amanhã.';
-        return res.status(400).json({ success: false, message: userMsg });
-      }
-
-      // Atualizar regras de disparo que usavam o nome antigo
-      const TENANT = process.env.TENANT_ID || 'default';
-      try {
-        const regrasResult = await dynamo.send(new QueryCommand({
-          TableName: TABLE,
-          KeyConditionExpression: 'PK = :pk AND begins_with(SK, :sk)',
-          FilterExpression: 'whatsapp_template = :old',
-          ExpressionAttributeValues: { ':pk': `TENANT#${TENANT}`, ':sk': 'REGRA_NTF#', ':old': templateName },
-        }));
-        for (const regra of (regrasResult.Items || [])) {
-          await dynamo.send(new UpdateCommand({
-            TableName: TABLE,
-            Key: { PK: regra.PK, SK: regra.SK },
-            UpdateExpression: 'SET whatsapp_template = :n, template_whatsapp = :n, updated = :u',
-            ExpressionAttributeValues: { ':n': newName, ':u': new Date().toISOString() },
-          }));
-        }
-      } catch {}
-
-      return res.json({ success: true, data: createResult, recreated: true, newName, message: `Template criado: "${newName}". Regras de disparo atualizadas. Aguardando aprovação da Meta.` });
+      const userMsg = msgs[errorSubcode] || result.error?.error_user_msg || 'A Meta não permitiu a edição agora. Tente novamente em 24 horas.';
+      return res.status(400).json({ success: false, message: userMsg });
     }
 
     // Outro erro
