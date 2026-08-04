@@ -392,10 +392,11 @@ router.post('/', validateToken, async (req, res) => {
     try {
       await whatsapp.enviarTemplate({
         telefone: telefoneLimpo,
-        template_name: 'mbfoto_codigo_verificacao',
-        components: [
-          { type: 'body', parameters: [{ type: 'text', text: tempPass }] },
-          { type: 'button', sub_type: 'url', index: '0', parameters: [{ type: 'text', text: tempPass }] },
+        template_name: 'mbf_boas_vindas_img',
+        header_image_url: require('../services/whatsappTemplateCache').getTemplateImageUrl('mbf_boas_vindas_img'),
+        parameters: [
+          { type: 'text', text: nome.trim() },
+          { type: 'text', text: tempPass },
         ],
       });
       metodo_envio = 'whatsapp';
@@ -479,10 +480,11 @@ router.post('/', validateToken, async (req, res) => {
         try {
           await whatsapp.enviarTemplate({
             telefone: adminPhone,
-            template_name: 'notificacao_geral',
+            template_name: 'mbf_notificacao_geral_img',
+            header_image_url: require('../services/whatsappTemplateCache').getTemplateImageUrl('mbf_notificacao_geral_img'),
             parameters: [
-              `Novo cliente + orçamento`,
-              `${nome.trim()} (${email}) — Evento: ${nome_evento || 'não informado'}`,
+              { type: 'text', text: `Novo cliente + orçamento` },
+              { type: 'text', text: `${nome.trim()} (${email}) — Evento: ${nome_evento || 'não informado'}` },
             ],
           });
           // Log sucesso notificação admin
