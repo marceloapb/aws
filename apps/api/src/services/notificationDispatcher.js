@@ -254,11 +254,15 @@ async function despacharCanal(canal, regra, evento, dados) {
 
       const templateName = regra.whatsapp_template || templatePorEvento[evento.tipo_evento] || 'notificacao_geral_img';
 
-      // Se a regra tem header_image_key, enviar com imagem no header
-      // Os templates _img já aceitam header IMAGE na Meta
-      if (regra.header_image_key) {
-        const CDN_BASE = 'https://d2112x4m4e89fv.cloudfront.net';
-        const imagemUrl = `${CDN_BASE}/${regra.header_image_key}`;
+      // Templates _img EXIGEM header IMAGE — sempre enviar imagem
+      // Se regra tem header_image_key, usa ela. Senão, usa logo padrão.
+      const CDN_BASE = 'https://d2112x4m4e89fv.cloudfront.net';
+      const isImgTemplate = templateName.endsWith('_img');
+
+      if (isImgTemplate) {
+        const imagemUrl = regra.header_image_key
+          ? `${CDN_BASE}/${regra.header_image_key}`
+          : `${CDN_BASE}/template-headers/logo-default.png`;
 
         await enviarWhatsApp({
           numero,
@@ -268,7 +272,7 @@ async function despacharCanal(canal, regra, evento, dados) {
           mediaUrl: imagemUrl,
         });
       } else {
-        // Sem imagem — enviar template normalmente (templates _img aceitam header image vazio)
+        // Template sem _img — enviar normalmente sem imagem
         await enviarWhatsApp({
           numero,
           template: templateName,
