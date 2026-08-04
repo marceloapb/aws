@@ -86,6 +86,9 @@ async function processarEvento(evento) {
     const canais = regra.canais || [];
 
     for (const canal of canais) {
+      // Se canal_filtro definido, só dispara para esse canal
+      if (evento.canal_filtro && canal !== evento.canal_filtro) continue;
+
       const entregaId = crypto.randomUUID();
       const now = new Date().toISOString();
       let status = 'enviado';

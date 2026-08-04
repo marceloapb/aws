@@ -358,6 +358,7 @@ router.post('/testar', async (req, res) => {
           evento_id: eventoId,
           tipo_evento: tipo,
           tenant_id: TENANT,
+          canal_filtro: canalFiltro || null,
           dados: {
             cliente_nome: 'Cliente Teste',
             email: req.body?.email || 'contato@bloise.com.br',
