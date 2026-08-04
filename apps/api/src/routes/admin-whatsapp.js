@@ -910,4 +910,127 @@ router.delete('/templates/rascunhos/:id', async (req, res) => {
   }
 });
 
+// POST /api/admin/whatsapp/templates/migrar
+// Deleta templates antigos e cria os novos mbf_*_img na Meta (sem imagem — admin adiciona depois)
+router.post('/templates/migrar', async (req, res) => {
+  try {
+    const { loadParams } = require('../config/env');
+    const params = await loadParams();
+    const token = params.WHATSAPP_ACCESS_TOKEN;
+    const wabaId = params.WHATSAPP_WABA_ID || '2163797757810981';
+
+    if (!token) return res.status(400).json({ success: false, message: 'Token WhatsApp não configurado' });
+
+    // Templates antigos para deletar
+    const TEMPLATES_ANTIGOS = [
+      'notificacao_geral', 'notificacao_geral_img',
+      'novo_orcamento', 'novo_orcamento_img',
+      'lembrete_evento',
+      'orcamento_pronto',
+      'album_pronto', 'album_pronto_img_v2',
+      'fotos_prontas',
+      'pagamento_confirmado', 'pagamento_confirmado_img',
+      'pagamento_vencido', 'pagamento_vencido_img',
+      'contrato_assinatura', 'contrato_assinatura_img',
+      'contrato_assinado_aviso', 'contrato_assinado_aviso_img',
+      'evento_confirmado', 'evento_confirmado_img', 'evento_confirmado_img_v2',
+      'feedback_solicitacao',
+      'mbfoto_codigo_verificacao',
+      'selecao_fotos_pronta_img',
+      'contrato_lembrete_img',
+      'lembrete_evento_img',
+      'orcamento_pronto_img',
+    ];
+
+    // Templates novos para criar (todos com header IMAGE)
+    const TEMPLATES_NOVOS = [
+      { name: 'mbf_notificacao_geral_img', category: 'UTILITY', body: '*{{1}}*\n\n{{2}}', examples: ['Novo orçamento recebido', 'João solicitou orçamento para Casamento.'] },
+      { name: 'mbf_novo_orcamento_img', category: 'UTILITY', body: '📋 *Nova Solicitação de Orçamento*\n\nCliente: *{{1}}*\nDetalhes: {{2}}', examples: ['Maria Silva', 'Ensaio Gestante - Data: 15/03/2026'] },
+      { name: 'mbf_lembrete_evento_img', category: 'UTILITY', body: 'Olá *{{1}}*! 👋\n\nLembrando que sua sessão de *{{2}}* está marcada para o dia *{{3}}* às *{{4}}*.\n\nQualquer dúvida, é só responder aqui! 😊', examples: ['Maria', 'Ensaio Gestante', '15/03/2026', '14:00'] },
+      { name: 'mbf_orcamento_pronto_img', category: 'UTILITY', body: 'Olá *{{1}}*! 👋\n\nSeu orçamento no valor de *{{2}}* está pronto para visualização.\n\nAcesse pelo link abaixo para conferir todos os detalhes:\n{{3}}', examples: ['João', 'R$ 3.500,00', 'https://www.marcelobloisefotografia.com.br/orcamento/abc123'] },
+      { name: 'mbf_fotos_prontas_img', category: 'UTILITY', body: 'Olá *{{1}}*! 🎉\n\nSeu álbum *{{2}}* está disponível para visualização e download!\n\nSão *{{3}}* fotos que ficarão disponíveis por *{{4}} dias*.\n\nAcesse e aproveite! ❤️', examples: ['Maria', 'Casamento - Maria e João', '150', '30'] },
+      { name: 'mbf_pagamento_confirmado_img', category: 'UTILITY', body: 'Olá *{{1}}*!\n\n✅ Confirmamos o recebimento do pagamento de *{{2}}*.\n\nStatus: *{{3}}*\n\nObrigado pela confiança! 🙏', examples: ['João', 'R$ 1.500,00', 'Confirmado'] },
+      { name: 'mbf_pagamento_vencido_img', category: 'UTILITY', body: 'Olá *{{1}}*!\n\n⚠️ Identificamos que o pagamento de *{{2}}* está pendente.\n\n{{3}}\n\nSe já pagou, pode desconsiderar. Dúvidas? Responda aqui! 🙂', examples: ['João', 'R$ 1.000,00', 'Vencimento: 10/03/2026. Por favor, regularize.'] },
+      { name: 'mbf_contrato_assinatura_img', category: 'UTILITY', body: 'Olá *{{1}}*! 👋\n\nSeu contrato está pronto para revisão e assinatura digital.\n\n{{2}}\n\nQualquer dúvida, é só responder! 😊', examples: ['Maria', 'Acesse o link enviado por e-mail para assinar.'] },
+      { name: 'mbf_contrato_assinado_img', category: 'UTILITY', body: '🎉 *{{1}}*\n\n{{2}}', examples: ['Contrato Assinado!', 'Maria assinou o contrato para Ensaio Gestante.'] },
+      { name: 'mbf_evento_confirmado_img', category: 'UTILITY', body: 'Olá *{{1}}*! 🎉\n\nSua sessão de *{{2}}* está confirmada!\n\n{{3}}\n\nNos vemos em breve! 📸', examples: ['Maria', 'Ensaio Gestante', 'Data: 15/03/2026 às 14:00.'] },
+      { name: 'mbf_feedback_img', category: 'UTILITY', body: 'Olá *{{1}}*! 👋\n\nGostaríamos de saber sua opinião sobre o serviço.\n\n{{2}}\n\nSua opinião é muito importante! ❤️', examples: ['Maria', 'Deixe sua avaliação respondendo aqui.'] },
+      { name: 'mbf_codigo_verificacao_img', category: 'AUTHENTICATION', body: '*{{1}}* é seu código de verificação.\n\nPara sua segurança, não compartilhe este código.', examples: ['482913'] },
+      { name: 'mbf_lembrete_admin_img', category: 'UTILITY', body: '📅 *{{1}}*\n\n{{2}}', examples: ['Evento Amanhã: Ensaio Gestante', 'Maria Silva - 15/03/2026 às 14:00'] },
+      { name: 'mbf_boas_vindas_img', category: 'UTILITY', body: 'Olá *{{1}}*! 👋\n\nBem-vindo(a) ao portal da Marcelo Bloise Fotografia!\n\nSua senha temporária: *{{2}}*\n\nNo primeiro acesso, você será solicitado(a) a criar uma nova senha.\n\nAcesse: www.marcelobloisefotografia.com.br/login', examples: ['Maria', 'Xk9mP2z'] },
+      { name: 'mbf_album_pronto_img', category: 'UTILITY', body: 'Olá *{{1}}*! 🎉\n\nSeu álbum *{{2}}* está pronto!\n\n{{3}}\n\nEspero que goste! ❤️', examples: ['Maria', 'Ensaio Gestante', 'Acesse o link enviado por e-mail.'] },
+    ];
+
+    const resultados = { deletados: [], erros_delete: [], criados: [], erros_create: [] };
+
+    // ── FASE 1: Deletar templates antigos ──
+    for (const name of TEMPLATES_ANTIGOS) {
+      try {
+        const resp = await fetch(
+          `https://graph.facebook.com/v21.0/${wabaId}/message_templates?name=${name}`,
+          { method: 'DELETE', headers: { 'Authorization': `Bearer ${token}` }, signal: AbortSignal.timeout(10000) }
+        );
+        const data = await resp.json();
+        if (resp.ok || data.error?.code === 100) {
+          resultados.deletados.push(name);
+        } else {
+          resultados.erros_delete.push({ name, error: data.error?.message || 'erro' });
+        }
+      } catch (err) {
+        resultados.erros_delete.push({ name, error: err.message });
+      }
+    }
+
+    // ── FASE 2: Criar templates novos (sem imagem — admin vai adicionar) ──
+    for (const tpl of TEMPLATES_NOVOS) {
+      try {
+        const varMatches = tpl.body.match(/\{\{\d+\}\}/g) || [];
+        const components = [
+          { type: 'HEADER', format: 'IMAGE' },
+          {
+            type: 'BODY',
+            text: tpl.body,
+            ...(varMatches.length > 0 && { example: { body_text: [tpl.examples] } }),
+          },
+          { type: 'FOOTER', text: 'Marcelo Bloise Fotografia' },
+        ];
+
+        const resp = await fetch(
+          `https://graph.facebook.com/v21.0/${wabaId}/message_templates`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+            body: JSON.stringify({ name: tpl.name, category: tpl.category, language: 'pt_BR', components }),
+            signal: AbortSignal.timeout(15000),
+          }
+        );
+        const data = await resp.json();
+
+        if (resp.ok) {
+          resultados.criados.push({ name: tpl.name, id: data.id });
+        } else {
+          const msg = data.error?.message || '';
+          if (msg.includes('already exists') || msg.includes('name already used')) {
+            resultados.criados.push({ name: tpl.name, already_exists: true });
+          } else {
+            resultados.erros_create.push({ name: tpl.name, error: msg });
+          }
+        }
+      } catch (err) {
+        resultados.erros_create.push({ name: tpl.name, error: err.message });
+      }
+    }
+
+    res.json({
+      success: true,
+      message: `Deletados: ${resultados.deletados.length} | Criados: ${resultados.criados.length} | Erros: ${resultados.erros_delete.length + resultados.erros_create.length}`,
+      data: resultados,
+      proximo_passo: 'Entre em cada template novo, suba a imagem de header e salve para submeter à Meta.',
+    });
+  } catch (error) {
+    console.error('[WHATSAPP] Erro na migração de templates:', error.message);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
 module.exports = router;
