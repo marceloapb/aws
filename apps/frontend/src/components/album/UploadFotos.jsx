@@ -6,7 +6,7 @@ import { useToast } from '../ui/Toast';
 const ACCENT = '#EA580C';
 const MAX_FILE_SIZE = 30 * 1024 * 1024;
 const ACCEPTED_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
-const MAX_PARALLEL = 3;
+const MAX_PARALLEL = 10;
 
 const STATUS_ICONS = { pending: FileImage, uploading: Loader2, done: CheckCircle2, error: AlertCircle };
 const STATUS_COLORS = { pending: 'text-gray-400', uploading: 'text-orange-500', done: 'text-green-500', error: 'text-red-500' };

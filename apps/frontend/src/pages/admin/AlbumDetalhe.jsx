@@ -201,21 +201,21 @@ export default function AlbumDetalhe() {
   const handleUpload = async (e) => {
     const files = Array.from(e.target.files); if (!files.length) return;
     setUploading(true); setUploadProgress(0);
-    const BATCH = 50; const confirmList = []; let uploaded = 0;
+    const BATCH = 50; const confirmList = []; let uploaded = 0; let errors = 0;
     for (let b = 0; b < files.length; b += BATCH) {
       const bf = files.slice(b, b + BATCH);
       const fd = bf.map(f => ({ filename: f.name, content_type: f.type, size_bytes: f.size }));
       const ur = await authFetch(`/admin/albuns/${id}/upload-urls`, { method: 'POST', body: JSON.stringify({ files: fd }) });
       const uj = await ur.json(); if (!uj.success) { setUploading(false); alert(uj.message || 'Erro'); return; }
       const ups = uj.data;
-      for (let i = 0; i < bf.length; i += 5) {
-        const chunk = bf.slice(i, i + 5);
-        await Promise.all(chunk.map(async (file, j) => { const u = ups[i + j]; try { await fetch(u.upload_url, { method: 'PUT', body: file, headers: { 'Content-Type': file.type } }); confirmList.push({ foto_id: u.foto_id, key: u.key, content_type: file.type, filename: file.name }); } catch {} }));
+      for (let i = 0; i < bf.length; i += 15) {
+        const chunk = bf.slice(i, i + 15);
+        await Promise.all(chunk.map(async (file, j) => { const u = ups[i + j]; try { await fetch(u.upload_url, { method: 'PUT', body: file, headers: { 'Content-Type': file.type } }); confirmList.push({ foto_id: u.foto_id, key: u.key, content_type: file.type, filename: file.name }); } catch { errors++; } }));
         uploaded += chunk.length; setUploadProgress(Math.round((uploaded / files.length) * 100));
       }
     }
     for (let i = 0; i < confirmList.length; i += BATCH) { await authFetch(`/admin/albuns/${id}/fotos/confirmar-batch`, { method: 'POST', body: JSON.stringify({ fotos: confirmList.slice(i, i + BATCH), galeria_id: galeriaAtiva }) }); }
-    setUploading(false); await new Promise(r => setTimeout(r, 600)); await fetchAlbum();
+    setUploading(false); if (errors > 0) alert(`Upload concluído com ${errors} erro(s) de ${files.length} fotos. ${confirmList.length} enviadas com sucesso.`); await new Promise(r => setTimeout(r, 600)); await fetchAlbum();
   };
 
   const criarGaleria = async () => { if (!novaGaleria.trim()) return; const r = await authFetch(`/admin/albuns/${id}/galerias`, { method: 'POST', body: JSON.stringify({ nome: novaGaleria.trim() }) }); const j = await r.json(); if (j.success) { setNovaGaleria(''); setShowNovaGaleria(false); fetchAlbum(); } };
@@ -223,7 +223,7 @@ export default function AlbumDetalhe() {
   const excluirGaleria = async (gid) => { if (fotos.filter(f => f.galeria_id === gid).length > 0) return alert('Só é possível excluir galerias vazias.'); if (!confirm('Excluir?')) return; await authFetch(`/admin/albuns/${id}/galerias/${gid}`, { method: 'DELETE' }); if (galeriaAtiva === gid) setGaleriaAtiva(galerias[0]?.id || null); fetchAlbum(); };
   const reordenarGaleria = async (idx, dir) => { const a = [...galerias]; const s = idx + dir; if (s < 0 || s >= a.length) return; [a[idx], a[s]] = [a[s], a[idx]]; setGalerias(a); await authFetch(`/admin/albuns/${id}/galerias/reorder`, { method: 'PUT', body: JSON.stringify(a.map((g, i) => ({ id: g.id, ordem: i }))) }); };
   const toggleSelecionada = (fid) => setSelecionadas(p => p.includes(fid) ? p.filter(x => x !== fid) : [...p, fid]);
-  const excluirSelecionadas = async () => { if (!confirm(`Excluir ${selecionadas.length} fotos?`)) return; await Promise.all(selecionadas.map(fid => authFetch(`/admin/fotos/${fid}`, { method: 'DELETE' }))); setSelecionadas([]); fetchAlbum(); };
+  const excluirSelecionadas = async () => { if (!confirm(`Excluir ${selecionadas.length} fotos?`)) return; setUploading(true); setUploadProgress(0); let done = 0; const total = selecionadas.length; for (let i = 0; i < total; i += 20) { const batch = selecionadas.slice(i, i + 20); await Promise.all(batch.map(fid => authFetch(`/admin/fotos/${fid}`, { method: 'DELETE' }).catch(() => {}))); done += batch.length; setUploadProgress(Math.round((done / total) * 100)); } setSelecionadas([]); setUploading(false); fetchAlbum(); };
   const definirComoCapa = (fotoId) => { updateTema({ capa_foto_id: fotoId }); };
 
   const openEditFoto = (foto) => { const fid = foto.id?.startsWith('FOTO#') ? foto.id.replace('FOTO#', '') : foto.id; setEditingFoto({ ...foto, extractedId: fid }); setEditFotoForm({ titulo: foto.titulo || '', descricao: foto.descricao || '' }); };
