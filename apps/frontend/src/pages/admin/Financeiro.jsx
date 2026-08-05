@@ -726,13 +726,14 @@ export default function Financeiro() {
             <div className="space-y-4">
               {/* Cliente */}
               <div>
-                <label className="text-xs font-medium text-gray-700">Cliente *</label>
+                <label className="text-xs font-medium text-gray-700">Cliente <span className="text-gray-400">(opcional)</span></label>
                 <select value={formCobranca.cliente_id} onChange={e => setFormCobranca(f => ({ ...f, cliente_id: e.target.value }))} className="w-full border rounded-lg px-3 py-2 text-sm mt-1">
-                  <option value="">Selecione um cliente...</option>
+                  <option value="">— Sem vínculo (receita avulsa) —</option>
                   {clientes.sort((a, b) => (a.nome || '').localeCompare(b.nome || '')).map(c => (
                     <option key={c.id} value={c.id}>{c.nome}{c.email ? ` (${c.email})` : ''}</option>
                   ))}
                 </select>
+                <p className="text-[10px] text-gray-400 mt-0.5">Deixe vazio para lançar ganho avulso sem cliente</p>
               </div>
 
               {/* Descrição / Evento */}
@@ -780,7 +781,7 @@ export default function Financeiro() {
             </div>
             <div className="flex justify-end gap-2 mt-6 pt-4 border-t">
               <button onClick={() => setModalNovaCobranca(false)} className="px-4 py-2 border rounded-lg text-sm hover:bg-gray-50">Cancelar</button>
-              <button onClick={criarCobranca} disabled={!formCobranca.cliente_id || !formCobranca.valor || !formCobranca.vencimento} className="px-4 py-2 text-white rounded-lg text-sm font-medium disabled:opacity-50" style={{ backgroundColor: ACCENT }}>Criar Cobrança</button>
+              <button onClick={criarCobranca} disabled={!formCobranca.valor || !formCobranca.vencimento} className="px-4 py-2 text-white rounded-lg text-sm font-medium disabled:opacity-50" style={{ backgroundColor: ACCENT }}>Criar Cobrança</button>
             </div>
           </div>
         </div>

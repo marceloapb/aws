@@ -21,15 +21,17 @@ function getPeriodoRange(periodo, periodoInicio, periodoFim) {
     fim = periodoFim;
   } else if (periodo === 'Trimestre') {
     const trimStart = new Date(now.getFullYear(), Math.floor(now.getMonth() / 3) * 3, 1);
+    const trimEnd = new Date(now.getFullYear(), Math.floor(now.getMonth() / 3) * 3 + 3, 0); // último dia do trimestre
     inicio = trimStart.toISOString().slice(0, 10);
-    fim = now.toISOString().slice(0, 10);
+    fim = trimEnd.toISOString().slice(0, 10);
   } else if (periodo === 'Ano') {
     inicio = `${now.getFullYear()}-01-01`;
-    fim = now.toISOString().slice(0, 10);
+    fim = `${now.getFullYear()}-12-31`;
   } else {
-    // Default: Este mês
+    // Default: Este mês (do dia 1 ao último dia do mês)
+    const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0); // último dia do mês atual
     inicio = `${now.toISOString().slice(0, 7)}-01`;
-    fim = now.toISOString().slice(0, 10);
+    fim = lastDay.toISOString().slice(0, 10);
   }
   return { inicio, fim };
 }
