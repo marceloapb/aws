@@ -276,27 +276,16 @@ async function despacharCanal(canal, regra, evento, dados) {
       };
       const parametros = templateParams[templateName] || [dados.cliente_nome || 'Cliente', titulo, mensagem];
 
-      // Templates _img EXIGEM header IMAGE a cada envio.
-      // A Meta NÃO usa automaticamente a imagem do template — precisa enviar mediaUrl SEMPRE.
-      //
-      // IMPORTANTE: O header_handle retornado pela API de templates da Meta é uma
-      // referência interna criptografada e NÃO funciona como URL pública no envio.
-      // Devemos SEMPRE usar URLs públicas (CDN/S3) para o campo image.link.
+      // Templates _img: a imagem já está cadastrada DIRETAMENTE na Meta como header estático.
+      // NÃO enviamos header component — a Meta usa automaticamente a imagem do template.
+      // Só enviar mediaUrl se a regra tiver header_image_key customizado (override).
       //
       // Ref: https://developers.facebook.com/docs/whatsapp/cloud-api/guides/send-message-templates
       const CDN_BASE = 'https://d2112x4m4e89fv.cloudfront.net';
 
-      if (isImageTemplate(templateName)) {
-        let imagemUrl;
-
-        if (regra.header_image_key) {
-          // 1) Regra tem imagem customizada no CDN
-          imagemUrl = `${CDN_BASE}/${regra.header_image_key}`;
-        } else {
-          // 2) Buscar URL do DynamoDB (cache 30min) → fallback estático → logo default
-          imagemUrl = await resolveTemplateImageUrl(templateName);
-        }
-
+      if (isImageTemplate(templateName) && regra.header_image_key) {
+        // Override: regra tem imagem customizada no CDN — envia como header dinâmico
+        const imagemUrl = `${CDN_BASE}/${regra.header_image_key}`;
         await enviarWhatsApp({
           numero,
           template: templateName,
@@ -305,7 +294,7 @@ async function despacharCanal(canal, regra, evento, dados) {
           mediaUrl: imagemUrl,
         });
       } else {
-        // Template sem header IMAGE — enviar normalmente
+        // Enviar sem header component — Meta usa a imagem estática do template
         await enviarWhatsApp({
           numero,
           template: templateName,
