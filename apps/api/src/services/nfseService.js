@@ -155,11 +155,13 @@ function montarXmlDPS({ config, numeroDPS, dados }) {
   const now = new Date();
   const dhEmi = now.toISOString().replace(/\.\d{3}Z$/, '-03:00');
   const dCompet = data_competencia || now.toISOString().slice(0, 10);
-  // ID formato: DPS + CódMunicipio(7) + TipoInscrição(1=CPF,2=CNPJ) + InscriçãoFederal(14) + Série(5 zero-padded left) + Número(15 zero-padded)
+  // ID formato: DPS + CódMunicipio(7) + TipoInscrição(1=CPF,2=CNPJ) + InscriçãoFederal(14) + Série(5 dígitos numéricos, zero-padded) + Número(15 zero-padded)
+  // IMPORTANTE: O pattern TSIdDPS exige série NUMÉRICA (regex: 0{0,4}\d{1,5})
   const codMun = (config.codigoMunicipio || '3550308').padStart(7, '0');
   const tipoInscricao = '2'; // 2=CNPJ
-  const inscricaoFederal = config.cnpj.padStart(14, '0');
-  const serieId = (config.serie || 'NFSE').padStart(5, '0').substring(0, 5);
+  const inscricaoFederal = config.cnpj.padStart(14, '0').substring(0, 14);
+  const serieNum = (config.serie || '1').replace(/\D/g, '') || '1'; // Extrair só dígitos da série
+  const serieId = serieNum.padStart(5, '0').substring(0, 5);
   const numId = String(numeroDPS).padStart(15, '0');
   const idDPS = `DPS${codMun}${tipoInscricao}${inscricaoFederal}${serieId}${numId}`;
 
@@ -190,7 +192,7 @@ function montarXmlDPS({ config, numeroDPS, dados }) {
     <tpAmb>${config.ambiente}</tpAmb>
     <dhEmi>${dhEmi}</dhEmi>
     <verAplic>MBFoto_v1.0</verAplic>
-    <serie>${config.serie}</serie>
+    <serie>${serieNum}</serie>
     <nDPS>${numeroDPS}</nDPS>
     <dCompet>${dCompet}</dCompet>
     <tpEmit>1</tpEmit>
