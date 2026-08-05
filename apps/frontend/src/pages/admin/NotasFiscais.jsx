@@ -20,7 +20,7 @@ export default function NotasFiscais() {
   const [loading, setLoading] = useState(true);
   const [aba, setAba] = useState('todas');
   const [showEmitir, setShowEmitir] = useState(false);
-  const [form, setForm] = useState({ orcamento_id: '', valor: '', descricao_servico: '', cliente_cpf: '' });
+  const [form, setForm] = useState({ orcamento_id: '', valor: '', descricao_servico: '', cliente_cpf: '', cliente_nome: '' });
   const [periodo, setPeriodo] = useState({ inicio: '', fim: '' });
 
   useEffect(() => { loadNotas(); }, []);
@@ -31,16 +31,27 @@ export default function NotasFiscais() {
       const res = await authFetch('/admin/notas-fiscais');
       if (res.ok) {
         const json = await res.json();
-        setNotas(Array.isArray(json.data) ? json.data : []);
+        const data = json.data || [];
+        setNotas(Array.isArray(data) ? data : (data.notas || []));
       }
     } catch {}
     setLoading(false);
   };
 
   const handleEmitir = async () => {
-    await authFetch('/admin/notas-fiscais', { method: 'POST', body: JSON.stringify(form) });
+    try {
+      const res = await authFetch('/admin/notas-fiscais', { method: 'POST', body: JSON.stringify(form) });
+      const json = await res.json();
+      if (json.success) {
+        alert(json.message || 'NFS-e emitida com sucesso!');
+      } else {
+        alert('Erro: ' + (json.message || 'Falha na emissão'));
+      }
+    } catch (err) {
+      alert('Erro: ' + err.message);
+    }
     setShowEmitir(false);
-    setForm({ orcamento_id: '', valor: '', descricao_servico: '', cliente_cpf: '' });
+    setForm({ orcamento_id: '', valor: '', descricao_servico: '', cliente_cpf: '', cliente_nome: '' });
     loadNotas();
   };
 
@@ -170,10 +181,16 @@ export default function NotasFiscais() {
                     className="w-full px-3 py-2.5 border rounded-lg" />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">CPF/CNPJ do Tomador</label>
-                  <input value={form.cliente_cpf} onChange={e => setForm({ ...form, cliente_cpf: e.target.value })}
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Nome do Cliente</label>
+                  <input value={form.cliente_nome} onChange={e => setForm({ ...form, cliente_nome: e.target.value })}
+                    placeholder="Nome do tomador"
                     className="w-full px-3 py-2.5 border rounded-lg" />
                 </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">CPF/CNPJ do Tomador</label>
+                <input value={form.cliente_cpf} onChange={e => setForm({ ...form, cliente_cpf: e.target.value })}
+                  className="w-full px-3 py-2.5 border rounded-lg" />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">ID do Orçamento (opcional)</label>
