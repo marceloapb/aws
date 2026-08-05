@@ -70,6 +70,24 @@ export default function OrcamentoDetalhe() {
   };
 
   const handleCriarAlbum = async () => {
+  const handleSolicitarFeedback = async () => {
+    setActionLoading('feedback');
+    try {
+      const clienteId = orc.cliente_id || (orc.PK?.startsWith('CLIENTE#') ? orc.PK.replace('CLIENTE#', '') : '');
+      const res = await authFetch('/admin/feedback/solicitar', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ cliente_id: clienteId, evento_id: orc.evento_id || id }),
+      });
+      const json = await res.json();
+      if (json.success) alert('Solicitação de feedback enviada com sucesso!');
+      else alert(json.message || 'Erro ao solicitar feedback');
+    } catch (err) {
+      alert('Erro ao solicitar feedback: ' + err.message);
+    } finally { setActionLoading(''); }
+  };
+
+
     setActionLoading('album');
     try {
       const clienteId = orc.cliente_id || (orc.PK?.startsWith('CLIENTE#') ? orc.PK.replace('CLIENTE#', '') : '');
@@ -169,6 +187,7 @@ export default function OrcamentoDetalhe() {
                 ? <Btn icon={Image} label={`Álbum (${orc.album_vinculado.status || 'criado'})`} onClick={() => navigate(`/admin/albuns/${orc.album_vinculado.id}`)} />
                 : <Btn icon={Image} label="Gerar Álbum" accent loading={actionLoading === 'album'} onClick={handleCriarAlbum} />
               }
+              <Btn icon={Star} label="Solicitar Feedback" onClick={handleSolicitarFeedback} loading={actionLoading === 'feedback'} />
             </>
           )}
           {(orc.status === 'recusado' || orc.status === 'expirado') && (
