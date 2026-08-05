@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import {
   HardDrive, Database, CheckCircle2, AlertTriangle, FileImage,
-  RefreshCw, Clock, Folder, BarChart3, Activity
+  RefreshCw, Clock, Folder, BarChart3, Activity, DollarSign
 } from 'lucide-react';
 
 const ACCENT = '#EA580C';
@@ -298,6 +298,54 @@ export default function Storage() {
             </div>
           )}
         </div>
+      </div>
+
+      {/* Estimativa de Custo S3 */}
+      <div className="bg-white rounded-xl border p-6">
+        <div className="flex items-center gap-2 mb-4">
+          <DollarSign size={18} style={{ color: ACCENT }} />
+          <h3 className="font-semibold text-gray-900">Estimativa de Custo S3</h3>
+        </div>
+        {(() => {
+          const totalBytes = metrics?.totalBytes || 0;
+          const totalGB = totalBytes / (1024 * 1024 * 1024);
+          // AWS S3 Standard pricing us-east-1: $0.023/GB/mês (primeiros 50TB)
+          const custoArmazenamento = totalGB * 0.023;
+          // Estimativa de requests (GET): ~1000 requests/dia * 30 = 30000/mês * $0.0004/1000 = $0.012
+          const custoRequests = 0.012;
+          // Transfer out: ~5GB/mês estimado * $0.09/GB = $0.45
+          const transferGB = Math.min(totalGB * 0.5, 10);
+          const custoTransfer = transferGB * 0.09;
+          const custoTotal = custoArmazenamento + custoRequests + custoTransfer;
+
+          return (
+            <div className="space-y-3">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <div className="bg-gray-50 rounded-lg p-3 text-center">
+                  <p className="text-xs text-gray-500">Armazenamento</p>
+                  <p className="text-sm font-bold text-gray-900">${custoArmazenamento.toFixed(3)}</p>
+                  <p className="text-[10px] text-gray-400">{totalGB.toFixed(2)} GB × $0.023</p>
+                </div>
+                <div className="bg-gray-50 rounded-lg p-3 text-center">
+                  <p className="text-xs text-gray-500">Requests</p>
+                  <p className="text-sm font-bold text-gray-900">${custoRequests.toFixed(3)}</p>
+                  <p className="text-[10px] text-gray-400">~30k GET/mês</p>
+                </div>
+                <div className="bg-gray-50 rounded-lg p-3 text-center">
+                  <p className="text-xs text-gray-500">Transfer Out</p>
+                  <p className="text-sm font-bold text-gray-900">${custoTransfer.toFixed(3)}</p>
+                  <p className="text-[10px] text-gray-400">~{transferGB.toFixed(1)} GB/mês</p>
+                </div>
+                <div className="rounded-lg p-3 text-center" style={{ background: `${ACCENT}10` }}>
+                  <p className="text-xs" style={{ color: ACCENT }}>Total Estimado</p>
+                  <p className="text-lg font-bold" style={{ color: ACCENT }}>${custoTotal.toFixed(2)}<span className="text-xs font-normal">/mês</span></p>
+                  <p className="text-[10px] text-gray-400">~R$ {(custoTotal * 5.5).toFixed(2)}/mês</p>
+                </div>
+              </div>
+              <p className="text-[10px] text-gray-400 text-center">Estimativa baseada em S3 Standard us-east-1. Transfer via CloudFront pode variar. Câmbio estimado: $1 = R$5,50.</p>
+            </div>
+          );
+        })()}
       </div>
 
     </div>
