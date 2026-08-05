@@ -391,8 +391,8 @@ export default function Portfolio() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-semibold text-gray-900">Portfólio</h1>
-          <p className="text-sm text-gray-500">{categorias.length} categoria{categorias.length !== 1 ? 's' : ''}</p>
+          <h1 className="text-2xl font-bold text-gray-900">Portfólio</h1>
+          <p className="text-sm text-gray-500 mt-0.5">{categorias.length} categoria{categorias.length !== 1 ? 's' : ''} · {fotos.length} foto{fotos.length !== 1 ? 's' : ''}{selectedCat ? ` em "${categorias.find(c => c.id === selectedCat)?.nome || ''}"` : ''}</p>
         </div>
         <button onClick={() => { setEditingCat(null); setForm({ nome: '', texto: '', visivel: true }); setShowModal(true); }}
           className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium text-white" style={{ background: ACCENT }}>
@@ -400,9 +400,9 @@ export default function Portfolio() {
         </button>
       </div>
 
-      {/* Categories */}
+      {/* Categories as horizontal scrollable pills */}
       {loading ? (
-        <div className="space-y-3">{[...Array(3)].map((_, i) => <div key={i} className="h-20 bg-gray-100 rounded-xl animate-pulse" />)}</div>
+        <div className="flex gap-2">{[...Array(4)].map((_, i) => <div key={i} className="h-10 w-32 bg-gray-100 rounded-lg animate-pulse" />)}</div>
       ) : categorias.length === 0 ? (
         <div className="text-center py-16 bg-gray-50 rounded-xl border-2 border-dashed border-gray-200">
           <Image size={40} className="mx-auto text-gray-300 mb-3" />
@@ -410,35 +410,30 @@ export default function Portfolio() {
           <p className="text-xs text-gray-400 mt-1">Crie categorias para organizar seu portfólio</p>
         </div>
       ) : (
-        <div className="space-y-2">
+        <div className="flex items-center gap-2 overflow-x-auto pb-2">
           {categorias.map((cat, idx) => (
             <div key={cat.id}
               draggable onDragStart={(e) => handleCatDragStart(e, idx)} onDragOver={(e) => handleCatDragOver(e, idx)}
               onDrop={(e) => handleCatDrop(e, idx)} onDragEnd={() => { setDragIndex(null); setDragOverIndex(null); }}
-              className={`flex items-center gap-3 p-4 rounded-xl border bg-white transition-all cursor-pointer
-                ${selectedCat === cat.id ? 'border-orange-300 ring-2 ring-orange-100' : 'border-gray-200 hover:border-gray-300'}
+              className={`group flex items-center gap-2 px-4 py-2.5 rounded-lg border whitespace-nowrap cursor-pointer transition-all shrink-0
+                ${selectedCat === cat.id ? 'border-orange-300 bg-orange-50 shadow-sm' : 'border-gray-200 bg-white hover:border-gray-300 hover:shadow-sm'}
                 ${!cat.visivel ? 'opacity-50' : ''}
                 ${dragType === 'cat' && dragOverIndex === idx ? 'border-dashed border-2 border-orange-400' : ''}
                 ${dragType === 'cat' && dragIndex === idx ? 'opacity-30' : ''}`}
               onClick={() => setSelectedCat(cat.id === selectedCat ? null : cat.id)}
             >
-              <GripVertical size={16} className="text-gray-400 cursor-grab shrink-0" />
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2">
-                  <p className="text-sm font-medium text-gray-900 truncate">{cat.nome}</p>
-                  {!cat.visivel && <span className="px-1.5 py-0.5 text-[10px] font-medium bg-stone-100 text-stone-500 rounded">Oculta</span>}
-                </div>
-                {cat.texto && <p className="text-xs text-gray-500 truncate mt-0.5">{cat.texto}</p>}
-              </div>
-              <div className="flex items-center gap-1 shrink-0" onClick={(e) => e.stopPropagation()}>
-                <button onClick={() => handleToggleVisivel(cat)} className="p-1.5 rounded-lg hover:bg-gray-100" title={cat.visivel ? 'Ocultar' : 'Mostrar'}>
-                  {cat.visivel ? <Eye size={14} className="text-gray-500" /> : <EyeOff size={14} className="text-gray-400" />}
+              <GripVertical size={12} className="text-gray-300 cursor-grab opacity-0 group-hover:opacity-100 transition-opacity" />
+              <span className={`text-sm font-medium ${selectedCat === cat.id ? 'text-orange-700' : 'text-gray-700'}`}>{cat.nome}</span>
+              {!cat.visivel && <EyeOff size={12} className="text-gray-400" />}
+              <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity" onClick={e => e.stopPropagation()}>
+                <button onClick={() => handleToggleVisivel(cat)} className="p-1 rounded hover:bg-gray-200" title={cat.visivel ? 'Ocultar' : 'Mostrar'}>
+                  {cat.visivel ? <Eye size={12} className="text-gray-500" /> : <EyeOff size={12} className="text-gray-400" />}
                 </button>
-                <button onClick={() => { setEditingCat(cat); setForm({ nome: cat.nome, texto: cat.texto || '', visivel: cat.visivel }); setShowModal(true); }} className="p-1.5 rounded-lg hover:bg-gray-100">
-                  <Edit2 size={14} className="text-gray-500" />
+                <button onClick={() => { setEditingCat(cat); setForm({ nome: cat.nome, texto: cat.texto || '', visivel: cat.visivel }); setShowModal(true); }} className="p-1 rounded hover:bg-gray-200">
+                  <Edit2 size={12} className="text-gray-500" />
                 </button>
-                <button onClick={() => handleDeleteCat(cat.id)} className="p-1.5 rounded-lg hover:bg-red-50">
-                  <Trash2 size={14} className="text-red-400" />
+                <button onClick={() => handleDeleteCat(cat.id)} className="p-1 rounded hover:bg-red-100">
+                  <Trash2 size={12} className="text-red-400" />
                 </button>
               </div>
             </div>
@@ -448,9 +443,13 @@ export default function Portfolio() {
 
       {/* Photos Section */}
       {selectedCat && (
-        <div className="space-y-4 pt-4 border-t">
+        <div className="space-y-4">
           <div className="flex items-center justify-between">
-            <h2 className="text-sm font-semibold text-gray-700">Fotos — {categorias.find(c => c.id === selectedCat)?.nome}</h2>
+            <h2 className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+              <Image size={16} style={{ color: ACCENT }} />
+              {categorias.find(c => c.id === selectedCat)?.nome}
+              <span className="text-xs text-gray-400 font-normal">({fotos.length} fotos)</span>
+            </h2>
             <div className="flex items-center gap-2">
               {fotos.length > 1 && (
                 <button
@@ -540,7 +539,7 @@ export default function Portfolio() {
           )}
 
           {loadingFotos ? (
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">{[...Array(6)].map((_, i) => <div key={i} className="aspect-square bg-gray-100 rounded-lg animate-pulse" />)}</div>
+            <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-2">{[...Array(8)].map((_, i) => <div key={i} className="aspect-square bg-gray-100 rounded-lg animate-pulse" />)}</div>
           ) : fotos.length === 0 ? (
             <div className="text-center py-12 bg-gray-50 rounded-xl border-2 border-dashed border-gray-200">
               <Upload size={32} className="mx-auto text-gray-300 mb-2" />
@@ -548,7 +547,7 @@ export default function Portfolio() {
               <p className="text-xs text-gray-400 mt-1">Faça upload de imagens para começar</p>
             </div>
           ) : (
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+            <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-2">
               {sortedFotos.map((foto, idx) => (
                 <div key={foto.id} data-foto-index={idx}
                   onTouchStart={(e) => handleTouchStart(e, idx)}
