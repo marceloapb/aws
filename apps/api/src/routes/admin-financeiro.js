@@ -188,6 +188,7 @@ router.get('/despesas', async (req, res) => {
     }));
 
     const despesas = (result.Items || [])
+      .filter(d => !d.is_recorrencia_pai) // Esconder registro-pai, mostrar só ocorrências
       .filter(d => isInRange(d.data, range.inicio, range.fim))
       .map(d => ({
         id: d.despesaId || d.SK.replace('DESPESA#', ''),
@@ -197,6 +198,11 @@ router.get('/despesas', async (req, res) => {
         data: d.data,
         tipo: d.tipo || 'saida',
         recorrente: d.recorrente || false,
+        recorrencia: d.recorrencia || null,
+        ocorrencia_num: d.ocorrencia_num || null,
+        total_ocorrencias: d.total_ocorrencias || null,
+        fornecedor: d.fornecedor || '',
+        forma_pagamento: d.forma_pagamento || '',
         evento_id: d.evento_id || d.eventoId || '',
         evento_nome: d.evento_nome || d.eventoNome || ''
       }))
@@ -244,10 +250,11 @@ router.post('/despesas', async (req, res) => {
     if (recorrente) {
       item.dia_vencimento = dia_vencimento ? parseInt(dia_vencimento, 10) : null;
       item.data_inicio = data_inicio || data || new Date().toISOString().slice(0, 10);
-      item.data_fim = data_fim || null; // null = sem data fim (indefinido)
+      item.data_fim = data_fim || null;
       item.qtd_repeticoes = qtd_repeticoes ? parseInt(qtd_repeticoes, 10) : null;
       item.status_recorrencia = status_recorrencia || 'ativa';
       item.ocorrencias_geradas = 0;
+      item.is_recorrencia_pai = true; // Marca como registro-pai da recorrência
     }
 
     await docClient.send(new PutCommand({
@@ -255,7 +262,115 @@ router.post('/despesas', async (req, res) => {
       Item: item,
     }));
 
-    res.status(201).json({ id: despesaId, success: true });
+    // ═══ GERAR OCORRÊNCIAS INDIVIDUAIS PARA DESPESA RECORRENTE ═══
+    let ocorrenciasGeradas = 0;
+    if (recorrente) {
+      const valorNum = parseFloat(valor) || 0;
+      const inicio = data_inicio || data || new Date().toISOString().slice(0, 10);
+      const diaVenc = dia_vencimento ? parseInt(dia_vencimento, 10) : parseInt(inicio.slice(8, 10), 10);
+
+      // Calcular número de ocorrências
+      let numOcorrencias = 0;
+      if (qtd_repeticoes && parseInt(qtd_repeticoes, 10) > 0) {
+        numOcorrencias = parseInt(qtd_repeticoes, 10);
+      } else if (data_fim) {
+        // Calcular meses entre inicio e fim
+        const dInicio = new Date(inicio + 'T12:00:00');
+        const dFim = new Date(data_fim + 'T12:00:00');
+        const mesesDiff = (dFim.getFullYear() - dInicio.getFullYear()) * 12 + (dFim.getMonth() - dInicio.getMonth()) + 1;
+        numOcorrencias = Math.max(1, mesesDiff);
+      } else {
+        // Sem fim definido: gerar 12 meses à frente como padrão
+        numOcorrencias = 12;
+      }
+
+      // Limitar a 120 ocorrências para segurança
+      numOcorrencias = Math.min(numOcorrencias, 120);
+
+      // Mapeamento de intervalos em meses
+      const intervalosEmMeses = {
+        semanal: 0.25, // será tratado separadamente
+        quinzenal: 0.5,
+        mensal: 1,
+        bimestral: 2,
+        trimestral: 3,
+        semestral: 6,
+        anual: 12,
+      };
+      const intervaloMeses = intervalosEmMeses[recorrencia || 'mensal'] || 1;
+
+      // Gerar cada ocorrência
+      const baseDate = new Date(inicio + 'T12:00:00');
+      const batch = [];
+
+      for (let i = 0; i < numOcorrencias; i++) {
+        let ocorrenciaDate;
+
+        if (recorrencia === 'semanal') {
+          ocorrenciaDate = new Date(baseDate);
+          ocorrenciaDate.setDate(ocorrenciaDate.getDate() + (i * 7));
+        } else if (recorrencia === 'quinzenal') {
+          ocorrenciaDate = new Date(baseDate);
+          ocorrenciaDate.setDate(ocorrenciaDate.getDate() + (i * 15));
+        } else {
+          // Mensal, bimestral, trimestral, semestral, anual
+          ocorrenciaDate = new Date(baseDate);
+          ocorrenciaDate.setMonth(ocorrenciaDate.getMonth() + (i * intervaloMeses));
+          // Forçar dia de vencimento
+          if (diaVenc) {
+            const maxDia = new Date(ocorrenciaDate.getFullYear(), ocorrenciaDate.getMonth() + 1, 0).getDate();
+            ocorrenciaDate.setDate(Math.min(diaVenc, maxDia));
+          }
+        }
+
+        const dataOcorrencia = ocorrenciaDate.toISOString().slice(0, 10);
+        const ocId = uuidv4();
+
+        batch.push({
+          PK: `TENANT#${TENANT}`,
+          SK: `DESPESA#${ocId}`,
+          despesaId: ocId,
+          descricao: descricao || '',
+          valor: valorNum,
+          categoria: categoria || 'Outros',
+          data: dataOcorrencia,
+          tipo: tipo || 'saida',
+          recorrente: true,
+          recorrencia: recorrencia || 'mensal',
+          recorrencia_pai_id: despesaId, // Referência ao registro-pai
+          ocorrencia_num: i + 1,
+          total_ocorrencias: numOcorrencias,
+          evento_id: evento_id || '',
+          fornecedor: fornecedor || '',
+          forma_pagamento: forma_pagamento || '',
+          observacoes: i === 0 ? (observacoes || '') : '',
+          criadoEm: new Date().toISOString(),
+        });
+      }
+
+      // Gravar em batches de 25 (limite do DynamoDB BatchWrite)
+      const { BatchWriteCommand } = require('@aws-sdk/lib-dynamodb');
+      for (let i = 0; i < batch.length; i += 25) {
+        const chunk = batch.slice(i, i + 25);
+        await docClient.send(new BatchWriteCommand({
+          RequestItems: {
+            [TABLE_NAME]: chunk.map(item => ({ PutRequest: { Item: item } })),
+          },
+        }));
+      }
+
+      ocorrenciasGeradas = batch.length;
+
+      // Atualizar o registro-pai com total gerado
+      await docClient.send(new UpdateCommand({
+        TableName: TABLE_NAME,
+        Key: { PK: `TENANT#${TENANT}`, SK: `DESPESA#${despesaId}` },
+        UpdateExpression: 'SET ocorrencias_geradas = :n',
+        ExpressionAttributeValues: { ':n': ocorrenciasGeradas },
+      }));
+    }
+
+    res.status(201).json({ id: despesaId, success: true, ocorrencias_geradas: ocorrenciasGeradas });
   } catch (error) {
     logger.error({ action: 'financeiro_criar_despesa_error', error: error.message });
     res.status(500).json({ error: 'Erro ao criar despesa' });

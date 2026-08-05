@@ -518,7 +518,7 @@ export default function Financeiro() {
                       <td className="px-4 py-3 text-gray-600">{fmtDate(d.data)}</td>
                       <td className="px-4 py-3">
                         <span className={`text-xs px-2 py-0.5 rounded-full ${d.recorrente ? 'bg-purple-100 text-purple-700' : 'bg-gray-100 text-gray-600'}`}>
-                          {d.recorrente ? 'Recorrente' : 'Avulsa'}
+                          {d.recorrente ? (d.ocorrencia_num ? `${d.ocorrencia_num}/${d.total_ocorrencias} ${d.recorrencia || ''}` : 'Recorrente') : 'Avulsa'}
                         </span>
                       </td>
                       <td className="px-4 py-3 text-gray-600">{d.evento_nome || '-'}</td>
