@@ -343,11 +343,21 @@ export default function Feedback() {
                       <Check size={12} /> Depoimento
                     </span>
                   )}
-                  {f.nota == null && !f.lembrete_enviado && (
-                    <button onClick={() => handleLembrete(f.id)}
-                      className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium rounded-lg ring-1 ring-gray-200 hover:bg-gray-50 text-blue-600">
-                      <Bell size={12} /> Enviar lembrete
-                    </button>
+                  {f.nota == null && (
+                    <>
+                      <button onClick={() => handleLembrete(f.id)}
+                        className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium rounded-lg ring-1 ring-gray-200 hover:bg-gray-50 text-blue-600">
+                        <Send size={12} /> Reenviar
+                      </button>
+                      <button onClick={() => {
+                        const link = `${window.location.origin}/cliente/feedback/${f.id}`;
+                        navigator.clipboard.writeText(link);
+                        alert('Link copiado!\n' + link);
+                      }}
+                        className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium rounded-lg ring-1 ring-gray-200 hover:bg-gray-50 text-purple-600">
+                        <FileText size={12} /> Copiar Link
+                      </button>
+                    </>
                   )}
                 </div>
               </div>
