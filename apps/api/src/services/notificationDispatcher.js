@@ -6,7 +6,7 @@ const crypto = require('crypto');
 const { QueryCommand, PutCommand } = require('@aws-sdk/lib-dynamodb');
 const { dynamo, TABLE } = require('../config/dynamodb');
 const { verificarDedup, marcarProcessado } = require('./dedupService');
-const { getTemplateImageUrl, resolveTemplateImageUrl, isImageTemplate } = require('./whatsappTemplateCache');
+const { getTemplateImageUrl, resolveTemplateImageUrl, isImageTemplate, isButtonUrlTemplate } = require('./whatsappTemplateCache');
 
 const TENANT = process.env.TENANT_ID || 'default';
 
@@ -252,19 +252,22 @@ async function despacharCanal(canal, regra, evento, dados) {
 
       // Resolver template — as regras já apontam diretamente para _img quando disponível
       // Fallback por evento só para casos onde não há regra com whatsapp_template definido
+      // Templates _link_img: preferidos para eventos que enviam link ao cliente (botão URL)
       const templatePorEvento = {
         'orcamento_solicitado': 'mbf_novo_orcamento_img',
         'orcamento_criado': 'mbf_novo_orcamento_img',
-        'contrato_enviado': 'mbf_contrato_assinatura_img',
+        'orcamento_pronto': 'mbf_orcamento_pronto_link_img',
+        'contrato_enviado': 'mbf_contrato_assinatura_link_img',
         'contrato_assinado': 'mbf_contrato_assinado_img',
         'pagamento_confirmado': 'mbf_pagamento_confirmado_img',
-        'pagamento_vencido': 'mbf_pagamento_vencido_img',
-        'album_publicado': 'mbf_fotos_prontas_img',
+        'pagamento_vencido': 'mbf_pagamento_vencido_link_img',
+        'album_publicado': 'mbf_fotos_prontas_link_img',
         'evento_confirmado': 'mbf_evento_confirmado_img',
         'evento_criado': 'mbf_notificacao_geral_img',
         'evento_realizado': 'mbf_notificacao_geral_img',
         'album_baixado': 'mbf_notificacao_geral_img',
         'feedback_respondido': 'mbf_feedback_img',
+        'solicitar_feedback': 'mbf_feedback_link_img',
         'mensagem_recebida': 'mbf_notificacao_geral_img',
       };
 
@@ -285,6 +288,12 @@ async function despacharCanal(canal, regra, evento, dados) {
         'mbf_fotos_prontas_img': [dados.cliente_nome || 'Cliente', titulo, dados.total_fotos || '—', dados.dias_expiracao || '30'],
         'mbf_album_pronto_img': [dados.cliente_nome || 'Cliente', titulo, mensagem],
         'mbf_lembrete_admin_img': [titulo, mensagem],
+        // Templates com botão URL (_link_img) — body params
+        'mbf_contrato_assinatura_link_img': [dados.cliente_nome || 'Cliente', dados.tipo_evento || titulo],
+        'mbf_orcamento_pronto_link_img': [dados.cliente_nome || 'Cliente', dados.tipo_evento || titulo],
+        'mbf_fotos_prontas_link_img': [dados.cliente_nome || 'Cliente', dados.titulo || dados.album_titulo || titulo, dados.total_fotos || '—'],
+        'mbf_feedback_link_img': [dados.cliente_nome || 'Cliente', dados.tipo_evento || titulo],
+        'mbf_pagamento_vencido_link_img': [dados.cliente_nome || 'Cliente', dados.valor ? `R$ ${Number(dados.valor).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` : titulo, dados.data_vencimento || '—'],
       };
       const parametros = templateParams[templateName] || [dados.cliente_nome || 'Cliente', titulo, mensagem];
 
@@ -292,17 +301,64 @@ async function despacharCanal(canal, regra, evento, dados) {
       // o component header com image.link a cada envio (não é header estático).
       // Prioridade: 1) regra.header_image_key  2) DynamoDB TPL_IMG  3) fallback estático
       //
+      // Templates _link_img têm ADICIONALMENTE um botão type=url com suffix dinâmico
+      // que direciona o cliente para a página logada do portal.
+      //
       // Ref: https://developers.facebook.com/docs/whatsapp/cloud-api/guides/send-message-templates
       const CDN_BASE = 'https://d2112x4m4e89fv.cloudfront.net';
+      const PORTAL_BASE = 'https://www.mbfoto.com.br/cliente';
 
-      if (isImageTemplate(templateName)) {
+      if (isButtonUrlTemplate(templateName)) {
+        // ═══ Template com botão URL (_link_img) ═══
+        // Montar components: header(image) + body(params) + button(url, suffix)
+        let imagemUrl;
+        if (regra.header_image_key) {
+          imagemUrl = `${CDN_BASE}/${regra.header_image_key}`;
+        } else {
+          imagemUrl = await resolveTemplateImageUrl(templateName);
+        }
+
+        // Resolver o suffix do botão URL por tipo de evento/template
+        // O template na Meta tem URL base tipo: https://www.mbfoto.com.br/cliente/{{1}}
+        // O suffix é a parte dinâmica que completa a URL
+        const buttonUrlSuffix = resolveButtonUrlSuffix(evento.tipo_evento, dados);
+
+        const components = [];
+
+        // Header com imagem
+        components.push({
+          type: 'header',
+          parameters: [{ type: 'image', image: { link: imagemUrl } }],
+        });
+
+        // Body com parâmetros de texto
+        if (parametros.length > 0) {
+          components.push({
+            type: 'body',
+            parameters: parametros.map(p => ({ type: 'text', text: String(p) })),
+          });
+        }
+
+        // Botão URL (index 0 — primeiro botão do template)
+        components.push({
+          type: 'button',
+          sub_type: 'url',
+          index: '0',
+          parameters: [{ type: 'text', text: buttonUrlSuffix }],
+        });
+
+        await enviarWhatsApp({
+          numero,
+          template: templateName,
+          components,
+        });
+      } else if (isImageTemplate(templateName)) {
+        // ═══ Template com imagem no header (sem botão URL) ═══
         let imagemUrl;
 
         if (regra.header_image_key) {
-          // 1) Regra tem imagem customizada no CDN
           imagemUrl = `${CDN_BASE}/${regra.header_image_key}`;
         } else {
-          // 2) Buscar URL do DynamoDB (cache 30min) → fallback estático → logo default
           imagemUrl = await resolveTemplateImageUrl(templateName);
         }
 
@@ -326,6 +382,47 @@ async function despacharCanal(canal, regra, evento, dados) {
 
     default:
       throw new Error(`Canal desconhecido: ${canal}`);
+  }
+}
+
+/**
+ * Resolve o suffix dinâmico para o botão URL dos templates _link_img.
+ * O template na Meta tem URL base: https://www.mbfoto.com.br/cliente/{{1}}
+ * O suffix é a parte que completa a rota no portal do cliente.
+ *
+ * Exemplos:
+ * - contrato_enviado → "contratos/CONTRATO_ID"
+ * - orcamento_pronto → "orcamentos/ORCAMENTO_ID"
+ * - album_publicado  → "albuns/ALBUM_SLUG"
+ * - solicitar_feedback → "feedback/FEEDBACK_ID"
+ * - pagamento_vencido → "pagamentos"
+ *
+ * @param {string} tipoEvento - Tipo do evento
+ * @param {Object} dados - Dados do evento (contém IDs relevantes)
+ * @returns {string} Suffix para compor a URL do botão
+ */
+function resolveButtonUrlSuffix(tipoEvento, dados) {
+  switch (tipoEvento) {
+    case 'contrato_enviado':
+      return dados.contrato_id ? `contratos/${dados.contrato_id}` : 'contratos';
+
+    case 'orcamento_pronto':
+    case 'orcamento_criado':
+      return dados.orcamento_id ? `orcamentos/${dados.orcamento_id}` : 'orcamentos';
+
+    case 'album_publicado':
+      return dados.album_slug || dados.album_id ? `albuns/${dados.album_slug || dados.album_id}` : 'albuns';
+
+    case 'solicitar_feedback':
+    case 'feedback_respondido':
+      return dados.feedback_id ? `feedback/${dados.feedback_id}` : 'feedback';
+
+    case 'pagamento_vencido':
+      return dados.cobranca_id ? `pagamentos/${dados.cobranca_id}` : 'pagamentos';
+
+    default:
+      // Fallback genérico — direciona para o dashboard do portal
+      return '';
   }
 }
 

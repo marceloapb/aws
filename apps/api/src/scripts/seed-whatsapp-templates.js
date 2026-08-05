@@ -35,6 +35,13 @@
  *   mbfoto_codigo_verificacao  → mbf_codigo_verificacao_img
  *   (novo)                     → mbf_lembrete_admin_img
  *   (novo)                     → mbf_boas_vindas_img
+ *
+ * TEMPLATES COM BOTÃO URL (_link_img) — Novo! 05/08/2026:
+ *   contrato_assinatura + btn  → mbf_contrato_assinatura_link_img
+ *   orcamento_pronto + btn     → mbf_orcamento_pronto_link_img
+ *   fotos_prontas + btn        → mbf_fotos_prontas_link_img
+ *   feedback + btn             → mbf_feedback_link_img
+ *   pagamento_vencido + btn    → mbf_pagamento_vencido_link_img
  * ══════════════════════════════════════════════════════════════
  */
 
@@ -282,6 +289,139 @@ const TEMPLATES = [
         example: { body_text: [['Maria', 'Ensaio Gestante', 'Acesse o link enviado por e-mail para visualizar e baixar suas fotos.']] },
       },
       { type: 'FOOTER', text: 'Marcelo Bloise Fotografia' },
+    ],
+  },
+
+  // ═══════════════════════════════════════════════════════════════
+  // TEMPLATES COM BOTÃO URL (_link_img)
+  // Formato: header IMAGE + body params + footer + button type=URL
+  // O botão direciona o cliente para a página logada do portal.
+  // URL base: https://www.mbfoto.com.br/cliente/{{1}}
+  // O suffix {{1}} é preenchido dinamicamente no envio.
+  // ═══════════════════════════════════════════════════════════════
+
+  // ─── 16. CONTRATO ASSINATURA com botão (envia para cliente) ───
+  {
+    name: 'mbf_contrato_assinatura_link_img',
+    category: 'UTILITY',
+    language: 'pt_BR',
+    components: [
+      { type: 'HEADER', format: 'IMAGE' },
+      {
+        type: 'BODY',
+        text: 'Olá *{{1}}*! 👋\n\nSeu contrato para *{{2}}* está pronto para revisão e assinatura digital.\n\nClique no botão abaixo para acessar e assinar:',
+        example: { body_text: [['Maria Silva', 'Ensaio Gestante']] },
+      },
+      { type: 'FOOTER', text: 'Marcelo Bloise Fotografia' },
+      {
+        type: 'BUTTONS',
+        buttons: [{
+          type: 'URL',
+          text: '📝 Assinar Contrato',
+          url: 'https://www.mbfoto.com.br/cliente/{{1}}',
+          example: ['contratos/abc123-def456'],
+        }],
+      },
+    ],
+  },
+
+  // ─── 17. ORÇAMENTO PRONTO com botão (envia para cliente) ───
+  {
+    name: 'mbf_orcamento_pronto_link_img',
+    category: 'UTILITY',
+    language: 'pt_BR',
+    components: [
+      { type: 'HEADER', format: 'IMAGE' },
+      {
+        type: 'BODY',
+        text: 'Olá *{{1}}*! 👋\n\nSeu orçamento para *{{2}}* está pronto!\n\nClique no botão abaixo para visualizar todos os detalhes:',
+        example: { body_text: [['João Santos', 'Casamento']] },
+      },
+      { type: 'FOOTER', text: 'Marcelo Bloise Fotografia' },
+      {
+        type: 'BUTTONS',
+        buttons: [{
+          type: 'URL',
+          text: '📋 Ver Orçamento',
+          url: 'https://www.mbfoto.com.br/cliente/{{1}}',
+          example: ['orcamentos/abc123-def456'],
+        }],
+      },
+    ],
+  },
+
+  // ─── 18. FOTOS PRONTAS com botão (envia para cliente) ───
+  {
+    name: 'mbf_fotos_prontas_link_img',
+    category: 'UTILITY',
+    language: 'pt_BR',
+    components: [
+      { type: 'HEADER', format: 'IMAGE' },
+      {
+        type: 'BODY',
+        text: 'Olá *{{1}}*! 🎉\n\nSeu álbum *{{2}}* está disponível com *{{3}}* fotos!\n\nClique no botão abaixo para visualizar e baixar:',
+        example: { body_text: [['Maria', 'Casamento - Maria & João', '150']] },
+      },
+      { type: 'FOOTER', text: 'Marcelo Bloise Fotografia' },
+      {
+        type: 'BUTTONS',
+        buttons: [{
+          type: 'URL',
+          text: '📸 Ver Álbum',
+          url: 'https://www.mbfoto.com.br/cliente/{{1}}',
+          example: ['albuns/meu-casamento'],
+        }],
+      },
+    ],
+  },
+
+  // ─── 19. FEEDBACK com botão (envia para cliente) ───
+  {
+    name: 'mbf_feedback_link_img',
+    category: 'UTILITY',
+    language: 'pt_BR',
+    components: [
+      { type: 'HEADER', format: 'IMAGE' },
+      {
+        type: 'BODY',
+        text: 'Olá *{{1}}*! 👋\n\nGostaríamos de saber como foi sua experiência com o serviço de *{{2}}*.\n\nSua opinião é muito importante para nós! ❤️\n\nClique abaixo para avaliar:',
+        example: { body_text: [['Maria', 'Ensaio Gestante']] },
+      },
+      { type: 'FOOTER', text: 'Marcelo Bloise Fotografia' },
+      {
+        type: 'BUTTONS',
+        buttons: [{
+          type: 'URL',
+          text: '⭐ Avaliar',
+          url: 'https://www.mbfoto.com.br/cliente/{{1}}',
+          example: ['feedback/abc123-def456'],
+        }],
+      },
+    ],
+  },
+
+  // ─── 20. PAGAMENTO VENCIDO com botão (envia para cliente) ───
+  {
+    name: 'mbf_pagamento_vencido_link_img',
+    category: 'UTILITY',
+    language: 'pt_BR',
+    components: [
+      { type: 'HEADER', format: 'IMAGE' },
+      {
+        type: 'BODY',
+        text: 'Olá *{{1}}*!\n\n⚠️ Identificamos que o pagamento de *{{2}}* está pendente desde *{{3}}*.\n\nClique abaixo para verificar e regularizar:',
+        example: { body_text: [['João', 'R$ 1.500,00', '10/03/2026']] },
+      },
+      { type: 'FOOTER', text: 'Marcelo Bloise Fotografia' },
+      {
+        type: 'BUTTONS',
+        buttons: [{
+          type: 'URL',
+          text: '💳 Ver Pagamento',
+          url: 'https://www.mbfoto.com.br/cliente/{{1}}',
+          example: ['pagamentos/abc123-def456'],
+        }],
+      },
     ],
   },
 ];

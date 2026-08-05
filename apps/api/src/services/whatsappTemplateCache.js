@@ -47,6 +47,12 @@ const STATIC_FALLBACK_MAP = {
   'mbf_lembrete_admin_img': `${CDN_BASE}/template-headers/lembrete-admin.png`,
   'mbf_boas_vindas_img': `${CDN_BASE}/template-headers/boas-vindas.png`,
   'mbf_album_pronto_img': `${CDN_BASE}/template-headers/album-pronto.png`,
+  // Templates com botão URL (_link_img) — header image + body + button(url)
+  'mbf_contrato_assinatura_link_img': `${CDN_BASE}/template-headers/contrato-assinatura.png`,
+  'mbf_orcamento_pronto_link_img': `${CDN_BASE}/template-headers/orcamento-pronto.png`,
+  'mbf_fotos_prontas_link_img': `${CDN_BASE}/template-headers/fotos-prontas.png`,
+  'mbf_feedback_link_img': `${CDN_BASE}/template-headers/feedback.png`,
+  'mbf_pagamento_vencido_link_img': `${CDN_BASE}/template-headers/pagamento-vencido.png`,
 };
 
 const DEFAULT_HEADER_IMAGE = `${CDN_BASE}/template-headers/logo-default.png`;
@@ -124,6 +130,14 @@ function isImageTemplate(templateName) {
   return templateName.endsWith('_img');
 }
 
+/**
+ * Verifica se um template tem botão URL (formato _link_img)
+ * Esses templates requerem: header(image) + body(params) + button(type=url, suffix)
+ */
+function isButtonUrlTemplate(templateName) {
+  return templateName.includes('_link_img');
+}
+
 function clearCache() {
   imageUrlCache = {};
   cacheTimestamp = 0;
@@ -134,6 +148,7 @@ module.exports = {
   resolveTemplateImageUrl,
   saveTemplateImageUrl,
   isImageTemplate,
+  isButtonUrlTemplate,
   clearCache,
   DEFAULT_HEADER_IMAGE,
   CDN_BASE,
