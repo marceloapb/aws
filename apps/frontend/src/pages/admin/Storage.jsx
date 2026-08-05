@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import {
   HardDrive, Database, CheckCircle2, AlertTriangle, FileImage,
-  RefreshCw, Clock, Folder, BarChart3, Activity, DollarSign
+  RefreshCw, Clock, Folder, BarChart3, DollarSign
 } from 'lucide-react';
 
 const ACCENT = '#EA580C';
@@ -50,8 +50,6 @@ export default function Storage() {
   const [loading, setLoading] = useState(true);
   const [metrics, setMetrics] = useState(null);
   const [breakdown, setBreakdown] = useState({});
-  const [reprocessing, setReprocessing] = useState(false);
-  const [reprocessResult, setReprocessResult] = useState(null);
   const [storageLimit, setStorageLimit] = useState(50); // GB, vem da config
 
   const loadMetrics = useCallback(async () => {
@@ -92,24 +90,6 @@ export default function Storage() {
 
   useEffect(() => { loadMetrics(); }, [loadMetrics]);
 
-  const handleReprocess = async () => {
-    setReprocessing(true);
-    setReprocessResult(null);
-    try {
-      const res = await authFetch('/admin/media/reprocess-dlq', { method: 'POST' });
-      const data = await res.json();
-      setReprocessResult(data.success
-        ? { type: 'success', message: `${data.data?.reprocessed || 0} mensagens reprocessadas com sucesso.` }
-        : { type: 'error', message: data.error || 'Erro ao reprocessar.' }
-      );
-      // Refresh metrics after reprocess
-      setTimeout(loadMetrics, 2000);
-    } catch {
-      setReprocessResult({ type: 'error', message: 'Erro de conexão ao reprocessar.' });
-    }
-    setReprocessing(false);
-  };
-
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20">
@@ -122,9 +102,6 @@ export default function Storage() {
   const totalBytes = metrics?.totalBytes || 0;
   const totalFiles = metrics?.totalFiles || 0;
   const processedOk = metrics?.processedOk || 0;
-  const errorsDlq = metrics?.errorsDlq || 0;
-  const dlqCount = metrics?.dlqMessages || 0;
-  const lastDlqError = metrics?.lastDlqError || null;
   const recentUploads = metrics?.recentUploads || [];
 
   // Calculate breakdown totals for progress bars
@@ -137,7 +114,7 @@ export default function Storage() {
         <HardDrive size={24} style={{ color: ACCENT }} />
         <h1 className="text-2xl font-bold text-gray-900">Armazenamento & Mídia</h1>
       </div>
-      <p className="text-sm text-gray-500 mb-6">Métricas de armazenamento, processamento de mídia e monitoramento de filas.</p>
+      <p className="text-sm text-gray-500 mb-6">Métricas de armazenamento e uso de espaço por contexto.</p>
 
       {/* KPI Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
@@ -163,12 +140,11 @@ export default function Storage() {
           sublabel={totalFiles > 0 ? `${((processedOk / totalFiles) * 100).toFixed(1)}% do total` : null}
         />
         <KpiCard
-          icon={<AlertTriangle size={18} />}
-          iconColor={errorsDlq > 0 ? '#ef4444' : '#6b7280'}
-          label="Erros/DLQ pendentes"
-          value={errorsDlq.toLocaleString('pt-BR')}
-          sublabel={errorsDlq > 0 ? 'requer atenção' : 'nenhum erro'}
-          alert={errorsDlq > 0}
+          icon={<Clock size={18} />}
+          iconColor="#6b7280"
+          label="Espaço disponível"
+          value={fmtSize(storageLimit * 1024 * 1024 * 1024 - totalBytes)}
+          sublabel={`de ${storageLimit} GB`}
         />
       </div>
 
@@ -212,91 +188,41 @@ export default function Storage() {
         )}
       </div>
 
-      {/* Breakdown by Context + DLQ Monitor */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
-        {/* Breakdown */}
-        <div className="lg:col-span-2 bg-white rounded-xl border p-6">
-          <div className="flex items-center gap-2 mb-4">
-            <BarChart3 size={18} style={{ color: ACCENT }} />
-            <h3 className="font-semibold text-gray-900">Uso por Contexto</h3>
-          </div>
-          <div className="space-y-4">
-            {CONTEXTOS.map((ctx) => {
-              const ctxData = breakdown[ctx];
-              const ctxBytes = ctxData?.totalBytes || 0;
-              const ctxFiles = ctxData?.totalFiles || 0;
-              const pct = breakdownTotal > 0 ? (ctxBytes / breakdownTotal) * 100 : 0;
-
-              return (
-                <div key={ctx}>
-                  <div className="flex items-center justify-between mb-1.5">
-                    <div className="flex items-center gap-2">
-                      <Folder size={14} style={{ color: CONTEXTO_COLORS[ctx] }} />
-                      <span className="text-sm font-medium text-gray-700">{CONTEXTO_LABELS[ctx]}</span>
-                    </div>
-                    <div className="text-right">
-                      <span className="text-sm font-semibold text-gray-800">{fmtSize(ctxBytes)}</span>
-                      <span className="text-xs text-gray-400 ml-2">({pct.toFixed(1)}%)</span>
-                    </div>
-                  </div>
-                  <div className="w-full bg-gray-100 rounded-full h-3 overflow-hidden">
-                    <div
-                      className="h-full rounded-full transition-all duration-500"
-                      style={{ width: `${Math.max(pct, 0.5)}%`, background: CONTEXTO_COLORS[ctx] }}
-                    />
-                  </div>
-                  <p className="text-xs text-gray-400 mt-0.5">{ctxFiles.toLocaleString('pt-BR')} arquivos</p>
-                </div>
-              );
-            })}
-          </div>
+      {/* Breakdown by Context */}
+      <div className="bg-white rounded-xl border p-6 mb-6">
+        <div className="flex items-center gap-2 mb-4">
+          <BarChart3 size={18} style={{ color: ACCENT }} />
+          <h3 className="font-semibold text-gray-900">Uso por Contexto</h3>
         </div>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-x-8 gap-y-4">
+          {CONTEXTOS.map((ctx) => {
+            const ctxData = breakdown[ctx];
+            const ctxBytes = ctxData?.totalBytes || 0;
+            const ctxFiles = ctxData?.totalFiles || 0;
+            const pct = breakdownTotal > 0 ? (ctxBytes / breakdownTotal) * 100 : 0;
 
-        {/* DLQ Monitor */}
-        <div className="bg-white rounded-xl border p-6">
-          <div className="flex items-center gap-2 mb-4">
-            <Activity size={18} className="text-red-500" />
-            <h3 className="font-semibold text-gray-900">DLQ Monitor</h3>
-          </div>
-
-          <div className="text-center py-4 mb-4 rounded-lg" style={{ background: dlqCount > 0 ? '#fef2f2' : '#f0fdf4' }}>
-            <p className="text-3xl font-bold" style={{ color: dlqCount > 0 ? '#dc2626' : '#16a34a' }}>
-              {dlqCount}
-            </p>
-            <p className="text-sm text-gray-500 mt-1">mensagens na DLQ</p>
-          </div>
-
-          <button
-            onClick={handleReprocess}
-            disabled={reprocessing || dlqCount === 0}
-            className="w-full flex items-center justify-center gap-2 px-4 py-2.5 text-white rounded-lg text-sm font-medium transition-opacity disabled:opacity-50 disabled:cursor-not-allowed hover:opacity-90"
-            style={{ background: ACCENT }}
-          >
-            <RefreshCw size={16} className={reprocessing ? 'animate-spin' : ''} />
-            {reprocessing ? 'Reprocessando...' : 'Reprocessar'}
-          </button>
-
-          {reprocessResult && (
-            <div className={`mt-3 p-3 rounded-lg text-sm ${reprocessResult.type === 'success' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
-              {reprocessResult.message}
-            </div>
-          )}
-
-          {lastDlqError && (
-            <div className="mt-4 pt-4 border-t">
-              <p className="text-xs font-medium text-gray-500 mb-1">Último erro:</p>
-              <div className="bg-gray-50 rounded-lg p-3">
-                <p className="text-xs text-red-600 font-mono break-all leading-relaxed">
-                  {lastDlqError.message || JSON.stringify(lastDlqError)}
-                </p>
-                {lastDlqError.timestamp && (
-                  <p className="text-xs text-gray-400 mt-2">
-                    {new Date(lastDlqError.timestamp).toLocaleString('pt-BR')}
-                  </p>
-                )}
+            return (
+              <div key={ctx}>
+                <div className="flex items-center justify-between mb-1.5">
+                  <div className="flex items-center gap-2">
+                    <Folder size={14} style={{ color: CONTEXTO_COLORS[ctx] }} />
+                    <span className="text-sm font-medium text-gray-700">{CONTEXTO_LABELS[ctx]}</span>
+                  </div>
+                  <div className="text-right">
+                    <span className="text-sm font-semibold text-gray-800">{fmtSize(ctxBytes)}</span>
+                    <span className="text-xs text-gray-400 ml-2">({pct.toFixed(1)}%)</span>
+                  </div>
+                </div>
+                <div className="w-full bg-gray-100 rounded-full h-3 overflow-hidden">
+                  <div
+                    className="h-full rounded-full transition-all duration-500"
+                    style={{ width: `${Math.max(pct, 0.5)}%`, background: CONTEXTO_COLORS[ctx] }}
+                  />
+                </div>
+                <p className="text-xs text-gray-400 mt-0.5">{ctxFiles.toLocaleString('pt-BR')} arquivos</p>
               </div>
-            </div>
-          )}
+            );
+          })}
         </div>
       </div>
 
