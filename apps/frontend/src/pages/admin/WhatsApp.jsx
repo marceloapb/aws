@@ -497,6 +497,7 @@ export default function WhatsApp() {
       <div className="flex gap-2 flex-wrap">
         <button onClick={() => setSendTplModal(true)} className="flex items-center gap-1 px-3 py-2 rounded text-sm text-white font-medium" style={{ background: ACCENT }}><Send size={14} /> Enviar Template</button>
         <button onClick={() => setSendTxtModal(true)} className="flex items-center gap-1 px-3 py-2 rounded text-sm border font-medium hover:bg-gray-50"><MessageCircle size={14} /> Texto Livre</button>
+        <button onClick={async () => { if (!window.confirm('Apagar TODOS os envios? Esta ação não pode ser desfeita.')) return; await authFetch(`${API}/envios`, { method: 'DELETE' }); loadTab(); }} className="flex items-center gap-1 px-3 py-2 rounded text-sm border border-red-200 text-red-600 font-medium hover:bg-red-50 ml-auto"><Trash2 size={14} /> Apagar Todos</button>
       </div>
 
       {/* Filtros */}
@@ -534,7 +535,7 @@ export default function WhatsApp() {
                   <td className="px-3 py-2">{e.templateNome || e.tipo || '—'}</td>
                   <td className="px-3 py-2"><span className={`flex items-center gap-1 ${St?.color || ''}`}><Icon size={14} /> {e.status}</span></td>
                   <td className="px-3 py-2">{e.janela24h ? <Badge color="green">Dentro</Badge> : <Badge color="gray">Fora</Badge>}</td>
-                  <td className="px-3 py-2 text-gray-500">{e.data ? new Date(e.data).toLocaleString('pt-BR') : '—'}</td>
+                  <td className="px-3 py-2 text-gray-500">{(e.createdAt || e.data) ? new Date(e.createdAt || e.data + 'T12:00:00').toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '—'}</td>
                   <td className="px-3 py-2 text-center">{e.retries || 0}</td>
                   <td className="px-3 py-2">
                     {e.status === 'falhou' && (

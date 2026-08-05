@@ -370,6 +370,29 @@ router.get('/envios', async (req, res) => {
   }
 });
 
+// DELETE /api/admin/whatsapp/envios - Apagar todos os envios
+router.delete('/envios', async (req, res) => {
+  try {
+    const { DeleteCommand } = require('@aws-sdk/lib-dynamodb');
+    const result = await dynamo.send(new QueryCommand({
+      TableName: TABLE,
+      IndexName: 'GSI1',
+      KeyConditionExpression: 'GSI1PK = :pk',
+      ExpressionAttributeValues: { ':pk': 'WA_ENVIO' },
+      ProjectionExpression: 'PK, SK',
+    }));
+    const items = result.Items || [];
+    let deleted = 0;
+    for (const item of items) {
+      await dynamo.send(new DeleteCommand({ TableName: TABLE, Key: { PK: item.PK, SK: item.SK } }));
+      deleted++;
+    }
+    res.json({ success: true, message: `${deleted} envios apagados` });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
 // GET /api/admin/whatsapp/templates - Templates (busca direto da Meta + metadata local)
 router.get('/templates', async (req, res) => {
   try {
