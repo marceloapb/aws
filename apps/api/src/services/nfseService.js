@@ -292,10 +292,16 @@ function assinarXml(xml, pfxBuffer, passphrase) {
  * Envia a DPS assinada para a SEFIN Nacional
  */
 async function enviarDPS(xmlAssinado, config) {
+  const { gzipSync } = require('zlib');
   const baseUrl = config.ambiente === '1' ? SEFIN_PROD : SEFIN_HOMOLOG;
   const url = `${baseUrl}/nfse`;
 
   const pfxBuffer = Buffer.from(config.certPfxBase64, 'base64');
+
+  // Comprimir XML com gzip e codificar em base64 (formato exigido pela SEFIN)
+  const xmlGzipped = gzipSync(Buffer.from(xmlAssinado, 'utf8'));
+  const dpsXmlGZipB64 = xmlGzipped.toString('base64');
+  const jsonBody = JSON.stringify({ dpsXmlGZipB64 });
 
   // Usar https.request nativo para suportar mTLS (certificado client-side)
   const responseText = await new Promise((resolve, reject) => {
@@ -306,8 +312,8 @@ async function enviarDPS(xmlAssinado, config) {
       path: parsedUrl.pathname,
       method: 'POST',
       headers: {
-        'Content-Type': 'application/xml',
-        'Content-Length': Buffer.byteLength(xmlAssinado, 'utf8'),
+        'Content-Type': 'application/json',
+        'Content-Length': Buffer.byteLength(jsonBody, 'utf8'),
       },
       pfx: pfxBuffer,
       passphrase: config.certPassphrase,
@@ -320,7 +326,7 @@ async function enviarDPS(xmlAssinado, config) {
       res.on('data', (chunk) => chunks.push(chunk));
       res.on('end', () => {
         const body = Buffer.concat(chunks).toString('utf8');
-        if (res.statusCode >= 400) {
+        if (res.statusCode >= 500) {
           reject(new Error(`SEFIN HTTP ${res.statusCode}: ${body.substring(0, 500)}`));
         } else {
           resolve(body);
@@ -330,24 +336,37 @@ async function enviarDPS(xmlAssinado, config) {
 
     req.on('error', (err) => reject(new Error(`SEFIN conexão falhou: ${err.message}`)));
     req.on('timeout', () => { req.destroy(); reject(new Error('SEFIN timeout (30s)')); });
-    req.write(xmlAssinado);
+    req.write(jsonBody);
     req.end();
   });
 
-  // Parsear resposta XML
-  const cStat = extrairTag(responseText, 'cStat');
-  const xMotivo = extrairTag(responseText, 'xMotivo');
-  const chNFSe = extrairTag(responseText, 'chNFSe');
-  const nNFSe = extrairTag(responseText, 'nNFSe');
-  const nfseXml = extrairTag(responseText, 'nfseXmlGZipB64');
+  // Parsear resposta JSON da SEFIN
+  let parsed = {};
+  try {
+    parsed = JSON.parse(responseText);
+  } catch {
+    // Se não for JSON, tentar extrair de XML (fallback)
+    parsed = {
+      cStat: extrairTag(responseText, 'cStat'),
+      xMotivo: extrairTag(responseText, 'xMotivo'),
+      chNFSe: extrairTag(responseText, 'chNFSe'),
+      nNFSe: extrairTag(responseText, 'nNFSe'),
+      nfseXmlGZipB64: extrairTag(responseText, 'nfseXmlGZipB64'),
+    };
+  }
+
+  // A SEFIN pode retornar erros em diversos formatos
+  const erros = parsed.erros || parsed.erro || [];
+  const primeiroErro = Array.isArray(erros) ? erros[0] : erros;
+  const sucesso = !primeiroErro && (parsed.chNFSe || parsed.chaveAcesso);
 
   return {
-    sucesso: cStat === '100',
-    cStat,
-    xMotivo,
-    chNFSe,
-    nNFSe,
-    nfseXml,
+    sucesso: !!sucesso,
+    cStat: parsed.cStat || (sucesso ? '100' : '200'),
+    xMotivo: parsed.xMotivo || primeiroErro?.descricao || primeiroErro?.Descricao || primeiroErro?.message || (sucesso ? 'Autorizado' : 'Rejeitado'),
+    chNFSe: parsed.chNFSe || parsed.chaveAcesso || null,
+    nNFSe: parsed.nNFSe || parsed.numeroNfse || null,
+    nfseXml: parsed.nfseXmlGZipB64 || parsed.nfseXmlGzipB64 || null,
     xmlResposta: responseText,
   };
 }
