@@ -9,6 +9,7 @@ const emailService = require('../services/emailService');
 const client = new DynamoDBClient({});
 const docClient = DynamoDBDocumentClient.from(client);
 const TABLE_NAME = process.env.TABLE_NAME;
+const TENANT = process.env.TENANT_ID || 'default';
 
 const TIPOS_VALIDOS = ['acrescimo', 'reducao', 'alteracao_data', 'upgrade_pacote'];
 
@@ -22,7 +23,7 @@ router.get('/', async (req, res) => {
       TableName: TABLE_NAME,
       KeyConditionExpression: 'PK = :pk AND begins_with(SK, :sk)',
       ExpressionAttributeValues: {
-        ':pk': `PHOTOGRAPHER#${photographerId}`,
+        ':pk': `TENANT#${TENANT}`,
         ':sk': 'ADITIVO#'
       }
     }));
@@ -76,7 +77,7 @@ router.post('/', async (req, res) => {
     const diferencaValor = (valorNovo || 0) - (valorAnterior || 0);
 
     const item = {
-      PK: `PHOTOGRAPHER#${photographerId}`,
+      PK: `TENANT#${TENANT}`,
       SK: `ADITIVO#${id}`,
       GSI1PK: `CONTRACT#${contratoId}`,
       GSI1SK: `ADITIVO#${now}`,
@@ -114,7 +115,7 @@ router.post('/:id/enviar', async (req, res) => {
 
     const current = await docClient.send(new GetCommand({
       TableName: TABLE_NAME,
-      Key: { PK: `PHOTOGRAPHER#${photographerId}`, SK: `ADITIVO#${id}` }
+      Key: { PK: `TENANT#${TENANT}`, SK: `ADITIVO#${id}` }
     }));
 
     if (!current.Item) {
@@ -153,7 +154,7 @@ router.delete('/:id', async (req, res) => {
 
     const current = await docClient.send(new GetCommand({
       TableName: TABLE_NAME,
-      Key: { PK: `PHOTOGRAPHER#${photographerId}`, SK: `ADITIVO#${id}` }
+      Key: { PK: `TENANT#${TENANT}`, SK: `ADITIVO#${id}` }
     }));
 
     if (!current.Item) {
@@ -166,7 +167,7 @@ router.delete('/:id', async (req, res) => {
 
     await docClient.send(new UpdateCommand({
       TableName: TABLE_NAME,
-      Key: { PK: `PHOTOGRAPHER#${photographerId}`, SK: `ADITIVO#${id}` },
+      Key: { PK: `TENANT#${TENANT}`, SK: `ADITIVO#${id}` },
       UpdateExpression: 'SET #status = :status',
       ExpressionAttributeNames: { '#status': 'status' },
       ExpressionAttributeValues: { ':status': 'cancelado' }

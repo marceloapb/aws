@@ -9,6 +9,7 @@ const { parseClientes, parseCatalogo, parseEquipamentos, TEMPLATES } = require('
 const client = new DynamoDBClient({});
 const docClient = DynamoDBDocumentClient.from(client);
 const TABLE_NAME = process.env.TABLE_NAME;
+const TENANT = process.env.TENANT_ID || 'default';
 
 // Utilitário para batch write em chunks de 25
 async function batchWrite(items) {
@@ -55,7 +56,7 @@ router.post('/clientes', async (req, res) => {
 
     const now = new Date().toISOString();
     const items = validated.map(record => ({
-      PK: `PHOTOGRAPHER#${photographerId}`,
+      PK: `TENANT#${TENANT}`,
       SK: `CLIENT#${uuidv4()}`,
       id: uuidv4(),
       photographerId,
@@ -95,9 +96,9 @@ router.post('/catalogo', async (req, res) => {
 
     const now = new Date().toISOString();
     const items = validated.map(record => ({
-      PK: `PHOTOGRAPHER#${photographerId}`,
+      PK: `TENANT#${TENANT}`,
       SK: `CATALOGO#${uuidv4()}`,
-      GSI1PK: `PHOTOGRAPHER#${photographerId}`,
+      GSI1PK: `TENANT#${TENANT}`,
       GSI1SK: 'CATALOGO#ACTIVE',
       id: uuidv4(),
       photographerId,
@@ -140,7 +141,7 @@ router.post('/equipamentos', async (req, res) => {
 
     const now = new Date().toISOString();
     const items = validated.map(record => ({
-      PK: `PHOTOGRAPHER#${photographerId}`,
+      PK: `TENANT#${TENANT}`,
       SK: `EQUIPMENT#${uuidv4()}`,
       id: uuidv4(),
       photographerId,

@@ -8,6 +8,8 @@ const logger = require('../config/logger');
 const { calcularValorBase, resolverValorBase } = require('../services/catalogoPrecificacaoService');
 const { generateUploadUrl, CONTEXT_RULES } = require('../services/mediaUploadService');
 
+const TENANT = process.env.TENANT_ID || 'default';
+
 const client = new DynamoDBClient({});
 const docClient = DynamoDBDocumentClient.from(client);
 const s3 = new S3Client({});
@@ -45,11 +47,11 @@ function getSKPrefix(tipo) {
 /**
  * Busca a categoria pelo ID para verificar tem_fornecedor
  */
-async function getCategoriaById(photographerId, categoriaId) {
+async function getCategoriaById(categoriaId) {
   if (!categoriaId) return null;
   const result = await docClient.send(new GetCommand({
     TableName: TABLE_NAME,
-    Key: { PK: `PHOTOGRAPHER#${photographerId}`, SK: `CAT_CATALOGO#${categoriaId}` }
+    Key: { PK: `TENANT#${TENANT}`, SK: `CAT_CATALOGO#${categoriaId}` }
   }));
   return result.Item || null;
 }
@@ -57,17 +59,16 @@ async function getCategoriaById(photographerId, categoriaId) {
 // ========== GET / - Listar (itens, pacotes ou categorias) ==========
 router.get('/', async (req, res) => {
   try {
-    const photographerId = req.user.sub;
     const tipo = getTipoFromQuery(req);
     const skPrefix = getSKPrefix(tipo);
 
-    logger.info({ action: 'catalogo_list', photographerId, tipo });
+    logger.info({ action: 'catalogo_list', tenant: TENANT, tipo });
 
     const result = await docClient.send(new QueryCommand({
       TableName: TABLE_NAME,
       KeyConditionExpression: 'PK = :pk AND begins_with(SK, :sk)',
       ExpressionAttributeValues: {
-        ':pk': `PHOTOGRAPHER#${photographerId}`,
+        ':pk': `TENANT#${TENANT}`,
         ':sk': skPrefix
       }
     }));
@@ -82,17 +83,16 @@ router.get('/', async (req, res) => {
 // ========== GET /:id - Buscar por ID ==========
 router.get('/:id', async (req, res) => {
   try {
-    const photographerId = req.user.sub;
     const { id } = req.params;
     const tipo = getTipoFromQuery(req);
     const skPrefix = getSKPrefix(tipo);
 
-    logger.info({ action: 'catalogo_get', photographerId, id, tipo });
+    logger.info({ action: 'catalogo_get', tenant: TENANT, id, tipo });
 
     const result = await docClient.send(new GetCommand({
       TableName: TABLE_NAME,
       Key: {
-        PK: `PHOTOGRAPHER#${photographerId}`,
+        PK: `TENANT#${TENANT}`,
         SK: `${skPrefix}${id}`
       }
     }));
@@ -117,7 +117,6 @@ router.get('/:id', async (req, res) => {
 // ========== POST / - Criar (item, pacote ou categoria) ==========
 router.post('/', async (req, res) => {
   try {
-    const photographerId = req.user.sub;
     const tipo = getTipoFromQuery(req);
     const skPrefix = getSKPrefix(tipo);
     const id = uuidv4();
@@ -132,12 +131,12 @@ router.post('/', async (req, res) => {
         return res.status(400).json({ success: false, error: 'Nome é obrigatório' });
       }
       item = {
-        PK: `PHOTOGRAPHER#${photographerId}`,
+        PK: `TENANT#${TENANT}`,
         SK: `${skPrefix}${id}`,
-        GSI1PK: `PHOTOGRAPHER#${photographerId}`,
+        GSI1PK: `TENANT#${TENANT}`,
         GSI1SK: `CAT_CATALOGO#ACTIVE`,
         id,
-        photographerId,
+        tenantId: TENANT,
         nome: nome.trim(),
         cor: cor || '#EA580C',
         tem_fornecedor: tem_fornecedor === true,
@@ -152,12 +151,12 @@ router.post('/', async (req, res) => {
         return res.status(400).json({ success: false, error: 'Nome é obrigatório' });
       }
       item = {
-        PK: `PHOTOGRAPHER#${photographerId}`,
+        PK: `TENANT#${TENANT}`,
         SK: `${skPrefix}${id}`,
-        GSI1PK: `PHOTOGRAPHER#${photographerId}`,
+        GSI1PK: `TENANT#${TENANT}`,
         GSI1SK: `PACOTE_CATALOGO#ACTIVE`,
         id,
-        photographerId,
+        tenantId: TENANT,
         nome: nome.trim(),
         descricao: descricao || '',
         itens: itens || [],
@@ -187,7 +186,7 @@ router.post('/', async (req, res) => {
       // Verificar se a categoria exige fornecedor
       let categoriaTelFornecedor = false;
       if (categoria_id && tipoItem === 'produto') {
-        const categoria = await getCategoriaById(photographerId, categoria_id);
+        const categoria = await getCategoriaById(categoria_id);
         if (categoria && categoria.tem_fornecedor) {
           categoriaTelFornecedor = true;
           // Validar campos obrigatórios de fornecedor
@@ -204,12 +203,12 @@ router.post('/', async (req, res) => {
       }
 
       item = {
-        PK: `PHOTOGRAPHER#${photographerId}`,
+        PK: `TENANT#${TENANT}`,
         SK: `${skPrefix}${id}`,
-        GSI1PK: `PHOTOGRAPHER#${photographerId}`,
+        GSI1PK: `TENANT#${TENANT}`,
         GSI1SK: `ITEM_CATALOGO#ACTIVE`,
         id,
-        photographerId,
+        tenantId: TENANT,
         nome: nome.trim(),
         descricao: descricao || '',
         tipo: tipoItem || 'servico_principal',
@@ -252,7 +251,7 @@ router.post('/', async (req, res) => {
       Item: item
     }));
 
-    logger.info({ action: 'catalogo_create', photographerId, id, tipo });
+    logger.info({ action: 'catalogo_create', tenant: TENANT, id, tipo });
     res.status(201).json({ success: true, data: item });
   } catch (error) {
     logger.error({ action: 'catalogo_create_error', error: error.message, stack: error.stack });
@@ -263,7 +262,6 @@ router.post('/', async (req, res) => {
 // ========== PUT /:id - Atualizar ==========
 router.put('/:id', async (req, res) => {
   try {
-    const photographerId = req.user.sub;
     const { id } = req.params;
     const tipo = getTipoFromQuery(req);
     const skPrefix = getSKPrefix(tipo);
@@ -272,7 +270,7 @@ router.put('/:id', async (req, res) => {
     // Verificar se existe
     const existing = await docClient.send(new GetCommand({
       TableName: TABLE_NAME,
-      Key: { PK: `PHOTOGRAPHER#${photographerId}`, SK: `${skPrefix}${id}` }
+      Key: { PK: `TENANT#${TENANT}`, SK: `${skPrefix}${id}` }
     }));
 
     if (!existing.Item) {
@@ -287,7 +285,7 @@ router.put('/:id', async (req, res) => {
       const categoriaId = body.categoria_id !== undefined ? body.categoria_id : existing.Item.categoria_id;
 
       if (categoriaId && tipoItem === 'produto') {
-        const categoria = await getCategoriaById(photographerId, categoriaId);
+        const categoria = await getCategoriaById(categoriaId);
         if (categoria && categoria.tem_fornecedor) {
           const fornecedorNome = body.fornecedor_nome !== undefined ? body.fornecedor_nome : existing.Item.fornecedor_nome;
           const precoCusto = body.preco_custo !== undefined ? body.preco_custo : existing.Item.preco_custo;
@@ -322,7 +320,7 @@ router.put('/:id', async (req, res) => {
     const updateExpressions = [];
     const expressionValues = {};
     const expressionNames = {};
-    const camposReservados = ['PK', 'SK', 'GSI1PK', 'id', 'photographerId', 'criadoEm'];
+    const camposReservados = ['PK', 'SK', 'GSI1PK', 'id', 'tenantId', 'criadoEm'];
 
     Object.keys(body).forEach(key => {
       if (camposReservados.includes(key)) return;
@@ -348,14 +346,14 @@ router.put('/:id', async (req, res) => {
 
     const result = await docClient.send(new UpdateCommand({
       TableName: TABLE_NAME,
-      Key: { PK: `PHOTOGRAPHER#${photographerId}`, SK: `${skPrefix}${id}` },
+      Key: { PK: `TENANT#${TENANT}`, SK: `${skPrefix}${id}` },
       UpdateExpression: `SET ${updateExpressions.join(', ')}`,
       ExpressionAttributeValues: expressionValues,
       ExpressionAttributeNames: expressionNames,
       ReturnValues: 'ALL_NEW'
     }));
 
-    logger.info({ action: 'catalogo_update', photographerId, id, tipo });
+    logger.info({ action: 'catalogo_update', tenant: TENANT, id, tipo });
     res.json({ success: true, data: result.Attributes });
   } catch (error) {
     logger.error({ action: 'catalogo_update_error', error: error.message, stack: error.stack });
@@ -366,14 +364,13 @@ router.put('/:id', async (req, res) => {
 // ========== DELETE /:id - Excluir ==========
 router.delete('/:id', async (req, res) => {
   try {
-    const photographerId = req.user.sub;
     const { id } = req.params;
     const tipo = getTipoFromQuery(req);
     const skPrefix = getSKPrefix(tipo);
 
     const existing = await docClient.send(new GetCommand({
       TableName: TABLE_NAME,
-      Key: { PK: `PHOTOGRAPHER#${photographerId}`, SK: `${skPrefix}${id}` }
+      Key: { PK: `TENANT#${TENANT}`, SK: `${skPrefix}${id}` }
     }));
 
     if (!existing.Item) {
@@ -384,12 +381,12 @@ router.delete('/:id', async (req, res) => {
     if (tipo === 'categoria' || tipo === 'categorias') {
       await docClient.send(new DeleteCommand({
         TableName: TABLE_NAME,
-        Key: { PK: `PHOTOGRAPHER#${photographerId}`, SK: `${skPrefix}${id}` }
+        Key: { PK: `TENANT#${TENANT}`, SK: `${skPrefix}${id}` }
       }));
     } else {
       await docClient.send(new UpdateCommand({
         TableName: TABLE_NAME,
-        Key: { PK: `PHOTOGRAPHER#${photographerId}`, SK: `${skPrefix}${id}` },
+        Key: { PK: `TENANT#${TENANT}`, SK: `${skPrefix}${id}` },
         UpdateExpression: 'SET ativo = :ativo, GSI1SK = :gsi1sk, atualizadoEm = :now',
         ExpressionAttributeValues: {
           ':ativo': false,
@@ -399,7 +396,7 @@ router.delete('/:id', async (req, res) => {
       }));
     }
 
-    logger.info({ action: 'catalogo_delete', photographerId, id, tipo });
+    logger.info({ action: 'catalogo_delete', tenant: TENANT, id, tipo });
     res.json({ success: true, message: 'Removido com sucesso' });
   } catch (error) {
     logger.error({ action: 'catalogo_delete_error', error: error.message });
@@ -410,7 +407,6 @@ router.delete('/:id', async (req, res) => {
 // ========== POST /items/:id/fotos-exemplo/presigned - Upload presigned URL ==========
 router.post('/items/:id/fotos-exemplo/presigned', async (req, res) => {
   try {
-    const photographerId = req.user.sub;
     const { id } = req.params;
     const { content_type, filename } = req.body;
 
@@ -421,7 +417,7 @@ router.post('/items/:id/fotos-exemplo/presigned', async (req, res) => {
     // Verificar se item existe
     const existing = await docClient.send(new GetCommand({
       TableName: TABLE_NAME,
-      Key: { PK: `PHOTOGRAPHER#${photographerId}`, SK: `ITEM_CATALOGO#${id}` }
+      Key: { PK: `TENANT#${TENANT}`, SK: `ITEM_CATALOGO#${id}` }
     }));
 
     if (!existing.Item) {
@@ -436,7 +432,7 @@ router.post('/items/:id/fotos-exemplo/presigned', async (req, res) => {
 
     // Gerar presigned URL
     const result = await generateUploadUrl({
-      tenant_id: photographerId,
+      tenant_id: TENANT,
       contexto: 'catalogo_exemplo',
       entidade_id: id,
       filename,
@@ -446,7 +442,7 @@ router.post('/items/:id/fotos-exemplo/presigned', async (req, res) => {
 
     const fotoId = uuidv4();
 
-    logger.info({ action: 'catalogo_foto_presigned', photographerId, itemId: id, fotoId });
+    logger.info({ action: 'catalogo_foto_presigned', tenant: TENANT, itemId: id, fotoId });
     res.json({
       success: true,
       data: {
@@ -465,13 +461,12 @@ router.post('/items/:id/fotos-exemplo/presigned', async (req, res) => {
 // ========== DELETE /items/:id/fotos-exemplo/:fotoId - Remover foto ==========
 router.delete('/items/:id/fotos-exemplo/:fotoId', async (req, res) => {
   try {
-    const photographerId = req.user.sub;
     const { id, fotoId } = req.params;
 
     // Buscar item
     const existing = await docClient.send(new GetCommand({
       TableName: TABLE_NAME,
-      Key: { PK: `PHOTOGRAPHER#${photographerId}`, SK: `ITEM_CATALOGO#${id}` }
+      Key: { PK: `TENANT#${TENANT}`, SK: `ITEM_CATALOGO#${id}` }
     }));
 
     if (!existing.Item) {
@@ -498,7 +493,7 @@ router.delete('/items/:id/fotos-exemplo/:fotoId', async (req, res) => {
     const novasFotos = fotosAtuais.filter(f => f.id !== fotoId);
     await docClient.send(new UpdateCommand({
       TableName: TABLE_NAME,
-      Key: { PK: `PHOTOGRAPHER#${photographerId}`, SK: `ITEM_CATALOGO#${id}` },
+      Key: { PK: `TENANT#${TENANT}`, SK: `ITEM_CATALOGO#${id}` },
       UpdateExpression: 'SET fotos_exemplo = :fotos, atualizadoEm = :now',
       ExpressionAttributeValues: {
         ':fotos': novasFotos,
@@ -506,7 +501,7 @@ router.delete('/items/:id/fotos-exemplo/:fotoId', async (req, res) => {
       }
     }));
 
-    logger.info({ action: 'catalogo_foto_delete', photographerId, itemId: id, fotoId });
+    logger.info({ action: 'catalogo_foto_delete', tenant: TENANT, itemId: id, fotoId });
     res.json({ success: true, message: 'Foto removida' });
   } catch (error) {
     logger.error({ action: 'catalogo_foto_delete_error', error: error.message });

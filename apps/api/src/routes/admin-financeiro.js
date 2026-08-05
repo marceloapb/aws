@@ -8,6 +8,7 @@ const logger = require('../config/logger');
 const client = new DynamoDBClient({});
 const docClient = DynamoDBDocumentClient.from(client);
 const TABLE_NAME = process.env.TABLE_NAME;
+const TENANT = process.env.TENANT_ID || 'default';
 
 // ─── Helpers ────────────────────────────────────────────────────────────────────
 
@@ -42,17 +43,17 @@ function isInRange(dateStr, inicio, fim) {
 // ─── GET /admin/financeiro/resumo ───────────────────────────────────────────────
 router.get('/resumo', async (req, res) => {
   try {
-    const photographerId = req.user.sub;
+    // const photographerId = req.user.sub; // Substituído por TENANT
     const { periodo, periodo_inicio, periodo_fim } = req.query;
     const range = getPeriodoRange(periodo, periodo_inicio, periodo_fim);
-    logger.info({ action: 'financeiro_resumo', photographerId, range });
+    logger.info({ action: 'financeiro_resumo', tenant: TENANT, range });
 
     // Fetch cobranças
     const cobResult = await docClient.send(new QueryCommand({
       TableName: TABLE_NAME,
       KeyConditionExpression: 'PK = :pk AND begins_with(SK, :sk)',
       ExpressionAttributeValues: {
-        ':pk': `PHOTOGRAPHER#${photographerId}`,
+        ':pk': `TENANT#${TENANT}`,
         ':sk': 'COBRANCA#'
       }
     }));
@@ -63,7 +64,7 @@ router.get('/resumo', async (req, res) => {
       TableName: TABLE_NAME,
       KeyConditionExpression: 'PK = :pk AND begins_with(SK, :sk)',
       ExpressionAttributeValues: {
-        ':pk': `PHOTOGRAPHER#${photographerId}`,
+        ':pk': `TENANT#${TENANT}`,
         ':sk': 'DESPESA#'
       }
     }));
@@ -173,7 +174,7 @@ router.get('/resumo', async (req, res) => {
 // ─── GET /admin/financeiro/despesas ─────────────────────────────────────────────
 router.get('/despesas', async (req, res) => {
   try {
-    const photographerId = req.user.sub;
+    // const photographerId = req.user.sub; // Substituído por TENANT
     const { periodo, periodo_inicio, periodo_fim } = req.query;
     const range = getPeriodoRange(periodo, periodo_inicio, periodo_fim);
 
@@ -181,7 +182,7 @@ router.get('/despesas', async (req, res) => {
       TableName: TABLE_NAME,
       KeyConditionExpression: 'PK = :pk AND begins_with(SK, :sk)',
       ExpressionAttributeValues: {
-        ':pk': `PHOTOGRAPHER#${photographerId}`,
+        ':pk': `TENANT#${TENANT}`,
         ':sk': 'DESPESA#'
       }
     }));
@@ -212,14 +213,14 @@ router.get('/despesas', async (req, res) => {
 // ─── POST /admin/financeiro/despesas ────────────────────────────────────────────
 router.post('/despesas', async (req, res) => {
   try {
-    const photographerId = req.user.sub;
+    // const photographerId = req.user.sub; // Substituído por TENANT
     const { descricao, valor, categoria, data, evento_id, recorrente, recorrencia, tipo } = req.body;
     const despesaId = uuidv4();
 
     await docClient.send(new PutCommand({
       TableName: TABLE_NAME,
       Item: {
-        PK: `PHOTOGRAPHER#${photographerId}`,
+        PK: `TENANT#${TENANT}`,
         SK: `DESPESA#${despesaId}`,
         despesaId,
         descricao: descricao || '',
@@ -245,13 +246,13 @@ router.post('/despesas', async (req, res) => {
 // ─── DELETE /admin/financeiro/despesas/:id ───────────────────────────────────────
 router.delete('/despesas/:id', async (req, res) => {
   try {
-    const photographerId = req.user.sub;
+    // const photographerId = req.user.sub; // Substituído por TENANT
     const { id } = req.params;
 
     await docClient.send(new DeleteCommand({
       TableName: TABLE_NAME,
       Key: {
-        PK: `PHOTOGRAPHER#${photographerId}`,
+        PK: `TENANT#${TENANT}`,
         SK: `DESPESA#${id}`
       }
     }));
@@ -267,11 +268,11 @@ router.delete('/despesas/:id', async (req, res) => {
 // ─── GET /admin/financeiro/categorias ───────────────────────────────────────────
 router.get('/categorias', async (req, res) => {
   try {
-    const photographerId = req.user.sub;
+    // const photographerId = req.user.sub; // Substituído por TENANT
     const result = await docClient.send(new QueryCommand({
       TableName: TABLE_NAME,
       KeyConditionExpression: 'PK = :pk AND begins_with(SK, :sk)',
-      ExpressionAttributeValues: { ':pk': `PHOTOGRAPHER#${photographerId}`, ':sk': 'CAT_DESPESA#' },
+      ExpressionAttributeValues: { ':pk': `TENANT#${TENANT}`, ':sk': 'CAT_DESPESA#' },
     }));
     res.json(result.Items || []);
   } catch (error) {
@@ -282,12 +283,12 @@ router.get('/categorias', async (req, res) => {
 // ─── POST /admin/financeiro/categorias ──────────────────────────────────────────
 router.post('/categorias', async (req, res) => {
   try {
-    const photographerId = req.user.sub;
+    // const photographerId = req.user.sub; // Substituído por TENANT
     const { nome, cor } = req.body;
     if (!nome) return res.status(400).json({ error: 'Nome é obrigatório' });
     const id = uuidv4();
     const item = {
-      PK: `PHOTOGRAPHER#${photographerId}`,
+      PK: `TENANT#${TENANT}`,
       SK: `CAT_DESPESA#${id}`,
       id, nome, cor: cor || '#6B7280',
       criadoEm: new Date().toISOString(),
@@ -302,10 +303,10 @@ router.post('/categorias', async (req, res) => {
 // ─── DELETE /admin/financeiro/categorias/:id ─────────────────────────────────────
 router.delete('/categorias/:id', async (req, res) => {
   try {
-    const photographerId = req.user.sub;
+    // const photographerId = req.user.sub; // Substituído por TENANT
     await docClient.send(new DeleteCommand({
       TableName: TABLE_NAME,
-      Key: { PK: `PHOTOGRAPHER#${photographerId}`, SK: `CAT_DESPESA#${req.params.id}` },
+      Key: { PK: `TENANT#${TENANT}`, SK: `CAT_DESPESA#${req.params.id}` },
     }));
     res.json({ success: true });
   } catch (error) {
@@ -316,7 +317,7 @@ router.delete('/categorias/:id', async (req, res) => {
 // ─── GET /admin/financeiro/fluxo-caixa ──────────────────────────────────────────
 router.get('/fluxo-caixa', async (req, res) => {
   try {
-    const photographerId = req.user.sub;
+    // const photographerId = req.user.sub; // Substituído por TENANT
     const { periodo_inicio, periodo_fim, periodo } = req.query;
     const range = getPeriodoRange(periodo, periodo_inicio, periodo_fim);
 
@@ -325,7 +326,7 @@ router.get('/fluxo-caixa', async (req, res) => {
       TableName: TABLE_NAME,
       KeyConditionExpression: 'PK = :pk AND begins_with(SK, :sk)',
       ExpressionAttributeValues: {
-        ':pk': `PHOTOGRAPHER#${photographerId}`,
+        ':pk': `TENANT#${TENANT}`,
         ':sk': 'COBRANCA#'
       }
     }));
@@ -335,7 +336,7 @@ router.get('/fluxo-caixa', async (req, res) => {
       TableName: TABLE_NAME,
       KeyConditionExpression: 'PK = :pk AND begins_with(SK, :sk)',
       ExpressionAttributeValues: {
-        ':pk': `PHOTOGRAPHER#${photographerId}`,
+        ':pk': `TENANT#${TENANT}`,
         ':sk': 'DESPESA#'
       }
     }));
@@ -430,7 +431,7 @@ router.get('/fluxo-caixa', async (req, res) => {
 // ─── GET /admin/financeiro/rentabilidade ────────────────────────────────────────
 router.get('/rentabilidade', async (req, res) => {
   try {
-    const photographerId = req.user.sub;
+    // const photographerId = req.user.sub; // Substituído por TENANT
     const { periodo, periodo_inicio, periodo_fim } = req.query;
     const range = getPeriodoRange(periodo, periodo_inicio, periodo_fim);
 
@@ -439,7 +440,7 @@ router.get('/rentabilidade', async (req, res) => {
       TableName: TABLE_NAME,
       KeyConditionExpression: 'PK = :pk AND begins_with(SK, :sk)',
       ExpressionAttributeValues: {
-        ':pk': `PHOTOGRAPHER#${photographerId}`,
+        ':pk': `TENANT#${TENANT}`,
         ':sk': 'COBRANCA#'
       }
     }));
@@ -449,7 +450,7 @@ router.get('/rentabilidade', async (req, res) => {
       TableName: TABLE_NAME,
       KeyConditionExpression: 'PK = :pk AND begins_with(SK, :sk)',
       ExpressionAttributeValues: {
-        ':pk': `PHOTOGRAPHER#${photographerId}`,
+        ':pk': `TENANT#${TENANT}`,
         ':sk': 'DESPESA#'
       }
     }));
@@ -511,7 +512,7 @@ router.get('/rentabilidade', async (req, res) => {
 // ─── GET /admin/financeiro/exportar ─────────────────────────────────────────────
 router.get('/exportar', async (req, res) => {
   try {
-    const photographerId = req.user.sub;
+    // const photographerId = req.user.sub; // Substituído por TENANT
     const { tipo, periodo, periodo_inicio, periodo_fim } = req.query;
     const range = getPeriodoRange(periodo, periodo_inicio, periodo_fim);
 
@@ -520,7 +521,7 @@ router.get('/exportar', async (req, res) => {
       TableName: TABLE_NAME,
       KeyConditionExpression: 'PK = :pk AND begins_with(SK, :sk)',
       ExpressionAttributeValues: {
-        ':pk': `PHOTOGRAPHER#${photographerId}`,
+        ':pk': `TENANT#${TENANT}`,
         ':sk': 'COBRANCA#'
       }
     }));
@@ -565,14 +566,14 @@ router.get('/exportar', async (req, res) => {
 // ─── GET /admin/financeiro/mensal ───────────────────────────────────────────────
 router.get('/mensal', async (req, res) => {
   try {
-    const photographerId = req.user.sub;
+    // const photographerId = req.user.sub; // Substituído por TENANT
     const ano = req.query.ano || new Date().getFullYear().toString();
 
     const result = await docClient.send(new QueryCommand({
       TableName: TABLE_NAME,
       KeyConditionExpression: 'PK = :pk AND begins_with(SK, :sk)',
       ExpressionAttributeValues: {
-        ':pk': `PHOTOGRAPHER#${photographerId}`,
+        ':pk': `TENANT#${TENANT}`,
         ':sk': 'COBRANCA#'
       }
     }));
@@ -610,13 +611,13 @@ router.get('/mensal', async (req, res) => {
 // ─── GET /admin/financeiro/inadimplentes ────────────────────────────────────────
 router.get('/inadimplentes', async (req, res) => {
   try {
-    const photographerId = req.user.sub;
+    // const photographerId = req.user.sub; // Substituído por TENANT
 
     const result = await docClient.send(new QueryCommand({
       TableName: TABLE_NAME,
       KeyConditionExpression: 'PK = :pk AND begins_with(SK, :sk)',
       ExpressionAttributeValues: {
-        ':pk': `PHOTOGRAPHER#${photographerId}`,
+        ':pk': `TENANT#${TENANT}`,
         ':sk': 'COBRANCA#'
       }
     }));
@@ -632,7 +633,7 @@ router.get('/inadimplentes', async (req, res) => {
         try {
           const clienteResult = await docClient.send(new GetCommand({
             TableName: TABLE_NAME,
-            Key: { PK: `PHOTOGRAPHER#${photographerId}`, SK: `CLIENT#${cobranca.clienteId}` }
+            Key: { PK: `TENANT#${TENANT}`, SK: `CLIENT#${cobranca.clienteId}` }
           }));
           cliente = clienteResult.Item ? { nome: clienteResult.Item.nome, email: clienteResult.Item.email, telefone: clienteResult.Item.telefone } : null;
         } catch (e) { /* ignore */ }

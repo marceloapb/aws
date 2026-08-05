@@ -10,7 +10,7 @@ const TENANT = process.env.TENANT_ID || 'default';
 // Busca clientes de todas as origens:
 //   1) TENANT#<tenant> / CLIENTE#<id>  (criados pelo admin)
 //   2) CLIENT#<id> / PROFILE           (self-signup do cliente)
-//   3) PHOTOGRAPHER#<id> / CLIENT#<id> (importação CSV)
+//   3) TENANT#<tenant> / CLIENT#<id> (importação CSV)
 router.get('/', async (req, res) => {
   try {
     const { search, page = 1, limit = 50 } = req.query;
@@ -31,14 +31,12 @@ router.get('/', async (req, res) => {
       ExpressionAttributeValues: { ':pkPrefix': 'CLIENT#', ':sk': 'PROFILE' },
     }));
 
-    // Query 3: clientes importados via CSV (PK=PHOTOGRAPHER#<id>, SK=CLIENT#<id>)
-    const importedClientsPromise = photographerId
-      ? dynamo.send(new QueryCommand({
+    // Query 3: clientes importados via CSV (PK=TENANT#<tenant>, SK=CLIENT#<id>)
+    const importedClientsPromise = dynamo.send(new QueryCommand({
           TableName: TABLE,
           KeyConditionExpression: 'PK = :pk AND begins_with(SK, :sk)',
-          ExpressionAttributeValues: { ':pk': `PHOTOGRAPHER#${photographerId}`, ':sk': 'CLIENT#' },
-        }))
-      : Promise.resolve({ Items: [] });
+          ExpressionAttributeValues: { ':pk': `TENANT#${TENANT}`, ':sk': 'CLIENT#' },
+        }));
 
     const [adminResult, selfSignupResult, importedResult] = await Promise.all([
       adminClientsPromise,
@@ -140,14 +138,12 @@ router.get('/:id', async (req, res) => {
       return res.json({ success: true, data: item });
     }
 
-    // Tentar padrão 3: PHOTOGRAPHER#<id> / CLIENT#<id> (importação CSV)
-    if (photographerId) {
-      const result3 = await dynamo.send(new GetCommand({
-        TableName: TABLE,
-        Key: { PK: `PHOTOGRAPHER#${photographerId}`, SK: `CLIENT#${clienteId}` },
-      }));
-      if (result3.Item) return res.json({ success: true, data: result3.Item });
-    }
+    // Tentar padrão 3: TENANT#<tenant> / CLIENT#<id> (importação CSV)
+    const result3 = await dynamo.send(new GetCommand({
+      TableName: TABLE,
+      Key: { PK: `TENANT#${TENANT}`, SK: `CLIENT#${clienteId}` },
+    }));
+    if (result3.Item) return res.json({ success: true, data: result3.Item });
 
     return res.status(404).json({ success: false, message: 'Cliente não encontrado' });
   } catch (error) {

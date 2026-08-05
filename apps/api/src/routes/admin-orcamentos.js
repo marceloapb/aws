@@ -144,12 +144,12 @@ router.get('/:id/editar', async (req, res) => {
           dynamo.send(new QueryCommand({
             TableName: TABLE,
             KeyConditionExpression: 'PK = :pk AND begins_with(SK, :sk)',
-            ExpressionAttributeValues: { ':pk': `PHOTOGRAPHER#${photographerId}`, ':sk': 'ITEM_CATALOGO#' },
+            ExpressionAttributeValues: { ':pk': `TENANT#${TENANT}`, ':sk': 'ITEM_CATALOGO#' },
           })),
           dynamo.send(new QueryCommand({
             TableName: TABLE,
             KeyConditionExpression: 'PK = :pk AND begins_with(SK, :sk)',
-            ExpressionAttributeValues: { ':pk': `PHOTOGRAPHER#${photographerId}`, ':sk': 'PACOTE_CATALOGO#' },
+            ExpressionAttributeValues: { ':pk': `TENANT#${TENANT}`, ':sk': 'PACOTE_CATALOGO#' },
           })),
         ]);
         catalogoItens = (itensRes.Items || []).filter(i => i.ativo !== false);
@@ -363,7 +363,7 @@ router.get('/:id/editar', async (req, res) => {
         const tenantRes = await dynamo.send(new QueryCommand({
           TableName: TABLE,
           KeyConditionExpression: 'PK = :pk AND begins_with(SK, :sk)',
-          ExpressionAttributeValues: { ':pk': `PHOTOGRAPHER#${photographerId}`, ':sk': 'CONFIG#' },
+          ExpressionAttributeValues: { ':pk': `TENANT#${TENANT}`, ':sk': 'CONFIG#' },
         }));
         for (const c of (tenantRes.Items || [])) {
           if (c.chave === 'max_desconto') configTenant.max_desconto = Number(c.valor) || 30;

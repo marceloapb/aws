@@ -9,6 +9,7 @@ const emailService = require('../services/emailService');
 const client = new DynamoDBClient({});
 const docClient = DynamoDBDocumentClient.from(client);
 const TABLE_NAME = process.env.TABLE_NAME;
+const TENANT = process.env.TENANT_ID || 'default';
 
 // GET /admin/feedback - Listar todos os feedbacks
 // Frontend espera: { success: true, data: [...feedbacks], resumo: { total_orcamentos, ... } }
@@ -21,7 +22,7 @@ router.get('/', async (req, res) => {
       TableName: TABLE_NAME,
       KeyConditionExpression: 'PK = :pk AND begins_with(SK, :sk)',
       ExpressionAttributeValues: {
-        ':pk': `PHOTOGRAPHER#${photographerId}`,
+        ':pk': `TENANT#${TENANT}`,
         ':sk': 'FEEDBACK#'
       }
     }));
@@ -48,7 +49,7 @@ router.get('/', async (req, res) => {
         TableName: TABLE_NAME,
         KeyConditionExpression: 'PK = :pk AND begins_with(SK, :sk)',
         ExpressionAttributeValues: {
-          ':pk': `PHOTOGRAPHER#${photographerId}`,
+          ':pk': `TENANT#${TENANT}`,
           ':sk': 'ORCAMENTO#'
         },
         Select: 'COUNT'
@@ -81,7 +82,7 @@ router.get('/recusas', async (req, res) => {
       TableName: TABLE_NAME,
       KeyConditionExpression: 'PK = :pk AND begins_with(SK, :sk)',
       ExpressionAttributeValues: {
-        ':pk': `PHOTOGRAPHER#${photographerId}`,
+        ':pk': `TENANT#${TENANT}`,
         ':sk': 'RECUSA#'
       }
     }));
@@ -122,7 +123,7 @@ router.post('/recusas/enviar', async (req, res) => {
     try {
       const orcResult = await docClient.send(new GetCommand({
         TableName: TABLE_NAME,
-        Key: { PK: `PHOTOGRAPHER#${photographerId}`, SK: `ORCAMENTO#${orcamento_id}` }
+        Key: { PK: `TENANT#${TENANT}`, SK: `ORCAMENTO#${orcamento_id}` }
       }));
       if (orcResult.Item) {
         clienteNome = orcResult.Item.clienteNome || orcResult.Item.cliente_nome || '';
@@ -133,7 +134,7 @@ router.post('/recusas/enviar', async (req, res) => {
     }
 
     const item = {
-      PK: `PHOTOGRAPHER#${photographerId}`,
+      PK: `TENANT#${TENANT}`,
       SK: `RECUSA#${id}`,
       id,
       photographerId,
@@ -171,7 +172,7 @@ router.get('/export/:tipo', async (req, res) => {
         TableName: TABLE_NAME,
         KeyConditionExpression: 'PK = :pk AND begins_with(SK, :sk)',
         ExpressionAttributeValues: {
-          ':pk': `PHOTOGRAPHER#${photographerId}`,
+          ':pk': `TENANT#${TENANT}`,
           ':sk': 'FEEDBACK#'
         }
       }));
@@ -190,7 +191,7 @@ router.get('/export/:tipo', async (req, res) => {
         TableName: TABLE_NAME,
         KeyConditionExpression: 'PK = :pk AND begins_with(SK, :sk)',
         ExpressionAttributeValues: {
-          ':pk': `PHOTOGRAPHER#${photographerId}`,
+          ':pk': `TENANT#${TENANT}`,
           ':sk': 'RECUSA#'
         }
       }));
@@ -222,7 +223,7 @@ router.get('/:id', async (req, res) => {
 
     const result = await docClient.send(new GetCommand({
       TableName: TABLE_NAME,
-      Key: { PK: `PHOTOGRAPHER#${photographerId}`, SK: `FEEDBACK#${id}` }
+      Key: { PK: `TENANT#${TENANT}`, SK: `FEEDBACK#${id}` }
     }));
 
     if (!result.Item) {
@@ -329,7 +330,7 @@ router.put('/:id/aprovar', async (req, res) => {
 
     const current = await docClient.send(new GetCommand({
       TableName: TABLE_NAME,
-      Key: { PK: `PHOTOGRAPHER#${photographerId}`, SK: `FEEDBACK#${id}` }
+      Key: { PK: `TENANT#${TENANT}`, SK: `FEEDBACK#${id}` }
     }));
 
     if (!current.Item) {
@@ -347,7 +348,7 @@ router.put('/:id/aprovar', async (req, res) => {
 
     const result = await docClient.send(new UpdateCommand({
       TableName: TABLE_NAME,
-      Key: { PK: `PHOTOGRAPHER#${photographerId}`, SK: `FEEDBACK#${id}` },
+      Key: { PK: `TENANT#${TENANT}`, SK: `FEEDBACK#${id}` },
       UpdateExpression: updateExpression,
       ExpressionAttributeValues: expressionValues,
       ReturnValues: 'ALL_NEW'
@@ -369,7 +370,7 @@ router.post('/:id/lembrete', async (req, res) => {
 
     const current = await docClient.send(new GetCommand({
       TableName: TABLE_NAME,
-      Key: { PK: `PHOTOGRAPHER#${photographerId}`, SK: `FEEDBACK#${id}` }
+      Key: { PK: `TENANT#${TENANT}`, SK: `FEEDBACK#${id}` }
     }));
 
     if (!current.Item) {
@@ -395,7 +396,7 @@ router.post('/:id/lembrete', async (req, res) => {
     // Marcar lembrete como enviado
     await docClient.send(new UpdateCommand({
       TableName: TABLE_NAME,
-      Key: { PK: `PHOTOGRAPHER#${photographerId}`, SK: `FEEDBACK#${id}` },
+      Key: { PK: `TENANT#${TENANT}`, SK: `FEEDBACK#${id}` },
       UpdateExpression: 'SET lembrete_enviado = :val, lembrete_enviado_em = :data',
       ExpressionAttributeValues: {
         ':val': true,
@@ -420,7 +421,7 @@ router.patch('/:id/autorizar', async (req, res) => {
 
     const current = await docClient.send(new GetCommand({
       TableName: TABLE_NAME,
-      Key: { PK: `PHOTOGRAPHER#${photographerId}`, SK: `FEEDBACK#${id}` }
+      Key: { PK: `TENANT#${TENANT}`, SK: `FEEDBACK#${id}` }
     }));
 
     if (!current.Item) {
@@ -431,7 +432,7 @@ router.patch('/:id/autorizar', async (req, res) => {
 
     const result = await docClient.send(new UpdateCommand({
       TableName: TABLE_NAME,
-      Key: { PK: `PHOTOGRAPHER#${photographerId}`, SK: `FEEDBACK#${id}` },
+      Key: { PK: `TENANT#${TENANT}`, SK: `FEEDBACK#${id}` },
       UpdateExpression: 'SET autorizado = :autorizado',
       ExpressionAttributeValues: { ':autorizado': novoStatus },
       ReturnValues: 'ALL_NEW'

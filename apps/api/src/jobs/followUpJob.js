@@ -6,6 +6,7 @@ const logger = require('../config/logger');
 const client = new DynamoDBClient({});
 const docClient = DynamoDBDocumentClient.from(client);
 const TABLE_NAME = process.env.TABLE_NAME;
+const TENANT = process.env.TENANT_ID || 'default';
 
 // Prazos configuráveis (em dias)
 const PRAZOS = {
@@ -22,7 +23,7 @@ async function pendenciaJaExiste(photographerId, tipo, referenciaId) {
     TableName: TABLE_NAME,
     KeyConditionExpression: 'PK = :pk AND begins_with(SK, :sk)',
     ExpressionAttributeValues: {
-      ':pk': `PHOTOGRAPHER#${photographerId}`,
+      ':pk': `TENANT#${TENANT}`,
       ':sk': 'PENDENCIA#'
     }
   }));
@@ -42,7 +43,7 @@ async function criarPendencia(photographerId, { tipo, titulo, descricao, referen
   const now = new Date().toISOString();
 
   const item = {
-    PK: `PHOTOGRAPHER#${photographerId}`,
+    PK: `TENANT#${TENANT}`,
     SK: `PENDENCIA#${id}`,
     id,
     photographerId,
@@ -73,7 +74,7 @@ async function checkCobrancasAtrasadas(photographerId, hoje) {
     TableName: TABLE_NAME,
     KeyConditionExpression: 'PK = :pk AND begins_with(SK, :sk)',
     ExpressionAttributeValues: {
-      ':pk': `PHOTOGRAPHER#${photographerId}`,
+      ':pk': `TENANT#${TENANT}`,
       ':sk': 'COBRANCA#'
     }
   }));
@@ -130,7 +131,7 @@ async function checkFeedbackPendente(photographerId, hoje) {
     TableName: TABLE_NAME,
     KeyConditionExpression: 'PK = :pk AND begins_with(SK, :sk)',
     ExpressionAttributeValues: {
-      ':pk': `PHOTOGRAPHER#${photographerId}`,
+      ':pk': `TENANT#${TENANT}`,
       ':sk': 'ALBUM#'
     }
   }));
@@ -173,7 +174,7 @@ async function checkEventosProximos(photographerId, hoje) {
     TableName: TABLE_NAME,
     KeyConditionExpression: 'PK = :pk AND begins_with(SK, :sk)',
     ExpressionAttributeValues: {
-      ':pk': `PHOTOGRAPHER#${photographerId}`,
+      ':pk': `TENANT#${TENANT}`,
       ':sk': 'AGENDA#'
     }
   }));

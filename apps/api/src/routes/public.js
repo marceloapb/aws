@@ -10,6 +10,7 @@ const cloudfrontService = require('../services/cloudfrontService');
 const client = new DynamoDBClient({});
 const docClient = DynamoDBDocumentClient.from(client);
 const TABLE_NAME = process.env.TABLE_NAME;
+const TENANT = process.env.TENANT_ID || 'default';
 
 // GET /public/portfolio/:photographerId - Fotos publicadas
 router.get('/portfolio/:photographerId', async (req, res) => {
@@ -21,7 +22,7 @@ router.get('/portfolio/:photographerId', async (req, res) => {
       TableName: TABLE_NAME,
       KeyConditionExpression: 'PK = :pk AND begins_with(SK, :sk)',
       ExpressionAttributeValues: {
-        ':pk': `PHOTOGRAPHER#${photographerId}`,
+        ':pk': `TENANT#${TENANT}`,
         ':sk': 'ALBUM#'
       }
     }));
@@ -61,7 +62,7 @@ router.get('/pacotes/:photographerId', async (req, res) => {
       TableName: TABLE_NAME,
       KeyConditionExpression: 'PK = :pk AND begins_with(SK, :sk)',
       ExpressionAttributeValues: {
-        ':pk': `PHOTOGRAPHER#${photographerId}`,
+        ':pk': `TENANT#${TENANT}`,
         ':sk': 'CATALOGO#'
       }
     }));
@@ -97,7 +98,7 @@ router.get('/depoimentos/:photographerId', async (req, res) => {
       TableName: TABLE_NAME,
       KeyConditionExpression: 'PK = :pk AND begins_with(SK, :sk)',
       ExpressionAttributeValues: {
-        ':pk': `PHOTOGRAPHER#${photographerId}`,
+        ':pk': `TENANT#${TENANT}`,
         ':sk': 'FEEDBACK#'
       }
     }));
@@ -133,7 +134,7 @@ router.get('/perfil/:photographerId', async (req, res) => {
       TableName: TABLE_NAME,
       KeyConditionExpression: 'PK = :pk AND begins_with(SK, :sk)',
       ExpressionAttributeValues: {
-        ':pk': `PHOTOGRAPHER#${photographerId}`,
+        ':pk': `TENANT#${TENANT}`,
         ':sk': 'PROFILE#'
       }
     }));
@@ -183,9 +184,9 @@ router.post('/contato', async (req, res) => {
 
     // Salvar lead no DynamoDB
     const item = {
-      PK: `PHOTOGRAPHER#${photographerId}`,
+      PK: `TENANT#${TENANT}`,
       SK: `LEAD#${id}`,
-      GSI1PK: `PHOTOGRAPHER#${photographerId}`,
+      GSI1PK: `TENANT#${TENANT}`,
       GSI1SK: `LEAD#${now}`,
       id,
       photographerId,
@@ -208,7 +209,7 @@ router.post('/contato', async (req, res) => {
         TableName: TABLE_NAME,
         KeyConditionExpression: 'PK = :pk AND begins_with(SK, :sk)',
         ExpressionAttributeValues: {
-          ':pk': `PHOTOGRAPHER#${photographerId}`,
+          ':pk': `TENANT#${TENANT}`,
           ':sk': 'PROFILE#'
         }
       }));

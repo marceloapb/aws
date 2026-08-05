@@ -2,7 +2,7 @@ const { dynamo, TABLE } = require('../config/dynamodb');
 const { QueryCommand, UpdateCommand } = require('@aws-sdk/lib-dynamodb');
 const { enviarLembreteEvento, enviarLembreteAdmin } = require('../services/whatsappService');
 
-const TENANT = process.env.TENANT_ID || '1';
+const TENANT = process.env.TENANT_ID || 'default';
 
 /**
  * Busca o telefone do admin nas configurações do tenant
