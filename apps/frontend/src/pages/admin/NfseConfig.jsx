@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
-import { Shield, Upload, CheckCircle, Save, AlertCircle } from 'lucide-react';
+import { Shield, Upload, CheckCircle, Save, AlertCircle, Zap } from 'lucide-react';
 
 const ACCENT = '#EA580C';
 
@@ -8,14 +8,16 @@ export default function NfseConfig() {
   const { authFetch } = useAuth();
   const [config, setConfig] = useState({
     cnpj: '', inscricao_municipal: '', razao_social: '', nome_fantasia: '',
-    codigo_servico: '09911', descricao_servico_padrao: 'Serviços fotográficos profissionais',
-    aliquota: 2, ambiente: 'homologacao', regime_tributario: 'simples_nacional',
-    endereco: { logradouro: '', numero: '', complemento: '', bairro: '', cidade: 'São Paulo', uf: 'SP', cep: '' },
+    cnae: '7420-0/01', codigo_trib_nacional: '13.03.01.00', serie: 'NFSE',
+    descricao_servico_padrao: 'Cobertura fotográfica profissional de evento social.',
+    ambiente: '2', regime_tributario: 'mei', emissao_automatica: true,
+    codigo_municipio: '3550308', uf: 'SP',
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState('');
   const [temCertificado, setTemCertificado] = useState(false);
+  const [certInfo, setCertInfo] = useState(null);
   const [uploadingCert, setUploadingCert] = useState(false);
   const [certSenha, setCertSenha] = useState('');
 
@@ -26,9 +28,26 @@ export default function NfseConfig() {
       const res = await authFetch('/admin/nfse/config');
       if (res.ok) {
         const json = await res.json();
-        if (json.success && json.data?.configurado) {
-          setConfig(prev => ({ ...prev, ...json.data }));
-          setTemCertificado(!!json.data.tem_certificado);
+        if (json.success && json.data) {
+          const d = json.data;
+          setConfig(prev => ({
+            ...prev,
+            cnpj: d.cnpj || prev.cnpj,
+            inscricao_municipal: d.inscricao_municipal || prev.inscricao_municipal,
+            razao_social: d.razao_social || prev.razao_social,
+            nome_fantasia: d.nome_fantasia || prev.nome_fantasia,
+            cnae: d.cnae || prev.cnae,
+            codigo_trib_nacional: d.codigo_trib_nacional || prev.codigo_trib_nacional,
+            serie: d.serie || prev.serie,
+            descricao_servico_padrao: d.descricao_servico_padrao || prev.descricao_servico_padrao,
+            ambiente: d.ambiente || prev.ambiente,
+            regime_tributario: d.regime_tributario || prev.regime_tributario,
+            emissao_automatica: d.emissao_automatica !== false,
+            codigo_municipio: d.codigo_municipio || prev.codigo_municipio,
+            uf: d.uf || prev.uf,
+          }));
+          setTemCertificado(!!d.tem_certificado);
+          if (d.cert_info) setCertInfo(d.cert_info);
         }
       }
     } catch {}
@@ -59,20 +78,23 @@ export default function NfseConfig() {
         reader.onload = () => resolve(reader.result.split(',')[1]);
         reader.readAsDataURL(file);
       });
-      const res = await authFetch('/admin/nfse/upload-certificado', {
+      const res = await authFetch('/admin/nfse/certificado', {
         method: 'POST',
-        body: JSON.stringify({ certificado_base64: base64, senha: certSenha, filename: file.name }),
+        body: JSON.stringify({ pfx_base64: base64, passphrase: certSenha }),
       });
       const json = await res.json();
-      if (json.success) { setTemCertificado(true); setMsg('Certificado enviado com sucesso!'); }
-      else setMsg('Erro: ' + json.message);
+      if (json.success) {
+        setTemCertificado(true);
+        if (json.data) setCertInfo(json.data);
+        setMsg('Certificado enviado com sucesso!');
+      } else setMsg('Erro: ' + json.message);
     } catch { setMsg('Erro ao enviar certificado'); }
     setUploadingCert(false);
+    e.target.value = '';
     setTimeout(() => setMsg(''), 4000);
   };
 
   const handleChange = (e) => setConfig({ ...config, [e.target.name]: e.target.value });
-  const handleEndereco = (e) => setConfig({ ...config, endereco: { ...config.endereco, [e.target.name]: e.target.value } });
 
   if (loading) return <div className="flex items-center justify-center py-20 text-gray-400">Carregando...</div>;
 
@@ -83,7 +105,7 @@ export default function NfseConfig() {
           <Shield size={24} style={{ color: ACCENT }} />
           <div>
             <h1 className="text-xl font-semibold text-gray-900">Configuração NFS-e</h1>
-            <p className="text-sm text-gray-500">Emissão via Prefeitura de São Paulo (NF Paulistana)</p>
+            <p className="text-sm text-gray-500">Emissão automática — Padrão Nacional (SEFIN)</p>
           </div>
         </div>
         <button onClick={handleSave} disabled={saving} style={{ background: ACCENT }}
@@ -94,17 +116,46 @@ export default function NfseConfig() {
 
       {msg && <div className={`p-3 rounded-lg text-sm ${msg.includes('sucesso') ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-red-50 text-red-700 border border-red-200'}`}>{msg}</div>}
 
+      {/* Emissão Automática */}
+      <div className="bg-white rounded-xl border p-5">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <Zap size={18} style={{ color: ACCENT }} />
+            <div>
+              <h3 className="text-base font-semibold text-gray-900">Emissão Automática</h3>
+              <p className="text-sm text-gray-500">Emitir NFS-e automaticamente quando um pagamento é confirmado</p>
+            </div>
+          </div>
+          <label className="relative inline-flex items-center cursor-pointer">
+            <input type="checkbox" checked={config.emissao_automatica}
+              onChange={e => setConfig({ ...config, emissao_automatica: e.target.checked })}
+              className="sr-only peer" />
+            <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-orange-100 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-orange-500"></div>
+          </label>
+        </div>
+      </div>
+
       {/* Certificado Digital */}
       <div className="bg-white rounded-xl border p-5 space-y-4">
         <h3 className="text-base font-semibold text-gray-900 flex items-center gap-2">
-          <Upload size={18} style={{ color: ACCENT }} /> Certificado Digital A1
+          <Upload size={18} style={{ color: ACCENT }} /> Certificado Digital e-CNPJ A1
         </h3>
 
         <div className="flex items-center gap-3 p-4 rounded-lg bg-gray-50 border">
           {temCertificado ? (
-            <><CheckCircle size={20} className="text-green-500" /><span className="text-sm text-green-700 font-medium">Certificado carregado ✓</span></>
+            <div className="flex items-center gap-2">
+              <CheckCircle size={20} className="text-green-500" />
+              <div>
+                <span className="text-sm text-green-700 font-medium">Certificado carregado ✓</span>
+                {certInfo && (
+                  <p className="text-xs text-gray-500 mt-0.5">
+                    {certInfo.subject} • Valido até {certInfo.validade ? new Date(certInfo.validade).toLocaleDateString('pt-BR') : '—'}
+                  </p>
+                )}
+              </div>
+            </div>
           ) : (
-            <><AlertCircle size={20} className="text-yellow-500" /><span className="text-sm text-yellow-700">Nenhum certificado configurado</span></>
+            <><AlertCircle size={20} className="text-yellow-500" /><span className="text-sm text-yellow-700">Nenhum certificado configurado — necessário para assinar as notas</span></>
           )}
         </div>
 
@@ -125,75 +176,73 @@ export default function NfseConfig() {
       {/* Dados do Prestador */}
       <div className="bg-white rounded-xl border p-5 space-y-4">
         <h3 className="text-base font-semibold text-gray-900">Dados do Prestador</h3>
+        <p className="text-xs text-gray-400">Puxados automaticamente dos Dados da Empresa. Altere aqui apenas para sobrescrever.</p>
 
         <div className="grid md:grid-cols-2 gap-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">CNPJ *</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">CNPJ</label>
             <input name="cnpj" value={config.cnpj} onChange={handleChange}
-              placeholder="00.000.000/0000-00" className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-orange-200 outline-none" />
+              placeholder="Preenchido automaticamente" className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-orange-200 outline-none" />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Inscrição Municipal (CCM) *</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Inscrição Municipal (CCM)</label>
             <input name="inscricao_municipal" value={config.inscricao_municipal} onChange={handleChange}
-              placeholder="00000000" className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-orange-200 outline-none" />
+              placeholder="Opcional para MEI" className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-orange-200 outline-none" />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Razão Social *</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Razão Social</label>
             <input name="razao_social" value={config.razao_social} onChange={handleChange}
-              className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-orange-200 outline-none" />
+              placeholder="Preenchido automaticamente" className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-orange-200 outline-none" />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Nome Fantasia</label>
-            <input name="nome_fantasia" value={config.nome_fantasia} onChange={handleChange}
-              className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-orange-200 outline-none" />
+            <label className="block text-sm font-medium text-gray-700 mb-1">Código Município IBGE</label>
+            <input name="codigo_municipio" value={config.codigo_municipio} onChange={handleChange}
+              placeholder="3550308 (São Paulo)" className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-orange-200 outline-none" />
           </div>
         </div>
       </div>
 
       {/* Configuração Fiscal */}
       <div className="bg-white rounded-xl border p-5 space-y-4">
-        <h3 className="text-base font-semibold text-gray-900">Configuração Fiscal</h3>
+        <h3 className="text-base font-semibold text-gray-900">Tributação</h3>
 
         <div className="grid md:grid-cols-3 gap-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Código de Serviço</label>
-            <input name="codigo_servico" value={config.codigo_servico} onChange={handleChange}
-              placeholder="09911" className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-orange-200 outline-none" />
-            <p className="text-xs text-gray-400 mt-1">09911 = Serviços de fotografia</p>
+            <label className="block text-sm font-medium text-gray-700 mb-1">CNAE</label>
+            <input name="cnae" value={config.cnae} onChange={handleChange}
+              placeholder="7420-0/01" className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-orange-200 outline-none" />
+            <p className="text-xs text-gray-400 mt-1">Fotografia: 7420-0/01</p>
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Alíquota ISS (%)</label>
-            <input name="aliquota" type="number" step="0.01" min="0" max="5" value={config.aliquota} onChange={handleChange}
-              className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-orange-200 outline-none" />
+            <label className="block text-sm font-medium text-gray-700 mb-1">Código Tributação Nacional</label>
+            <input name="codigo_trib_nacional" value={config.codigo_trib_nacional} onChange={handleChange}
+              placeholder="13.03.01.00" className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-orange-200 outline-none" />
+            <p className="text-xs text-gray-400 mt-1">Item 13.03 LC 116</p>
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Regime Tributário</label>
-            <select name="regime_tributario" value={config.regime_tributario} onChange={handleChange}
-              className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-orange-200 outline-none">
-              <option value="simples_nacional">Simples Nacional</option>
-              <option value="lucro_presumido">Lucro Presumido</option>
-              <option value="lucro_real">Lucro Real</option>
-              <option value="mei">MEI</option>
-            </select>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Série DPS</label>
+            <input name="serie" value={config.serie} onChange={handleChange}
+              placeholder="NFSE" maxLength={5} className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-orange-200 outline-none" />
           </div>
         </div>
 
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Descrição Padrão do Serviço</label>
           <textarea name="descricao_servico_padrao" value={config.descricao_servico_padrao} onChange={handleChange} rows={2}
+            placeholder="Texto que será usado na NFS-e quando não houver descrição específica na cobrança"
             className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-orange-200 outline-none resize-none" />
         </div>
 
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Ambiente</label>
           <div className="flex gap-3">
-            <button type="button" onClick={() => setConfig({ ...config, ambiente: 'homologacao' })}
-              className={`px-4 py-2 rounded-lg text-sm font-medium border ${config.ambiente === 'homologacao' ? 'border-yellow-300 bg-yellow-50 text-yellow-700' : 'border-gray-200 text-gray-500'}`}>
-              Homologação (teste)
+            <button type="button" onClick={() => setConfig({ ...config, ambiente: '2' })}
+              className={`px-4 py-2 rounded-lg text-sm font-medium border transition-colors ${config.ambiente === '2' ? 'border-yellow-300 bg-yellow-50 text-yellow-700' : 'border-gray-200 text-gray-500 hover:bg-gray-50'}`}>
+              🧪 Homologação
             </button>
-            <button type="button" onClick={() => setConfig({ ...config, ambiente: 'producao' })}
-              className={`px-4 py-2 rounded-lg text-sm font-medium border ${config.ambiente === 'producao' ? 'border-green-300 bg-green-50 text-green-700' : 'border-gray-200 text-gray-500'}`}>
-              Produção
+            <button type="button" onClick={() => setConfig({ ...config, ambiente: '1' })}
+              className={`px-4 py-2 rounded-lg text-sm font-medium border transition-colors ${config.ambiente === '1' ? 'border-green-300 bg-green-50 text-green-700' : 'border-gray-200 text-gray-500 hover:bg-gray-50'}`}>
+              🚀 Produção
             </button>
           </div>
         </div>
@@ -202,7 +251,7 @@ export default function NfseConfig() {
       {/* Info */}
       <div className="p-4 rounded-lg bg-blue-50 border border-blue-200">
         <p className="text-sm text-blue-700">
-          💡 <strong>Como funciona:</strong> O sistema envia o RPS (Recibo Provisório de Serviço) assinado digitalmente para o web service da Prefeitura de SP. A NFS-e é gerada automaticamente e o PDF fica disponível para download. Use "Homologação" para testar sem emitir notas reais.
+          💡 <strong>Padrão Nacional NFS-e:</strong> O sistema gera a DPS (Declaração de Prestação de Serviço), assina com o certificado A1 e envia para a SEFIN Nacional. A NFS-e é autorizada automaticamente. MEI não paga ISS avulso por nota (pago via DAS fixo mensal). Use "Homologação" para testar.
         </p>
       </div>
     </div>

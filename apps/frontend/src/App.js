@@ -59,7 +59,6 @@ const ComunicacaoMensagens = MensagensSistema;
 import MeuPerfil from './pages/admin/MeuPerfil';
 import TrocarSenha from './pages/admin/TrocarSenha';
 import GatewayConfig from './pages/admin/GatewayConfig';
-import ConfigNFSe from './pages/admin/ConfigNFSe';
 
 import IntegracoesLogs from './pages/admin/IntegracoesLogs';
 import Integracoes from './pages/admin/Integracoes';
@@ -167,7 +166,6 @@ function App() {
         {/* Financeiro */}
         <Route path="financeiro" element={<Financeiro />} />
         <Route path="gateway" element={<GatewayConfig />} />
-        <Route path="nfse" element={<ConfigNFSe />} />
 
         {/* Álbuns */}
         <Route path="albuns" element={<Albuns />} />
