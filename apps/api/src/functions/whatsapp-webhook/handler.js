@@ -96,6 +96,24 @@ async function handleNotification(event) {
           },
         }));
 
+        // Atualizar/criar registro de conversa para a aba Conversas
+        const now = new Date().toISOString();
+        const nomeContato = value.contacts?.[0]?.profile?.name || msg.from;
+        await ddb.send(new PutCommand({
+          TableName: TABLE,
+          Item: {
+            PK: `WHATSAPP#${msg.from}`,
+            SK: 'CONVERSA',
+            GSI1PK: 'WA_CONVERSA',
+            GSI1SK: `WA_CONVERSA#${now}`,
+            clienteId: msg.from,
+            nome: nomeContato,
+            ultimaMensagem: msg.text?.body || `[${msg.type}]`,
+            ultimoTimestamp: now,
+            naoLidas: 1,
+          },
+        }));
+
         // Disparar evento mensagem_recebida para regras de notificação
         try {
           const { processarEvento } = require('../../services/notificationDispatcher');
