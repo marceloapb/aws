@@ -372,18 +372,29 @@ router.get('/envios', async (req, res) => {
 router.get('/templates', async (req, res) => {
   try {
     const [metaTemplates, metadata] = await Promise.all([
-      getTemplatesFromMeta(),
+      getTemplatesFromMeta().catch(() => []),
       getAllTemplateMetadata(),
     ]);
 
-    // Mapear para formato do frontend
+    // Buscar templates locais do DynamoDB (WA_TPL#)
+    const localResult = await dynamo.send(new QueryCommand({
+      TableName: TABLE,
+      KeyConditionExpression: 'PK = :pk AND begins_with(SK, :sk)',
+      ExpressionAttributeValues: { ':pk': `TENANT#${TENANT_ID()}`, ':sk': 'WA_TPL#' },
+    }));
+    const localTemplates = localResult.Items || [];
+    const localByName = {};
+    for (const lt of localTemplates) { localByName[lt.name] = lt; }
+
+    // Mapear templates da Meta
+    const metaNames = new Set();
     const templates = metaTemplates.map(t => {
+      metaNames.add(t.name);
       const headerComp = t.components?.find(c => c.type === 'HEADER');
       const bodyComp = t.components?.find(c => c.type === 'BODY');
       const footerComp = t.components?.find(c => c.type === 'FOOTER');
       const buttonsComp = t.components?.find(c => c.type === 'BUTTONS');
 
-      // Extrair variáveis do body
       const varMatches = bodyComp?.text?.match(/\{\{\d+\}\}/g) || [];
       const variaveis = varMatches.map((v, i) => ({
         indice: i + 1,
@@ -391,7 +402,6 @@ router.get('/templates', async (req, res) => {
         exemplo: bodyComp?.example?.body_text?.[0]?.[i] || '',
       }));
 
-      // Header info
       let header = null;
       if (headerComp) {
         if (headerComp.format === 'IMAGE') {
@@ -401,8 +411,8 @@ router.get('/templates', async (req, res) => {
         }
       }
 
-      // Timestamp do metadata local
       const meta = metadata[t.name] || {};
+      const local = localByName[t.name] || {};
 
       return {
         id: t.id,
@@ -411,14 +421,39 @@ router.get('/templates', async (req, res) => {
         categoria: t.category?.toLowerCase() || 'utility',
         idioma: t.language || 'pt_BR',
         corpo: bodyComp?.text || '',
-        variaveis,
+        variaveis: local.variaveis || variaveis,
         header,
         footer: footerComp?.text || '',
         botoes: buttonsComp?.buttons || [],
-        updated_at: meta.updated_at || null,
-        created_at: meta.created_at || null,
+        updated_at: meta.updated_at || local.updated_at || null,
+        created_at: meta.created_at || local.created_at || null,
+        header_image_key: local.header_image_key || null,
       };
     });
+
+    // Adicionar templates locais que NÃO estão na Meta (rascunhos)
+    for (const lt of localTemplates) {
+      if (metaNames.has(lt.name)) continue;
+      const varMatches = lt.body?.match(/\{\{\d+\}\}/g) || [];
+      templates.push({
+        id: null,
+        nome: lt.name,
+        status: lt.status || 'rascunho',
+        categoria: lt.category?.toLowerCase() || 'utility',
+        idioma: lt.language || 'pt_BR',
+        corpo: lt.body || '',
+        variaveis: lt.variaveis || varMatches.map((v, i) => ({ indice: i + 1, descricao: '', exemplo: '' })),
+        header: lt.header_type === 'IMAGE' ? { tipo: 'image', exemplo_url: lt.header_image_url || '' } : null,
+        footer: lt.footer || '',
+        botoes: [],
+        updated_at: lt.updated_at || null,
+        created_at: lt.created_at || null,
+        header_image_key: lt.header_image_key || null,
+      });
+    }
+
+    // Ordenar por nome
+    templates.sort((a, b) => a.nome.localeCompare(b.nome));
 
     res.json({ success: true, data: templates });
   } catch (error) {

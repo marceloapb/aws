@@ -448,6 +448,12 @@ export default function WhatsApp() {
                 <p className="text-xs text-gray-500 mt-1 font-medium">📌 {t.header.texto}</p>
               )}
               {t.footer && <p className="text-xs text-gray-400 mt-1">{t.footer}</p>}
+              {(t.created_at || t.updated_at) && (
+                <p className="text-[10px] text-gray-400 mt-2">
+                  {t.created_at && `Criado: ${new Date(t.created_at).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' })}`}
+                  {t.updated_at && t.updated_at !== t.created_at && ` | Atualizado: ${new Date(t.updated_at).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' })}`}
+                </p>
+              )}
               {t.botoes?.length > 0 && (
                 <div className="flex gap-2 mt-2">
                   {t.botoes.map((b, i) => (
