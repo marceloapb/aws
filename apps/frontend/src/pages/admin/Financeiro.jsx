@@ -149,15 +149,24 @@ export default function Financeiro() {
     if (!payload.dia_vencimento) delete payload.dia_vencimento;
     if (!payload.data_inicio) delete payload.data_inicio;
 
-    await authFetch(`/admin/financeiro/despesas`, { method: 'POST', body: JSON.stringify(payload) });
-    setModalNovaDespesa(false);
-    setFormDespesa({
-      descricao: '', valor: '', categoria: 'Outros', data: '', evento_id: '',
-      recorrente: false, recorrencia: 'mensal',
-      fornecedor: '', forma_pagamento: '', observacoes: '',
-      dia_vencimento: '', data_inicio: '', data_fim: '', qtd_repeticoes: '', sem_fim: true,
-    });
-    fetchData();
+    try {
+      const resp = await authFetch(`/admin/financeiro/despesas`, { method: 'POST', body: JSON.stringify(payload) });
+      const data = await resp.json();
+      if (!resp.ok || !data.success) {
+        alert('Erro ao criar despesa: ' + (data.error || data.message || 'Erro desconhecido'));
+        return;
+      }
+      setModalNovaDespesa(false);
+      setFormDespesa({
+        descricao: '', valor: '', categoria: 'Outros', data: '', evento_id: '',
+        recorrente: false, recorrencia: 'mensal',
+        fornecedor: '', forma_pagamento: '', observacoes: '',
+        dia_vencimento: '', data_inicio: '', data_fim: '', qtd_repeticoes: '', sem_fim: true,
+      });
+      fetchData();
+    } catch (err) {
+      alert('Erro ao criar despesa: ' + err.message);
+    }
   };
 
   const criarEntrada = async () => {
