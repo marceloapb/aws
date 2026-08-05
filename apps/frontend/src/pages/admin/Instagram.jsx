@@ -376,200 +376,194 @@ export default function Instagram() {
             </button>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
-            {/* Left: Seleção de fotos + Caption (3/5 = 60%) */}
-            <div className="lg:col-span-3 space-y-4">
-              <h3 className="text-sm font-semibold text-gray-700">Selecionar Fotos {tipoPost === 'carrossel' && `(${selectedPhotos.length}/10)`}</h3>
-              {/* Selecionar álbum primeiro */}
-              <select value={selectedAlbumId || ''} onChange={async (e) => {
-                setSelectedAlbumId(e.target.value);
-                setSelectedPhotos([]);
-                if (e.target.value) {
-                  try { const r = await authFetch(`/admin/albuns/${e.target.value}`); const d = await r.json(); setAlbumFotos(d.data?.fotos || d.fotos || []); } catch { setAlbumFotos([]); }
-                } else { setAlbumFotos([]); }
-              }} className="w-full border rounded-lg px-3 py-2 text-sm">
-                <option value="">Selecione um álbum...</option>
-                {[...albuns].sort((a, b) => (b.data_evento || b.created || '').localeCompare(a.data_evento || a.created || '')).map(a => {
-                  const dataEvt = a.data_evento ? new Date(a.data_evento).toLocaleDateString('pt-BR') : '';
-                  const label = [dataEvt, a.cliente_nome, a.titulo].filter(Boolean).join(' — ');
-                  return <option key={a.id} value={a.id}>{label}</option>;
-                })}
-              </select>
-              {/* Grid de fotos do álbum selecionado */}
-              <div className="grid grid-cols-5 sm:grid-cols-6 gap-2 max-h-52 overflow-y-auto border rounded-lg p-2">
-                {albumFotos.length === 0 && <p className="col-span-6 text-center text-xs text-gray-400 py-4">{selectedAlbumId ? 'Nenhuma foto neste álbum' : 'Selecione um álbum acima'}</p>}
-                {albumFotos.map((foto, i) => {
-                  const fotoId = foto.id || foto.SK?.replace('FOTO#', '');
-                  return (
-                  <div key={i} onClick={() => togglePhoto(fotoId)} className={`relative cursor-pointer rounded-lg overflow-hidden border-2 ${selectedPhotos.includes(fotoId) ? 'border-[#EA580C]' : 'border-transparent'}`}>
-                    <img src={foto.url_thumb || foto.url || ''} alt="" className="w-full h-16 object-cover" />
-                    {selectedPhotos.includes(fotoId) && (
-                      <div className="absolute inset-0 bg-orange-500/30 flex items-center justify-center">
-                        <CheckCircle size={18} className="text-white" />
-                      </div>
-                    )}
-                  </div>
-                  );
-                })}
+          <div className="grid grid-cols-1 xl:grid-cols-10 gap-5">
+            {/* ═══ AREA PRINCIPAL (80% = 8/10 cols) ═══ */}
+            <div className="xl:col-span-8 space-y-4">
+              {/* Seleção de fotos */}
+              <div>
+                <h3 className="text-sm font-semibold text-gray-700 mb-2">Selecionar Fotos {tipoPost === 'carrossel' && `(${selectedPhotos.length}/10)`}</h3>
+                <select value={selectedAlbumId || ''} onChange={async (e) => {
+                  setSelectedAlbumId(e.target.value);
+                  setSelectedPhotos([]);
+                  if (e.target.value) {
+                    try { const r = await authFetch(`/admin/albuns/${e.target.value}`); const d = await r.json(); setAlbumFotos(d.data?.fotos || d.fotos || []); } catch { setAlbumFotos([]); }
+                  } else { setAlbumFotos([]); }
+                }} className="w-full border rounded-lg px-3 py-2 text-sm mb-2">
+                  <option value="">Selecione um álbum...</option>
+                  {[...albuns].sort((a, b) => (b.data_evento || b.created || '').localeCompare(a.data_evento || a.created || '')).map(a => {
+                    const dataEvt = a.data_evento ? new Date(a.data_evento).toLocaleDateString('pt-BR') : '';
+                    const label = [dataEvt, a.cliente_nome, a.titulo].filter(Boolean).join(' — ');
+                    return <option key={a.id} value={a.id}>{label}</option>;
+                  })}
+                </select>
+                <div className="grid grid-cols-6 sm:grid-cols-8 lg:grid-cols-10 gap-1.5 max-h-36 overflow-y-auto border rounded-lg p-2">
+                  {albumFotos.length === 0 && <p className="col-span-10 text-center text-xs text-gray-400 py-4">{selectedAlbumId ? 'Nenhuma foto neste álbum' : 'Selecione um álbum acima'}</p>}
+                  {albumFotos.map((foto, i) => {
+                    const fotoId = foto.id || foto.SK?.replace('FOTO#', '');
+                    return (
+                    <div key={i} onClick={() => togglePhoto(fotoId)} className={`relative cursor-pointer rounded overflow-hidden border-2 ${selectedPhotos.includes(fotoId) ? 'border-[#EA580C]' : 'border-transparent'}`}>
+                      <img src={foto.url_thumb || foto.url || ''} alt="" className="w-full h-14 object-cover" />
+                      {selectedPhotos.includes(fotoId) && (
+                        <div className="absolute inset-0 bg-orange-500/30 flex items-center justify-center">
+                          <CheckCircle size={14} className="text-white" />
+                        </div>
+                      )}
+                    </div>
+                    );
+                  })}
+                </div>
               </div>
 
-              {/* Instruções para a IA */}
-              <div className="bg-purple-50 border border-purple-200 rounded-lg p-4 space-y-3">
-                <div className="flex items-center justify-between">
-                  <label className="text-sm font-semibold text-purple-800 flex items-center gap-1.5">
-                    <Sparkles size={14} /> Instruções para a IA
-                  </label>
-                  <button type="button" onClick={() => setShowPromptConfig(true)} className="flex items-center gap-1 px-2 py-1 text-xs font-medium rounded bg-purple-100 text-purple-700 hover:bg-purple-200 transition-colors">
-                    <Settings size={12} /> Configurar Prompt
+              {/* ═══ DUAS COLUNAS: Instruções IA | Legenda ═══ */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                {/* Coluna esquerda: Instruções para a IA */}
+                <div className="bg-purple-50 border border-purple-200 rounded-lg p-4 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <label className="text-sm font-semibold text-purple-800 flex items-center gap-1.5">
+                      <Sparkles size={14} /> Instruções para a IA
+                    </label>
+                    <button type="button" onClick={() => setShowPromptConfig(true)} className="flex items-center gap-1 px-2 py-1 text-xs font-medium rounded bg-purple-100 text-purple-700 hover:bg-purple-200 transition-colors">
+                      <Settings size={12} /> Prompt
+                    </button>
+                  </div>
+                  <select value={tomIA} onChange={e => setTomIA(e.target.value)} className="text-xs border border-purple-200 rounded-lg px-2 py-1.5 bg-white w-full">
+                    <option value="emocional">🎭 Tom Emocional</option>
+                    <option value="profissional">💼 Tom Profissional</option>
+                    <option value="descontraido">😊 Tom Descontraído</option>
+                    <option value="poetico">✨ Tom Poético</option>
+                  </select>
+                  <textarea
+                    value={contextIA}
+                    onChange={e => setContextIA(e.target.value)}
+                    rows={5}
+                    placeholder="Descreva o que a IA deve considerar:&#10;• Momento do ensaio&#10;• Local e ambiente&#10;• Emoção desejada&#10;• Público-alvo&#10;• Hashtags preferidas..."
+                    className="w-full border border-purple-200 rounded-lg p-3 text-sm resize-none bg-white placeholder-purple-300 focus:ring-2 focus:ring-purple-200 focus:border-purple-400 outline-none"
+                  />
+                  <button type="button" onClick={async () => {
+                    setGerandoCaption(true);
+                    try {
+                      const albumData = albuns.find(a => a.id === selectedAlbumId);
+                      const r = await authFetch('/admin/instagram/gerar-caption', { method: 'POST', body: JSON.stringify({
+                        tipo_evento: albumData?.tipo_evento || 'ensaio fotográfico',
+                        cliente_nome: albumData?.cliente_nome || '',
+                        titulo_album: albumData?.titulo || '',
+                        data_evento: albumData?.data_evento || '',
+                        tom: tomIA,
+                        contexto: contextIA || `Álbum: ${albumData?.titulo || 'Sessão fotográfica'}`,
+                        incluir_hashtags: true,
+                        tipo_post: tipoPost,
+                        num_fotos: selectedPhotos.length,
+                      }) });
+                      const d = await r.json();
+                      if (d.success) setCaption(d.data.caption);
+                    } catch {}
+                    setGerandoCaption(false);
+                  }} disabled={gerandoCaption} className="w-full flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium rounded-lg text-white disabled:opacity-50 transition-opacity" style={{ backgroundColor: '#7C3AED' }}>
+                    {gerandoCaption ? <><Loader2 size={14} className="animate-spin" /> Gerando...</> : <><Sparkles size={14} /> Gerar Legenda com IA</>}
                   </button>
                 </div>
-                <div className="flex gap-2">
-                  <select value={tomIA} onChange={e => setTomIA(e.target.value)} className="text-xs border border-purple-200 rounded-lg px-2 py-1.5 bg-white">
-                    <option value="emocional">🎭 Emocional</option>
-                    <option value="profissional">💼 Profissional</option>
-                    <option value="descontraido">😊 Descontraído</option>
-                    <option value="poetico">✨ Poético</option>
-                  </select>
-                </div>
-                <textarea
-                  value={contextIA}
-                  onChange={e => setContextIA(e.target.value)}
-                  rows={3}
-                  placeholder="Descreva o que a IA deve considerar: momento do ensaio, local, emoção desejada, público-alvo, hashtags preferidas..."
-                  className="w-full border border-purple-200 rounded-lg p-3 text-sm resize-none bg-white placeholder-purple-300 focus:ring-2 focus:ring-purple-200 focus:border-purple-400 outline-none"
-                />
-                <button type="button" onClick={async () => {
-                  setGerandoCaption(true);
-                  try {
-                    const albumData = albuns.find(a => a.id === selectedAlbumId);
-                    const r = await authFetch('/admin/instagram/gerar-caption', { method: 'POST', body: JSON.stringify({
-                      tipo_evento: albumData?.tipo_evento || 'ensaio fotográfico',
-                      cliente_nome: albumData?.cliente_nome || '',
-                      titulo_album: albumData?.titulo || '',
-                      data_evento: albumData?.data_evento || '',
-                      tom: tomIA,
-                      contexto: contextIA || `Álbum: ${albumData?.titulo || 'Sessão fotográfica'}`,
-                      incluir_hashtags: true,
-                      tipo_post: tipoPost,
-                      num_fotos: selectedPhotos.length,
-                    }) });
-                    const d = await r.json();
-                    if (d.success) setCaption(d.data.caption);
-                  } catch {}
-                  setGerandoCaption(false);
-                }} disabled={gerandoCaption} className="w-full flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium rounded-lg text-white disabled:opacity-50 transition-opacity" style={{ backgroundColor: '#7C3AED' }}>
-                  {gerandoCaption ? <><Loader2 size={14} className="animate-spin" /> Gerando legenda...</> : <><Sparkles size={14} /> Gerar Legenda com IA</>}
-                </button>
-              </div>
 
-              {/* Caption */}
-              <div>
-                <label className="text-sm font-semibold text-gray-700">Legenda para publicar</label>
-                <textarea value={caption} onChange={e => e.target.value.length <= 2200 && setCaption(e.target.value)}
-                  rows={5} placeholder="Escreva a legenda ou gere com IA acima..." className="w-full border rounded-lg p-3 text-sm resize-none mt-1" />
-                <span className="text-xs text-gray-400">{caption.length}/2200</span>
-              </div>
-
-              {/* Hashtags */}
-              <div>
-                <label className="text-xs font-medium text-gray-500 mb-1 block">Hashtags sugeridas</label>
-                <div className="flex flex-wrap gap-1">
-                  {HASHTAGS_SUGERIDAS.map(tag => (
-                    <button key={tag} onClick={() => addHashtag(tag)}
-                      className="text-xs px-2 py-1 bg-gray-100 hover:bg-orange-100 text-gray-600 hover:text-[#EA580C] rounded-full transition-colors">
-                      {tag}
-                    </button>
-                  ))}
+                {/* Coluna direita: Legenda para publicar */}
+                <div className="space-y-3">
+                  <label className="text-sm font-semibold text-gray-700">Legenda para publicar</label>
+                  <textarea value={caption} onChange={e => e.target.value.length <= 2200 && setCaption(e.target.value)}
+                    rows={8} placeholder="Escreva a legenda ou gere com IA ao lado..." className="w-full border rounded-lg p-3 text-sm resize-none" />
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-gray-400">{caption.length}/2200</span>
+                  </div>
+                  {/* Hashtags */}
+                  <div>
+                    <label className="text-xs font-medium text-gray-500 mb-1 block">Hashtags sugeridas</label>
+                    <div className="flex flex-wrap gap-1">
+                      {HASHTAGS_SUGERIDAS.map(tag => (
+                        <button key={tag} onClick={() => addHashtag(tag)}
+                          className="text-xs px-2 py-1 bg-gray-100 hover:bg-orange-100 text-gray-600 hover:text-[#EA580C] rounded-full transition-colors">
+                          {tag}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
                 </div>
               </div>
 
-              {/* Agendamento */}
-              <div className="flex items-center gap-3">
+              {/* Agendamento + Botões */}
+              <div className="flex items-center gap-4 pt-2 border-t">
                 <label className="flex items-center gap-2 cursor-pointer">
                   <input type="checkbox" checked={agendar} onChange={e => setAgendar(e.target.checked)} className="accent-[#EA580C]" />
-                  <span className="text-sm font-medium">Agendar publicação</span>
+                  <span className="text-sm font-medium">Agendar</span>
                 </label>
-              </div>
-              {agendar && (
-                <div className="flex gap-2">
-                  <input type="date" value={scheduleDate} onChange={e => setScheduleDate(e.target.value)} className="border rounded-lg px-3 py-2 text-sm" />
-                  <input type="time" value={scheduleTime} onChange={e => setScheduleTime(e.target.value)} className="border rounded-lg px-3 py-2 text-sm" />
-                </div>
-              )}
-
-              {/* Botões */}
-              <div className="flex gap-2 pt-2">
-                <button onClick={() => handlePublish('publicar')} disabled={publishing}
-                  className="flex items-center gap-1 text-white px-4 py-2 rounded-lg text-sm font-medium disabled:opacity-50" style={{ backgroundColor: ACCENT }}>
-                  <Send size={15} /> {publishing ? 'Publicando...' : 'Publicar Agora'}
-                </button>
                 {agendar && (
-                  <button onClick={() => handlePublish('agendar')} disabled={publishing}
-                    className="flex items-center gap-1 border border-[#EA580C] text-[#EA580C] px-4 py-2 rounded-lg text-sm font-medium">
-                    <Calendar size={15} /> Agendar
-                  </button>
+                  <>
+                    <input type="date" value={scheduleDate} onChange={e => setScheduleDate(e.target.value)} className="border rounded-lg px-2 py-1.5 text-sm" />
+                    <input type="time" value={scheduleTime} onChange={e => setScheduleTime(e.target.value)} className="border rounded-lg px-2 py-1.5 text-sm" />
+                  </>
                 )}
-                <button onClick={() => handlePublish('rascunho')} className="text-sm text-gray-500 hover:text-gray-700 px-3 py-2">
-                  Salvar Rascunho
-                </button>
+                <div className="flex gap-2 ml-auto">
+                  <button onClick={() => handlePublish('rascunho')} className="text-sm text-gray-500 hover:text-gray-700 px-3 py-2">
+                    Rascunho
+                  </button>
+                  {agendar && (
+                    <button onClick={() => handlePublish('agendar')} disabled={publishing}
+                      className="flex items-center gap-1 border border-[#EA580C] text-[#EA580C] px-4 py-2 rounded-lg text-sm font-medium">
+                      <Calendar size={15} /> Agendar
+                    </button>
+                  )}
+                  <button onClick={() => handlePublish('publicar')} disabled={publishing}
+                    className="flex items-center gap-1 text-white px-5 py-2 rounded-lg text-sm font-medium disabled:opacity-50" style={{ backgroundColor: ACCENT }}>
+                    <Send size={15} /> {publishing ? 'Publicando...' : 'Publicar Agora'}
+                  </button>
+                </div>
               </div>
             </div>
 
-            {/* Right: Preview (2/5 = 40%) — menor */}
-            <div className="lg:col-span-2">
-              <div className="border rounded-xl p-4 bg-gray-50 sticky top-4">
-                <h3 className="text-sm font-semibold text-gray-700 mb-3">Preview</h3>
-                <div className="bg-white rounded-xl border max-w-[280px] mx-auto overflow-hidden shadow-sm">
-                  <div className="flex items-center gap-2 p-2.5 border-b">
-                    <div className="w-7 h-7 rounded-full bg-gradient-to-tr from-orange-400 to-pink-500" />
-                    <span className="text-xs font-semibold">seu_perfil</span>
+            {/* ═══ PREVIEW (20% = 2/10 cols) ═══ */}
+            <div className="xl:col-span-2">
+              <div className="border rounded-xl p-3 bg-gray-50 sticky top-4">
+                <h3 className="text-xs font-semibold text-gray-500 mb-2 text-center uppercase tracking-wide">Preview</h3>
+                <div className="bg-white rounded-xl border overflow-hidden shadow-sm">
+                  <div className="flex items-center gap-1.5 p-2 border-b">
+                    <div className="w-5 h-5 rounded-full bg-gradient-to-tr from-orange-400 to-pink-500" />
+                    <span className="text-[10px] font-semibold">seu_perfil</span>
                   </div>
-                  {/* Photo area - supports carousel */}
                   <div className="relative">
                     {selectedPhotos.length > 0 ? (
                       <img src={(() => {
                         const fotoId = selectedPhotos[previewIndex] || selectedPhotos[0];
                         const foto = albumFotos.find(f => (f.id || f.SK?.replace('FOTO#', '')) === fotoId);
                         return foto?.url_thumb || foto?.url || '';
-                      })()} alt="Preview" className="w-full h-[280px] object-cover" />
+                      })()} alt="Preview" className="w-full aspect-square object-cover" />
                     ) : (
-                      <div className="w-full h-[280px] bg-gray-200 flex items-center justify-center text-gray-400">
-                        <Image size={40} />
+                      <div className="w-full aspect-square bg-gray-200 flex items-center justify-center text-gray-400">
+                        <Image size={32} />
                       </div>
                     )}
-                    {/* Carousel navigation */}
                     {tipoPost === 'carrossel' && selectedPhotos.length > 1 && (
                       <>
                         {previewIndex > 0 && (
-                          <button onClick={() => setPreviewIndex(i => i - 1)} className="absolute left-2 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-white/90 shadow flex items-center justify-center text-gray-700 hover:bg-white">
-                            <ChevronLeft size={14} />
+                          <button onClick={() => setPreviewIndex(i => i - 1)} className="absolute left-1 top-1/2 -translate-y-1/2 w-5 h-5 rounded-full bg-white/90 shadow flex items-center justify-center">
+                            <ChevronLeft size={12} />
                           </button>
                         )}
                         {previewIndex < selectedPhotos.length - 1 && (
-                          <button onClick={() => setPreviewIndex(i => i + 1)} className="absolute right-2 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-white/90 shadow flex items-center justify-center text-gray-700 hover:bg-white">
-                            <ChevronRight size={14} />
+                          <button onClick={() => setPreviewIndex(i => i + 1)} className="absolute right-1 top-1/2 -translate-y-1/2 w-5 h-5 rounded-full bg-white/90 shadow flex items-center justify-center">
+                            <ChevronRight size={12} />
                           </button>
                         )}
-                        {/* Dots indicator */}
-                        <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1">
+                        <div className="absolute bottom-1.5 left-1/2 -translate-x-1/2 flex gap-0.5">
                           {selectedPhotos.map((_, i) => (
-                            <div key={i} className={`w-1.5 h-1.5 rounded-full transition-colors ${i === previewIndex ? 'bg-[#EA580C]' : 'bg-white/60'}`} />
+                            <div key={i} className={`w-1 h-1 rounded-full ${i === previewIndex ? 'bg-[#EA580C]' : 'bg-white/60'}`} />
                           ))}
                         </div>
-                        {/* Carousel badge */}
-                        <div className="absolute top-2 right-2 bg-black/60 text-white text-[10px] px-1.5 py-0.5 rounded-full backdrop-blur-sm">
+                        <div className="absolute top-1.5 right-1.5 bg-black/60 text-white text-[9px] px-1 py-0.5 rounded-full">
                           {previewIndex + 1}/{selectedPhotos.length}
                         </div>
                       </>
                     )}
                   </div>
-                  <div className="p-2.5">
-                    <p className="text-xs text-gray-700 line-clamp-3">{caption || 'Sua legenda aqui...'}</p>
+                  <div className="p-2">
+                    <p className="text-[10px] text-gray-700 line-clamp-4">{caption || 'Legenda...'}</p>
                   </div>
                 </div>
-                {tipoPost === 'carrossel' && selectedPhotos.length > 1 && (
-                  <p className="text-center text-[10px] text-gray-400 mt-2">Deslize para ver {selectedPhotos.length} fotos</p>
-                )}
               </div>
             </div>
           </div>
