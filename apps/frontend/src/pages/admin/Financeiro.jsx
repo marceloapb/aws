@@ -920,25 +920,70 @@ export default function Financeiro() {
 
       {/* Modal Gerenciar Categorias (FIN-14) */}
       {modalCategorias && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl p-6 w-full max-w-lg shadow-xl">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-bold">Gerenciar Categorias</h3>
               <button onClick={() => setModalCategorias(false)} className="p-1 hover:bg-gray-100 rounded"><X size={18} /></button>
             </div>
             <div className="space-y-2 max-h-60 overflow-y-auto mb-4">
-              {categorias.map(c => (
-                <div key={c.id} className="flex items-center gap-3 p-2 border rounded-lg">
-                  <div className="w-4 h-4 rounded-full" style={{ backgroundColor: c.cor }} />
-                  <span className="text-sm flex-1">{c.nome}</span>
+              {categorias.sort((a, b) => a.nome.localeCompare(b.nome)).map(c => (
+                <div key={c.id} className="flex items-center gap-2 p-2 border rounded-lg group">
+                  <input
+                    type="color"
+                    value={c.cor || '#6B7280'}
+                    onChange={e => setCategorias(cats => cats.map(x => x.id === c.id ? { ...x, cor: e.target.value, _dirty: true } : x))}
+                    className="w-6 h-6 rounded cursor-pointer border-0 p-0"
+                  />
+                  <input
+                    value={c.nome}
+                    onChange={e => setCategorias(cats => cats.map(x => x.id === c.id ? { ...x, nome: e.target.value, _dirty: true } : x))}
+                    className="text-sm flex-1 border-0 border-b border-transparent focus:border-gray-300 outline-none px-1 py-0.5 bg-transparent"
+                  />
+                  {c._dirty && (
+                    <button
+                      onClick={async () => {
+                        try {
+                          await authFetch(`/admin/financeiro/categorias/${c.id}`, {
+                            method: 'PUT',
+                            body: JSON.stringify({ nome: c.nome, cor: c.cor }),
+                          });
+                          setCategorias(cats => cats.map(x => x.id === c.id ? { ...x, _dirty: false } : x));
+                        } catch (err) { alert('Erro ao salvar: ' + err.message); }
+                      }}
+                      className="px-2 py-0.5 text-xs rounded bg-green-100 text-green-700 hover:bg-green-200 font-medium"
+                    >
+                      Salvar
+                    </button>
+                  )}
                   <button onClick={async () => {
+                    if (!confirm(`Excluir categoria "${c.nome}"?`)) return;
                     await authFetch(`/admin/financeiro/categorias/${c.id}`, { method: 'DELETE' });
                     setCategorias(cats => cats.filter(x => x.id !== c.id));
-                  }} className="p-1 hover:bg-red-100 rounded text-red-600"><Trash2 size={14} /></button>
+                  }} className="p-1 hover:bg-red-100 rounded text-red-600 opacity-0 group-hover:opacity-100 transition-opacity"><Trash2 size={14} /></button>
                 </div>
               ))}
+              {categorias.length === 0 && <p className="text-sm text-gray-400 text-center py-4">Nenhuma categoria cadastrada</p>}
             </div>
-            <div className="flex gap-2">
+            {/* Salvar todas alterações pendentes */}
+            {categorias.some(c => c._dirty) && (
+              <button
+                onClick={async () => {
+                  const dirty = categorias.filter(c => c._dirty);
+                  for (const c of dirty) {
+                    await authFetch(`/admin/financeiro/categorias/${c.id}`, {
+                      method: 'PUT',
+                      body: JSON.stringify({ nome: c.nome, cor: c.cor }),
+                    });
+                  }
+                  setCategorias(cats => cats.map(c => ({ ...c, _dirty: false })));
+                }}
+                className="w-full mb-3 py-2 rounded-lg text-sm font-medium text-white" style={{ backgroundColor: ACCENT }}
+              >
+                Salvar todas alterações ({categorias.filter(c => c._dirty).length})
+              </button>
+            )}
+            <div className="flex gap-2 border-t pt-3">
               <input placeholder="Nova categoria" value={novaCat.nome} onChange={e => setNovaCat(c => ({ ...c, nome: e.target.value }))} className="flex-1 border rounded-lg px-3 py-2 text-sm" />
               <input type="color" value={novaCat.cor} onChange={e => setNovaCat(c => ({ ...c, cor: e.target.value }))} className="w-10 h-10 border rounded cursor-pointer" />
               <button onClick={async () => {

@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { DynamoDBClient } = require('@aws-sdk/client-dynamodb');
-const { DynamoDBDocumentClient, QueryCommand, GetCommand, PutCommand, DeleteCommand } = require('@aws-sdk/lib-dynamodb');
+const { DynamoDBDocumentClient, QueryCommand, GetCommand, PutCommand, DeleteCommand, UpdateCommand } = require('@aws-sdk/lib-dynamodb');
 const { v4: uuidv4 } = require('uuid');
 const logger = require('../config/logger');
 
@@ -323,12 +323,35 @@ router.post('/categorias', async (req, res) => {
 // ─── DELETE /admin/financeiro/categorias/:id ─────────────────────────────────────
 router.delete('/categorias/:id', async (req, res) => {
   try {
-    // const photographerId = req.user.sub; // Substituído por TENANT
     await docClient.send(new DeleteCommand({
       TableName: TABLE_NAME,
       Key: { PK: `TENANT#${TENANT}`, SK: `CAT_DESPESA#${req.params.id}` },
     }));
     res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ─── PUT /admin/financeiro/categorias/:id ────────────────────────────────────────
+router.put('/categorias/:id', async (req, res) => {
+  try {
+    const { nome, cor } = req.body;
+    if (!nome) return res.status(400).json({ error: 'Nome é obrigatório' });
+
+    const result = await docClient.send(new UpdateCommand({
+      TableName: TABLE_NAME,
+      Key: { PK: `TENANT#${TENANT}`, SK: `CAT_DESPESA#${req.params.id}` },
+      UpdateExpression: 'SET nome = :nome, cor = :cor, atualizadoEm = :now',
+      ExpressionAttributeValues: {
+        ':nome': nome,
+        ':cor': cor || '#6B7280',
+        ':now': new Date().toISOString(),
+      },
+      ReturnValues: 'ALL_NEW',
+    }));
+
+    res.json(result.Attributes);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
