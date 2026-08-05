@@ -42,6 +42,7 @@ router.put('/config', async (req, res) => {
     const {
       cnpj, inscricao_municipal, razao_social, codigo_municipio, uf,
       cnae, codigo_trib_nacional, serie, ambiente, emissao_automatica,
+      descricao_servico_padrao,
     } = req.body;
 
     const item = {
@@ -57,6 +58,7 @@ router.put('/config', async (req, res) => {
       serie: serie || 'NFSE',
       ambiente: ambiente || '2',
       emissao_automatica: emissao_automatica !== false,
+      descricao_servico_padrao: descricao_servico_padrao || '',
       updated: new Date().toISOString(),
     };
 
