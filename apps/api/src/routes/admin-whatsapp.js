@@ -6,6 +6,50 @@ const { QueryCommand, PutCommand, DeleteCommand } = require('@aws-sdk/lib-dynamo
 
 const router = Router();
 
+// ══════════════════════════════════════════════════════════════
+// Helpers: Template Metadata (timestamp tracking no DynamoDB)
+// Cada template da Meta tem um registro TPL_META#{nome} com updated_at
+// ══════════════════════════════════════════════════════════════
+const TENANT_ID = () => process.env.TENANT_ID || '1';
+
+async function saveTemplateMetadata(templateName, extra = {}) {
+  const now = new Date().toISOString();
+  await dynamo.send(new PutCommand({
+    TableName: TABLE,
+    Item: {
+      PK: `TENANT#${TENANT_ID()}`,
+      SK: `TPL_META#${templateName}`,
+      template_name: templateName,
+      updated_at: now,
+      ...extra,
+    },
+  }));
+  return now;
+}
+
+async function getAllTemplateMetadata() {
+  const result = await dynamo.send(new QueryCommand({
+    TableName: TABLE,
+    KeyConditionExpression: 'PK = :pk AND begins_with(SK, :sk)',
+    ExpressionAttributeValues: { ':pk': `TENANT#${TENANT_ID()}`, ':sk': 'TPL_META#' },
+  }));
+  const map = {};
+  for (const item of (result.Items || [])) {
+    map[item.template_name] = { updated_at: item.updated_at, created_at: item.created_at };
+  }
+  return map;
+}
+
+// ══════════════════════════════════════════════════════════════
+// Estado em memória para job assíncrono "Recriar Todos"
+// ══════════════════════════════════════════════════════════════
+let recriarTodosJob = {
+  running: false,
+  progress: { total: 0, done: 0, current: '' },
+  result: null,
+  startedAt: null,
+};
+
 // POST /api/admin/whatsapp/enviar-template
 // Aceita formato do frontend: { clienteId, templateId, variaveis, media_type, media_url }
 // Ou formato direto: { numero, template, parametros, header_image_url }
@@ -324,10 +368,13 @@ router.get('/envios', async (req, res) => {
   }
 });
 
-// GET /api/admin/whatsapp/templates - Templates (busca direto da Meta)
+// GET /api/admin/whatsapp/templates - Templates (busca direto da Meta + metadata local)
 router.get('/templates', async (req, res) => {
   try {
-    const metaTemplates = await getTemplatesFromMeta();
+    const [metaTemplates, metadata] = await Promise.all([
+      getTemplatesFromMeta(),
+      getAllTemplateMetadata(),
+    ]);
 
     // Mapear para formato do frontend
     const templates = metaTemplates.map(t => {
@@ -354,6 +401,9 @@ router.get('/templates', async (req, res) => {
         }
       }
 
+      // Timestamp do metadata local
+      const meta = metadata[t.name] || {};
+
       return {
         id: t.id,
         nome: t.name,
@@ -365,6 +415,8 @@ router.get('/templates', async (req, res) => {
         header,
         footer: footerComp?.text || '',
         botoes: buttonsComp?.buttons || [],
+        updated_at: meta.updated_at || null,
+        created_at: meta.created_at || null,
       };
     });
 
@@ -436,6 +488,9 @@ router.post('/templates', async (req, res) => {
       return res.status(400).json({ success: false, message: result.error?.message || 'Erro ao criar template na Meta' });
     }
 
+    // Salvar timestamp no DynamoDB
+    const now = await saveTemplateMetadata(nome, { created_at: new Date().toISOString() });
+
     // Se template tem header IMAGE, salvar a CDN URL no DynamoDB para uso no envio
     if (header_type?.toUpperCase() === 'IMAGE' && header_image_key) {
       const cdnUrl = header_image_key.startsWith('http')
@@ -501,6 +556,8 @@ router.put('/templates/:id', async (req, res) => {
     const result = await response.json();
 
     if (response.ok) {
+      // Atualizar timestamp no metadata local
+      await saveTemplateMetadata(nome || `template_${templateId}`).catch(() => {});
       return res.json({ success: true, data: result });
     }
 
@@ -1090,8 +1147,18 @@ router.post('/template-images/:key', async (req, res) => {
 });
 
 // POST /api/admin/whatsapp/template-images/recriar-todos
+// VERSÃO ASSÍNCRONA: retorna imediatamente e processa em background
 router.post('/template-images/recriar-todos', async (req, res) => {
   try {
+    // Não permitir iniciar se já está rodando
+    if (recriarTodosJob.running) {
+      return res.status(409).json({
+        success: false,
+        message: 'Já existe uma recriação em andamento. Acompanhe pelo status.',
+        data: { running: true, progress: recriarTodosJob.progress },
+      });
+    }
+
     const { loadParams } = require('../config/env');
     const params = await loadParams();
     const token = params.WHATSAPP_ACCESS_TOKEN;
@@ -1100,55 +1167,105 @@ router.post('/template-images/recriar-todos', async (req, res) => {
     const TENANT = process.env.TENANT_ID || '1';
     if (!token) return res.status(400).json({ success: false, message: 'Token WhatsApp não configurado' });
 
-    // Buscar imagens salvas
+    // Buscar imagens salvas (validação síncrona rápida)
     const imgResult = await dynamo.send(new QueryCommand({ TableName: TABLE, KeyConditionExpression: 'PK = :pk AND begins_with(SK, :sk)', ExpressionAttributeValues: { ':pk': `TENANT#${TENANT}`, ':sk': 'TPL_IMG#' } }));
     const saved = {};
     for (const item of (imgResult.Items || [])) saved[item.template_name] = item.image_url;
     const semImagem = TEMPLATE_DEFINITIONS.filter(t => !saved[t.name]);
     if (semImagem.length > 0) return res.status(400).json({ success: false, message: `Faltam imagens: ${semImagem.map(t => t.label).join(', ')}` });
 
-    const resultados = { deletados: [], criados: [], erros: [] };
+    // Iniciar job assíncrono
+    recriarTodosJob = {
+      running: true,
+      progress: { total: TEMPLATE_DEFINITIONS.length, done: 0, current: 'Iniciando...' },
+      result: null,
+      startedAt: new Date().toISOString(),
+    };
 
-    // Deletar antigos
-    const ANTIGOS = ['notificacao_geral','notificacao_geral_img','novo_orcamento','novo_orcamento_img','lembrete_evento','lembrete_evento_img','orcamento_pronto','orcamento_pronto_img','album_pronto','album_pronto_img_v2','fotos_prontas','pagamento_confirmado','pagamento_confirmado_img','pagamento_vencido','pagamento_vencido_img','contrato_assinatura','contrato_assinatura_img','contrato_assinado_aviso','contrato_assinado_aviso_img','evento_confirmado','evento_confirmado_img','evento_confirmado_img_v2','feedback_solicitacao','mbfoto_codigo_verificacao','selecao_fotos_pronta_img','contrato_lembrete_img'];
-    for (const name of ANTIGOS) {
-      try { await fetch(`https://graph.facebook.com/v21.0/${wabaId}/message_templates?name=${name}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${token}` }, signal: AbortSignal.timeout(10000) }); resultados.deletados.push(name); } catch {}
-    }
+    // Responder imediatamente
+    res.json({ success: true, message: 'Recriação iniciada em background. Use GET /template-images/recriar-status para acompanhar.', data: { started: true } });
 
-    // Criar novos com imagem
-    for (const tpl of TEMPLATE_DEFINITIONS) {
+    // ── Executar em background (fire and forget) ──
+    (async () => {
+      const resultados = { deletados: [], criados: [], erros: [] };
       try {
-        const imageUrl = saved[tpl.name];
-        const imgResp = await fetch(imageUrl, { signal: AbortSignal.timeout(15000) });
-        if (!imgResp.ok) { resultados.erros.push({ name: tpl.name, label: tpl.label, error: 'Erro ao baixar imagem' }); continue; }
-        const imgBuffer = Buffer.from(await imgResp.arrayBuffer());
-        const mimeType = imgResp.headers.get('content-type') || 'image/png';
+        // Fase 1: Deletar antigos
+        const ANTIGOS = ['notificacao_geral','notificacao_geral_img','novo_orcamento','novo_orcamento_img','lembrete_evento','lembrete_evento_img','orcamento_pronto','orcamento_pronto_img','album_pronto','album_pronto_img_v2','fotos_prontas','pagamento_confirmado','pagamento_confirmado_img','pagamento_vencido','pagamento_vencido_img','contrato_assinatura','contrato_assinatura_img','contrato_assinado_aviso','contrato_assinado_aviso_img','evento_confirmado','evento_confirmado_img','evento_confirmado_img_v2','feedback_solicitacao','mbfoto_codigo_verificacao','selecao_fotos_pronta_img','contrato_lembrete_img'];
+        recriarTodosJob.progress.current = 'Deletando templates antigos...';
+        for (const name of ANTIGOS) {
+          try { await fetch(`https://graph.facebook.com/v21.0/${wabaId}/message_templates?name=${name}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${token}` }, signal: AbortSignal.timeout(10000) }); resultados.deletados.push(name); } catch {}
+        }
 
-        const sessResp = await fetch(`https://graph.facebook.com/v21.0/${appId}/uploads?file_length=${imgBuffer.length}&file_type=${encodeURIComponent(mimeType)}&access_token=${token}`, { method: 'POST', signal: AbortSignal.timeout(15000) });
-        const sessData = await sessResp.json();
-        if (!sessData.id) { resultados.erros.push({ name: tpl.name, label: tpl.label, error: sessData.error?.message || 'Erro sessão upload' }); continue; }
+        // Fase 2: Criar novos com imagem (sequencial com delay para evitar rate limit)
+        for (let i = 0; i < TEMPLATE_DEFINITIONS.length; i++) {
+          const tpl = TEMPLATE_DEFINITIONS[i];
+          recriarTodosJob.progress.current = `Criando ${tpl.label} (${i + 1}/${TEMPLATE_DEFINITIONS.length})...`;
+          try {
+            const imageUrl = saved[tpl.name];
+            const imgResp = await fetch(imageUrl, { signal: AbortSignal.timeout(15000) });
+            if (!imgResp.ok) { resultados.erros.push({ name: tpl.name, label: tpl.label, error: 'Erro ao baixar imagem' }); recriarTodosJob.progress.done = i + 1; continue; }
+            const imgBuffer = Buffer.from(await imgResp.arrayBuffer());
+            const mimeType = imgResp.headers.get('content-type') || 'image/png';
 
-        const upResp = await fetch(`https://graph.facebook.com/v21.0/${sessData.id}`, { method: 'POST', headers: { 'Authorization': `OAuth ${token}`, 'file_offset': '0', 'Content-Type': mimeType }, body: imgBuffer, signal: AbortSignal.timeout(30000) });
-        const upData = await upResp.json();
-        if (!upData.h) { resultados.erros.push({ name: tpl.name, label: tpl.label, error: 'Erro upload imagem Meta' }); continue; }
-        const handle = upData.h.split('\n')[0].trim();
+            const sessResp = await fetch(`https://graph.facebook.com/v21.0/${appId}/uploads?file_length=${imgBuffer.length}&file_type=${encodeURIComponent(mimeType)}&access_token=${token}`, { method: 'POST', signal: AbortSignal.timeout(15000) });
+            const sessData = await sessResp.json();
+            if (!sessData.id) { resultados.erros.push({ name: tpl.name, label: tpl.label, error: sessData.error?.message || 'Erro sessão upload' }); recriarTodosJob.progress.done = i + 1; continue; }
 
-        const varMatches = tpl.body.match(/\{\{\d+\}\}/g) || [];
-        const components = [
-          { type: 'HEADER', format: 'IMAGE', example: { header_handle: [handle] } },
-          { type: 'BODY', text: tpl.body, ...(varMatches.length > 0 && { example: { body_text: [tpl.examples] } }) },
-          { type: 'FOOTER', text: 'Marcelo Bloise Fotografia' },
-        ];
+            const upResp = await fetch(`https://graph.facebook.com/v21.0/${sessData.id}`, { method: 'POST', headers: { 'Authorization': `OAuth ${token}`, 'file_offset': '0', 'Content-Type': mimeType }, body: imgBuffer, signal: AbortSignal.timeout(30000) });
+            const upData = await upResp.json();
+            if (!upData.h) { resultados.erros.push({ name: tpl.name, label: tpl.label, error: 'Erro upload imagem Meta' }); recriarTodosJob.progress.done = i + 1; continue; }
+            const handle = upData.h.split('\n')[0].trim();
 
-        const createResp = await fetch(`https://graph.facebook.com/v21.0/${wabaId}/message_templates`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }, body: JSON.stringify({ name: tpl.name, category: tpl.category, language: 'pt_BR', components }), signal: AbortSignal.timeout(15000) });
-        const createData = await createResp.json();
-        if (createResp.ok) { resultados.criados.push({ name: tpl.name, label: tpl.label, id: createData.id }); }
-        else { const msg = createData.error?.message || ''; resultados.erros.push({ name: tpl.name, label: tpl.label, error: msg.includes('already exists') ? 'Já existe' : msg }); }
-      } catch (err) { resultados.erros.push({ name: tpl.name, label: tpl.label, error: err.message }); }
-    }
+            const varMatches = tpl.body.match(/\{\{\d+\}\}/g) || [];
+            const components = [
+              { type: 'HEADER', format: 'IMAGE', example: { header_handle: [handle] } },
+              { type: 'BODY', text: tpl.body, ...(varMatches.length > 0 && { example: { body_text: [tpl.examples] } }) },
+              { type: 'FOOTER', text: 'Marcelo Bloise Fotografia' },
+            ];
 
-    res.json({ success: true, message: `Criados: ${resultados.criados.length} | Deletados: ${resultados.deletados.length} | Erros: ${resultados.erros.length}`, data: resultados });
+            const createResp = await fetch(`https://graph.facebook.com/v21.0/${wabaId}/message_templates`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }, body: JSON.stringify({ name: tpl.name, category: tpl.category, language: 'pt_BR', components }), signal: AbortSignal.timeout(15000) });
+            const createData = await createResp.json();
+            if (createResp.ok) {
+              resultados.criados.push({ name: tpl.name, label: tpl.label, id: createData.id });
+              // Salvar timestamp de criação
+              await saveTemplateMetadata(tpl.name, { created_at: new Date().toISOString() }).catch(() => {});
+            } else {
+              const msg = createData.error?.message || '';
+              resultados.erros.push({ name: tpl.name, label: tpl.label, error: msg.includes('already exists') ? 'Já existe' : msg });
+            }
+          } catch (err) { resultados.erros.push({ name: tpl.name, label: tpl.label, error: err.message }); }
+          recriarTodosJob.progress.done = i + 1;
+
+          // Pequeno delay entre criações para evitar rate limiting da Meta
+          if (i < TEMPLATE_DEFINITIONS.length - 1) {
+            await new Promise(resolve => setTimeout(resolve, 1000));
+          }
+        }
+
+        recriarTodosJob.result = { success: true, message: `Criados: ${resultados.criados.length} | Deletados: ${resultados.deletados.length} | Erros: ${resultados.erros.length}`, data: resultados };
+      } catch (error) {
+        console.error('[WHATSAPP] Erro no job recriar-todos:', error.message);
+        recriarTodosJob.result = { success: false, message: error.message, data: resultados };
+      } finally {
+        recriarTodosJob.running = false;
+        recriarTodosJob.progress.current = 'Concluído';
+      }
+    })();
   } catch (error) { res.status(500).json({ success: false, message: error.message }); }
+});
+
+// GET /api/admin/whatsapp/template-images/recriar-status
+// Polling endpoint para acompanhar o progresso do job assíncrono
+router.get('/template-images/recriar-status', (req, res) => {
+  res.json({
+    success: true,
+    data: {
+      running: recriarTodosJob.running,
+      progress: recriarTodosJob.progress,
+      result: recriarTodosJob.result,
+      startedAt: recriarTodosJob.startedAt,
+    },
+  });
 });
 
 module.exports = router;

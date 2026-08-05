@@ -390,6 +390,15 @@ export default function WhatsApp() {
     const sorted = [...templates].sort((a, b) => {
       if (tplSort === 'nome') return a.nome.localeCompare(b.nome);
       if (tplSort === 'status') return (a.status || '').localeCompare(b.status || '');
+      if (tplSort === 'data') {
+        // Mais recentes primeiro; templates sem data vão pro final
+        const da = a.updated_at || a.created_at || '';
+        const db = b.updated_at || b.created_at || '';
+        if (!da && !db) return 0;
+        if (!da) return 1;
+        if (!db) return -1;
+        return db.localeCompare(da);
+      }
       return 0; // default: ordem da Meta
     });
 
@@ -400,7 +409,7 @@ export default function WhatsApp() {
             <button onClick={syncTodos} className="flex items-center gap-1 text-sm text-gray-600 hover:text-gray-800"><RefreshCw size={14} /> Atualizar</button>
             <span className="text-gray-300 hidden sm:inline">|</span>
             <span className="text-xs text-gray-500 hidden sm:inline">Ordenar:</span>
-            {[{ key: '', label: 'Padrão' }, { key: 'nome', label: 'Nome' }, { key: 'status', label: 'Status' }].map(o => (
+            {[{ key: '', label: 'Padrão' }, { key: 'nome', label: 'Nome' }, { key: 'status', label: 'Status' }, { key: 'data', label: 'Data' }].map(o => (
               <button key={o.key} onClick={() => setTplSort(o.key)} className={`text-xs px-2 py-1 rounded ${tplSort === o.key ? 'bg-orange-100 text-orange-700 font-medium' : 'text-gray-500 hover:bg-gray-100'}`}>{o.label}</button>
             ))}
           </div>
@@ -423,6 +432,7 @@ export default function WhatsApp() {
                   <Badge color={catColor[t.categoria] || 'gray'}>{t.categoria}</Badge>
                   <Badge color={stColor[t.status] || 'gray'}>{t.status}</Badge>
                   <span className="text-xs text-gray-400">{t.idioma}</span>
+                  {t.updated_at && <span className="text-xs text-gray-400" title={`Atualizado: ${new Date(t.updated_at).toLocaleString('pt-BR')}`}>{new Date(t.updated_at).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' })}</span>}
                 </div>
                 <div className="flex items-center gap-1 shrink-0">
                   {t.categoria !== 'authentication' && <button onClick={() => openEditTpl(t)} className="p-1 text-gray-400 hover:text-blue-600" title="Editar texto"><Edit size={14} /></button>}
