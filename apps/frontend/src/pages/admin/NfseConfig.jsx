@@ -70,7 +70,12 @@ export default function NfseConfig() {
   const handleUploadCert = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
-    if (!certSenha) { alert('Informe a senha do certificado antes de fazer upload'); return; }
+    let senha = certSenha;
+    if (!senha) {
+      senha = prompt('Digite a senha do certificado:');
+      if (!senha) { e.target.value = ''; return; }
+      setCertSenha(senha);
+    }
     setUploadingCert(true);
     try {
       const base64 = await new Promise((resolve) => {
@@ -80,7 +85,7 @@ export default function NfseConfig() {
       });
       const res = await authFetch('/admin/nfse/certificado', {
         method: 'POST',
-        body: JSON.stringify({ pfx_base64: base64, passphrase: certSenha }),
+        body: JSON.stringify({ pfx_base64: base64, passphrase: senha }),
       });
       const json = await res.json();
       if (json.success) {
@@ -167,7 +172,7 @@ export default function NfseConfig() {
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Arquivo .pfx / .p12</label>
-            <input type="file" accept=".pfx,.p12" onChange={handleUploadCert} disabled={uploadingCert || !certSenha}
+            <input type="file" accept=".pfx,.p12" onChange={handleUploadCert} disabled={uploadingCert}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm file:mr-3 file:rounded file:border-0 file:bg-orange-50 file:text-orange-600 file:font-medium file:px-3 file:py-1 disabled:opacity-50" />
           </div>
         </div>
