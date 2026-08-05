@@ -32,6 +32,7 @@ router.get('/', async (req, res) => {
       cliente_id: item.clienteId || item.cliente_id || '',
       cliente_nome: item.clienteNome || item.cliente_nome || '',
       cliente_email: item.clienteEmail || item.cliente_email || '',
+      evento_id: item.eventoId || item.evento_id || '',
       evento: item.eventoNome || item.evento || '',
       nota: item.nota,
       texto: item.comentario || item.texto || '',
@@ -65,6 +66,21 @@ router.get('/', async (req, res) => {
           }
         } catch {}
       }
+    }
+
+    // Enriquecer feedbacks sem nome de evento
+    const semEvento = feedbacks.filter(f => !f.evento && f.evento_id && f.cliente_id);
+    for (const fb of semEvento) {
+      try {
+        // Buscar orçamento pelo evento_id (que é o orcamento_id)
+        const orcRes = await docClient.send(new GetCommand({
+          TableName: TABLE_NAME,
+          Key: { PK: `CLIENTE#${fb.cliente_id}`, SK: `ORCAMENTO#${fb.evento_id}` },
+        }));
+        if (orcRes.Item) {
+          fb.evento = orcRes.Item.tipo_evento || orcRes.Item.titulo || orcRes.Item.nome_evento || '';
+        }
+      } catch {}
     }
 
     // Buscar total de orçamentos para cálculo de taxa de recusa
