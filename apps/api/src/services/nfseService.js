@@ -312,7 +312,7 @@ function assinarXml(xml, pfxBuffer, passphrase) {
 
   sig.computeSignature(xml, {
     prefix: '',
-    location: { reference: "//*[local-name(.)='infDPS']", action: 'after' },
+    location: { reference: "//*[local-name(.)='infDPS']", action: 'append' },
   });
 
   return sig.getSignedXml();
