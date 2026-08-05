@@ -518,44 +518,68 @@ router.post('/feedback', async (req, res) => {
       }
     }
 
-    // Check for duplicate feedback (por cliente, não por orçamento)
+    // Check for existing pending feedback for this client (created by admin via "Solicitar")
     const existingFeedback = await dynamo.send(new QueryCommand({
       TableName: TABLE,
       IndexName: 'GSI1',
       KeyConditionExpression: 'GSI1PK = :pk',
-      FilterExpression: 'cliente_id = :cid',
+      FilterExpression: 'cliente_id = :cid OR clienteId = :cid',
       ExpressionAttributeValues: { ':pk': 'FEEDBACK', ':cid': clienteId },
     }));
-    if (existingFeedback.Items && existingFeedback.Items.length > 0) {
+
+    const pendente = (existingFeedback.Items || []).find(f => f.nota == null || f.nota === undefined);
+    const jaRespondido = (existingFeedback.Items || []).find(f => f.nota != null && f.nota !== undefined);
+
+    if (jaRespondido) {
       return res.status(409).json({ success: false, message: 'Feedback já enviado' });
     }
 
-    // Create feedback
-    const feedbackId = randomUUID();
     const now = new Date().toISOString();
+    let feedbackId;
 
-    await dynamo.send(new PutCommand({
-      TableName: TABLE,
-      Item: {
-        PK: `TENANT#${process.env.TENANT_ID || 'default'}`,
-        SK: `FEEDBACK#${feedbackId}`,
-        GSI1PK: 'FEEDBACK',
-        GSI1SK: `FEEDBACK#${now}`,
-        GSI2PK: `CLIENTE#${clienteId}`,
-        GSI2SK: `FEEDBACK#${feedbackId}`,
-        id: feedbackId,
-        orcamento_id: orcamento_id || null,
-        cliente_id: clienteId,
-        cliente_nome: req.user.name || '',
-        cliente_email: req.user.email || '',
-        nota: Number(notaFinal),
-        texto: texto.trim(),
-        autoriza_publico: autorizaFinal === true,
-        created_at: now,
-        updated_at: now,
-      },
-      ConditionExpression: 'attribute_not_exists(PK)',
-    }));
+    if (pendente) {
+      // Atualizar o registro pendente existente (criado pelo admin)
+      feedbackId = pendente.id || pendente.SK.replace('FEEDBACK#', '');
+      await dynamo.send(new UpdateCommand({
+        TableName: TABLE,
+        Key: { PK: pendente.PK, SK: pendente.SK },
+        UpdateExpression: 'SET nota = :nota, comentario = :texto, texto = :texto, autorizado = :aut, autoriza_publico = :aut, respondidoEm = :now, updated_at = :now',
+        ExpressionAttributeValues: {
+          ':nota': Number(notaFinal),
+          ':texto': texto.trim(),
+          ':aut': autorizaFinal === true,
+          ':now': now,
+        },
+      }));
+    } else {
+      // Criar novo registro (sem solicitação prévia)
+      feedbackId = randomUUID();
+      await dynamo.send(new PutCommand({
+        TableName: TABLE,
+        Item: {
+          PK: `TENANT#${process.env.TENANT_ID || 'default'}`,
+          SK: `FEEDBACK#${feedbackId}`,
+          GSI1PK: 'FEEDBACK',
+          GSI1SK: `FEEDBACK#${now}`,
+          GSI2PK: `CLIENTE#${clienteId}`,
+          GSI2SK: `FEEDBACK#${feedbackId}`,
+          id: feedbackId,
+          orcamento_id: orcamento_id || null,
+          cliente_id: clienteId,
+          clienteId: clienteId,
+          cliente_nome: req.user.name || '',
+          cliente_email: req.user.email || '',
+          nota: Number(notaFinal),
+          texto: texto.trim(),
+          comentario: texto.trim(),
+          autoriza_publico: autorizaFinal === true,
+          autorizado: autorizaFinal === true,
+          respondidoEm: now,
+          created_at: now,
+          updated_at: now,
+        },
+      }));
+    }
 
     res.status(201).json({
       success: true,
