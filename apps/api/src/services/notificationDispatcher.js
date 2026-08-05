@@ -215,6 +215,10 @@ async function despacharCanal(canal, regra, evento, dados) {
           titulo: `Novo Feedback Recebido`,
           mensagem: `${dados.cliente_nome || 'Um cliente'} respondeu a pesquisa de satisfação. Confira a avaliação no sistema.`,
         },
+        'solicitar_feedback': {
+          titulo: `Queremos saber sua opinião!`,
+          mensagem: `Olá ${dados.cliente_nome || 'Cliente'}! Gostaríamos muito de saber como foi sua experiência com nosso serviço fotográfico. Sua opinião é muito importante para nós!`,
+        },
         'album_expirando': {
           titulo: `Álbum Expirando!`,
           mensagem: `O álbum "${dados.titulo || dados.album_titulo || 'Fotos'}" de ${dados.cliente_nome || 'cliente'} expira em ${dados.dias_restantes || '3'} dias. Baixe suas fotos antes que o link expire!`,

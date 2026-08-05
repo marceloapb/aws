@@ -239,27 +239,41 @@ router.get('/:id', async (req, res) => {
 // POST /admin/feedback/solicitar - Gerar solicitação de feedback
 router.post('/solicitar', async (req, res) => {
   try {
-    const photographerId = req.user.sub;
     const { cliente_id, evento_id } = req.body;
 
     if (!cliente_id) {
       return res.status(400).json({ success: false, error: 'cliente_id é obrigatório' });
     }
 
-    // Buscar dados do cliente
+    const TENANT = process.env.TENANT_ID || 'default';
+
+    // Buscar dados do cliente (TENANT#default/CLIENTE#id)
     let clienteNome = '';
     let clienteEmail = '';
+    let clienteWhatsapp = '';
     try {
       const cliResult = await docClient.send(new GetCommand({
         TableName: TABLE_NAME,
-        Key: { PK: `PHOTOGRAPHER#${photographerId}`, SK: `CLIENT#${cliente_id}` }
+        Key: { PK: `TENANT#${TENANT}`, SK: `CLIENTE#${cliente_id}` }
       }));
       if (cliResult.Item) {
         clienteNome = cliResult.Item.nome || cliResult.Item.name || '';
         clienteEmail = cliResult.Item.email || '';
+        clienteWhatsapp = cliResult.Item.whatsapp || cliResult.Item.telefone || '';
       }
     } catch (e) {
-      logger.warn({ action: 'feedback_solicitar_cliente_lookup', error: e.message });
+      // Fallback: CLIENT#id/PROFILE (self-signup)
+      try {
+        const cliResult2 = await docClient.send(new GetCommand({
+          TableName: TABLE_NAME,
+          Key: { PK: `CLIENT#${cliente_id}`, SK: 'PROFILE' }
+        }));
+        if (cliResult2.Item) {
+          clienteNome = cliResult2.Item.nome || cliResult2.Item.name || '';
+          clienteEmail = cliResult2.Item.email || '';
+          clienteWhatsapp = cliResult2.Item.whatsapp || cliResult2.Item.telefone || '';
+        }
+      } catch {}
     }
 
     const id = uuidv4();
@@ -267,12 +281,11 @@ router.post('/solicitar', async (req, res) => {
     const now = new Date().toISOString();
 
     const item = {
-      PK: `PHOTOGRAPHER#${photographerId}`,
+      PK: `TENANT#${TENANT}`,
       SK: `FEEDBACK#${id}`,
-      GSI1PK: `CLIENT#${cliente_id}`,
+      GSI1PK: 'FEEDBACK',
       GSI1SK: `FEEDBACK#${now}`,
       id,
-      photographerId,
       clienteId: cliente_id,
       clienteNome,
       clienteEmail,
@@ -282,7 +295,6 @@ router.post('/solicitar', async (req, res) => {
       autorizado: false,
       aprovado: false,
       publicado: false,
-      lembrete_enviado: false,
       tokenAcesso,
       respondidoEm: null,
       criadoEm: now
@@ -290,24 +302,20 @@ router.post('/solicitar', async (req, res) => {
 
     await docClient.send(new PutCommand({ TableName: TABLE_NAME, Item: item }));
 
-    // Enviar email com link
-    if (clienteEmail) {
-      const feedbackUrl = `${process.env.FRONTEND_URL}/feedback/${tokenAcesso}`;
-      try {
-        await emailService.sendEmail({
-          to: clienteEmail,
-          subject: 'Queremos saber sua opinião!',
-          html: `<p>Olá ${clienteNome},</p><p>Gostaríamos de saber como foi sua experiência conosco.</p><p><a href="${feedbackUrl}">Clique aqui para avaliar</a></p><p>Obrigado!</p>`
-        });
-      } catch (emailError) {
-        logger.warn({ action: 'feedback_email_error', error: emailError.message });
-      }
-    }
+    // Disparar notificação via regras (WhatsApp + email)
+    try {
+      const { registrarEvento } = require('../services/clienteHistoricoService');
+      await registrarEvento({
+        cliente_id,
+        tipo: 'solicitar_feedback',
+        descricao: `Solicitação de feedback enviada para ${clienteNome}`,
+        metadata: { feedback_id: id, token: tokenAcesso },
+      });
+    } catch {}
 
-    logger.info({ action: 'feedback_solicitar', photographerId, id, cliente_id });
-    res.status(201).json({ success: true, data: item });
+    res.status(201).json({ success: true, data: item, message: 'Solicitação de feedback enviada' });
   } catch (error) {
-    logger.error({ action: 'feedback_solicitar_error', error: error.message });
+    console.error('[FEEDBACK] Erro ao solicitar:', error.message);
     res.status(500).json({ success: false, error: 'Erro ao solicitar feedback' });
   }
 });
