@@ -155,9 +155,13 @@ function montarXmlDPS({ config, numeroDPS, dados }) {
   const now = new Date();
   const dhEmi = now.toISOString().replace(/\.\d{3}Z$/, '-03:00');
   const dCompet = data_competencia || now.toISOString().slice(0, 10);
-  // ID formato: DPS + CNPJ(14) + Serie(sem espaços) + Numero(15 dígitos padded)
-  const serieClean = (config.serie || 'NFSE').replace(/\s/g, '').toUpperCase();
-  const idDPS = `DPS${config.cnpj}${serieClean}${String(numeroDPS).padStart(15, '0')}`;
+  // ID formato: DPS + CódMunicipio(7) + TipoInscrição(1=CPF,2=CNPJ) + InscriçãoFederal(14) + Série(5 zero-padded left) + Número(15 zero-padded)
+  const codMun = (config.codigoMunicipio || '3550308').padStart(7, '0');
+  const tipoInscricao = '2'; // 2=CNPJ
+  const inscricaoFederal = config.cnpj.padStart(14, '0');
+  const serieId = (config.serie || 'NFSE').padStart(5, '0').substring(0, 5);
+  const numId = String(numeroDPS).padStart(15, '0');
+  const idDPS = `DPS${codMun}${tipoInscricao}${inscricaoFederal}${serieId}${numId}`;
 
   // Determinar se tomador é PF ou PJ
   const cpfCnpjLimpo = (cliente_cpf_cnpj || '').replace(/\D/g, '');
