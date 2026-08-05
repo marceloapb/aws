@@ -51,7 +51,7 @@ export default function Financeiro() {
 
   // Form states
   const [formPagar, setFormPagar] = useState({ meio: 'PIX', data_pagamento: '', valor_pago: 0 });
-  const [formCobranca, setFormCobranca] = useState({ cliente_id: '', valor: '', vencimento: '', parcela: '1/1', meio: 'PIX' });
+  const [formCobranca, setFormCobranca] = useState({ cliente_id: '', valor: '', vencimento: '', parcela: '1/1', meio: 'PIX', descricao: '', num_parcelas: 1, gerar_parcelas: false });
   const [formDespesa, setFormDespesa] = useState({
     descricao: '', valor: '', categoria: 'Outros', data: '', evento_id: '',
     recorrente: false, recorrencia: 'mensal',
@@ -61,6 +61,7 @@ export default function Financeiro() {
   const [formEntrada, setFormEntrada] = useState({ descricao: '', valor: '', data: '' });
   const [categorias, setCategorias] = useState([]);
   const [novaCat, setNovaCat] = useState({ nome: '', cor: '#3B82F6' });
+  const [clientes, setClientes] = useState([]);
 
   // Load categorias from API
   useEffect(() => {
@@ -78,6 +79,11 @@ export default function Financeiro() {
       .catch(() => {
         setCategorias(CATEGORIAS_DESPESA.map((c, i) => ({ id: String(i + 1), nome: c, cor: ['#3B82F6', '#10B981', '#F59E0B', '#8B5CF6', '#EC4899', '#6366F1', '#14B8A6', '#6B7280'][i] })));
       });
+    // Carregar clientes para o select de cobrança
+    authFetch('/admin/clientes')
+      .then(r => r.json())
+      .then(data => setClientes(Array.isArray(data) ? data : (data.data || [])))
+      .catch(() => {});
   }, []);
 
   const fetchData = useCallback(async () => {
@@ -129,7 +135,7 @@ export default function Financeiro() {
   const criarCobranca = async () => {
     await authFetch(`/admin/cobrancas`, { method: 'POST', body: JSON.stringify(formCobranca) });
     setModalNovaCobranca(false);
-    setFormCobranca({ cliente_id: '', valor: '', vencimento: '', parcela: '1/1', meio: 'PIX' });
+    setFormCobranca({ cliente_id: '', valor: '', vencimento: '', parcela: '1/1', meio: 'PIX', descricao: '', num_parcelas: 1, gerar_parcelas: false });
     fetchData();
   };
 
@@ -711,36 +717,70 @@ export default function Financeiro() {
 
       {/* Modal Nova Cobrança (FIN-01) */}
       {modalNovaCobranca && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl p-6 w-full max-w-md shadow-xl">
-            <h3 className="text-lg font-bold mb-4">Nova Cobrança</h3>
-            <div className="space-y-3">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl p-6 w-full max-w-lg shadow-xl max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-bold">Nova Cobrança</h3>
+              <button onClick={() => setModalNovaCobranca(false)} className="p-1 hover:bg-gray-100 rounded"><X size={18} /></button>
+            </div>
+            <div className="space-y-4">
+              {/* Cliente */}
               <div>
-                <label className="text-xs font-medium text-gray-700">Cliente</label>
-                <input placeholder="ID do cliente" value={formCobranca.cliente_id} onChange={e => setFormCobranca(f => ({ ...f, cliente_id: e.target.value }))} className="w-full border rounded-lg px-3 py-2 text-sm mt-1" />
-              </div>
-              <div>
-                <label className="text-xs font-medium text-gray-700">Valor</label>
-                <input type="number" step="0.01" value={formCobranca.valor} onChange={e => setFormCobranca(f => ({ ...f, valor: e.target.value }))} className="w-full border rounded-lg px-3 py-2 text-sm mt-1" />
-              </div>
-              <div>
-                <label className="text-xs font-medium text-gray-700">Vencimento</label>
-                <input type="date" value={formCobranca.vencimento} onChange={e => setFormCobranca(f => ({ ...f, vencimento: e.target.value }))} className="w-full border rounded-lg px-3 py-2 text-sm mt-1" />
-              </div>
-              <div>
-                <label className="text-xs font-medium text-gray-700">Parcela (ex: 1/3)</label>
-                <input value={formCobranca.parcela} onChange={e => setFormCobranca(f => ({ ...f, parcela: e.target.value }))} className="w-full border rounded-lg px-3 py-2 text-sm mt-1" />
-              </div>
-              <div>
-                <label className="text-xs font-medium text-gray-700">Meio de pagamento</label>
-                <select value={formCobranca.meio} onChange={e => setFormCobranca(f => ({ ...f, meio: e.target.value }))} className="w-full border rounded-lg px-3 py-2 text-sm mt-1">
-                  {MEIOS_PAGAMENTO.map(m => <option key={m} value={m}>{m}</option>)}
+                <label className="text-xs font-medium text-gray-700">Cliente *</label>
+                <select value={formCobranca.cliente_id} onChange={e => setFormCobranca(f => ({ ...f, cliente_id: e.target.value }))} className="w-full border rounded-lg px-3 py-2 text-sm mt-1">
+                  <option value="">Selecione um cliente...</option>
+                  {clientes.sort((a, b) => (a.nome || '').localeCompare(b.nome || '')).map(c => (
+                    <option key={c.id} value={c.id}>{c.nome}{c.email ? ` (${c.email})` : ''}</option>
+                  ))}
                 </select>
               </div>
+
+              {/* Descrição / Evento */}
+              <div>
+                <label className="text-xs font-medium text-gray-700">Descrição / Evento</label>
+                <input value={formCobranca.descricao} onChange={e => setFormCobranca(f => ({ ...f, descricao: e.target.value }))} placeholder="Ex: Ensaio Gestante, Casamento..." className="w-full border rounded-lg px-3 py-2 text-sm mt-1" />
+              </div>
+
+              {/* Valor + Meio */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs font-medium text-gray-700">Valor total *</label>
+                  <input type="number" step="0.01" value={formCobranca.valor} onChange={e => setFormCobranca(f => ({ ...f, valor: e.target.value }))} placeholder="0,00" className="w-full border rounded-lg px-3 py-2 text-sm mt-1" />
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-gray-700">Meio de pagamento</label>
+                  <select value={formCobranca.meio} onChange={e => setFormCobranca(f => ({ ...f, meio: e.target.value }))} className="w-full border rounded-lg px-3 py-2 text-sm mt-1">
+                    {MEIOS_PAGAMENTO.map(m => <option key={m} value={m}>{m}</option>)}
+                  </select>
+                </div>
+              </div>
+
+              {/* Vencimento + Parcelas */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs font-medium text-gray-700">Vencimento (1ª parcela) *</label>
+                  <input type="date" value={formCobranca.vencimento} onChange={e => setFormCobranca(f => ({ ...f, vencimento: e.target.value }))} className="w-full border rounded-lg px-3 py-2 text-sm mt-1" />
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-gray-700">Nº de parcelas</label>
+                  <input type="number" min="1" max="24" value={formCobranca.num_parcelas} onChange={e => setFormCobranca(f => ({ ...f, num_parcelas: parseInt(e.target.value) || 1 }))} className="w-full border rounded-lg px-3 py-2 text-sm mt-1" />
+                </div>
+              </div>
+
+              {/* Preview das parcelas */}
+              {formCobranca.valor && formCobranca.num_parcelas > 1 && (
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                  <p className="text-xs font-medium text-blue-800 mb-1">📋 Parcelas que serão geradas:</p>
+                  <p className="text-sm text-blue-700">
+                    <strong>{formCobranca.num_parcelas}×</strong> de <strong>{fmt(parseFloat(formCobranca.valor) / formCobranca.num_parcelas)}</strong>
+                    {formCobranca.vencimento && <> — vencimento mensal a partir de <strong>{new Date(formCobranca.vencimento + 'T12:00').toLocaleDateString('pt-BR')}</strong></>}
+                  </p>
+                </div>
+              )}
             </div>
-            <div className="flex justify-end gap-2 mt-6">
+            <div className="flex justify-end gap-2 mt-6 pt-4 border-t">
               <button onClick={() => setModalNovaCobranca(false)} className="px-4 py-2 border rounded-lg text-sm hover:bg-gray-50">Cancelar</button>
-              <button onClick={criarCobranca} className="px-4 py-2 text-white rounded-lg text-sm" style={{ backgroundColor: ACCENT }}>Criar Cobrança</button>
+              <button onClick={criarCobranca} disabled={!formCobranca.cliente_id || !formCobranca.valor || !formCobranca.vencimento} className="px-4 py-2 text-white rounded-lg text-sm font-medium disabled:opacity-50" style={{ backgroundColor: ACCENT }}>Criar Cobrança</button>
             </div>
           </div>
         </div>
