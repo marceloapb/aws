@@ -195,12 +195,14 @@ function montarXmlDPS({ config, numeroDPS, dados }) {
     <dCompet>${dCompet}</dCompet>
     <tpEmit>1</tpEmit>
     <cLocEmi>${config.codigoMunicipio}</cLocEmi>
-    <subst>2</subst>
     <prest>
       <CNPJ>${config.cnpj}</CNPJ>${config.inscricaoMunicipal ? `
       <IM>${config.inscricaoMunicipal}</IM>` : ''}
-      <regTrib>4</regTrib>
-      <CNAE>${config.cnae}</CNAE>
+      <regTrib>
+        <opSimpNac>2</opSimpNac>
+        <regApTribSN>1</regApTribSN>
+        <regEspTrib>0</regEspTrib>
+      </regTrib>
     </prest>
     <toma>${docXml ? `
       ${docXml}` : ''}
@@ -211,11 +213,9 @@ function montarXmlDPS({ config, numeroDPS, dados }) {
     <serv>
       <locPrest>
         <cLocPrestacao>${codigo_municipio_prestacao || config.codigoMunicipio}</cLocPrestacao>
-        <cPaisPrestacao>BR</cPaisPrestacao>
       </locPrest>
       <cServ>
         <cTribNac>${config.codigoTribNacional}</cTribNac>
-        <CNAE>${config.cnae}</CNAE>
         <xDescServ>${escapeXml(descricao_servico || 'Cobertura fotografica profissional de evento social.')}</xDescServ>
       </cServ>
     </serv>
@@ -224,10 +224,17 @@ function montarXmlDPS({ config, numeroDPS, dados }) {
         <vServ>${Number(valor_servico).toFixed(2)}</vServ>
       </vServPrest>
       <trib>
+        <tribMun>
+          <tribISSQN>1</tribISSQN>
+          <tpRetISSQN>1</tpRetISSQN>
+        </tribMun>
         <totTrib>
-          <indTotTrib>0</indTotTrib>
+          <vTotTrib>
+            <vTotTribFed>0.00</vTotTribFed>
+            <vTotTribEst>0.00</vTotTribEst>
+            <vTotTribMun>0.00</vTotTribMun>
+          </vTotTrib>
         </totTrib>
-        <regEspTrib>0</regEspTrib>
       </trib>
     </valores>
   </infDPS>
