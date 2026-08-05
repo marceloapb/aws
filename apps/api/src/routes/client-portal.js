@@ -188,7 +188,7 @@ router.get('/eventos', async (req, res) => {
 
     // Query orcamentos for this client
     const orcamentos = await queryByPK(`CLIENTE#${clienteId}`, 'ORCAMENTO#');
-    const clienteItems = await queryByGSI2(`CLIENTE#${clienteId}`);
+    const clienteItems = await queryByPK(`CLIENTE#${clienteId}`);
     const contratos = clienteItems.filter(i => (i.SK || '').startsWith('CT') || (i.SK || '').startsWith('CONTRATO'));
     const albuns = clienteItems.filter(i => (i.SK || '').startsWith('ALBUM'));
     const cobrancas = clienteItems.filter(i => (i.SK || '').startsWith('COBRANCA'));
@@ -254,10 +254,10 @@ router.get('/eventos/:id', async (req, res) => {
       return res.status(403).json({ success: false, message: 'Acesso negado' });
     }
 
-    // Fetch related entities via GSI2
-    const clienteItems = await queryByGSI2(`CLIENTE#${clienteId}`);
-    const contratos = clienteItems.filter(i => ((i.SK || '').startsWith('CT') || (i.SK || '').startsWith('CONTRATO')) && i.orcamento_id === eventoId);
-    const albuns = clienteItems.filter(i => (i.SK || '').startsWith('ALBUM') && i.orcamento_id === eventoId);
+    // Fetch related entities (all items with same PK)
+    const clienteItems = await queryByPK(`CLIENTE#${clienteId}`);
+    const contratos = clienteItems.filter(i => ((i.SK || '').startsWith('CT') || (i.SK || '').startsWith('CONTRATO')) && (i.orcamento_id === eventoId || !i.orcamento_id));
+    const albuns = clienteItems.filter(i => (i.SK || '').startsWith('ALBUM') && (i.orcamento_id === eventoId || !i.orcamento_id));
     const cobrancas = clienteItems.filter(i => (i.SK || '').startsWith('COBRANCA') && (i.orcamento_id === eventoId || (contratos[0] && i.contrato_id === contratos[0].id)));
 
     // Fetch orcamento options (if stored as sub-items)
@@ -577,13 +577,10 @@ router.get('/aditivos', async (req, res) => {
 
     // Get client's contracts
     const contratos = await queryByPK(`CLIENTE#${clienteId}`, 'CONTRATO#');
-    // Also check GSI2 for contracts
-    const gsi2Items = await queryByGSI2(`CLIENTE#${clienteId}`);
-    const ctFromGSI = gsi2Items.filter(i => (i.SK || '').startsWith('CT') || (i.SK || '').startsWith('CONTRATO'));
 
     // Merge contracts
     const allContratos = new Map();
-    [...contratos, ...ctFromGSI].forEach(c => allContratos.set(c.id || c.contrato_id, c));
+    contratos.forEach(c => allContratos.set(c.id || c.contrato_id, c));
 
     // For each contract, query its aditivos
     const aditivos = [];
