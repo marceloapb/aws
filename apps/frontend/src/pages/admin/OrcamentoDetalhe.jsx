@@ -4,7 +4,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import {
   ArrowLeft, Send, CheckCircle, Copy, FileText, Edit2, Download,
   Trash2, RefreshCw, RotateCcw, Phone, Mail, Star, Clock, XCircle, MapPin, AlertTriangle,
-  DollarSign, Calendar, Hash, Tag, Info, Image
+  DollarSign, Calendar, Hash, Tag, Info, Image, Receipt
 } from 'lucide-react';
 import DistanceBadge from '../../components/DistanceBadge';
 import MapEmbed from '../../components/MapEmbed';
@@ -67,6 +67,33 @@ export default function OrcamentoDetalhe() {
       const j = await r.json();
       if (j.success && j.data?.url) window.open(j.data.url, '_blank');
     } catch {} finally { setActionLoading(''); }
+  };
+
+  const handleEmitirNF = async () => {
+    setActionLoading('nf');
+    try {
+      const clienteId = orc.cliente_id || (orc.PK?.startsWith('CLIENTE#') ? orc.PK.replace('CLIENTE#', '') : '');
+      const valor = orc.valor_total || orc.opcoes?.reduce((max, op) => {
+        const total = (op.itens_snapshot || []).reduce((s, i) => s + (i.valor_unitario || 0) * (i.quantidade || 1), 0);
+        return Math.max(max, total);
+      }, 0) || 0;
+      const res = await authFetch('/admin/notas-fiscais', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          descricao_servico: `Cobertura fotográfica - ${orc.titulo || orc.tipo_evento || 'Evento'}`,
+          valor,
+          cliente_nome: orc.cliente?.nome || orc.cliente_nome || '',
+          cliente_cpf: orc.cliente?.cpf || orc.cliente?.cpf_cnpj || '',
+          orcamento_id: id,
+        }),
+      });
+      const json = await res.json();
+      if (json.success) alert(json.message || 'NFS-e emitida com sucesso!');
+      else alert('Erro: ' + (json.message || 'Falha na emissão'));
+    } catch (err) {
+      alert('Erro: ' + err.message);
+    } finally { setActionLoading(''); }
   };
 
   const handleSolicitarFeedback = async () => {
@@ -187,6 +214,7 @@ export default function OrcamentoDetalhe() {
                 : <Btn icon={Image} label="Gerar Álbum" accent loading={actionLoading === 'album'} onClick={handleCriarAlbum} />
               }
               <Btn icon={Star} label="Solicitar Feedback" onClick={handleSolicitarFeedback} loading={actionLoading === 'feedback'} />
+              <Btn icon={Receipt} label="Emitir NF" onClick={handleEmitirNF} loading={actionLoading === 'nf'} />
             </>
           )}
           {(orc.status === 'recusado' || orc.status === 'expirado') && (
