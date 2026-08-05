@@ -21,6 +21,7 @@ const adminSections = [
       { to: '/admin/orcamentos', icon: FileText, label: 'Orçamentos' },
       { to: '/admin/contratos', icon: FolderOpen, label: 'Contratos' },
       { to: '/admin/financeiro', icon: CreditCard, label: 'Financeiro' },
+      { to: '/admin/nfse', icon: Receipt, label: 'NFS-e' },
       { to: '/admin/notas-fiscais', icon: Receipt, label: 'Notas Fiscais', end: true },
       { to: '/admin/aditivos', icon: FilePlus, label: 'Aditivos' },
     ],

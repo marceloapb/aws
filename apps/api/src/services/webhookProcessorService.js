@@ -95,6 +95,14 @@ async function processWebhookEvent({ gateway, payload, headers }) {
     } catch (evtErr) {
       console.error('[WEBHOOK] Erro ao registrar evento pagamento_confirmado:', evtErr.message);
     }
+
+    // Emissão automática de NFS-e
+    try {
+      const { emitirNFSeAutomatica } = require('./nfseService');
+      await emitirNFSeAutomatica(cobranca, cliente);
+    } catch (nfseErr) {
+      console.error('[WEBHOOK] Erro ao emitir NFS-e automática:', nfseErr.message);
+    }
   }
 }
 

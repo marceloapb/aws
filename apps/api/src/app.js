@@ -70,6 +70,7 @@ const adminAlbumConfigRoutes = require('./routes/admin-album-config');
 const adminAlbumTemaRoutes = require('./routes/admin-album-tema');
 const adminFotoMetaRoutes = require('./routes/admin-foto-meta');
 const adminEmailTemplatesRoutes = require('./routes/admin-email-templates');
+const adminNfseRoutes = require('./routes/admin-nfse');
 
 // Rotas Client
 const clientAuthRoutes = require('./routes/client-auth');
@@ -171,6 +172,7 @@ app.use('/admin/media', adminAuth, adminMediaRoutes);
 app.use('/admin/upload', adminAuth, adminUploadRoutes);
 app.use('/admin/portfolio', adminAuth, adminPortfolioRoutes);
 app.use('/admin/email-templates', adminAuth, adminEmailTemplatesRoutes);
+app.use('/admin/nfse', adminAuth, adminNfseRoutes);
 app.use('/admin/assinaturas', adminAuth, adminAssinaturasRoutes);
 
 // Registrar rotas Client (protegidas por clientAuth)
