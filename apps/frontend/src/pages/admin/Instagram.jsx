@@ -44,6 +44,8 @@ export default function Instagram() {
   const [scheduleTime, setScheduleTime] = useState('');
   const [publishing, setPublishing] = useState(false);
   const [actionMsg, setActionMsg] = useState(null); // { type: 'success'|'error', text: '' }
+  const [showPromptConfig, setShowPromptConfig] = useState(false);
+  const [promptConfig, setPromptConfig] = useState('');
 
   // Stories state
   const [storyMode, setStoryMode] = useState('template');
@@ -99,6 +101,8 @@ export default function Instagram() {
   useEffect(() => {
     loadPosts();
     loadAlbuns();
+    // Carregar prompt da IA
+    api('/admin/instagram/prompt-config').then(d => { if (d?.prompt) setPromptConfig(d.prompt); }).catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -372,9 +376,9 @@ export default function Instagram() {
             </button>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Left: Seleção de fotos + Caption */}
-            <div className="space-y-4">
+          <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+            {/* Left: Seleção de fotos + Caption (3/5 = 60%) */}
+            <div className="lg:col-span-3 space-y-4">
               <h3 className="text-sm font-semibold text-gray-700">Selecionar Fotos {tipoPost === 'carrossel' && `(${selectedPhotos.length}/10)`}</h3>
               {/* Selecionar álbum primeiro */}
               <select value={selectedAlbumId || ''} onChange={async (e) => {
@@ -392,8 +396,8 @@ export default function Instagram() {
                 })}
               </select>
               {/* Grid de fotos do álbum selecionado */}
-              <div className="grid grid-cols-4 gap-2 max-h-48 overflow-y-auto border rounded-lg p-2">
-                {albumFotos.length === 0 && <p className="col-span-4 text-center text-xs text-gray-400 py-4">{selectedAlbumId ? 'Nenhuma foto neste álbum' : 'Selecione um álbum acima'}</p>}
+              <div className="grid grid-cols-5 sm:grid-cols-6 gap-2 max-h-52 overflow-y-auto border rounded-lg p-2">
+                {albumFotos.length === 0 && <p className="col-span-6 text-center text-xs text-gray-400 py-4">{selectedAlbumId ? 'Nenhuma foto neste álbum' : 'Selecione um álbum acima'}</p>}
                 {albumFotos.map((foto, i) => {
                   const fotoId = foto.id || foto.SK?.replace('FOTO#', '');
                   return (
@@ -409,46 +413,60 @@ export default function Instagram() {
                 })}
               </div>
 
-              {/* Caption */}
-              <div>
+              {/* Instruções para a IA */}
+              <div className="bg-purple-50 border border-purple-200 rounded-lg p-4 space-y-3">
                 <div className="flex items-center justify-between">
-                  <label className="text-sm font-semibold text-gray-700">Caption</label>
-                  <button type="button" onClick={async () => {
-                    setGerandoCaption(true);
-                    try {
-                      // Use album data for better IA suggestions
-                      const albumData = albuns.find(a => a.id === selectedAlbumId);
-                      const r = await authFetch('/admin/instagram/gerar-caption', { method: 'POST', body: JSON.stringify({
-                        tipo_evento: albumData?.tipo_evento || 'ensaio fotográfico',
-                        cliente_nome: albumData?.cliente_nome || '',
-                        titulo_album: albumData?.titulo || '',
-                        data_evento: albumData?.data_evento || '',
-                        tom: tomIA,
-                        contexto: contextIA || `Álbum: ${albumData?.titulo || 'Sessão fotográfica'}`,
-                        incluir_hashtags: true,
-                        tipo_post: tipoPost,
-                        num_fotos: selectedPhotos.length,
-                      }) });
-                      const d = await r.json();
-                      if (d.success) setCaption(d.data.caption);
-                    } catch {}
-                    setGerandoCaption(false);
-                  }} disabled={gerandoCaption} className="flex items-center gap-1 px-3 py-1 text-xs font-medium rounded-lg bg-purple-50 text-purple-700 hover:bg-purple-100 disabled:opacity-50">
-                    {gerandoCaption ? <><Loader2 size={12} className="animate-spin" /> Gerando...</> : <><Sparkles size={12} /> Gerar com IA</>}
+                  <label className="text-sm font-semibold text-purple-800 flex items-center gap-1.5">
+                    <Sparkles size={14} /> Instruções para a IA
+                  </label>
+                  <button type="button" onClick={() => setShowPromptConfig(true)} className="flex items-center gap-1 px-2 py-1 text-xs font-medium rounded bg-purple-100 text-purple-700 hover:bg-purple-200 transition-colors">
+                    <Settings size={12} /> Configurar Prompt
                   </button>
                 </div>
-                {/* Config IA (colapsável) */}
-                <div className="flex gap-2 mt-1 mb-1">
-                  <select value={tomIA} onChange={e => setTomIA(e.target.value)} className="text-xs border rounded px-2 py-1">
-                    <option value="emocional">Tom: Emocional</option>
-                    <option value="profissional">Tom: Profissional</option>
-                    <option value="descontraido">Tom: Descontraído</option>
-                    <option value="poetico">Tom: Poético</option>
+                <div className="flex gap-2">
+                  <select value={tomIA} onChange={e => setTomIA(e.target.value)} className="text-xs border border-purple-200 rounded-lg px-2 py-1.5 bg-white">
+                    <option value="emocional">🎭 Emocional</option>
+                    <option value="profissional">💼 Profissional</option>
+                    <option value="descontraido">😊 Descontraído</option>
+                    <option value="poetico">✨ Poético</option>
                   </select>
-                  <input value={contextIA} onChange={e => setContextIA(e.target.value)} placeholder="Contexto extra (local, momento...)" className="flex-1 text-xs border rounded px-2 py-1" />
                 </div>
+                <textarea
+                  value={contextIA}
+                  onChange={e => setContextIA(e.target.value)}
+                  rows={3}
+                  placeholder="Descreva o que a IA deve considerar: momento do ensaio, local, emoção desejada, público-alvo, hashtags preferidas..."
+                  className="w-full border border-purple-200 rounded-lg p-3 text-sm resize-none bg-white placeholder-purple-300 focus:ring-2 focus:ring-purple-200 focus:border-purple-400 outline-none"
+                />
+                <button type="button" onClick={async () => {
+                  setGerandoCaption(true);
+                  try {
+                    const albumData = albuns.find(a => a.id === selectedAlbumId);
+                    const r = await authFetch('/admin/instagram/gerar-caption', { method: 'POST', body: JSON.stringify({
+                      tipo_evento: albumData?.tipo_evento || 'ensaio fotográfico',
+                      cliente_nome: albumData?.cliente_nome || '',
+                      titulo_album: albumData?.titulo || '',
+                      data_evento: albumData?.data_evento || '',
+                      tom: tomIA,
+                      contexto: contextIA || `Álbum: ${albumData?.titulo || 'Sessão fotográfica'}`,
+                      incluir_hashtags: true,
+                      tipo_post: tipoPost,
+                      num_fotos: selectedPhotos.length,
+                    }) });
+                    const d = await r.json();
+                    if (d.success) setCaption(d.data.caption);
+                  } catch {}
+                  setGerandoCaption(false);
+                }} disabled={gerandoCaption} className="w-full flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium rounded-lg text-white disabled:opacity-50 transition-opacity" style={{ backgroundColor: '#7C3AED' }}>
+                  {gerandoCaption ? <><Loader2 size={14} className="animate-spin" /> Gerando legenda...</> : <><Sparkles size={14} /> Gerar Legenda com IA</>}
+                </button>
+              </div>
+
+              {/* Caption */}
+              <div>
+                <label className="text-sm font-semibold text-gray-700">Legenda para publicar</label>
                 <textarea value={caption} onChange={e => e.target.value.length <= 2200 && setCaption(e.target.value)}
-                  rows={4} placeholder="Escreva a legenda ou gere com IA..." className="w-full border rounded-lg p-3 text-sm resize-none" />
+                  rows={5} placeholder="Escreva a legenda ou gere com IA acima..." className="w-full border rounded-lg p-3 text-sm resize-none mt-1" />
                 <span className="text-xs text-gray-400">{caption.length}/2200</span>
               </div>
 
@@ -497,60 +515,62 @@ export default function Instagram() {
               </div>
             </div>
 
-            {/* Right: Preview */}
-            <div className="border rounded-xl p-4 bg-gray-50">
-              <h3 className="text-sm font-semibold text-gray-700 mb-3">Preview</h3>
-              <div className="bg-white rounded-xl border max-w-[320px] mx-auto overflow-hidden">
-                <div className="flex items-center gap-2 p-3 border-b">
-                  <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-orange-400 to-pink-500" />
-                  <span className="text-sm font-semibold">seu_perfil</span>
-                </div>
-                {/* Photo area - supports carousel */}
-                <div className="relative">
-                  {selectedPhotos.length > 0 ? (
-                    <img src={(() => {
-                      const fotoId = selectedPhotos[previewIndex] || selectedPhotos[0];
-                      const foto = albumFotos.find(f => (f.id || f.SK?.replace('FOTO#', '')) === fotoId);
-                      return foto?.url_thumb || foto?.url || '';
-                    })()} alt="Preview" className="w-full h-[320px] object-cover" />
-                  ) : (
-                    <div className="w-full h-[320px] bg-gray-200 flex items-center justify-center text-gray-400">
-                      <Image size={48} />
-                    </div>
-                  )}
-                  {/* Carousel navigation */}
-                  {tipoPost === 'carrossel' && selectedPhotos.length > 1 && (
-                    <>
-                      {previewIndex > 0 && (
-                        <button onClick={() => setPreviewIndex(i => i - 1)} className="absolute left-2 top-1/2 -translate-y-1/2 w-7 h-7 rounded-full bg-white/90 shadow flex items-center justify-center text-gray-700 hover:bg-white">
-                          <ChevronLeft size={16} />
-                        </button>
-                      )}
-                      {previewIndex < selectedPhotos.length - 1 && (
-                        <button onClick={() => setPreviewIndex(i => i + 1)} className="absolute right-2 top-1/2 -translate-y-1/2 w-7 h-7 rounded-full bg-white/90 shadow flex items-center justify-center text-gray-700 hover:bg-white">
-                          <ChevronRight size={16} />
-                        </button>
-                      )}
-                      {/* Dots indicator */}
-                      <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1">
-                        {selectedPhotos.map((_, i) => (
-                          <div key={i} className={`w-1.5 h-1.5 rounded-full transition-colors ${i === previewIndex ? 'bg-[#EA580C]' : 'bg-white/60'}`} />
-                        ))}
+            {/* Right: Preview (2/5 = 40%) — menor */}
+            <div className="lg:col-span-2">
+              <div className="border rounded-xl p-4 bg-gray-50 sticky top-4">
+                <h3 className="text-sm font-semibold text-gray-700 mb-3">Preview</h3>
+                <div className="bg-white rounded-xl border max-w-[280px] mx-auto overflow-hidden shadow-sm">
+                  <div className="flex items-center gap-2 p-2.5 border-b">
+                    <div className="w-7 h-7 rounded-full bg-gradient-to-tr from-orange-400 to-pink-500" />
+                    <span className="text-xs font-semibold">seu_perfil</span>
+                  </div>
+                  {/* Photo area - supports carousel */}
+                  <div className="relative">
+                    {selectedPhotos.length > 0 ? (
+                      <img src={(() => {
+                        const fotoId = selectedPhotos[previewIndex] || selectedPhotos[0];
+                        const foto = albumFotos.find(f => (f.id || f.SK?.replace('FOTO#', '')) === fotoId);
+                        return foto?.url_thumb || foto?.url || '';
+                      })()} alt="Preview" className="w-full h-[280px] object-cover" />
+                    ) : (
+                      <div className="w-full h-[280px] bg-gray-200 flex items-center justify-center text-gray-400">
+                        <Image size={40} />
                       </div>
-                      {/* Carousel badge */}
-                      <div className="absolute top-3 right-3 bg-black/60 text-white text-xs px-2 py-0.5 rounded-full backdrop-blur-sm">
-                        {previewIndex + 1}/{selectedPhotos.length}
-                      </div>
-                    </>
-                  )}
+                    )}
+                    {/* Carousel navigation */}
+                    {tipoPost === 'carrossel' && selectedPhotos.length > 1 && (
+                      <>
+                        {previewIndex > 0 && (
+                          <button onClick={() => setPreviewIndex(i => i - 1)} className="absolute left-2 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-white/90 shadow flex items-center justify-center text-gray-700 hover:bg-white">
+                            <ChevronLeft size={14} />
+                          </button>
+                        )}
+                        {previewIndex < selectedPhotos.length - 1 && (
+                          <button onClick={() => setPreviewIndex(i => i + 1)} className="absolute right-2 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-white/90 shadow flex items-center justify-center text-gray-700 hover:bg-white">
+                            <ChevronRight size={14} />
+                          </button>
+                        )}
+                        {/* Dots indicator */}
+                        <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1">
+                          {selectedPhotos.map((_, i) => (
+                            <div key={i} className={`w-1.5 h-1.5 rounded-full transition-colors ${i === previewIndex ? 'bg-[#EA580C]' : 'bg-white/60'}`} />
+                          ))}
+                        </div>
+                        {/* Carousel badge */}
+                        <div className="absolute top-2 right-2 bg-black/60 text-white text-[10px] px-1.5 py-0.5 rounded-full backdrop-blur-sm">
+                          {previewIndex + 1}/{selectedPhotos.length}
+                        </div>
+                      </>
+                    )}
+                  </div>
+                  <div className="p-2.5">
+                    <p className="text-xs text-gray-700 line-clamp-3">{caption || 'Sua legenda aqui...'}</p>
+                  </div>
                 </div>
-                <div className="p-3">
-                  <p className="text-sm text-gray-700 line-clamp-3">{caption || 'Sua legenda aqui...'}</p>
-                </div>
+                {tipoPost === 'carrossel' && selectedPhotos.length > 1 && (
+                  <p className="text-center text-[10px] text-gray-400 mt-2">Deslize para ver {selectedPhotos.length} fotos</p>
+                )}
               </div>
-              {tipoPost === 'carrossel' && selectedPhotos.length > 1 && (
-                <p className="text-center text-xs text-gray-400 mt-2">Deslize para ver {selectedPhotos.length} fotos do carrossel</p>
-              )}
             </div>
           </div>
         </div>
@@ -913,6 +933,54 @@ export default function Instagram() {
             {(!custosIA?.detalhes || custosIA.detalhes.length === 0) && (
               <p className="text-center text-gray-400 py-8 text-sm">Nenhum custo registrado este mês.</p>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* ═══ MODAL: Configurar Prompt da IA ═══ */}
+      {showPromptConfig && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl max-w-lg w-full shadow-xl">
+            <div className="flex items-center justify-between px-6 py-4 border-b">
+              <div>
+                <h2 className="text-lg font-bold flex items-center gap-2"><Sparkles size={18} style={{ color: '#7C3AED' }} /> Prompt do Agente IA</h2>
+                <p className="text-xs text-gray-500 mt-0.5">Define a personalidade e estilo do agente que gera as legendas.</p>
+              </div>
+              <button onClick={() => setShowPromptConfig(false)} className="p-1 hover:bg-gray-100 rounded"><X size={20} /></button>
+            </div>
+            <div className="px-6 py-4 space-y-3">
+              <textarea
+                value={promptConfig}
+                onChange={e => setPromptConfig(e.target.value)}
+                rows={10}
+                placeholder={`Exemplo:\nVocê é o copywriter da Marcelo Bloise Fotografia.\nEstilo: emocional, íntimo, poético.\nRegras:\n- Sempre incluir call-to-action\n- Máximo 5 hashtags relevantes\n- Usar emojis com moderação\n- Mencionar a experiência única de cada sessão\n- Tom acolhedor e profissional`}
+                className="w-full border rounded-lg p-4 text-sm resize-none font-mono bg-gray-50 focus:bg-white focus:ring-2 focus:ring-purple-200 focus:border-purple-400 outline-none"
+              />
+              <div className="bg-purple-50 border border-purple-100 rounded-lg p-3">
+                <p className="text-xs text-purple-700">💡 <strong>Dica:</strong> Seja específico sobre tom, público-alvo, palavras-chave e estrutura desejada. O prompt será usado em todas as gerações de legenda.</p>
+              </div>
+            </div>
+            <div className="flex items-center justify-end gap-2 px-6 py-4 border-t">
+              <button onClick={() => setShowPromptConfig(false)} className="px-4 py-2 text-sm border rounded-lg hover:bg-gray-50">Cancelar</button>
+              <button
+                onClick={async () => {
+                  try {
+                    await authFetch('/admin/instagram/prompt-config', {
+                      method: 'PUT',
+                      body: JSON.stringify({ prompt: promptConfig }),
+                    });
+                    showMsg('success', 'Prompt da IA salvo com sucesso!');
+                    setShowPromptConfig(false);
+                  } catch (err) {
+                    showMsg('error', 'Erro ao salvar prompt: ' + err.message);
+                  }
+                }}
+                className="px-4 py-2 text-sm text-white rounded-lg font-medium"
+                style={{ backgroundColor: '#7C3AED' }}
+              >
+                Salvar Prompt
+              </button>
+            </div>
           </div>
         </div>
       )}

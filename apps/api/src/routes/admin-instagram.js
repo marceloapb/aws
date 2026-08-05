@@ -1,7 +1,7 @@
 const { Router } = require('express');
 const crypto = require('crypto');
 const { dynamo, TABLE } = require('../config/dynamodb');
-const { QueryCommand, PutCommand, UpdateCommand, DeleteCommand } = require('@aws-sdk/lib-dynamodb');
+const { QueryCommand, PutCommand, UpdateCommand, DeleteCommand, GetCommand } = require('@aws-sdk/lib-dynamodb');
 const { publicarCarrossel, publicarFotoUnica } = require('../services/instagramService');
 const { INSTAGRAM_STATUS } = require('../config/constants');
 
@@ -407,6 +407,40 @@ router.post('/stories/ia-livre', async (req, res) => {
     }));
 
     res.json({ success: true, texto, preview_url: foto_url || null, type: 'text_overlay' });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// ─── GET /admin/instagram/prompt-config — Buscar prompt do agente IA ───────────
+const TENANT = process.env.TENANT_ID || 'default';
+
+router.get('/prompt-config', async (req, res) => {
+  try {
+    const result = await dynamo.send(new GetCommand({
+      TableName: TABLE,
+      Key: { PK: `TENANT#${TENANT}`, SK: 'CONFIG#instagram_prompt' },
+    }));
+    res.json({ prompt: result.Item?.prompt || '' });
+  } catch (error) {
+    res.json({ prompt: '' });
+  }
+});
+
+// ─── PUT /admin/instagram/prompt-config — Salvar prompt do agente IA ───────────
+router.put('/prompt-config', async (req, res) => {
+  try {
+    const { prompt } = req.body;
+    await dynamo.send(new PutCommand({
+      TableName: TABLE,
+      Item: {
+        PK: `TENANT#${TENANT}`,
+        SK: 'CONFIG#instagram_prompt',
+        prompt: prompt || '',
+        updated_at: new Date().toISOString(),
+      },
+    }));
+    res.json({ success: true });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
