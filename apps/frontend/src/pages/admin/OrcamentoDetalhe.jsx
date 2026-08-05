@@ -181,14 +181,16 @@ export default function OrcamentoDetalhe() {
       </button>
 
       {/* ─── HEADER ─── */}
-      <div className="flex items-center justify-between mb-6 flex-col sm:flex-row gap-3">
-        <div className="flex items-center gap-3">
+      <div className="mb-6">
+        <div className="flex items-center gap-3 mb-4">
           <FileText size={24} style={{ color: '#EA580C' }} />
           <h1 className="text-2xl font-bold text-gray-900">{orc.titulo || `Orçamento #${id?.slice(0, 8)}`}</h1>
-          <span className={`inline-block mt-1 px-2.5 py-1 rounded-full text-xs font-semibold ${st.color}`}>{st.label}</span>
+          <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${st.color}`}>{st.label}</span>
         </div>
-        <div className="flex flex-wrap gap-2">
-          {/* Ações contextuais */}
+
+        {/* Barra de ações */}
+        <div className="flex flex-wrap items-center gap-2 p-3 bg-gray-50 rounded-xl border">
+          {/* Ações por status */}
           {(orc.status === 'rascunho' || orc.status === 'em_revisao' || orc.status === 'pronto_enviar') && (
             <>
               <Btn icon={Edit2} label="Editar" onClick={() => navigate(`/admin/orcamentos/${id}/editar`)} />
@@ -213,15 +215,18 @@ export default function OrcamentoDetalhe() {
                 ? <Btn icon={Image} label={`Álbum (${orc.album_vinculado.status || 'criado'})`} onClick={() => navigate(`/admin/albuns/${orc.album_vinculado.id}`)} />
                 : <Btn icon={Image} label="Gerar Álbum" accent loading={actionLoading === 'album'} onClick={handleCriarAlbum} />
               }
-              <Btn icon={Star} label="Solicitar Feedback" onClick={handleSolicitarFeedback} loading={actionLoading === 'feedback'} />
+              <span className="w-px h-6 bg-gray-300 mx-1 hidden sm:block" />
               <Btn icon={Receipt} label="Emitir NF" onClick={handleEmitirNF} loading={actionLoading === 'nf'} />
+              <Btn icon={Star} label="Feedback" onClick={handleSolicitarFeedback} loading={actionLoading === 'feedback'} />
             </>
           )}
           {(orc.status === 'recusado' || orc.status === 'expirado') && (
-            <>
-              <Btn icon={RotateCcw} label="Reabrir" onClick={() => handleAction('reabrir')} loading={actionLoading === 'reabrir'} />
-            </>
+            <Btn icon={RotateCcw} label="Reabrir" onClick={() => handleAction('reabrir')} loading={actionLoading === 'reabrir'} />
           )}
+
+          {/* Separador */}
+          <span className="w-px h-6 bg-gray-300 mx-1 hidden sm:block" />
+
           {/* Sempre visíveis */}
           <Btn icon={Copy} label="Duplicar" onClick={() => handleAction('duplicar')} loading={actionLoading === 'duplicar'} />
           <Btn icon={Download} label="PDF" onClick={handlePDF} loading={actionLoading === 'pdf'} />
