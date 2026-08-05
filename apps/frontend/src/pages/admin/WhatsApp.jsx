@@ -8,11 +8,9 @@ import {
 import { SortableHeader } from '../../components/ui';
 import useSortable from '../../hooks/useSortable';
 
-import WhatsAppTemplateImages from './WhatsAppTemplateImages';
-
 const ACCENT = '#EA580C';
 const API = '/admin/whatsapp';
-const TABS = ['Envios', 'Templates', 'Imagens', 'Conversas', 'Custos'];
+const TABS = ['Envios', 'Templates', 'Conversas', 'Custos'];
 const EVENTOS = ['orcamento_enviado', 'contrato_pronto', 'pagamento_confirmado', 'album_publicado', 'lembrete_sessao'];
 const STATUS_ENVIO = { enviado: { icon: Check, color: 'text-gray-500' }, entregue: { icon: CheckCheck, color: 'text-gray-500' }, lido: { icon: CheckCheck, color: 'text-blue-500' }, falhou: { icon: X, color: 'text-red-500' } };
 
@@ -51,9 +49,6 @@ export default function WhatsApp() {
   const [tplForm, setTplForm] = useState({ nome: '', categoria: 'utility', idioma: 'pt_BR', corpo: '', variaveis: [], evento: '', header: '', header_type: 'TEXT', header_image_key: '' });
   const [editTplId, setEditTplId] = useState(null);
   const [uploadingHeaderImg, setUploadingHeaderImg] = useState(false);
-  const [gerandoImgVariants, setGerandoImgVariants] = useState(false);
-  const [rascunhos, setRascunhos] = useState([]);
-
   // Envios
   const [envios, setEnvios] = useState([]);
   const [envioFiltro, setEnvioFiltro] = useState({ periodo: '', status: 'todos', busca: '' });
@@ -84,10 +79,8 @@ export default function WhatsApp() {
       } else if (tab === 1) {
         const t = await authFetch(`${API}/templates`).then(r => r.json()); setTemplates(t.data || []);
       } else if (tab === 2) {
-        // Imagens tab — componente próprio gerencia seu estado
-      } else if (tab === 3) {
         const r = await authFetch(`${API}/conversas`); const d = await r.json(); setConversas(d.data || []);
-      } else if (tab === 4) {
+      } else if (tab === 3) {
         const r = await authFetch(`${API}/custos`); const d = await r.json(); setCustos(d.data);
       }
     } catch {}
@@ -283,72 +276,6 @@ export default function WhatsApp() {
     loadTab();
   };
   const syncTodos = () => { loadTab(); };
-  const gerarImgVariants = async () => {
-    if (!window.confirm('Gerar rascunhos _img para todos os templates sem imagem? (Não submete à Meta)')) return;
-    setGerandoImgVariants(true);
-    try {
-      const resp = await authFetch(`${API}/templates/gerar-img-variants`, { method: 'POST' });
-      const data = await resp.json();
-      if (data.success) {
-        alert(data.message || `${data.data?.criados || 0} rascunho(s) criado(s)!`);
-        loadRascunhos();
-      } else {
-        alert(data.message || 'Erro ao gerar variantes _img');
-      }
-    } catch (err) { alert('Erro: ' + err.message); }
-    finally { setGerandoImgVariants(false); }
-  };
-  const [migrando, setMigrando] = useState(false);
-  const migrarTemplates = async () => {
-    if (!window.confirm('ATENÇÃO: Isso vai DELETAR todos os templates antigos e CRIAR os novos mbf_*_img na Meta.\n\nApós a migração, entre em cada template novo e faça upload da imagem.\n\nDeseja continuar?')) return;
-    setMigrando(true);
-    try {
-      const resp = await authFetch(`${API}/templates/migrar`, { method: 'POST' });
-      const data = await resp.json();
-      if (data.success) {
-        alert(`Migração concluída!\n\n${data.message}\n\nPróximo passo: entre em cada template, suba a imagem e salve.`);
-        loadTab();
-      } else {
-        alert(data.message || 'Erro na migração');
-      }
-    } catch (err) { alert('Erro: ' + err.message); }
-    finally { setMigrando(false); }
-  };
-  const loadRascunhos = async () => {
-    try {
-      const resp = await authFetch(`${API}/templates/rascunhos`);
-      const data = await resp.json();
-      if (data.success) setRascunhos(data.data || []);
-    } catch {}
-  };
-  const openEditRascunho = (r) => {
-    setTplForm({
-      nome: r.nome,
-      categoria: (r.categoria || 'UTILITY').toUpperCase(),
-      idioma: r.idioma || 'pt_BR',
-      corpo: r.corpo || '',
-      variaveis: r.variaveis || [],
-      evento: '',
-      header: '',
-      header_type: 'IMAGE',
-      header_image_key: r.header?.exemplo_url || r.header?.valor || '',
-    });
-    setEditTplId(r.id);
-    setTplModal(true);
-  };
-  const deleteRascunho = async (id) => {
-    if (!window.confirm('Excluir este rascunho _img?')) return;
-    try {
-      const resp = await authFetch(`${API}/templates/rascunhos/${id}`, { method: 'DELETE' });
-      const data = await resp.json();
-      if (data.success) {
-        setRascunhos(prev => prev.filter(r => r.id !== id));
-      } else {
-        alert(data.message || 'Erro ao excluir rascunho');
-      }
-    } catch (err) { alert('Erro: ' + err.message); }
-  };
-  useEffect(() => { if (tab === 1) loadRascunhos(); }, [tab]);
   const addVariavel = () => { setTplForm({ ...tplForm, variaveis: [...tplForm.variaveis, { indice: tplForm.variaveis.length + 1, descricao: '', exemplo: '' }] }); };
 
   // Upload de imagem do header do template
@@ -418,9 +345,6 @@ export default function WhatsApp() {
             <button onClick={migrarTemplates} disabled={migrando} className="flex items-center gap-1 px-3 py-2 rounded text-sm font-medium border border-red-300 text-red-700 hover:bg-red-50 disabled:opacity-50 flex-1 sm:flex-none justify-center" title="Deleta antigos e cria novos mbf_*_img na Meta">
               <Upload size={14} /> {migrando ? 'Migrando...' : 'Migrar p/ mbf_'}
             </button>
-            <button onClick={gerarImgVariants} disabled={gerandoImgVariants} className="flex items-center gap-1 px-3 py-2 rounded text-sm font-medium border border-orange-300 text-orange-700 hover:bg-orange-50 disabled:opacity-50 flex-1 sm:flex-none justify-center" title="Cria rascunhos _img para templates sem imagem (não submete à Meta)">
-              <Upload size={14} /> {gerandoImgVariants ? 'Gerando...' : 'Gerar _img'}
-            </button>
           </div>
         </div>
         <div className="grid gap-3">
@@ -465,41 +389,6 @@ export default function WhatsApp() {
           ))}
           {templates.length === 0 && <p className="text-sm text-gray-400 text-center py-8">Nenhum template encontrado na Meta</p>}
         </div>
-
-        {/* Rascunhos _img (locais, não submetidos à Meta) */}
-        {rascunhos.length > 0 && (
-          <div className="mt-6">
-            <h3 className="text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
-              <Clock size={14} className="text-orange-500" />
-              Rascunhos _img (aguardando imagem e submissão)
-            </h3>
-            <p className="text-xs text-gray-400 mb-3">Estes templates foram criados localmente. Adicione a imagem de header e submeta à Meta para aprovação.</p>
-            <div className="grid gap-2">
-              {rascunhos.map(r => (
-                <div key={r.id} className="bg-orange-50/50 border border-orange-200 rounded-lg p-3">
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                    <div className="flex flex-wrap items-center gap-2 min-w-0">
-                      <span className="font-medium text-sm font-mono break-all">{r.nome}</span>
-                      <Badge color="gray">rascunho</Badge>
-                      <Badge color={r.categoria === 'marketing' ? 'orange' : 'blue'}>{r.categoria}</Badge>
-                      {r.nome_original && <span className="text-xs text-gray-400 hidden sm:inline">← {r.nome_original}</span>}
-                    </div>
-                    <div className="flex items-center gap-1 shrink-0">
-                      <button onClick={() => openEditRascunho(r)} className="p-1.5 rounded hover:bg-orange-100 text-gray-500 hover:text-orange-700 transition-colors" title="Editar rascunho">
-                        <Edit size={14} />
-                      </button>
-                      <button onClick={() => deleteRascunho(r.id)} className="p-1.5 rounded hover:bg-red-100 text-gray-500 hover:text-red-600 transition-colors" title="Excluir rascunho">
-                        <Trash2 size={14} />
-                      </button>
-                    </div>
-                  </div>
-                  <p className="text-xs text-gray-600 mt-1.5 break-words line-clamp-2">{r.corpo}</p>
-                  {r.nome_original && <p className="text-xs text-gray-400 mt-1 sm:hidden">← baseado em: {r.nome_original}</p>}
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
 
         {/* Modal Template */}
         <Modal open={tplModal} onClose={() => setTplModal(false)} title={editTplId ? 'Editar Template' : 'Novo Template (Meta WhatsApp)'}>
@@ -1021,9 +910,8 @@ export default function WhatsApp() {
         <>
           {tab === 0 && renderEnvios()}
           {tab === 1 && renderTemplates()}
-          {tab === 2 && <WhatsAppTemplateImages authFetch={authFetch} />}
-          {tab === 3 && renderConversas()}
-          {tab === 4 && renderCustos()}
+          {tab === 2 && renderConversas()}
+          {tab === 3 && renderCustos()}
         </>
       )}
     </div>
