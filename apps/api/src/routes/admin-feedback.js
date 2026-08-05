@@ -29,8 +29,9 @@ router.get('/', async (req, res) => {
 
     const feedbacks = (result.Items || []).map(item => ({
       id: item.id,
-      cliente_nome: item.clienteNome || item.cliente_nome,
-      cliente_email: item.clienteEmail || item.cliente_email,
+      cliente_id: item.clienteId || item.cliente_id || '',
+      cliente_nome: item.clienteNome || item.cliente_nome || '',
+      cliente_email: item.clienteEmail || item.cliente_email || '',
       evento: item.eventoNome || item.evento || '',
       nota: item.nota,
       texto: item.comentario || item.texto || '',
@@ -41,6 +42,30 @@ router.get('/', async (req, res) => {
       created_at: item.criadoEm || item.created_at,
       respondido_em: item.respondidoEm || item.respondido_em
     }));
+
+    // Enriquecer feedbacks sem nome de cliente
+    const clientesSemNome = feedbacks.filter(f => !f.cliente_nome && f.cliente_id);
+    if (clientesSemNome.length > 0) {
+      // Buscar nomes dos clientes faltantes
+      for (const fb of clientesSemNome) {
+        try {
+          const cliRes = await docClient.send(new GetCommand({
+            TableName: TABLE_NAME,
+            Key: { PK: `TENANT#${TENANT}`, SK: `CLIENTE#${fb.cliente_id}` },
+          }));
+          if (cliRes.Item) {
+            fb.cliente_nome = cliRes.Item.nome || cliRes.Item.name || '';
+          } else {
+            // Tentar CLIENT#/PROFILE
+            const cliRes2 = await docClient.send(new GetCommand({
+              TableName: TABLE_NAME,
+              Key: { PK: `CLIENT#${fb.cliente_id}`, SK: 'PROFILE' },
+            }));
+            if (cliRes2.Item) fb.cliente_nome = cliRes2.Item.nome || cliRes2.Item.name || '';
+          }
+        } catch {}
+      }
+    }
 
     // Buscar total de orçamentos para cálculo de taxa de recusa
     let totalOrcamentos = 0;
@@ -281,6 +306,25 @@ router.post('/solicitar', async (req, res) => {
     const tokenAcesso = uuidv4();
     const now = new Date().toISOString();
 
+    // Buscar nome do evento se evento_id fornecido
+    let eventoNome = '';
+    if (evento_id) {
+      try {
+        // Tentar buscar como agenda
+        const { QueryCommand: QC } = require('@aws-sdk/lib-dynamodb');
+        const evResult = await docClient.send(new QC({
+          TableName: TABLE_NAME,
+          IndexName: 'GSI1',
+          KeyConditionExpression: 'GSI1PK = :pk AND GSI1SK = :sk',
+          ExpressionAttributeValues: { ':pk': 'AGENDA', ':sk': `AGENDA#${evento_id}` },
+        }));
+        const ev = evResult.Items?.[0];
+        if (ev) {
+          eventoNome = ev.titulo || ev.tipo_evento || ev.nome || '';
+        }
+      } catch {}
+    }
+
     const item = {
       PK: `TENANT#${TENANT}`,
       SK: `FEEDBACK#${id}`,
@@ -288,9 +332,14 @@ router.post('/solicitar', async (req, res) => {
       GSI1SK: `FEEDBACK#${now}`,
       id,
       clienteId: cliente_id,
+      cliente_id,
       clienteNome,
+      cliente_nome: clienteNome,
       clienteEmail,
+      cliente_email: clienteEmail,
       eventoId: evento_id || null,
+      eventoNome,
+      evento: eventoNome,
       nota: null,
       comentario: null,
       autorizado: false,
