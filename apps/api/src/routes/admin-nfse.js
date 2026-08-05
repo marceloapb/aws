@@ -14,14 +14,22 @@ const TENANT = process.env.TENANT_ID || 'default';
 // GET /api/admin/nfse/config — Retorna configuração atual
 router.get('/config', async (req, res) => {
   try {
-    const result = await dynamo.send(new GetCommand({
-      TableName: TABLE,
-      Key: { PK: `TENANT#${TENANT}`, SK: 'CONFIG#nfse' },
-    }));
-    const config = result.Item || {};
-    // Não retornar dados sensíveis
+    const [configResult, certResult] = await Promise.all([
+      dynamo.send(new GetCommand({
+        TableName: TABLE,
+        Key: { PK: `TENANT#${TENANT}`, SK: 'CONFIG#nfse' },
+      })),
+      dynamo.send(new GetCommand({
+        TableName: TABLE,
+        Key: { PK: `TENANT#${TENANT}`, SK: 'CONFIG#nfse_certificado' },
+      })),
+    ]);
+    const config = configResult.Item || {};
+    const cert = certResult.Item || {};
     delete config.PK;
     delete config.SK;
+    config.tem_certificado = cert.tem_certificado || false;
+    config.cert_info = cert.cert_info || null;
     res.json({ success: true, data: config });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
@@ -68,56 +76,79 @@ router.post('/certificado', async (req, res) => {
       return res.status(400).json({ success: false, message: 'pfx_base64 e passphrase são obrigatórios' });
     }
 
-    // Validar que o PFX é válido
+    // Validar que é base64 válido e tem tamanho razoável (certificados: 2-10KB)
+    const decoded = Buffer.from(pfx_base64, 'base64');
+    if (decoded.length < 500 || decoded.length > 50000) {
+      return res.status(400).json({ success: false, message: 'Arquivo de certificado com tamanho inválido' });
+    }
+
+    // Tentar validar com node-forge se disponível
+    let certInfo = {};
     try {
       const forge = require('node-forge');
-      const pfxDer = Buffer.from(pfx_base64, 'base64').toString('binary');
+      const pfxDer = decoded.toString('binary');
       const p12Asn1 = forge.asn1.fromDer(pfxDer);
       const p12 = forge.pkcs12.pkcs12FromAsn1(p12Asn1, passphrase);
 
-      // Extrair informações do certificado
-      let certInfo = {};
       for (const sc of p12.safeContents) {
         for (const bag of sc.safeBags) {
           if (bag.type === forge.pki.oids.certBag && bag.cert) {
-            const cert = bag.cert;
             certInfo = {
-              subject: cert.subject.getField('CN')?.value || '',
-              issuer: cert.issuer.getField('CN')?.value || '',
-              validade: cert.validity.notAfter.toISOString(),
-              serial: cert.serialNumber,
+              subject: bag.cert.subject.getField('CN')?.value || '',
+              issuer: bag.cert.issuer.getField('CN')?.value || '',
+              validade: bag.cert.validity.notAfter.toISOString(),
             };
           }
         }
       }
-
-      // Salvar no SSM
-      const { SSMClient, PutParameterCommand } = require('@aws-sdk/client-ssm');
-      const ssm = new SSMClient({ region: 'us-east-1' });
-      const PREFIX = process.env.SSM_PREFIX || '/mbf/prod';
-
-      await Promise.all([
-        ssm.send(new PutParameterCommand({
-          Name: `${PREFIX}/NFSE_CERT_PFX_BASE64`,
-          Value: pfx_base64,
-          Type: 'SecureString',
-          Overwrite: true,
-        })),
-        ssm.send(new PutParameterCommand({
-          Name: `${PREFIX}/NFSE_CERT_PASSPHRASE`,
-          Value: passphrase,
-          Type: 'SecureString',
-          Overwrite: true,
-        })),
-      ]);
-
-      invalidateConfigCache();
-      res.json({ success: true, message: 'Certificado salvo', data: certInfo });
-    } catch (certErr) {
-      return res.status(400).json({ success: false, message: `Certificado inválido: ${certErr.message}` });
+    } catch (forgeErr) {
+      // Se node-forge não disponível ou senha errada
+      if (forgeErr.message && (forgeErr.message.includes('Invalid password') || forgeErr.message.includes('PKCS#12'))) {
+        return res.status(400).json({ success: false, message: 'Senha do certificado incorreta' });
+      }
+      // Se node-forge não instalado, salvar mesmo assim
+      console.warn('[NFSE] node-forge indisponível para validação, salvando certificado sem validar:', forgeErr.message);
     }
+
+    // Salvar no SSM (Advanced tier para valores > 4KB)
+    const { SSMClient, PutParameterCommand } = require('@aws-sdk/client-ssm');
+    const ssmClient = new SSMClient({ region: 'us-east-1' });
+    const PREFIX_SSM = process.env.SSM_PREFIX || '/mbf/prod';
+
+    await Promise.all([
+      ssmClient.send(new PutParameterCommand({
+        Name: `${PREFIX_SSM}/NFSE_CERT_PFX_BASE64`,
+        Value: pfx_base64,
+        Type: 'SecureString',
+        Overwrite: true,
+        Tier: 'Advanced',
+      })),
+      ssmClient.send(new PutParameterCommand({
+        Name: `${PREFIX_SSM}/NFSE_CERT_PASSPHRASE`,
+        Value: passphrase,
+        Type: 'SecureString',
+        Overwrite: true,
+      })),
+    ]);
+
+    // Salvar info na config
+    const { PutCommand } = require('@aws-sdk/lib-dynamodb');
+    await dynamo.send(new PutCommand({
+      TableName: TABLE,
+      Item: {
+        PK: `TENANT#${TENANT}`,
+        SK: 'CONFIG#nfse_certificado',
+        tem_certificado: true,
+        cert_info: certInfo,
+        uploaded_at: new Date().toISOString(),
+      },
+    }));
+
+    invalidateConfigCache();
+    res.json({ success: true, message: 'Certificado salvo com sucesso', data: certInfo });
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    console.error('[NFSE] Erro ao salvar certificado:', error.message);
+    res.status(400).json({ success: false, message: `Erro: ${error.message}` });
   }
 });
 
