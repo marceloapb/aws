@@ -52,7 +52,12 @@ export default function Financeiro() {
   // Form states
   const [formPagar, setFormPagar] = useState({ meio: 'PIX', data_pagamento: '', valor_pago: 0 });
   const [formCobranca, setFormCobranca] = useState({ cliente_id: '', valor: '', vencimento: '', parcela: '1/1', meio: 'PIX' });
-  const [formDespesa, setFormDespesa] = useState({ descricao: '', valor: '', categoria: 'Outros', data: '', evento_id: '', recorrente: false, recorrencia: 'mensal' });
+  const [formDespesa, setFormDespesa] = useState({
+    descricao: '', valor: '', categoria: 'Outros', data: '', evento_id: '',
+    recorrente: false, recorrencia: 'mensal',
+    fornecedor: '', forma_pagamento: '', observacoes: '',
+    dia_vencimento: '', data_inicio: '', data_fim: '', qtd_repeticoes: '', sem_fim: true,
+  });
   const [formEntrada, setFormEntrada] = useState({ descricao: '', valor: '', data: '' });
   const [categorias, setCategorias] = useState([]);
   const [novaCat, setNovaCat] = useState({ nome: '', cor: '#3B82F6' });
@@ -129,9 +134,29 @@ export default function Financeiro() {
   };
 
   const criarDespesa = async () => {
-    await authFetch(`/admin/financeiro/despesas`, { method: 'POST', body: JSON.stringify(formDespesa) });
+    const payload = { ...formDespesa };
+    // Se sem_fim, não envia data_fim nem qtd_repeticoes
+    if (payload.sem_fim) {
+      delete payload.data_fim;
+      delete payload.qtd_repeticoes;
+    }
+    delete payload.sem_fim;
+    // Limpar campos vazios
+    if (!payload.evento_id) delete payload.evento_id;
+    if (!payload.fornecedor) delete payload.fornecedor;
+    if (!payload.forma_pagamento) delete payload.forma_pagamento;
+    if (!payload.observacoes) delete payload.observacoes;
+    if (!payload.dia_vencimento) delete payload.dia_vencimento;
+    if (!payload.data_inicio) delete payload.data_inicio;
+
+    await authFetch(`/admin/financeiro/despesas`, { method: 'POST', body: JSON.stringify(payload) });
     setModalNovaDespesa(false);
-    setFormDespesa({ descricao: '', valor: '', categoria: 'Outros', data: '', evento_id: '', recorrente: false, recorrencia: 'mensal' });
+    setFormDespesa({
+      descricao: '', valor: '', categoria: 'Outros', data: '', evento_id: '',
+      recorrente: false, recorrencia: 'mensal',
+      fornecedor: '', forma_pagamento: '', observacoes: '',
+      dia_vencimento: '', data_inicio: '', data_fim: '', qtd_repeticoes: '', sem_fim: true,
+    });
     fetchData();
   };
 
@@ -712,56 +737,155 @@ export default function Financeiro() {
         </div>
       )}
 
-      {/* Modal Nova Despesa (FIN-15, FIN-16) */}
+      {/* Modal Nova Despesa (FIN-15, FIN-16) — Formulário elaborado */}
       {modalNovaDespesa && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl p-6 w-full max-w-md shadow-xl">
-            <h3 className="text-lg font-bold mb-4">Nova Despesa</h3>
-            <div className="space-y-3">
-              <div>
-                <label className="text-xs font-medium text-gray-700">Descrição</label>
-                <input value={formDespesa.descricao} onChange={e => setFormDespesa(f => ({ ...f, descricao: e.target.value }))} className="w-full border rounded-lg px-3 py-2 text-sm mt-1" />
-              </div>
-              <div>
-                <label className="text-xs font-medium text-gray-700">Valor</label>
-                <input type="number" step="0.01" value={formDespesa.valor} onChange={e => setFormDespesa(f => ({ ...f, valor: e.target.value }))} className="w-full border rounded-lg px-3 py-2 text-sm mt-1" />
-              </div>
-              <div>
-                <label className="text-xs font-medium text-gray-700">Categoria</label>
-                <select value={formDespesa.categoria} onChange={e => setFormDespesa(f => ({ ...f, categoria: e.target.value }))} className="w-full border rounded-lg px-3 py-2 text-sm mt-1">
-                  {categorias.map(c => <option key={c.id} value={c.nome}>{c.nome}</option>)}
-                </select>
-              </div>
-              <div>
-                <label className="text-xs font-medium text-gray-700">Data</label>
-                <input type="date" value={formDespesa.data} onChange={e => setFormDespesa(f => ({ ...f, data: e.target.value }))} className="w-full border rounded-lg px-3 py-2 text-sm mt-1" />
-              </div>
-              <div>
-                <label className="text-xs font-medium text-gray-700">Vincular a evento (opcional)</label>
-                <input placeholder="ID do evento" value={formDespesa.evento_id} onChange={e => setFormDespesa(f => ({ ...f, evento_id: e.target.value }))} className="w-full border rounded-lg px-3 py-2 text-sm mt-1" />
-              </div>
-              <div className="flex items-center gap-2">
-                <input type="checkbox" id="recorrente" checked={formDespesa.recorrente} onChange={e => setFormDespesa(f => ({ ...f, recorrente: e.target.checked }))} className="rounded" />
-                <label htmlFor="recorrente" className="text-sm text-gray-700">Despesa recorrente</label>
-              </div>
-              {formDespesa.recorrente && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl p-6 w-full max-w-lg shadow-xl max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-bold">Nova Despesa</h3>
+              <button onClick={() => setModalNovaDespesa(false)} className="p-1 hover:bg-gray-100 rounded"><X size={18} /></button>
+            </div>
+            <div className="space-y-4">
+              {/* Descrição + Valor */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="sm:col-span-2">
+                  <label className="text-xs font-medium text-gray-700">Descrição *</label>
+                  <input value={formDespesa.descricao} onChange={e => setFormDespesa(f => ({ ...f, descricao: e.target.value }))} className="w-full border rounded-lg px-3 py-2 text-sm mt-1" placeholder="Ex: Adobe Creative Cloud" />
+                </div>
                 <div>
-                  <label className="text-xs font-medium text-gray-700">Frequência</label>
-                  <select value={formDespesa.recorrencia} onChange={e => setFormDespesa(f => ({ ...f, recorrencia: e.target.value }))} className="w-full border rounded-lg px-3 py-2 text-sm mt-1">
-                    <option value="semanal">Semanal</option>
-                    <option value="quinzenal">Quinzenal</option>
-                    <option value="mensal">Mensal</option>
-                    <option value="bimestral">Bimestral</option>
-                    <option value="trimestral">Trimestral</option>
-                    <option value="semestral">Semestral</option>
-                    <option value="anual">Anual</option>
+                  <label className="text-xs font-medium text-gray-700">Valor *</label>
+                  <input type="number" step="0.01" value={formDespesa.valor} onChange={e => setFormDespesa(f => ({ ...f, valor: e.target.value }))} className="w-full border rounded-lg px-3 py-2 text-sm mt-1" placeholder="0,00" />
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-gray-700">Categoria *</label>
+                  <select value={formDespesa.categoria} onChange={e => setFormDespesa(f => ({ ...f, categoria: e.target.value }))} className="w-full border rounded-lg px-3 py-2 text-sm mt-1">
+                    {categorias.sort((a, b) => a.nome.localeCompare(b.nome)).map(c => <option key={c.id} value={c.nome}>{c.nome}</option>)}
                   </select>
                 </div>
+              </div>
+
+              {/* Data + Fornecedor */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs font-medium text-gray-700">Data {formDespesa.recorrente ? '(primeira ocorrência)' : ''}</label>
+                  <input type="date" value={formDespesa.data} onChange={e => setFormDespesa(f => ({ ...f, data: e.target.value }))} className="w-full border rounded-lg px-3 py-2 text-sm mt-1" />
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-gray-700">Fornecedor / Beneficiário</label>
+                  <input value={formDespesa.fornecedor} onChange={e => setFormDespesa(f => ({ ...f, fornecedor: e.target.value }))} className="w-full border rounded-lg px-3 py-2 text-sm mt-1" placeholder="Ex: Adobe, Aluguel Estúdio" />
+                </div>
+              </div>
+
+              {/* Forma de pagamento + Evento */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs font-medium text-gray-700">Forma de pagamento</label>
+                  <select value={formDespesa.forma_pagamento} onChange={e => setFormDespesa(f => ({ ...f, forma_pagamento: e.target.value }))} className="w-full border rounded-lg px-3 py-2 text-sm mt-1">
+                    <option value="">— Não informado —</option>
+                    <option value="PIX">PIX</option>
+                    <option value="Boleto">Boleto</option>
+                    <option value="Cartão Crédito">Cartão de Crédito</option>
+                    <option value="Cartão Débito">Cartão de Débito</option>
+                    <option value="Transferência">Transferência</option>
+                    <option value="Dinheiro">Dinheiro</option>
+                    <option value="Débito Automático">Débito Automático</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-gray-700">Vincular a evento (opcional)</label>
+                  <input placeholder="ID do evento" value={formDespesa.evento_id} onChange={e => setFormDespesa(f => ({ ...f, evento_id: e.target.value }))} className="w-full border rounded-lg px-3 py-2 text-sm mt-1" />
+                </div>
+              </div>
+
+              {/* Separador — Recorrência */}
+              <div className="border-t pt-4">
+                <div className="flex items-center gap-3">
+                  <input type="checkbox" id="recorrente" checked={formDespesa.recorrente} onChange={e => setFormDespesa(f => ({ ...f, recorrente: e.target.checked }))} className="rounded w-4 h-4" style={{ accentColor: ACCENT }} />
+                  <label htmlFor="recorrente" className="text-sm font-medium text-gray-700">Despesa recorrente</label>
+                </div>
+                {formDespesa.recorrente && (
+                  <p className="text-xs text-gray-500 mt-1 ml-7">O sistema gerará lançamentos automáticos conforme a frequência configurada.</p>
+                )}
+              </div>
+
+              {/* Campos de recorrência — só aparece se recorrente */}
+              {formDespesa.recorrente && (
+                <div className="bg-purple-50 border border-purple-200 rounded-lg p-4 space-y-3">
+                  {/* Frequência + Dia vencimento */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-xs font-medium text-purple-800">Frequência *</label>
+                      <select value={formDespesa.recorrencia} onChange={e => setFormDespesa(f => ({ ...f, recorrencia: e.target.value }))} className="w-full border border-purple-200 rounded-lg px-3 py-2 text-sm mt-1 bg-white">
+                        <option value="semanal">Semanal</option>
+                        <option value="quinzenal">Quinzenal</option>
+                        <option value="mensal">Mensal</option>
+                        <option value="bimestral">Bimestral</option>
+                        <option value="trimestral">Trimestral</option>
+                        <option value="semestral">Semestral</option>
+                        <option value="anual">Anual</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="text-xs font-medium text-purple-800">Dia do vencimento</label>
+                      <input type="number" min="1" max="31" value={formDespesa.dia_vencimento} onChange={e => setFormDespesa(f => ({ ...f, dia_vencimento: e.target.value }))} className="w-full border border-purple-200 rounded-lg px-3 py-2 text-sm mt-1 bg-white" placeholder="Ex: 10" />
+                      <p className="text-[10px] text-purple-600 mt-0.5">Dia fixo para o vencimento (1–31)</p>
+                    </div>
+                  </div>
+
+                  {/* Data início + Duração */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-xs font-medium text-purple-800">Data início</label>
+                      <input type="date" value={formDespesa.data_inicio} onChange={e => setFormDespesa(f => ({ ...f, data_inicio: e.target.value }))} className="w-full border border-purple-200 rounded-lg px-3 py-2 text-sm mt-1 bg-white" />
+                    </div>
+                    <div>
+                      <label className="text-xs font-medium text-purple-800">Duração</label>
+                      <div className="flex items-center gap-2 mt-1">
+                        <input type="checkbox" id="sem_fim" checked={formDespesa.sem_fim} onChange={e => setFormDespesa(f => ({ ...f, sem_fim: e.target.checked, data_fim: '', qtd_repeticoes: '' }))} className="rounded" style={{ accentColor: ACCENT }} />
+                        <label htmlFor="sem_fim" className="text-xs text-purple-700">Sem data fim (indefinido)</label>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Data fim OU Qtd repetições — só aparece se NÃO é sem_fim */}
+                  {!formDespesa.sem_fim && (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div>
+                        <label className="text-xs font-medium text-purple-800">Data fim</label>
+                        <input type="date" value={formDespesa.data_fim} onChange={e => setFormDespesa(f => ({ ...f, data_fim: e.target.value, qtd_repeticoes: '' }))} className="w-full border border-purple-200 rounded-lg px-3 py-2 text-sm mt-1 bg-white" />
+                      </div>
+                      <div>
+                        <label className="text-xs font-medium text-purple-800">Ou: nº de repetições</label>
+                        <input type="number" min="1" max="120" value={formDespesa.qtd_repeticoes} onChange={e => setFormDespesa(f => ({ ...f, qtd_repeticoes: e.target.value, data_fim: '' }))} className="w-full border border-purple-200 rounded-lg px-3 py-2 text-sm mt-1 bg-white" placeholder="Ex: 12" />
+                        <p className="text-[10px] text-purple-600 mt-0.5">Alternativa à data fim</p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Resumo da recorrência */}
+                  <div className="bg-white border border-purple-100 rounded p-2 text-xs text-purple-700">
+                    📅 Resumo: <strong>{formDespesa.recorrencia}</strong>
+                    {formDespesa.dia_vencimento && <>, todo dia <strong>{formDespesa.dia_vencimento}</strong></>}
+                    {formDespesa.data_inicio && <>, a partir de <strong>{new Date(formDespesa.data_inicio + 'T12:00').toLocaleDateString('pt-BR')}</strong></>}
+                    {formDespesa.sem_fim && <>, <strong>sem data fim</strong></>}
+                    {!formDespesa.sem_fim && formDespesa.data_fim && <>, até <strong>{new Date(formDespesa.data_fim + 'T12:00').toLocaleDateString('pt-BR')}</strong></>}
+                    {!formDespesa.sem_fim && formDespesa.qtd_repeticoes && <>, <strong>{formDespesa.qtd_repeticoes}× repetições</strong></>}
+                    {formDespesa.valor && <> — <strong>{fmt(parseFloat(formDespesa.valor) || 0)}/ocorrência</strong></>}
+                  </div>
+                </div>
               )}
+
+              {/* Observações */}
+              <div>
+                <label className="text-xs font-medium text-gray-700">Observações</label>
+                <textarea value={formDespesa.observacoes} onChange={e => setFormDespesa(f => ({ ...f, observacoes: e.target.value }))} rows={2} className="w-full border rounded-lg px-3 py-2 text-sm mt-1 resize-none" placeholder="Notas adicionais sobre esta despesa..." />
+              </div>
             </div>
-            <div className="flex justify-end gap-2 mt-6">
+
+            {/* Footer buttons */}
+            <div className="flex justify-end gap-2 mt-6 pt-4 border-t">
               <button onClick={() => setModalNovaDespesa(false)} className="px-4 py-2 border rounded-lg text-sm hover:bg-gray-50">Cancelar</button>
-              <button onClick={criarDespesa} className="px-4 py-2 text-white rounded-lg text-sm" style={{ backgroundColor: ACCENT }}>Criar Despesa</button>
+              <button onClick={criarDespesa} disabled={!formDespesa.descricao || !formDespesa.valor} className="px-4 py-2 text-white rounded-lg text-sm disabled:opacity-50" style={{ backgroundColor: ACCENT }}>Criar Despesa</button>
             </div>
           </div>
         </div>

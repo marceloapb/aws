@@ -230,6 +230,85 @@ router.post('/:id/aprovar', async (req, res) => {
       }
     }
 
+    // ═══ GERAR COBRANÇAS AUTOMATICAMENTE ═══
+    try {
+      const valorTotal = orcamento.valor_total || orcamento.total || orcamento.valor || 0;
+      const clienteId = req.clienteId;
+
+      if (valorTotal > 0 && clienteId) {
+        const condicoes = orcamento.condicoes_pagamento || orcamento.condicoes || {};
+
+        let numParcelas = 1;
+        let valorParcela = valorTotal;
+        let meioPagamento = 'PIX';
+
+        if (condicoes.sem_juros?.ativo && condicoes.sem_juros?.max_parcelas > 1) {
+          numParcelas = condicoes.sem_juros.max_parcelas;
+          valorParcela = Math.round((valorTotal / numParcelas) * 100) / 100;
+        } else if (condicoes.parcelas && condicoes.parcelas > 1) {
+          numParcelas = condicoes.parcelas;
+          valorParcela = Math.round((valorTotal / numParcelas) * 100) / 100;
+        }
+
+        if (condicoes.meio_pagamento) meioPagamento = condicoes.meio_pagamento;
+
+        // Se cliente escolheu uma opção específica
+        let valorEfetivo = valorTotal;
+        if (opcao_escolhida !== undefined && orcamento.opcoes?.length > 0) {
+          const opcao = orcamento.opcoes[opcao_escolhida] || orcamento.opcoes.find(o => o.id === opcao_escolhida);
+          if (opcao?.valor_total) valorEfetivo = opcao.valor_total;
+        }
+        if (valorEfetivo !== valorTotal) {
+          valorParcela = Math.round((valorEfetivo / numParcelas) * 100) / 100;
+        }
+
+        const now = new Date();
+        const { v4: uuidv4Gen } = require('uuid');
+
+        for (let i = 0; i < numParcelas; i++) {
+          const cobrancaId = uuidv4Gen();
+          const vencimento = new Date(now);
+          vencimento.setMonth(vencimento.getMonth() + i);
+          if (vencimento.getDate() !== now.getDate()) {
+            vencimento.setDate(0);
+          }
+
+          let valorParc = valorParcela;
+          if (i === numParcelas - 1) {
+            valorParc = Math.round(((valorEfetivo || valorTotal) - valorParcela * (numParcelas - 1)) * 100) / 100;
+          }
+
+          await dynamo.send(new PutCommand({
+            TableName: TABLE,
+            Item: {
+              PK: `CLIENTE#${clienteId}`,
+              SK: `COBRANCA#${cobrancaId}`,
+              GSI1PK: 'COBRANCA',
+              GSI1SK: `COBRANCA#${cobrancaId}`,
+              id: cobrancaId,
+              cliente_id: clienteId,
+              cliente_nome: orcamento.cliente_nome || '',
+              orcamento_id: req.params.id,
+              evento_nome: orcamento.tipo_evento || orcamento.titulo || '',
+              valor: valorParc,
+              valor_total: valorEfetivo || valorTotal,
+              valor_pago: 0,
+              parcela: `${i + 1}/${numParcelas}`,
+              vencimento: vencimento.toISOString().slice(0, 10),
+              status: 'em_aberto',
+              meio: meioPagamento,
+              origem: 'orcamento_aceito',
+              created_at: now.toISOString(),
+            },
+          }));
+        }
+
+        console.log(`[CLIENT-ORCAMENTO] ${numParcelas} cobrança(s) gerada(s) para orçamento ${req.params.id}`);
+      }
+    } catch (cobErr) {
+      console.error('[CLIENT-ORCAMENTO] Erro ao gerar cobranças automáticas:', cobErr.message);
+    }
+
     res.json({ success: true, message: 'Orçamento aprovado' });
   } catch (error) {
     res.status(400).json({ success: false, message: error.message });

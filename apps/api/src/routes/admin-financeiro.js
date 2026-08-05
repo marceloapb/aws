@@ -213,26 +213,46 @@ router.get('/despesas', async (req, res) => {
 // ─── POST /admin/financeiro/despesas ────────────────────────────────────────────
 router.post('/despesas', async (req, res) => {
   try {
-    // const photographerId = req.user.sub; // Substituído por TENANT
-    const { descricao, valor, categoria, data, evento_id, recorrente, recorrencia, tipo } = req.body;
+    const {
+      descricao, valor, categoria, data, evento_id, recorrente, recorrencia, tipo,
+      // Campos expandidos para despesas recorrentes
+      fornecedor, forma_pagamento, observacoes,
+      dia_vencimento, data_inicio, data_fim, qtd_repeticoes,
+      status_recorrencia, // ativa | pausada | encerrada
+    } = req.body;
     const despesaId = uuidv4();
+
+    const item = {
+      PK: `TENANT#${TENANT}`,
+      SK: `DESPESA#${despesaId}`,
+      despesaId,
+      descricao: descricao || '',
+      valor: parseFloat(valor) || 0,
+      categoria: categoria || 'Outros',
+      data: data || new Date().toISOString().slice(0, 10),
+      tipo: tipo || 'saida',
+      recorrente: recorrente || false,
+      recorrencia: recorrente ? (recorrencia || 'mensal') : null,
+      evento_id: evento_id || '',
+      fornecedor: fornecedor || '',
+      forma_pagamento: forma_pagamento || '',
+      observacoes: observacoes || '',
+      criadoEm: new Date().toISOString(),
+    };
+
+    // Campos de recorrência elaborada
+    if (recorrente) {
+      item.dia_vencimento = dia_vencimento ? parseInt(dia_vencimento, 10) : null;
+      item.data_inicio = data_inicio || data || new Date().toISOString().slice(0, 10);
+      item.data_fim = data_fim || null; // null = sem data fim (indefinido)
+      item.qtd_repeticoes = qtd_repeticoes ? parseInt(qtd_repeticoes, 10) : null;
+      item.status_recorrencia = status_recorrencia || 'ativa';
+      item.ocorrencias_geradas = 0;
+    }
 
     await docClient.send(new PutCommand({
       TableName: TABLE_NAME,
-      Item: {
-        PK: `TENANT#${TENANT}`,
-        SK: `DESPESA#${despesaId}`,
-        despesaId,
-        descricao: descricao || '',
-        valor: parseFloat(valor) || 0,
-        categoria: categoria || 'Outros',
-        data: data || new Date().toISOString().slice(0, 10),
-        tipo: tipo || 'saida',
-        recorrente: recorrente || false,
-        recorrencia: recorrente ? (recorrencia || 'mensal') : null,
-        evento_id: evento_id || '',
-        criadoEm: new Date().toISOString()
-      }
+      Item: item,
     }));
 
     res.status(201).json({ id: despesaId, success: true });

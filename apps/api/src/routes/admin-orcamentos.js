@@ -858,6 +858,93 @@ router.post('/:id/aprovar', async (req, res) => {
       }
     }
 
+    // ═══ GERAR COBRANÇAS AUTOMATICAMENTE ═══
+    // Quando orçamento é aceito, gerar parcelas no financeiro
+    try {
+      const valorTotal = orc.valor_total || orc.total || orc.valor || 0;
+      const clienteId = orc.cliente_id || (orc.PK?.startsWith('CLIENTE#') ? orc.PK.replace('CLIENTE#', '') : null);
+
+      if (valorTotal > 0 && clienteId) {
+        // Determinar condições de pagamento do orçamento
+        const condicoes = orc.condicoes_pagamento || orc.condicoes || {};
+        const opcaoEscolhida = orc.opcao_escolhida;
+
+        // Calcular número de parcelas e valor
+        let numParcelas = 1;
+        let valorParcela = valorTotal;
+        let meioPagamento = 'PIX';
+
+        if (condicoes.sem_juros?.ativo && condicoes.sem_juros?.max_parcelas > 1) {
+          numParcelas = condicoes.sem_juros.max_parcelas;
+          valorParcela = Math.round((valorTotal / numParcelas) * 100) / 100;
+        } else if (condicoes.parcelas && condicoes.parcelas > 1) {
+          numParcelas = condicoes.parcelas;
+          valorParcela = Math.round((valorTotal / numParcelas) * 100) / 100;
+        }
+
+        if (condicoes.meio_pagamento) meioPagamento = condicoes.meio_pagamento;
+
+        // Se tem opção escolhida pelo cliente (pode ter valor diferente)
+        let valorEfetivo = valorTotal;
+        if (opcaoEscolhida !== undefined && orc.opcoes?.length > 0) {
+          const opcao = orc.opcoes[opcaoEscolhida] || orc.opcoes.find(o => o.id === opcaoEscolhida);
+          if (opcao?.valor_total) valorEfetivo = opcao.valor_total;
+        }
+        if (valorEfetivo !== valorTotal) {
+          valorParcela = Math.round((valorEfetivo / numParcelas) * 100) / 100;
+        }
+
+        // Gerar parcelas com vencimentos mensais a partir de hoje
+        const now = new Date();
+        const { v4: uuidv4Gen } = require('uuid');
+
+        for (let i = 0; i < numParcelas; i++) {
+          const cobrancaId = uuidv4Gen();
+          const vencimento = new Date(now);
+          vencimento.setMonth(vencimento.getMonth() + i);
+          // Se cai em dia 29-31 de meses curtos, ajustar para último dia
+          if (vencimento.getDate() !== now.getDate()) {
+            vencimento.setDate(0); // último dia do mês anterior
+          }
+
+          // Ajuste de centavos na última parcela
+          let valorParc = valorParcela;
+          if (i === numParcelas - 1) {
+            valorParc = Math.round(((valorEfetivo || valorTotal) - valorParcela * (numParcelas - 1)) * 100) / 100;
+          }
+
+          await dynamo.send(new PutCommand({
+            TableName: TABLE,
+            Item: {
+              PK: `CLIENTE#${clienteId}`,
+              SK: `COBRANCA#${cobrancaId}`,
+              GSI1PK: 'COBRANCA',
+              GSI1SK: `COBRANCA#${cobrancaId}`,
+              id: cobrancaId,
+              cliente_id: clienteId,
+              cliente_nome: orc.cliente_nome || orc.nome_cliente || '',
+              orcamento_id: req.params.id,
+              evento_nome: orc.tipo_evento || orc.titulo || orc.nome_evento || '',
+              valor: valorParc,
+              valor_total: valorEfetivo || valorTotal,
+              valor_pago: 0,
+              parcela: `${i + 1}/${numParcelas}`,
+              vencimento: vencimento.toISOString().slice(0, 10),
+              status: 'em_aberto',
+              meio: meioPagamento,
+              origem: 'orcamento_aceito',
+              created_at: now.toISOString(),
+            },
+          }));
+        }
+
+        console.log(`[ORCAMENTO] ${numParcelas} cobrança(s) gerada(s) automaticamente para orçamento ${req.params.id} — Total: ${valorEfetivo || valorTotal}`);
+      }
+    } catch (cobErr) {
+      // Não bloquear a aprovação se a geração de cobranças falhar
+      console.error('[ORCAMENTO] Erro ao gerar cobranças automáticas:', cobErr.message);
+    }
+
     res.json({ success: true, data: result.Attributes });
   } catch (error) {
     res.status(400).json({ success: false, message: error.message });
