@@ -155,11 +155,15 @@ function montarXmlDPS({ config, numeroDPS, dados }) {
   const now = new Date();
   const dhEmi = now.toISOString().replace(/\.\d{3}Z$/, '-03:00');
   const dCompet = data_competencia || now.toISOString().slice(0, 10);
-  const idDPS = `DPS${config.cnpj}${config.serie}${String(numeroDPS).padStart(15, '0')}`;
+  // ID formato: DPS + CNPJ(14) + Serie(5 padded) + Numero(15 padded)
+  const seriePadded = (config.serie || 'NFSE').padEnd(5, ' ').substring(0, 5);
+  const idDPS = `DPS${config.cnpj}${seriePadded}${String(numeroDPS).padStart(15, '0')}`;
 
   // Determinar se tomador é PF ou PJ
   const cpfCnpjLimpo = (cliente_cpf_cnpj || '').replace(/\D/g, '');
   const tagDoc = cpfCnpjLimpo.length > 11 ? 'CNPJ' : 'CPF';
+  // Só incluir tag de documento se tiver valor
+  const docXml = cpfCnpjLimpo ? `<${tagDoc}>${cpfCnpjLimpo}</${tagDoc}>` : '';
 
   // Endereço do tomador
   const end = cliente_endereco;
@@ -189,16 +193,16 @@ function montarXmlDPS({ config, numeroDPS, dados }) {
     <cLocEmi>${config.codigoMunicipio}</cLocEmi>
     <subst>2</subst>
     <prest>
-      <CNPJ>${config.cnpj}</CNPJ>
-      ${config.inscricaoMunicipal ? `<IM>${config.inscricaoMunicipal}</IM>` : ''}
+      <CNPJ>${config.cnpj}</CNPJ>${config.inscricaoMunicipal ? `
+      <IM>${config.inscricaoMunicipal}</IM>` : ''}
       <regTrib>4</regTrib>
       <CNAE>${config.cnae}</CNAE>
     </prest>
-    <toma>
-      <${tagDoc}>${cpfCnpjLimpo}</${tagDoc}>
-      <xNome>${escapeXml(cliente_nome || 'Consumidor Final')}</xNome>${endXml}
-      ${cliente_telefone ? `<fone>${cliente_telefone.replace(/\D/g, '')}</fone>` : ''}
-      ${cliente_email ? `<email>${escapeXml(cliente_email)}</email>` : ''}
+    <toma>${docXml ? `
+      ${docXml}` : ''}
+      <xNome>${escapeXml(cliente_nome || 'Consumidor Final')}</xNome>${endXml}${cliente_telefone ? `
+      <fone>${cliente_telefone.replace(/\D/g, '')}</fone>` : ''}${cliente_email ? `
+      <email>${escapeXml(cliente_email)}</email>` : ''}
     </toma>
     <serv>
       <locPrest>
@@ -208,7 +212,7 @@ function montarXmlDPS({ config, numeroDPS, dados }) {
       <cServ>
         <cTribNac>${config.codigoTribNacional}</cTribNac>
         <CNAE>${config.cnae}</CNAE>
-        <xDescServ>${escapeXml(descricao_servico || 'Cobertura fotográfica profissional de evento social.')}</xDescServ>
+        <xDescServ>${escapeXml(descricao_servico || 'Cobertura fotografica profissional de evento social.')}</xDescServ>
       </cServ>
     </serv>
     <valores>
@@ -490,6 +494,7 @@ async function emitirNFSeAutomatica(cobranca, cliente) {
 
 function escapeXml(str) {
   return String(str || '')
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '') // remover acentos
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
