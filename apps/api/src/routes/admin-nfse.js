@@ -110,23 +110,36 @@ router.post('/certificado', async (req, res) => {
       console.warn('[NFSE] node-forge indisponível para validação, salvando certificado sem validar:', forgeErr.message);
     }
 
-    // Salvar no SSM (Advanced tier para valores > 4KB)
+    // Salvar certificado no S3 (criptografado) e senha no SSM
     const { SSMClient, PutParameterCommand } = require('@aws-sdk/client-ssm');
+    const { S3Client, PutObjectCommand } = require('@aws-sdk/client-s3');
     const ssmClient = new SSMClient({ region: 'us-east-1' });
+    const s3Client = new S3Client({ region: 'us-east-1' });
     const PREFIX_SSM = process.env.SSM_PREFIX || '/mbf/prod';
+    const BUCKET = process.env.BUCKET_NAME || 'mbf-backend-v3-fotos';
+    const certS3Key = `certificates/nfse-cert-a1.pfx`;
 
     await Promise.all([
-      ssmClient.send(new PutParameterCommand({
-        Name: `${PREFIX_SSM}/NFSE_CERT_PFX_BASE64`,
-        Value: pfx_base64,
-        Type: 'SecureString',
-        Overwrite: true,
-        Tier: 'Advanced',
+      // Certificado PFX binário no S3 (server-side encryption)
+      s3Client.send(new PutObjectCommand({
+        Bucket: BUCKET,
+        Key: certS3Key,
+        Body: decoded,
+        ContentType: 'application/x-pkcs12',
+        ServerSideEncryption: 'AES256',
       })),
+      // Senha no SSM
       ssmClient.send(new PutParameterCommand({
         Name: `${PREFIX_SSM}/NFSE_CERT_PASSPHRASE`,
         Value: passphrase,
         Type: 'SecureString',
+        Overwrite: true,
+      })),
+      // Referência ao S3 key no SSM
+      ssmClient.send(new PutParameterCommand({
+        Name: `${PREFIX_SSM}/NFSE_CERT_S3_KEY`,
+        Value: certS3Key,
+        Type: 'String',
         Overwrite: true,
       })),
     ]);

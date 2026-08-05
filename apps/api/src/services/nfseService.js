@@ -64,18 +64,28 @@ async function getConfig() {
   const MUNICIPIOS_IBGE = { 'São Paulo': '3550308', 'Sao Paulo': '3550308' };
   const codigoMunicipio = dbConfig.codigo_municipio || MUNICIPIOS_IBGE[empresaData.cidade] || '3550308';
 
-  // Buscar certificado do SSM
+  // Buscar certificado: S3 (pfx) + SSM (passphrase)
   let certPfxBase64 = '';
   let certPassphrase = '';
   try {
-    const [pfxParam, passParam] = await Promise.all([
-      ssm.send(new GetParameterCommand({ Name: `${PREFIX}/NFSE_CERT_PFX_BASE64`, WithDecryption: true })),
+    const { S3Client, GetObjectCommand } = require('@aws-sdk/client-s3');
+    const s3 = new S3Client({ region: 'us-east-1' });
+    const BUCKET = process.env.BUCKET_NAME || 'mbf-backend-v3-fotos';
+
+    const [passParam, s3KeyParam] = await Promise.all([
       ssm.send(new GetParameterCommand({ Name: `${PREFIX}/NFSE_CERT_PASSPHRASE`, WithDecryption: true })),
+      ssm.send(new GetParameterCommand({ Name: `${PREFIX}/NFSE_CERT_S3_KEY`, WithDecryption: false })),
     ]);
-    certPfxBase64 = pfxParam.Parameter.Value;
     certPassphrase = passParam.Parameter.Value;
+    const certS3Key = s3KeyParam.Parameter.Value;
+
+    // Baixar PFX do S3
+    const s3Resp = await s3.send(new GetObjectCommand({ Bucket: BUCKET, Key: certS3Key }));
+    const chunks = [];
+    for await (const chunk of s3Resp.Body) chunks.push(chunk);
+    certPfxBase64 = Buffer.concat(chunks).toString('base64');
   } catch (err) {
-    console.warn('[NFSE] Certificado não configurado no SSM:', err.message);
+    console.warn('[NFSE] Certificado não configurado:', err.message);
   }
 
   cachedConfig = {
