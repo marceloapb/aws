@@ -32,7 +32,7 @@ async function getCliente(clienteId) {
 // GET /api/admin/agenda
 router.get('/', async (req, res) => {
   try {
-    const { data_inicio, data_fim, status, tipo_evento, page = 1, limit = 50 } = req.query;
+    const { data_inicio, data_fim, status, tipo_evento, cliente_id, page = 1, limit = 50 } = req.query;
 
     const params = {
       TableName: TABLE,
@@ -46,6 +46,7 @@ router.get('/', async (req, res) => {
     if (data_fim) { filters.push('data_evento <= :df'); params.ExpressionAttributeValues[':df'] = data_fim; }
     if (status) { filters.push('#s = :status'); names['#s'] = 'status'; params.ExpressionAttributeValues[':status'] = status; }
     if (tipo_evento) { filters.push('tipo_evento = :te'); params.ExpressionAttributeValues[':te'] = tipo_evento; }
+    if (cliente_id) { filters.push('cliente_id = :cid'); params.ExpressionAttributeValues[':cid'] = cliente_id; }
     if (filters.length > 0) {
       params.FilterExpression = filters.join(' AND ');
       if (Object.keys(names).length > 0) params.ExpressionAttributeNames = names;
