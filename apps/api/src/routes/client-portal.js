@@ -492,39 +492,42 @@ router.put('/perfil', async (req, res) => {
 router.post('/feedback', async (req, res) => {
   try {
     const clienteId = req.user.sub;
-    const { orcamento_id, nota, texto, autoriza_publico } = req.body;
+    const { orcamento_id, nota, rating, texto, autoriza_publico, autoriza_depoimento } = req.body;
+
+    // Normalizar campos (frontend envia 'rating' e 'autoriza_depoimento')
+    const notaFinal = nota || rating;
+    const autorizaFinal = autoriza_publico || autoriza_depoimento || false;
 
     // Validations
-    if (!orcamento_id) {
-      return res.status(400).json({ success: false, message: 'orcamento_id é obrigatório' });
-    }
-    if (!nota || nota < 1 || nota > 5) {
+    if (!notaFinal || notaFinal < 1 || notaFinal > 5) {
       return res.status(400).json({ success: false, message: 'Nota é obrigatória e deve ser entre 1 e 5' });
     }
     if (!texto || texto.trim().length < 20) {
       return res.status(400).json({ success: false, message: 'Texto é obrigatório e deve ter no mínimo 20 caracteres' });
     }
 
-    // Validate orcamento belongs to client
-    const orcResult = await dynamo.send(new QueryCommand({
-      TableName: TABLE,
-      KeyConditionExpression: 'PK = :pk AND SK = :sk',
-      ExpressionAttributeValues: { ':pk': `CLIENTE#${clienteId}`, ':sk': `ORCAMENTO#${orcamento_id}` },
-    }));
-    if (!orcResult.Items || orcResult.Items.length === 0) {
-      return res.status(403).json({ success: false, message: 'Orçamento não encontrado ou acesso negado' });
+    // Se orcamento_id fornecido, validar ownership
+    if (orcamento_id) {
+      const orcResult = await dynamo.send(new QueryCommand({
+        TableName: TABLE,
+        KeyConditionExpression: 'PK = :pk AND SK = :sk',
+        ExpressionAttributeValues: { ':pk': `CLIENTE#${clienteId}`, ':sk': `ORCAMENTO#${orcamento_id}` },
+      }));
+      if (!orcResult.Items || orcResult.Items.length === 0) {
+        return res.status(403).json({ success: false, message: 'Orçamento não encontrado ou acesso negado' });
+      }
     }
 
-    // Check for duplicate feedback
+    // Check for duplicate feedback (por cliente, não por orçamento)
     const existingFeedback = await dynamo.send(new QueryCommand({
       TableName: TABLE,
       IndexName: 'GSI1',
       KeyConditionExpression: 'GSI1PK = :pk',
-      FilterExpression: 'orcamento_id = :oid AND cliente_id = :cid',
-      ExpressionAttributeValues: { ':pk': 'FEEDBACK', ':oid': orcamento_id, ':cid': clienteId },
+      FilterExpression: 'cliente_id = :cid',
+      ExpressionAttributeValues: { ':pk': 'FEEDBACK', ':cid': clienteId },
     }));
     if (existingFeedback.Items && existingFeedback.Items.length > 0) {
-      return res.status(409).json({ success: false, message: 'Feedback já enviado para este orçamento' });
+      return res.status(409).json({ success: false, message: 'Feedback já enviado' });
     }
 
     // Create feedback
@@ -541,13 +544,13 @@ router.post('/feedback', async (req, res) => {
         GSI2PK: `CLIENTE#${clienteId}`,
         GSI2SK: `FEEDBACK#${feedbackId}`,
         id: feedbackId,
-        orcamento_id,
+        orcamento_id: orcamento_id || null,
         cliente_id: clienteId,
         cliente_nome: req.user.name || '',
         cliente_email: req.user.email || '',
-        nota: Number(nota),
+        nota: Number(notaFinal),
         texto: texto.trim(),
-        autoriza_publico: autoriza_publico === true,
+        autoriza_publico: autorizaFinal === true,
         created_at: now,
         updated_at: now,
       },
