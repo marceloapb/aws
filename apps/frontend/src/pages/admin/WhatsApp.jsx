@@ -414,7 +414,7 @@ export default function WhatsApp() {
               <select value={tplForm.header_type} onChange={e => setTplForm({ ...tplForm, header_type: e.target.value, header: '', header_image_key: '' })} className="w-full border rounded px-2 py-1.5 text-sm mt-1">
                 <option value="NONE">Nenhum</option>
                 <option value="TEXT">Texto</option>
-                <option value="IMAGE">Imagem</option>
+                <option value="IMAGE">Imagem (gerenciar no Meta Business Suite)</option>
               </select>
             </div>
             {tplForm.header_type === 'TEXT' && (
@@ -424,23 +424,9 @@ export default function WhatsApp() {
               </div>
             )}
             {tplForm.header_type === 'IMAGE' && (
-              <div>
-                <label className="text-xs text-gray-500">Imagem do Cabeçalho (obrigatório para aprovação)</label>
-                {tplForm.header_image_key ? (
-                  <div className="mt-2 space-y-2">
-                    <img src={tplForm.header_image_key.startsWith('http') ? tplForm.header_image_key : `https://d2112x4m4e89fv.cloudfront.net/${tplForm.header_image_key}`} alt="Header" className="w-full max-h-48 object-contain rounded border bg-gray-50" />
-                    <button onClick={() => setTplForm({ ...tplForm, header_image_key: '' })} className="text-xs text-red-500 hover:text-red-700">Remover imagem</button>
-                  </div>
-                ) : (
-                  <div className="mt-2">
-                    <label className={`inline-flex items-center gap-2 px-3 py-2 rounded border text-sm cursor-pointer hover:bg-gray-50 ${uploadingHeaderImg ? 'opacity-50 pointer-events-none' : ''}`}>
-                      <Upload size={14} />
-                      {uploadingHeaderImg ? 'Enviando...' : 'Selecionar imagem'}
-                      <input type="file" accept="image/*" onChange={handleTplHeaderImageUpload} className="hidden" />
-                    </label>
-                    <p className="text-xs text-gray-400 mt-1">JPG ou PNG, máx 5MB. A Meta recomenda 820x312px.</p>
-                  </div>
-                )}
+              <div className="bg-blue-50 border border-blue-200 rounded p-3 mt-1">
+                <p className="text-xs text-blue-700">A imagem do header é gerenciada diretamente no <a href="https://business.facebook.com/wa/manage/message-templates/" target="_blank" rel="noopener noreferrer" className="underline font-medium">Meta Business Suite</a>.</p>
+                <p className="text-xs text-blue-600 mt-1">Ao salvar aqui, o template será criado/atualizado com header IMAGE. Depois, adicione a imagem pelo painel da Meta.</p>
               </div>
             )}
             <div>
