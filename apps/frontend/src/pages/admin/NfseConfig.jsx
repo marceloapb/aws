@@ -173,32 +173,11 @@ export default function NfseConfig() {
         </div>
       </div>
 
-      {/* Dados do Prestador */}
-      <div className="bg-white rounded-xl border p-5 space-y-4">
-        <h3 className="text-base font-semibold text-gray-900">Dados do Prestador</h3>
-        <p className="text-xs text-gray-400">Puxados automaticamente dos Dados da Empresa. Altere aqui apenas para sobrescrever.</p>
-
-        <div className="grid md:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">CNPJ</label>
-            <input name="cnpj" value={config.cnpj} onChange={handleChange}
-              placeholder="Preenchido automaticamente" className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-orange-200 outline-none" />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Inscrição Municipal (CCM)</label>
-            <input name="inscricao_municipal" value={config.inscricao_municipal} onChange={handleChange}
-              placeholder="Opcional para MEI" className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-orange-200 outline-none" />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Razão Social</label>
-            <input name="razao_social" value={config.razao_social} onChange={handleChange}
-              placeholder="Preenchido automaticamente" className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-orange-200 outline-none" />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Código Município IBGE</label>
-            <input name="codigo_municipio" value={config.codigo_municipio} onChange={handleChange}
-              placeholder="3550308 (São Paulo)" className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-orange-200 outline-none" />
-          </div>
+      {/* Dados do Prestador - Info */}
+      <div className="bg-white rounded-xl border p-5">
+        <div className="flex items-center gap-2 text-sm text-gray-500">
+          <AlertCircle size={16} />
+          <span>CNPJ, Razão Social e endereço são puxados automaticamente dos <strong>Dados da Empresa</strong> (aba Geral).</span>
         </div>
       </div>
 
