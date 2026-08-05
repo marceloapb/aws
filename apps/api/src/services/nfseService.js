@@ -258,6 +258,10 @@ function montarXmlDPS({ config, numeroDPS, dados }) {
  * Assina o XML da DPS com certificado A1
  */
 function assinarXml(xml, pfxBuffer, passphrase) {
+  // Extrair o Id do infDPS para usar no Reference URI
+  const idMatch = xml.match(/infDPS\s+Id="([^"]+)"/);
+  const infDPSId = idMatch ? idMatch[1] : '';
+
   // Extrair chave e certificado do PFX
   const p12Asn1 = forge.asn1.fromDer(pfxBuffer.toString('binary'));
   const p12 = forge.pkcs12.pkcs12FromAsn1(p12Asn1, passphrase);
@@ -299,7 +303,7 @@ function assinarXml(xml, pfxBuffer, passphrase) {
       'http://www.w3.org/2001/10/xml-exc-c14n#',
     ],
     digestAlgorithm: 'http://www.w3.org/2001/04/xmlenc#sha256',
-    isEmptyUri: true,
+    uri: `#${infDPSId}`,
   });
 
   sig.keyInfoProvider = {
