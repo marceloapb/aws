@@ -1,5 +1,5 @@
 import React from 'react';
-import { Outlet } from 'react-router-dom';
+import { Outlet, useLocation } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import GlobalSearch from './search/GlobalSearch';
 import { useAuth } from '../contexts/AuthContext';
@@ -13,6 +13,8 @@ export default function Layout() {
   const { user, logout } = useAuth();
   const { isOpen: searchOpen, setIsOpen: setSearchOpen } = useKeyboardShortcuts();
   const counts = usePendingCounts();
+  const location = useLocation();
+  const isClientePortal = location.pathname.startsWith('/cliente');
 
   return (
     <div className="flex h-screen bg-gray-50">
@@ -90,7 +92,9 @@ export default function Layout() {
 
         {/* Content */}
         <main className="flex-1 overflow-y-auto overflow-x-hidden py-3 px-3 lg:py-6 lg:px-14">
-          <Outlet />
+          <div className={isClientePortal ? 'max-w-3xl mx-auto' : ''}>
+            <Outlet />
+          </div>
         </main>
       </div>
 
