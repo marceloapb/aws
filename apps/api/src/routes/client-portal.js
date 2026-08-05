@@ -561,6 +561,25 @@ router.post('/feedback', async (req, res) => {
       success: true,
       data: { id: feedbackId, message: 'Feedback enviado com sucesso' },
     });
+
+    // Disparar evento para notificar admin via WhatsApp/email
+    try {
+      const { processarEvento } = require('../services/notificationDispatcher');
+      await processarEvento({
+        evento_id: `feedback_${feedbackId}`,
+        tipo_evento: 'feedback_respondido',
+        tenant_id: process.env.TENANT_ID || 'default',
+        dados: {
+          cliente_id: clienteId,
+          cliente_nome: req.user.name || '',
+          feedback_id: feedbackId,
+          nota: Number(notaFinal),
+          texto: texto.trim().substring(0, 100),
+        },
+      });
+    } catch (evtErr) {
+      console.error('[FEEDBACK] Erro ao disparar evento:', evtErr.message);
+    }
   } catch (error) {
     if (error.name === 'ConditionalCheckFailedException') {
       return res.status(409).json({ success: false, message: 'Feedback já existe' });
