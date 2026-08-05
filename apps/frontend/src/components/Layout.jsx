@@ -89,10 +89,8 @@ export default function Layout() {
         </header>
 
         {/* Content */}
-        <main className="flex-1 overflow-y-auto overflow-x-hidden p-3 lg:p-6">
-          <div className="max-w-5xl mx-auto">
-            <Outlet />
-          </div>
+        <main className="flex-1 overflow-y-auto overflow-x-hidden py-3 px-3 lg:py-6 lg:px-14">
+          <Outlet />
         </main>
       </div>
 
