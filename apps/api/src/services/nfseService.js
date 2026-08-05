@@ -304,6 +304,7 @@ function assinarXml(xml, pfxBuffer, passphrase) {
     ],
     digestAlgorithm: 'http://www.w3.org/2001/04/xmlenc#sha256',
     uri: `#${infDPSId}`,
+    idAttribute: 'Id',
   });
 
   sig.keyInfoProvider = {
@@ -312,7 +313,7 @@ function assinarXml(xml, pfxBuffer, passphrase) {
 
   sig.computeSignature(xml, {
     prefix: '',
-    location: { reference: "//*[local-name(.)='infDPS']", action: 'append' },
+    location: { reference: "//*[local-name(.)='infDPS']", action: 'after' },
   });
 
   return sig.getSignedXml();
