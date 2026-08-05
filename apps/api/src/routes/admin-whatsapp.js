@@ -497,7 +497,7 @@ router.post('/templates', async (req, res) => {
 
     if (!token) return res.status(400).json({ success: false, message: 'Token WhatsApp não configurado' });
 
-    const { nome, categoria, idioma, corpo, variaveis, header, header_type, header_example_url, header_image_key } = req.body;
+    const { nome, categoria, idioma, corpo, variaveis, header, header_type, header_example_url, header_image_key, botoes } = req.body;
 
     if (!nome || !corpo) {
       return res.status(400).json({ success: false, message: 'Nome e corpo são obrigatórios' });
@@ -525,6 +525,26 @@ router.post('/templates', async (req, res) => {
       bodyComponent.example = { body_text: [examples] };
     }
     components.push(bodyComponent);
+
+    // Botões (opcional) — suporta URL, QUICK_REPLY, PHONE_NUMBER
+    if (botoes && botoes.length > 0) {
+      components.push({
+        type: 'BUTTONS',
+        buttons: botoes.map(btn => {
+          const button = { type: btn.type || 'URL', text: btn.text || 'Acessar' };
+          if (btn.type === 'URL' && btn.url) {
+            button.url = btn.url;
+            // Se URL tem variável {{1}}, precisa de exemplo
+            if (btn.url.includes('{{')) {
+              button.example = btn.example || ['exemplo-path'];
+            }
+          } else if (btn.type === 'PHONE_NUMBER' && btn.phone_number) {
+            button.phone_number = btn.phone_number;
+          }
+          return button;
+        }),
+      });
+    }
 
     const payload = {
       name: nome,
@@ -1326,6 +1346,156 @@ router.get('/template-images/recriar-status', (req, res) => {
       startedAt: recriarTodosJob.startedAt,
     },
   });
+});
+
+// POST /api/admin/whatsapp/templates/create-link-img
+// Cria os 5 templates com botão URL (_link_img) na Meta em batch
+router.post('/templates/create-link-img', async (req, res) => {
+  try {
+    const { loadParams } = require('../config/env');
+    const params = await loadParams();
+    const token = params.WHATSAPP_ACCESS_TOKEN;
+    const wabaId = params.WHATSAPP_WABA_ID || '2163797757810981';
+
+    if (!token) return res.status(400).json({ success: false, message: 'Token WhatsApp não configurado' });
+
+    const LINK_IMG_TEMPLATES = [
+      {
+        name: 'mbf_contrato_assinatura_link_img',
+        category: 'UTILITY',
+        language: 'pt_BR',
+        components: [
+          { type: 'HEADER', format: 'IMAGE' },
+          {
+            type: 'BODY',
+            text: 'Olá *{{1}}*! 👋\n\nSeu contrato para *{{2}}* está pronto para revisão e assinatura digital.\n\nClique no botão abaixo para acessar e assinar:',
+            example: { body_text: [['Maria Silva', 'Ensaio Gestante']] },
+          },
+          { type: 'FOOTER', text: 'Marcelo Bloise Fotografia' },
+          {
+            type: 'BUTTONS',
+            buttons: [{ type: 'URL', text: '📝 Assinar Contrato', url: 'https://www.mbfoto.com.br/cliente/{{1}}', example: ['contratos/abc123-def456'] }],
+          },
+        ],
+      },
+      {
+        name: 'mbf_orcamento_pronto_link_img',
+        category: 'UTILITY',
+        language: 'pt_BR',
+        components: [
+          { type: 'HEADER', format: 'IMAGE' },
+          {
+            type: 'BODY',
+            text: 'Olá *{{1}}*! 👋\n\nSeu orçamento para *{{2}}* está pronto!\n\nClique no botão abaixo para visualizar todos os detalhes:',
+            example: { body_text: [['João Santos', 'Casamento']] },
+          },
+          { type: 'FOOTER', text: 'Marcelo Bloise Fotografia' },
+          {
+            type: 'BUTTONS',
+            buttons: [{ type: 'URL', text: '📋 Ver Orçamento', url: 'https://www.mbfoto.com.br/cliente/{{1}}', example: ['orcamentos/abc123-def456'] }],
+          },
+        ],
+      },
+      {
+        name: 'mbf_fotos_prontas_link_img',
+        category: 'UTILITY',
+        language: 'pt_BR',
+        components: [
+          { type: 'HEADER', format: 'IMAGE' },
+          {
+            type: 'BODY',
+            text: 'Olá *{{1}}*! 🎉\n\nSeu álbum *{{2}}* está disponível com *{{3}}* fotos!\n\nClique no botão abaixo para visualizar e baixar:',
+            example: { body_text: [['Maria', 'Casamento - Maria & João', '150']] },
+          },
+          { type: 'FOOTER', text: 'Marcelo Bloise Fotografia' },
+          {
+            type: 'BUTTONS',
+            buttons: [{ type: 'URL', text: '📸 Ver Álbum', url: 'https://www.mbfoto.com.br/cliente/{{1}}', example: ['albuns/meu-casamento'] }],
+          },
+        ],
+      },
+      {
+        name: 'mbf_feedback_link_img',
+        category: 'UTILITY',
+        language: 'pt_BR',
+        components: [
+          { type: 'HEADER', format: 'IMAGE' },
+          {
+            type: 'BODY',
+            text: 'Olá *{{1}}*! 👋\n\nGostaríamos de saber como foi sua experiência com o serviço de *{{2}}*.\n\nSua opinião é muito importante para nós! ❤️\n\nClique abaixo para avaliar:',
+            example: { body_text: [['Maria', 'Ensaio Gestante']] },
+          },
+          { type: 'FOOTER', text: 'Marcelo Bloise Fotografia' },
+          {
+            type: 'BUTTONS',
+            buttons: [{ type: 'URL', text: '⭐ Avaliar', url: 'https://www.mbfoto.com.br/cliente/{{1}}', example: ['feedback/abc123-def456'] }],
+          },
+        ],
+      },
+      {
+        name: 'mbf_pagamento_vencido_link_img',
+        category: 'UTILITY',
+        language: 'pt_BR',
+        components: [
+          { type: 'HEADER', format: 'IMAGE' },
+          {
+            type: 'BODY',
+            text: 'Olá *{{1}}*!\n\n⚠️ Identificamos que o pagamento de *{{2}}* está pendente desde *{{3}}*.\n\nClique abaixo para verificar e regularizar:',
+            example: { body_text: [['João', 'R$ 1.500,00', '10/03/2026']] },
+          },
+          { type: 'FOOTER', text: 'Marcelo Bloise Fotografia' },
+          {
+            type: 'BUTTONS',
+            buttons: [{ type: 'URL', text: '💳 Ver Pagamento', url: 'https://www.mbfoto.com.br/cliente/{{1}}', example: ['pagamentos/abc123-def456'] }],
+          },
+        ],
+      },
+    ];
+
+    const results = [];
+    for (const tpl of LINK_IMG_TEMPLATES) {
+      try {
+        const response = await fetch(
+          `https://graph.facebook.com/v21.0/${wabaId}/message_templates`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+            body: JSON.stringify(tpl),
+            signal: AbortSignal.timeout(15000),
+          }
+        );
+        const data = await response.json();
+
+        if (response.ok) {
+          await saveTemplateMetadata(tpl.name, { created_at: new Date().toISOString() });
+          // Salvar imagem CDN associada
+          const { CDN_BASE, STATIC_FALLBACK_MAP } = require('../services/whatsappTemplateCache');
+          const imgUrl = STATIC_FALLBACK_MAP[tpl.name] || `${CDN_BASE}/template-headers/logo-default.png`;
+          await saveTemplateImageUrl(tpl.name, imgUrl).catch(() => {});
+          results.push({ name: tpl.name, success: true, id: data.id, status: data.status });
+        } else {
+          const msg = data.error?.message || JSON.stringify(data);
+          const alreadyExists = msg.includes('already exists') || msg.includes('name already used');
+          results.push({ name: tpl.name, success: alreadyExists, already_exists: alreadyExists, error: alreadyExists ? null : msg });
+        }
+      } catch (err) {
+        results.push({ name: tpl.name, success: false, error: err.message });
+      }
+    }
+
+    const created = results.filter(r => r.success && !r.already_exists).length;
+    const existing = results.filter(r => r.already_exists).length;
+    const errors = results.filter(r => !r.success).length;
+
+    res.json({
+      success: true,
+      message: `Criados: ${created} | Já existiam: ${existing} | Erros: ${errors}`,
+      data: results,
+    });
+  } catch (error) {
+    console.error('[WHATSAPP] Erro ao criar templates _link_img:', error.message);
+    res.status(500).json({ success: false, message: error.message });
+  }
 });
 
 module.exports = router;
