@@ -236,18 +236,12 @@ export default function WhatsApp() {
       delete payload.evento;
 
       if (editTplId) {
-        // Verificar se é um rascunho local (ID começa com tpl_) — nesse caso, criar novo na Meta
-        const isRascunhoLocal = editTplId.startsWith('tpl_');
-
-        if (isRascunhoLocal) {
-          // Rascunho local → criar na Meta como novo template
+        // Se não tem ID ou é template local (sem id da Meta) → criar novo na Meta
+        if (!editTplId || editTplId === 'new') {
           const resp = await authFetch(`${API}/templates`, { method: 'POST', body: JSON.stringify(payload) });
           const data = await resp.json();
           if (!data.success) { alert(data.message || 'Erro ao criar template'); return; }
-          // Após criar na Meta com sucesso, excluir o rascunho local
-          await authFetch(`${API}/templates/rascunhos/${editTplId}`, { method: 'DELETE' }).catch(() => {});
-          alert(`Template criado na Meta! Status: ${data.data?.status || 'PENDING'}`);
-          loadRascunhos();
+          alert(`Template criado na Meta! Aguardando aprovação.`);
         } else {
           // Template da Meta → atualizar via PUT
           const resp = await authFetch(`${API}/templates/${editTplId}`, { method: 'PUT', body: JSON.stringify(payload) });
@@ -342,9 +336,6 @@ export default function WhatsApp() {
           </div>
           <div className="flex items-center gap-2 flex-wrap w-full sm:w-auto">
             <button onClick={openNewTpl} className="flex items-center gap-1 px-3 py-2 rounded text-sm text-white font-medium flex-1 sm:flex-none justify-center" style={{ background: ACCENT }}><Plus size={14} /> Novo Template</button>
-            <button onClick={migrarTemplates} disabled={migrando} className="flex items-center gap-1 px-3 py-2 rounded text-sm font-medium border border-red-300 text-red-700 hover:bg-red-50 disabled:opacity-50 flex-1 sm:flex-none justify-center" title="Deleta antigos e cria novos mbf_*_img na Meta">
-              <Upload size={14} /> {migrando ? 'Migrando...' : 'Migrar p/ mbf_'}
-            </button>
           </div>
         </div>
         <div className="grid gap-3">
