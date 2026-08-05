@@ -165,11 +165,17 @@ function montarXmlDPS({ config, numeroDPS, dados }) {
   const numId = String(numeroDPS).padStart(15, '0');
   const idDPS = `DPS${codMun}${tipoInscricao}${inscricaoFederal}${serieId}${numId}`;
 
-  // Determinar se tomador é PF ou PJ
+  // Determinar identificador do tomador
   const cpfCnpjLimpo = (cliente_cpf_cnpj || '').replace(/\D/g, '');
-  const tagDoc = cpfCnpjLimpo.length > 11 ? 'CNPJ' : 'CPF';
-  // Só incluir tag de documento se tiver valor
-  const docXml = cpfCnpjLimpo ? `<${tagDoc}>${cpfCnpjLimpo}</${tagDoc}>` : '';
+  // Só incluir tag de documento se tiver valor, senão usar cNaoNIF
+  let docXml;
+  if (cpfCnpjLimpo && cpfCnpjLimpo.length === 14) {
+    docXml = `<CNPJ>${cpfCnpjLimpo}</CNPJ>`;
+  } else if (cpfCnpjLimpo && cpfCnpjLimpo.length === 11) {
+    docXml = `<CPF>${cpfCnpjLimpo}</CPF>`;
+  } else {
+    docXml = `<cNaoNIF>0</cNaoNIF>`; // 0=Não informado na nota de origem
+  }
 
   // Endereço do tomador
   const end = cliente_endereco;
@@ -206,8 +212,8 @@ function montarXmlDPS({ config, numeroDPS, dados }) {
         <regEspTrib>0</regEspTrib>
       </regTrib>
     </prest>
-    <toma>${docXml ? `
-      ${docXml}` : ''}
+    <toma>
+      ${docXml}
       <xNome>${escapeXml(cliente_nome || 'Consumidor Final')}</xNome>${endXml}${cliente_telefone ? `
       <fone>${cliente_telefone.replace(/\D/g, '')}</fone>` : ''}${cliente_email ? `
       <email>${escapeXml(cliente_email)}</email>` : ''}
