@@ -396,15 +396,16 @@ export default function Feedback() {
                         </div>
                         <div className="flex items-center gap-3">
                           {d.aprovado ? (
-                            <span className="text-xs px-2.5 py-1 rounded-full bg-green-50 text-green-700 font-medium">Publicado</span>
+                            <button onClick={() => handleTogglePublicar(d.id, d.aprovado)}
+                              className="text-xs px-2.5 py-1 rounded-full bg-red-50 text-red-600 font-medium hover:bg-red-100 transition-colors">
+                              Remover
+                            </button>
                           ) : (
-                            <span className="text-xs px-2.5 py-1 rounded-full bg-gray-100 text-gray-500 font-medium">Oculto</span>
+                            <button onClick={() => handleTogglePublicar(d.id, d.aprovado)}
+                              className="text-xs px-2.5 py-1 rounded-full bg-green-50 text-green-700 font-medium hover:bg-green-100 transition-colors">
+                              Publicar
+                            </button>
                           )}
-                          <label className="relative inline-flex items-center cursor-pointer">
-                            <input type="checkbox" checked={!!d.aprovado} onChange={() => handleTogglePublicar(d.id, d.aprovado)}
-                              className="sr-only peer" />
-                            <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-orange-600" />
-                          </label>
                         </div>
                       </div>
                       {d.texto && (

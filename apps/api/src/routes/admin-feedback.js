@@ -386,14 +386,18 @@ router.put('/:id/aprovar', async (req, res) => {
       return res.status(404).json({ success: false, error: 'Feedback não encontrado' });
     }
 
-    // Se publicado foi enviado no body, usa esse valor; senão, marca como aprovado=true
-    const updateExpression = publicado !== undefined
-      ? 'SET aprovado = :aprovado, publicado = :publicado'
-      : 'SET aprovado = :aprovado';
+    // Se publicado=false → remover de depoimentos (aprovado=false, publicado=false)
+    // Se publicado=true ou sem body → aprovar como depoimento
+    let updateExpression;
+    let expressionValues;
 
-    const expressionValues = publicado !== undefined
-      ? { ':aprovado': true, ':publicado': publicado }
-      : { ':aprovado': true };
+    if (publicado === false) {
+      updateExpression = 'SET aprovado = :aprovado, publicado = :publicado';
+      expressionValues = { ':aprovado': false, ':publicado': false };
+    } else {
+      updateExpression = 'SET aprovado = :aprovado, publicado = :publicado';
+      expressionValues = { ':aprovado': true, ':publicado': true };
+    }
 
     const result = await docClient.send(new UpdateCommand({
       TableName: TABLE_NAME,
@@ -403,7 +407,7 @@ router.put('/:id/aprovar', async (req, res) => {
       ReturnValues: 'ALL_NEW'
     }));
 
-    logger.info({ action: 'feedback_aprovar', photographerId, id });
+    logger.info({ action: 'feedback_aprovar', photographerId, id, publicado });
     res.json({ success: true, data: result.Attributes });
   } catch (error) {
     logger.error({ action: 'feedback_aprovar_error', error: error.message });
