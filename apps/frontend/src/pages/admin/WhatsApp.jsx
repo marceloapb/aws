@@ -341,45 +341,63 @@ export default function WhatsApp() {
         </div>
         <div className="grid gap-3">
           {sorted.map(t => (
-            <div key={t.id} className="bg-white border rounded-lg p-4">
-              <div className="flex items-start justify-between mb-2 gap-2">
-                <div className="flex flex-wrap items-center gap-2 min-w-0">
-                  <span className="font-medium text-sm font-mono break-all">{t.nome}</span>
-                  <Badge color={catColor[t.categoria] || 'gray'}>{t.categoria}</Badge>
-                  <Badge color={stColor[t.status] || 'gray'}>{t.status}</Badge>
-                  <span className="text-xs text-gray-400">{t.idioma}</span>
-                  {t.updated_at && <span className="text-xs text-gray-400" title={`Atualizado: ${new Date(t.updated_at).toLocaleString('pt-BR')}`}>{new Date(t.updated_at).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' })}</span>}
-                </div>
-                <div className="flex items-center gap-1 shrink-0">
-                  <button onClick={() => openEditTpl(t)} className="p-1 text-gray-400 hover:text-blue-600" title="Editar texto"><Edit size={14} /></button>
-                  <button onClick={() => duplicateTpl(t)} className="p-1 text-gray-400 hover:text-green-600" title="Duplicar template"><Copy size={14} /></button>
-                  <button onClick={() => deleteTpl(t.nome)} className="p-1 text-gray-400 hover:text-red-600" title="Deletar"><Trash2 size={14} /></button>
-                </div>
-              </div>
-              <p className="text-sm text-gray-600 break-words">{highlightVars(t.corpo)}</p>
+            <div key={t.id} className="bg-white border rounded-lg p-4 lg:flex lg:gap-4">
+              {/* Coluna 1: Imagem (desktop = lateral, mobile = topo) */}
               {t.header?.tipo === 'image' && t.header?.exemplo_url && (
-                <img src={t.header.exemplo_url} alt="Header" className="w-full max-h-60 object-contain rounded mt-2 border bg-gray-50" loading="lazy" />
-              )}
-              {t.header?.tipo === 'text' && t.header?.texto && (
-                <p className="text-xs text-gray-500 mt-1 font-medium">📌 {t.header.texto}</p>
-              )}
-              {t.footer && <p className="text-xs text-gray-400 mt-1">{t.footer}</p>}
-              {(t.created_at || t.updated_at) && (
-                <p className="text-[10px] text-gray-400 mt-2">
-                  {t.created_at && `Criado: ${new Date(t.created_at).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' })}`}
-                  {t.updated_at && t.updated_at !== t.created_at && ` | Atualizado: ${new Date(t.updated_at).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' })}`}
-                </p>
-              )}
-              {t.botoes?.length > 0 && (
-                <div className="flex gap-2 mt-2 flex-wrap">
-                  {t.botoes.map((b, i) => (
-                    <span key={i} className={`text-xs px-2 py-1 rounded flex items-center gap-1 ${b.type === 'URL' ? 'bg-blue-50 text-blue-700' : 'bg-gray-100 text-gray-700'}`}>
-                      {b.type === 'URL' && <ExternalLink size={10} />}
-                      {b.text || b.otp_type || b.type}
-                    </span>
-                  ))}
+                <div className="lg:w-48 lg:shrink-0 mb-3 lg:mb-0">
+                  <img src={t.header.exemplo_url} alt="Header" className="w-full lg:h-full max-h-48 lg:max-h-none object-cover rounded border bg-gray-50" loading="lazy" />
                 </div>
               )}
+
+              {/* Coluna 2: Dados */}
+              <div className="flex-1 min-w-0">
+                {/* Header: nome + badges + ações */}
+                <div className="flex items-start justify-between mb-2 gap-2">
+                  <div className="flex flex-wrap items-center gap-2 min-w-0">
+                    <span className="font-medium text-sm font-mono break-all">{t.nome}</span>
+                    <Badge color={catColor[t.categoria] || 'gray'}>{t.categoria}</Badge>
+                    <Badge color={stColor[t.status] || 'gray'}>{t.status}</Badge>
+                    <span className="text-xs text-gray-400">{t.idioma}</span>
+                    {t.updated_at && <span className="text-xs text-gray-400" title={`Atualizado: ${new Date(t.updated_at).toLocaleString('pt-BR')}`}>{new Date(t.updated_at).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' })}</span>}
+                  </div>
+                  <div className="flex items-center gap-1 shrink-0">
+                    <button onClick={() => openEditTpl(t)} className="p-1 text-gray-400 hover:text-blue-600" title="Editar texto"><Edit size={14} /></button>
+                    <button onClick={() => duplicateTpl(t)} className="p-1 text-gray-400 hover:text-green-600" title="Duplicar template"><Copy size={14} /></button>
+                    <button onClick={() => deleteTpl(t.nome)} className="p-1 text-gray-400 hover:text-red-600" title="Deletar"><Trash2 size={14} /></button>
+                  </div>
+                </div>
+
+                {/* Corpo */}
+                <p className="text-sm text-gray-600 break-words">{highlightVars(t.corpo)}</p>
+
+                {/* Header texto */}
+                {t.header?.tipo === 'text' && t.header?.texto && (
+                  <p className="text-xs text-gray-500 mt-1 font-medium">📌 {t.header.texto}</p>
+                )}
+
+                {/* Footer */}
+                {t.footer && <p className="text-xs text-gray-400 mt-1">{t.footer}</p>}
+
+                {/* Datas */}
+                {(t.created_at || t.updated_at) && (
+                  <p className="text-[10px] text-gray-400 mt-2">
+                    {t.created_at && `Criado: ${new Date(t.created_at).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' })}`}
+                    {t.updated_at && t.updated_at !== t.created_at && ` | Atualizado: ${new Date(t.updated_at).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' })}`}
+                  </p>
+                )}
+
+                {/* Botões */}
+                {t.botoes?.length > 0 && (
+                  <div className="flex gap-2 mt-2 flex-wrap">
+                    {t.botoes.map((b, i) => (
+                      <span key={i} className={`text-xs px-2 py-1 rounded flex items-center gap-1 ${b.type === 'URL' ? 'bg-blue-50 text-blue-700' : 'bg-gray-100 text-gray-700'}`}>
+                        {b.type === 'URL' && <ExternalLink size={10} />}
+                        {b.text || b.otp_type || b.type}
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
           ))}
           {templates.length === 0 && <p className="text-sm text-gray-400 text-center py-8">Nenhum template encontrado na Meta</p>}
