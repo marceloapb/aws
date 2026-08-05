@@ -13,7 +13,6 @@
 
 const crypto = require('crypto');
 const https = require('https');
-const { SignedXml } = require('xml-crypto');
 const forge = require('node-forge');
 const { dynamo, TABLE } = require('../config/dynamodb');
 const { GetCommand, PutCommand, UpdateCommand, QueryCommand } = require('@aws-sdk/lib-dynamodb');
@@ -21,7 +20,7 @@ const { SSMClient, GetParameterCommand } = require('@aws-sdk/client-ssm');
 
 const ssm = new SSMClient({ region: 'us-east-1' });
 const PREFIX = process.env.SSM_PREFIX || '/mbf/prod';
-const TENANT = process.env.TENANT_ID || '1';
+const TENANT = process.env.TENANT_ID || 'default';
 
 // URLs da API
 const SEFIN_PROD = 'https://sefin.nfse.gov.br/SefinNacional';
@@ -154,9 +153,11 @@ function montarXmlDPS({ config, numeroDPS, dados }) {
 
   const now = new Date();
   // Calcular horário de Brasília (UTC-3)
-  const brasiliaOffset = -3 * 60; // minutos
-  const brasiliaTime = new Date(now.getTime() + (brasiliaOffset + now.getTimezoneOffset()) * 60000);
-  const dhEmi = brasiliaTime.toISOString().replace(/\.\d{3}Z$/, '') + '-03:00';
+  // dhEmi: horário de Brasília (UTC-3), subtraindo 1min para clock skew
+  const nowMs = Date.now() - 60000;
+  const utcDate = new Date(nowMs);
+  const brasilDate = new Date(nowMs - 3 * 3600000);
+  const dhEmi = brasilDate.toISOString().replace(/\.\d{3}Z$/, '') + '-03:00';
   const dCompet = data_competencia || now.toISOString().slice(0, 10);
   // ID formato: DPS + CódMunicipio(7) + TipoInscrição(1=CPF,2=CNPJ) + InscriçãoFederal(14) + Série(5 dígitos numéricos, zero-padded) + Número(15 zero-padded)
   // IMPORTANTE: O pattern TSIdDPS exige série NUMÉRICA (regex: 0{0,4}\d{1,5})
@@ -195,72 +196,29 @@ function montarXmlDPS({ config, numeroDPS, dados }) {
         </endNac>
       </end>` : '';
 
-  const xml = `<?xml version="1.0" encoding="UTF-8"?>
-<DPS xmlns="http://www.sped.fazenda.gov.br/nfse" versao="1.01">
-  <infDPS xmlns="http://www.sped.fazenda.gov.br/nfse" Id="${idDPS}">
-    <tpAmb>${config.ambiente}</tpAmb>
-    <dhEmi>${dhEmi}</dhEmi>
-    <verAplic>MBFoto_v1.0</verAplic>
-    <serie>${serieNum}</serie>
-    <nDPS>${numeroDPS}</nDPS>
-    <dCompet>${dCompet}</dCompet>
-    <tpEmit>1</tpEmit>
-    <cLocEmi>${config.codigoMunicipio}</cLocEmi>
-    <prest>
-      <CNPJ>${config.cnpj}</CNPJ>${config.inscricaoMunicipal ? `
-      <IM>${config.inscricaoMunicipal}</IM>` : ''}
-      <regTrib>
-        <opSimpNac>2</opSimpNac>
-        <regApTribSN>1</regApTribSN>
-        <regEspTrib>0</regEspTrib>
-      </regTrib>
-    </prest>
-    <toma>
-      ${docXml}
-      <xNome>${escapeXml(cliente_nome || 'Consumidor Final')}</xNome>${endXml}${cliente_telefone ? `
-      <fone>${cliente_telefone.replace(/\D/g, '')}</fone>` : ''}${cliente_email ? `
-      <email>${escapeXml(cliente_email)}</email>` : ''}
-    </toma>
-    <serv>
-      <locPrest>
-        <cLocPrestacao>${codigo_municipio_prestacao || config.codigoMunicipio}</cLocPrestacao>
-      </locPrest>
-      <cServ>
-        <cTribNac>${(config.codigoTribNacional || '130301').replace(/\D/g, '').substring(0, 6)}</cTribNac>
-        <xDescServ>${escapeXml(descricao_servico || 'Cobertura fotografica profissional de evento social.')}</xDescServ>
-      </cServ>
-    </serv>
-    <valores>
-      <vServPrest>
-        <vServ>${Number(valor_servico).toFixed(2)}</vServ>
-      </vServPrest>
-      <trib>
-        <tribMun>
-          <tribISSQN>1</tribISSQN>
-          <tpRetISSQN>1</tpRetISSQN>
-        </tribMun>
-        <totTrib>
-          <vTotTrib>
-            <vTotTribFed>0.00</vTotTribFed>
-            <vTotTribEst>0.00</vTotTribEst>
-            <vTotTribMun>0.00</vTotTribMun>
-          </vTotTrib>
-        </totTrib>
-      </trib>
-    </valores>
-  </infDPS>
-</DPS>`;
+  const imXml = config.inscricaoMunicipal ? `<IM>${config.inscricaoMunicipal}</IM>` : '';
+  const foneXml = cliente_telefone ? `<fone>${cliente_telefone.replace(/\D/g, '')}</fone>` : '';
+  const emailXml = cliente_email ? `<email>${escapeXml(cliente_email)}</email>` : '';
+  const cTribNac = (config.codigoTribNacional || '130301').replace(/\D/g, '').substring(0, 6);
+  const vServ = Number(valor_servico).toFixed(2);
+  const desc = escapeXml(descricao_servico || 'Cobertura fotografica profissional de evento social.');
+
+  const xml = `<DPS xmlns="http://www.sped.fazenda.gov.br/nfse" versao="1.01"><infDPS Id="${idDPS}"><tpAmb>${config.ambiente}</tpAmb><dhEmi>${dhEmi}</dhEmi><verAplic>MBFoto_v1.0</verAplic><serie>${serieNum}</serie><nDPS>${numeroDPS}</nDPS><dCompet>${dCompet}</dCompet><tpEmit>1</tpEmit><cLocEmi>${config.codigoMunicipio}</cLocEmi><prest><CNPJ>${config.cnpj}</CNPJ>${imXml}<regTrib><opSimpNac>2</opSimpNac><regApTribSN>1</regApTribSN><regEspTrib>0</regEspTrib></regTrib></prest><toma>${docXml}<xNome>${escapeXml(cliente_nome || 'Consumidor Final')}</xNome>${endXml}${foneXml}${emailXml}</toma><serv><locPrest><cLocPrestacao>${codigo_municipio_prestacao || config.codigoMunicipio}</cLocPrestacao></locPrest><cServ><cTribNac>${cTribNac}</cTribNac><xDescServ>${desc}</xDescServ></cServ></serv><valores><vServPrest><vServ>${vServ}</vServ></vServPrest><trib><tribMun><tribISSQN>1</tribISSQN><tpRetISSQN>1</tpRetISSQN></tribMun><totTrib><vTotTrib><vTotTribFed>0.00</vTotTribFed><vTotTribEst>0.00</vTotTribEst><vTotTribMun>0.00</vTotTribMun></vTotTrib></totTrib></trib></valores></infDPS></DPS>`;
 
   return xml;
 }
 
 /**
- * Assina o XML da DPS com certificado A1
+ * Assina o XML da DPS com certificado A1 (implementação manual - testada contra SEFIN)
  */
 function assinarXml(xml, pfxBuffer, passphrase) {
-  // Extrair o Id do infDPS para usar no Reference URI
-  const idMatch = xml.match(/infDPS\s+Id="([^"]+)"/);
+  const { DOMParser } = require('@xmldom/xmldom');
+  const { ExclusiveCanonicalization } = require('xml-crypto/lib/exclusive-canonicalization');
+
+  // Extrair o Id do infDPS
+  const idMatch = xml.match(/infDPS[^>]*Id="([^"]+)"/);
   const infDPSId = idMatch ? idMatch[1] : '';
+  if (!infDPSId) throw new Error('Id do infDPS não encontrado no XML');
 
   // Extrair chave e certificado do PFX
   const p12Asn1 = forge.asn1.fromDer(pfxBuffer.toString('binary'));
@@ -273,7 +231,7 @@ function assinarXml(xml, pfxBuffer, passphrase) {
     for (const bag of safeContent.safeBags) {
       if (bag.type === forge.pki.oids.pkcs8ShroudedKeyBag || bag.type === forge.pki.oids.keyBag) {
         privateKeyPem = forge.pki.privateKeyToPem(bag.key);
-      } else if (bag.type === forge.pki.oids.certBag) {
+      } else if (bag.type === forge.pki.oids.certBag && bag.cert) {
         certPem = forge.pki.certificateToPem(bag.cert);
       }
     }
@@ -283,42 +241,38 @@ function assinarXml(xml, pfxBuffer, passphrase) {
     throw new Error('Certificado A1 inválido: não foi possível extrair chave/certificado');
   }
 
-  // Extrair certificado em Base64 (sem headers PEM)
   const certBase64 = certPem
     .replace('-----BEGIN CERTIFICATE-----', '')
     .replace('-----END CERTIFICATE-----', '')
     .replace(/\s/g, '');
 
-  // Assinar com xml-crypto - padrão NFSe brasileira
-  const sig = new SignedXml({
-    privateKey: privateKeyPem,
-    signatureAlgorithm: 'http://www.w3.org/2001/04/xmldsig-more#rsa-sha256',
-    canonicalizationAlgorithm: 'http://www.w3.org/2001/10/xml-exc-c14n#',
-  });
+  // 1) Canonicalizar infDPS com Exclusive C14N
+  const c14n = new ExclusiveCanonicalization();
+  const doc = new DOMParser().parseFromString(xml);
+  const infNode = doc.getElementsByTagName('infDPS')[0];
+  const canonicalized = c14n.process(infNode, { inclusiveNamespacesPrefixList: '' }).toString();
 
-  sig.addReference({
-    xpath: "//*[local-name(.)='infDPS']",
-    transforms: [
-      'http://www.w3.org/2000/09/xmldsig#enveloped-signature',
-      'http://www.w3.org/2001/10/xml-exc-c14n#',
-    ],
-    digestAlgorithm: 'http://www.w3.org/2001/04/xmlenc#sha256',
-    uri: `#${infDPSId}`,
-    idAttribute: 'Id',
-    inclusiveNamespacesPrefixList: '',
-  });
+  // 2) Calcular digest SHA-256
+  const digest = crypto.createHash('sha256').update(canonicalized).digest('base64');
 
-  sig.keyInfoProvider = {
-    getKeyInfo: () => `<X509Data><X509Certificate>${certBase64}</X509Certificate></X509Data>`,
-    file: '',
-  };
+  // 3) Montar SignedInfo
+  const signedInfoXml = `<SignedInfo xmlns="http://www.w3.org/2000/09/xmldsig#"><CanonicalizationMethod Algorithm="http://www.w3.org/2001/10/xml-exc-c14n#"/><SignatureMethod Algorithm="http://www.w3.org/2001/04/xmldsig-more#rsa-sha256"/><Reference URI="#${infDPSId}"><Transforms><Transform Algorithm="http://www.w3.org/2000/09/xmldsig#enveloped-signature"/><Transform Algorithm="http://www.w3.org/2001/10/xml-exc-c14n#"/></Transforms><DigestMethod Algorithm="http://www.w3.org/2001/04/xmlenc#sha256"/><DigestValue>${digest}</DigestValue></Reference></SignedInfo>`;
 
-  sig.computeSignature(xml, {
-    prefix: '',
-    location: { reference: "//*[local-name(.)='infDPS']", action: 'after' },
-  });
+  // 4) Canonicalizar SignedInfo
+  const siDoc = new DOMParser().parseFromString(signedInfoXml);
+  const siCanon = c14n.process(siDoc.documentElement, { inclusiveNamespacesPrefixList: '' }).toString();
 
-  return sig.getSignedXml();
+  // 5) Assinar SignedInfo com RSA-SHA256
+  const sign = crypto.createSign('RSA-SHA256');
+  sign.update(siCanon);
+  const signatureValue = sign.sign(privateKeyPem, 'base64');
+
+  // 6) Montar Signature XML completo
+  const signatureXml = `<Signature xmlns="http://www.w3.org/2000/09/xmldsig#"><SignedInfo><CanonicalizationMethod Algorithm="http://www.w3.org/2001/10/xml-exc-c14n#"/><SignatureMethod Algorithm="http://www.w3.org/2001/04/xmldsig-more#rsa-sha256"/><Reference URI="#${infDPSId}"><Transforms><Transform Algorithm="http://www.w3.org/2000/09/xmldsig#enveloped-signature"/><Transform Algorithm="http://www.w3.org/2001/10/xml-exc-c14n#"/></Transforms><DigestMethod Algorithm="http://www.w3.org/2001/04/xmlenc#sha256"/><DigestValue>${digest}</DigestValue></Reference></SignedInfo><SignatureValue>${signatureValue}</SignatureValue><KeyInfo><X509Data><X509Certificate>${certBase64}</X509Certificate></X509Data></KeyInfo></Signature>`;
+
+  // 7) Inserir Signature entre </infDPS> e </DPS>, prefixar com declaração UTF-8
+  const signedXml = xml.replace(/<\/infDPS>\s*<\/DPS>/, '</infDPS>' + signatureXml + '</DPS>');
+  return '<?xml version="1.0" encoding="UTF-8"?>' + signedXml;
 }
 
 /**
