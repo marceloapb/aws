@@ -187,3 +187,24 @@ apps/
 - **Regras de Disparo**: 20 regras cadastradas. SK: `REGRA_NTF#<id>`. Campos: `titulo_template`, `mensagem_template`, `whatsapp_template`.
 - **Download ZIP**: Frontend usa JSZip para baixar todas as fotos como .zip. Dependência: `jszip@3.10.1` + `yaml@2.9.0` (necessário para resolver conflito tailwindcss/postcss-load-config).
 - **Deploy**: O lockfile do frontend DEVE ter `yaml@2.9.0` como dependência direta para evitar erro no `npm ci` do GitHub Actions.
+
+## Notas técnicas da sessão 05/08/2026
+- **PHOTOGRAPHER# ELIMINADO**: Migração completa de PHOTOGRAPHER#${photographerId} → TENANT#${TENANT} em 10 arquivos (78 ocorrências). Arquivos: admin-catalogo, admin-financeiro, admin-feedback, public, followUpJob, admin-aditivos, admin-clientes, admin-import, admin-orcamentos, whatsappReminderJob.
+- **WhatsApp Custos**: GSI1PK/GSI1SK adicionados no whatsappAdapter.js. Aba Custos funcional.
+- **WhatsApp Imagens**: Todas as 11 imagens de header baixadas da Meta e salvas no CDN (S3 + CloudFront invalidado). DynamoDB TPL_IMG# registrado para cada template.
+- **WhatsApp Conversas**: Webhook cria registro WA_CONVERSA ao receber msg. Aba Conversas funciona.
+- **Notificações**: 29 regras ativas (28 originais + solicitar_feedback). Cobertura completa de todos os eventos.
+- **NFS-e Padrão Nacional**: Implementado nfseService.js com assinatura manual (crypto nativo + ExclusiveCanonicalization). Bug da SEFIN: com `<?xml encoding="UTF-8"?>` invalida assinatura; sem declaração dá E1229. Chamado preparado.
+- **NFS-e SP (NF Paulistana)**: MEI NÃO PODE usar desde 04/2023 (erro 359). Deve usar Padrão Nacional obrigatoriamente.
+- **NFS-e Provedor**: CONFIG#nfse.provedor = 'nacional'. O adapter SP (nfse-sp-adapter.js) existe mas não é usado para MEI.
+- **Certificado Digital**: Salvo no S3 (`certificates/nfse-cert-a1.pfx`) + senha no SSM (`/mbf/prod/NFSE_CERT_PASSPHRASE`).
+- **OrcamentoDetalhe**: Botões em barra separada (bg-gray-50): Contrato, Álbum, Emitir NF, Feedback, Duplicar, PDF. Layout UX com separadores.
+- **PDF Orçamento**: POST /admin/orcamentos/:id/pdf gera HTML formatado. Frontend abre em nova janela com window.print().
+- **Feedback Solicitar**: Rota corrigida para TENANT#default, dispara evento `solicitar_feedback` via registrarEvento → WhatsApp.
+- **Horário WhatsApp**: Envios usam `createdAt` (ISO completo) em vez de `data` (só YYYY-MM-DD).
+- **Apagar Envios**: DELETE /admin/whatsapp/envios apaga todos os WA_ENVIO. Botão vermelho na toolbar.
+
+## Pendências / Próximas implementações
+- **Templates WhatsApp com botão URL (_link_img)**: Criar na Meta templates com botão type=url para: contrato_assinatura, orcamento_pronto, fotos_prontas, feedback, pagamento_vencido. Formato: mbf_<nome>_link_img. Botão direciona cliente para página logada.
+- **NFS-e**: Aguardando correção bug SEFIN Nacional (E0714 com declaração XML). Alternativa: API intermediária (Nuvem Fiscal).
+- **Verificar rotas migradas**: Testar catálogo, financeiro, feedback após migração PHOTOGRAPHER# → TENANT#default.
