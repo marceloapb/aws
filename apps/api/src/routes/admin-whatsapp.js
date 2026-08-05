@@ -981,12 +981,53 @@ router.post('/templates/migrar', async (req, res) => {
       }
     }
 
-    // ── FASE 2: Criar templates novos (sem imagem — admin vai adicionar) ──
+    // ── FASE 2: Criar templates novos (com imagem placeholder — admin troca depois via aba Imagens) ──
+    // A Meta EXIGE uma imagem de exemplo (header_handle) para templates com format: IMAGE
+    // Vamos usar o logo default como placeholder
+    const placeholderUrl = 'https://d2112x4m4e89fv.cloudfront.net/template-headers/logo-default.png';
+    let placeholderHandle = null;
+
+    try {
+      // Baixar imagem placeholder
+      const phResp = await fetch(placeholderUrl, { signal: AbortSignal.timeout(10000) });
+      if (phResp.ok) {
+        const phBuffer = Buffer.from(await phResp.arrayBuffer());
+        const phMime = phResp.headers.get('content-type') || 'image/png';
+        const appId = params.META_APP_ID || params.WHATSAPP_APP_ID || '951738347255153';
+
+        // Upload para Meta
+        const sessResp = await fetch(
+          `https://graph.facebook.com/v21.0/${appId}/uploads?file_length=${phBuffer.length}&file_type=${encodeURIComponent(phMime)}&access_token=${token}`,
+          { method: 'POST', signal: AbortSignal.timeout(15000) }
+        );
+        const sessData = await sessResp.json();
+        if (sessData.id) {
+          const upResp = await fetch(`https://graph.facebook.com/v21.0/${sessData.id}`, {
+            method: 'POST',
+            headers: { 'Authorization': `OAuth ${token}`, 'file_offset': '0', 'Content-Type': phMime },
+            body: phBuffer, signal: AbortSignal.timeout(30000),
+          });
+          const upData = await upResp.json();
+          if (upData.h) placeholderHandle = upData.h.split('\n')[0].trim();
+        }
+      }
+    } catch (err) {
+      console.warn('[MIGRAR] Erro ao obter placeholder handle:', err.message);
+    }
+
+    if (!placeholderHandle) {
+      return res.status(500).json({
+        success: false,
+        message: 'Não foi possível fazer upload da imagem placeholder para a Meta. Verifique se o logo-default.png existe no CDN.',
+        data: resultados,
+      });
+    }
+
     for (const tpl of TEMPLATES_NOVOS) {
       try {
         const varMatches = tpl.body.match(/\{\{\d+\}\}/g) || [];
         const components = [
-          { type: 'HEADER', format: 'IMAGE' },
+          { type: 'HEADER', format: 'IMAGE', example: { header_handle: [placeholderHandle] } },
           {
             type: 'BODY',
             text: tpl.body,
