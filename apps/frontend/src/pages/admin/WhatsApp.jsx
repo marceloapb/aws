@@ -350,8 +350,8 @@ export default function WhatsApp() {
                   {t.updated_at && <span className="text-xs text-gray-400" title={`Atualizado: ${new Date(t.updated_at).toLocaleString('pt-BR')}`}>{new Date(t.updated_at).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' })}</span>}
                 </div>
                 <div className="flex items-center gap-1 shrink-0">
-                  {t.categoria !== 'authentication' && <button onClick={() => openEditTpl(t)} className="p-1 text-gray-400 hover:text-blue-600" title="Editar texto"><Edit size={14} /></button>}
-                  {t.categoria !== 'authentication' && <button onClick={() => duplicateTpl(t)} className="p-1 text-gray-400 hover:text-green-600" title="Duplicar template"><Copy size={14} /></button>}
+                  <button onClick={() => openEditTpl(t)} className="p-1 text-gray-400 hover:text-blue-600" title="Editar texto"><Edit size={14} /></button>
+                  <button onClick={() => duplicateTpl(t)} className="p-1 text-gray-400 hover:text-green-600" title="Duplicar template"><Copy size={14} /></button>
                   <button onClick={() => deleteTpl(t.nome)} className="p-1 text-gray-400 hover:text-red-600" title="Deletar"><Trash2 size={14} /></button>
                 </div>
               </div>
