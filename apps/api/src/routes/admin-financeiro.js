@@ -140,11 +140,17 @@ router.get('/resumo', async (req, res) => {
       .filter(d => d.tipo !== 'entrada' && isInRange(d.data, range.inicio, range.fim))
       .reduce((sum, d) => sum + (d.valor || 0), 0);
 
-    // Evolução últimos 6 meses
+    // Evolução — adapta ao filtro selecionado
     const evolucao = [];
-    const now = new Date();
-    for (let i = 5; i >= 0; i--) {
-      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const rangeInicio = new Date(range.inicio + 'T12:00:00');
+    const rangeFim = new Date(range.fim + 'T12:00:00');
+
+    // Calcular quantos meses no range
+    const mesesNoRange = (rangeFim.getFullYear() - rangeInicio.getFullYear()) * 12 + (rangeFim.getMonth() - rangeInicio.getMonth()) + 1;
+    const numMeses = Math.min(Math.max(mesesNoRange, 1), 12); // min 1, max 12 barras
+
+    for (let i = 0; i < numMeses; i++) {
+      const d = new Date(rangeInicio.getFullYear(), rangeInicio.getMonth() + i, 1);
       const mesKey = d.toISOString().slice(0, 7);
       const mesLabel = d.toLocaleDateString('pt-BR', { month: 'short' }).replace('.', '');
 
@@ -152,17 +158,38 @@ router.get('/resumo', async (req, res) => {
         .filter(c => c.status === 'pago' && (c.pago_em || c.pagoEm || c.vencimento || '').startsWith(mesKey))
         .reduce((s, c) => s + (c.valor || 0), 0);
 
+      // Incluir entradas manuais (despesas tipo 'entrada')
+      const entradasManuais = despesas
+        .filter(dd => dd.tipo === 'entrada' && (dd.data || '').startsWith(mesKey))
+        .reduce((s, dd) => s + (dd.valor || 0), 0);
+
       const saidas = despesas
         .filter(dd => dd.tipo !== 'entrada' && (dd.data || '').startsWith(mesKey))
         .reduce((s, dd) => s + (dd.valor || 0), 0);
 
-      evolucao.push({ mes: mesLabel, entradas, saidas });
+      evolucao.push({ mes: mesLabel, entradas: entradas + entradasManuais, saidas });
     }
 
-    // Top clientes
-    const top_clientes = Object.values(clienteReceita)
+    // Top clientes — baseado em cobranças pagas no período
+    // Se não há cobranças pagas, tentar construir a partir dos orçamentos aceitos
+    let top_clientes = Object.values(clienteReceita)
       .sort((a, b) => b.receita - a.receita)
       .slice(0, 5);
+
+    // Fallback: se não há cobranças pagas, buscar clientes com mais cobranças em aberto
+    if (top_clientes.length === 0 && cobrancas.length > 0) {
+      const clienteValores = {};
+      cobrancas.forEach(c => {
+        if (c.status === 'cancelado' || c.status === 'cancelada') return;
+        const vencimento = c.vencimento || c.data_vencimento || '';
+        if (!isInRange(vencimento, range.inicio, range.fim)) return;
+        const cId = c.clienteId || c.cliente_id || 'unknown';
+        const cNome = c.cliente_nome || c.clienteNome || cId;
+        if (!clienteValores[cId]) clienteValores[cId] = { nome: cNome, receita: 0 };
+        clienteValores[cId].receita += (c.valor || 0);
+      });
+      top_clientes = Object.values(clienteValores).sort((a, b) => b.receita - a.receita).slice(0, 5);
+    }
 
 
     // Retornar flat (o frontend faz setResumo(await r.json()))
