@@ -69,7 +69,6 @@ export default function OrcamentoDetalhe() {
     } catch {} finally { setActionLoading(''); }
   };
 
-  const handleCriarAlbum = async () => {
   const handleSolicitarFeedback = async () => {
     setActionLoading('feedback');
     try {
@@ -87,7 +86,7 @@ export default function OrcamentoDetalhe() {
     } finally { setActionLoading(''); }
   };
 
-
+  const handleCriarAlbum = async () => {
     setActionLoading('album');
     try {
       const clienteId = orc.cliente_id || (orc.PK?.startsWith('CLIENTE#') ? orc.PK.replace('CLIENTE#', '') : '');
