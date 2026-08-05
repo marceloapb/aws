@@ -43,12 +43,11 @@ function isInRange(dateStr, inicio, fim) {
 // ─── GET /admin/financeiro/resumo ───────────────────────────────────────────────
 router.get('/resumo', async (req, res) => {
   try {
-    // const photographerId = req.user.sub; // Substituído por TENANT
     const { periodo, periodo_inicio, periodo_fim } = req.query;
     const range = getPeriodoRange(periodo, periodo_inicio, periodo_fim);
     logger.info({ action: 'financeiro_resumo', tenant: TENANT, range });
 
-    // Fetch cobranças
+    // Fetch cobranças do TENANT
     const cobResult = await docClient.send(new QueryCommand({
       TableName: TABLE_NAME,
       KeyConditionExpression: 'PK = :pk AND begins_with(SK, :sk)',
@@ -57,7 +56,20 @@ router.get('/resumo', async (req, res) => {
         ':sk': 'COBRANCA#'
       }
     }));
-    const cobrancas = cobResult.Items || [];
+
+    // Fetch cobranças dos CLIENTEs (geradas automaticamente ao aceitar orçamento)
+    const cobGSIResult = await docClient.send(new QueryCommand({
+      TableName: TABLE_NAME,
+      IndexName: 'GSI1',
+      KeyConditionExpression: 'GSI1PK = :pk',
+      ExpressionAttributeValues: { ':pk': 'COBRANCA' },
+    }));
+
+    // Unificar cobranças (deduplica por id)
+    const cobMap = new Map();
+    for (const c of (cobResult.Items || [])) cobMap.set(c.id || c.SK, c);
+    for (const c of (cobGSIResult.Items || [])) cobMap.set(c.id || c.SK, c);
+    const cobrancas = [...cobMap.values()];
 
     // Fetch despesas
     const despResult = await docClient.send(new QueryCommand({
@@ -68,15 +80,15 @@ router.get('/resumo', async (req, res) => {
         ':sk': 'DESPESA#'
       }
     }));
-    const despesas = despResult.Items || [];
+    const despesas = (despResult.Items || []).filter(d => !d.is_recorrencia_pai);
 
 
     const hoje = new Date().toISOString().slice(0, 10);
 
-    let receitaMesAtual = 0;
+    let receitaPeriodo = 0;
     let aReceber = 0;
-    let recebido = 0;
-    let totalCobrancas = 0;
+    let recebidoPeriodo = 0;
+    let totalCobrancasPeriodo = 0;
     let inadimplenciaValor = 0;
     const clienteReceita = {};
 
@@ -86,36 +98,39 @@ router.get('/resumo', async (req, res) => {
       const dataPago = c.pago_em || c.pagoEm || '';
       const status = c.status || '';
 
+      // Determinar se esta cobrança está no período selecionado
+      const dataRef = dataPago || vencimento;
+      const noPeriodo = isInRange(dataRef, range.inicio, range.fim);
+
       if (status === 'pago') {
-        recebido += valor;
-        totalCobrancas++;
-        if (isInRange(dataPago || vencimento, range.inicio, range.fim)) {
-          receitaMesAtual += valor;
+        if (noPeriodo) {
+          receitaPeriodo += valor;
+          recebidoPeriodo += valor;
+          totalCobrancasPeriodo++;
+          // Track por cliente
+          const cId = c.clienteId || c.cliente_id || 'unknown';
+          const cNome = c.cliente_nome || c.clienteNome || cId;
+          if (!clienteReceita[cId]) clienteReceita[cId] = { nome: cNome, receita: 0 };
+          clienteReceita[cId].receita += valor;
         }
-        // Track por cliente
-        const cId = c.clienteId || c.cliente_id || 'unknown';
-        const cNome = c.cliente_nome || c.clienteNome || cId;
-        if (!clienteReceita[cId]) clienteReceita[cId] = { nome: cNome, receita: 0 };
-        clienteReceita[cId].receita += valor;
       } else if (status === 'cancelado' || status === 'cancelada') {
         // skip
-      } else if (vencimento && vencimento < hoje) {
+      } else if (vencimento && vencimento < hoje && isInRange(vencimento, range.inicio, range.fim)) {
         inadimplenciaValor += valor;
-      } else if (vencimento >= hoje && (status === 'pendente' || status === 'em_aberto')) {
+      } else if (isInRange(vencimento, range.inicio, range.fim) && (status === 'pendente' || status === 'em_aberto')) {
         aReceber += valor;
       }
     });
 
-    // Inadimplência como percentual
-    const totalEmitido = recebido + aReceber + inadimplenciaValor;
-    const inadimplencia = totalEmitido > 0
-      ? parseFloat(((inadimplenciaValor / totalEmitido) * 100).toFixed(1))
+    // Inadimplência como percentual (dentro do período)
+    const totalEmitidoPeriodo = recebidoPeriodo + aReceber + inadimplenciaValor;
+    const inadimplencia = totalEmitidoPeriodo > 0
+      ? parseFloat(((inadimplenciaValor / totalEmitidoPeriodo) * 100).toFixed(1))
       : 0;
 
-
-    // Ticket médio
-    const ticketMedio = totalCobrancas > 0
-      ? parseFloat((recebido / totalCobrancas).toFixed(2))
+    // Ticket médio (no período)
+    const ticketMedio = totalCobrancasPeriodo > 0
+      ? parseFloat((recebidoPeriodo / totalCobrancasPeriodo).toFixed(2))
       : 0;
 
     // Despesas do período
@@ -150,12 +165,12 @@ router.get('/resumo', async (req, res) => {
 
     // Retornar flat (o frontend faz setResumo(await r.json()))
     res.json({
-      receitaMesAtual: parseFloat(receitaMesAtual.toFixed(2)),
-      receita_mes: parseFloat(receitaMesAtual.toFixed(2)),
+      receitaMesAtual: parseFloat(receitaPeriodo.toFixed(2)),
+      receita_mes: parseFloat(receitaPeriodo.toFixed(2)),
       aReceber: parseFloat(aReceber.toFixed(2)),
       a_receber: parseFloat(aReceber.toFixed(2)),
-      receitaTotal: parseFloat(recebido.toFixed(2)),
-      recebido: parseFloat(recebido.toFixed(2)),
+      receitaTotal: parseFloat(recebidoPeriodo.toFixed(2)),
+      recebido: parseFloat(recebidoPeriodo.toFixed(2)),
       inadimplencia,
       inadimplencia_pct: inadimplencia,
       ticketMedio,
