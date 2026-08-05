@@ -4,7 +4,6 @@
 
 const { dynamo, TABLE } = require('../config/dynamodb');
 const { QueryCommand, UpdateCommand } = require('@aws-sdk/lib-dynamodb');
-const { emitirEvento } = require('./eventBus');
 const { ALBUM_STATUS } = require('../config/constants');
 
 const AVISOS_DIAS = [30, 15, 7, 1];
@@ -76,14 +75,22 @@ async function enviarAvisosExpiracao() {
     if (album.last_aviso_dias && album.last_aviso_dias <= faixaAviso) continue;
 
     try {
-      // Emitir evento de expiração
-      await emitirEvento('mbf.albuns', 'album.expirando', {
-        album_id: album.id,
-        dias_restantes: diasRestantes,
-        cliente_id: album.cliente_id,
-        titulo: album.titulo,
-        data_expiracao: album.data_expiracao,
-        recurso_id: album.id,
+      // Disparar notificação diretamente via dispatcher
+      const { processarEvento } = require('./notificationDispatcher');
+      await processarEvento({
+        evento_id: `album-expirando-${album.id}-${faixaAviso}d-${hojeStr}`,
+        tipo_evento: 'album.expirando',
+        tenant_id: process.env.TENANT_ID || 'default',
+        dados: {
+          album_id: album.id,
+          dias_restantes: diasRestantes,
+          cliente_id: album.cliente_id,
+          cliente_nome: album.cliente_nome || '',
+          titulo: album.titulo,
+          total_fotos: album.total_fotos || '',
+          dias_expiracao: String(diasRestantes),
+          data_expiracao: album.data_expiracao,
+        },
       });
 
       // Atualizar last_aviso_dias para evitar reenvio

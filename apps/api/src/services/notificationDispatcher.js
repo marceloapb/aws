@@ -215,6 +215,14 @@ async function despacharCanal(canal, regra, evento, dados) {
           titulo: `Novo Feedback Recebido`,
           mensagem: `${dados.cliente_nome || 'Um cliente'} respondeu a pesquisa de satisfação. Confira a avaliação no sistema.`,
         },
+        'album_expirando': {
+          titulo: `Álbum Expirando!`,
+          mensagem: `O álbum "${dados.titulo || dados.album_titulo || 'Fotos'}" de ${dados.cliente_nome || 'cliente'} expira em ${dados.dias_restantes || '3'} dias. Baixe suas fotos antes que o link expire!`,
+        },
+        'orcamento_solicitado': {
+          titulo: `Novo Orçamento Solicitado`,
+          mensagem: `${dados.cliente_nome || 'Um cliente'} solicitou orçamento para ${dados.tipo_evento || dados.nome_evento || 'evento'}. Data: ${dados.data_evento ? new Date(dados.data_evento + 'T00:00').toLocaleDateString('pt-BR') : 'a definir'}. Acesse o sistema para montar a proposta.`,
+        },
       };
 
       const textoEvento = textosDescritivos[evento.tipo_evento];
