@@ -39,13 +39,30 @@ let configExpiry = 0;
 async function getConfig() {
   if (cachedConfig && Date.now() < configExpiry) return cachedConfig;
 
-  // Buscar config do DynamoDB
+  // Buscar config NFS-e específica
   const result = await dynamo.send(new GetCommand({
     TableName: TABLE,
     Key: { PK: `TENANT#${TENANT}`, SK: 'CONFIG#nfse' },
   }));
-
   const dbConfig = result.Item || {};
+
+  // Buscar dados da empresa já cadastrados (CONFIG#cnpj, CONFIG#estado, etc)
+  const configKeys = ['cnpj', 'businessName', 'tradeName', 'estado', 'cidade', 'cep', 'rua', 'numero', 'bairro', 'inscricaoMunicipal'];
+  const empresaData = {};
+  try {
+    const empResult = await dynamo.send(new QueryCommand({
+      TableName: TABLE,
+      KeyConditionExpression: 'PK = :pk AND begins_with(SK, :sk)',
+      ExpressionAttributeValues: { ':pk': `TENANT#${TENANT}`, ':sk': 'CONFIG#' },
+    }));
+    for (const item of (empResult.Items || [])) {
+      if (item.chave && item.valor) empresaData[item.chave] = item.valor;
+    }
+  } catch {}
+
+  // Mapear código IBGE de São Paulo (fallback)
+  const MUNICIPIOS_IBGE = { 'São Paulo': '3550308', 'Sao Paulo': '3550308' };
+  const codigoMunicipio = dbConfig.codigo_municipio || MUNICIPIOS_IBGE[empresaData.cidade] || '3550308';
 
   // Buscar certificado do SSM
   let certPfxBase64 = '';
@@ -62,11 +79,12 @@ async function getConfig() {
   }
 
   cachedConfig = {
-    cnpj: dbConfig.cnpj || '',
-    inscricaoMunicipal: dbConfig.inscricao_municipal || '',
-    razaoSocial: dbConfig.razao_social || 'Marcelo Bloise Fotografia',
-    codigoMunicipio: dbConfig.codigo_municipio || '3550308', // São Paulo padrão
-    uf: dbConfig.uf || 'SP',
+    // Usa CONFIG#nfse se preenchido, senão puxa dos dados da empresa
+    cnpj: dbConfig.cnpj || (empresaData.cnpj || '').replace(/\D/g, ''),
+    inscricaoMunicipal: dbConfig.inscricao_municipal || empresaData.inscricaoMunicipal || '',
+    razaoSocial: dbConfig.razao_social || empresaData.businessName || empresaData.tradeName || 'Marcelo Bloise Fotografia',
+    codigoMunicipio,
+    uf: dbConfig.uf || empresaData.estado || 'SP',
     cnae: dbConfig.cnae || '7420001',
     codigoTribNacional: dbConfig.codigo_trib_nacional || '13.03.01.00',
     serie: dbConfig.serie || 'NFSE',
