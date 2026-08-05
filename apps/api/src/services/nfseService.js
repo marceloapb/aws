@@ -260,23 +260,21 @@ function assinarXml(xml, pfxBuffer, passphrase) {
     .replace(/\s/g, '');
 
   // Assinar com xml-crypto
-  const sig = new SignedXml();
-  sig.signingKey = privateKeyPem;
-  sig.signatureAlgorithm = 'http://www.w3.org/2001/04/xmldsig-more#rsa-sha256';
-  sig.canonicalizationAlgorithm = 'http://www.w3.org/2001/10/xml-exc-c14n#';
+  const sig = new SignedXml({
+    privateKey: privateKeyPem,
+    signatureAlgorithm: 'http://www.w3.org/2001/04/xmldsig-more#rsa-sha256',
+    canonicalizationAlgorithm: 'http://www.w3.org/2001/10/xml-exc-c14n#',
+  });
 
-  sig.addReference(
-    "//*[local-name(.)='infDPS']",
-    [
+  sig.addReference({
+    xpath: "//*[local-name(.)='infDPS']",
+    transforms: [
       'http://www.w3.org/2000/09/xmldsig#enveloped-signature',
       'http://www.w3.org/2001/10/xml-exc-c14n#',
     ],
-    'http://www.w3.org/2001/04/xmlenc#sha256',
-    '',
-    '',
-    '',
-    true
-  );
+    digestAlgorithm: 'http://www.w3.org/2001/04/xmlenc#sha256',
+    isEmptyUri: true,
+  });
 
   sig.keyInfoProvider = {
     getKeyInfo: () => `<X509Data><X509Certificate>${certBase64}</X509Certificate></X509Data>`,
