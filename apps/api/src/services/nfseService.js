@@ -289,18 +289,18 @@ function assinarXml(xml, pfxBuffer, passphrase) {
     .replace('-----END CERTIFICATE-----', '')
     .replace(/\s/g, '');
 
-  // Assinar com xml-crypto
+  // Assinar com xml-crypto - padrão NFSe brasileira
   const sig = new SignedXml({
     privateKey: privateKeyPem,
     signatureAlgorithm: 'http://www.w3.org/2001/04/xmldsig-more#rsa-sha256',
-    canonicalizationAlgorithm: 'http://www.w3.org/2001/10/xml-exc-c14n#',
+    canonicalizationAlgorithm: 'http://www.w3.org/TR/2001/REC-xml-c14n-20010315',
   });
 
   sig.addReference({
     xpath: "//*[local-name(.)='infDPS']",
     transforms: [
       'http://www.w3.org/2000/09/xmldsig#enveloped-signature',
-      'http://www.w3.org/2001/10/xml-exc-c14n#',
+      'http://www.w3.org/TR/2001/REC-xml-c14n-20010315',
     ],
     digestAlgorithm: 'http://www.w3.org/2001/04/xmlenc#sha256',
     uri: `#${infDPSId}`,
@@ -309,11 +309,13 @@ function assinarXml(xml, pfxBuffer, passphrase) {
 
   sig.keyInfoProvider = {
     getKeyInfo: () => `<X509Data><X509Certificate>${certBase64}</X509Certificate></X509Data>`,
+    file: '',
   };
 
   sig.computeSignature(xml, {
     prefix: '',
     location: { reference: "//*[local-name(.)='infDPS']", action: 'after' },
+    existingPrefixes: { '': 'http://www.sped.fazenda.gov.br/nfse' },
   });
 
   return sig.getSignedXml();
