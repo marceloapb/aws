@@ -153,7 +153,10 @@ function montarXmlDPS({ config, numeroDPS, dados }) {
   } = dados;
 
   const now = new Date();
-  const dhEmi = now.toISOString().replace(/\.\d{3}Z$/, '-03:00');
+  // Calcular horário de Brasília (UTC-3)
+  const brasiliaOffset = -3 * 60; // minutos
+  const brasiliaTime = new Date(now.getTime() + (brasiliaOffset + now.getTimezoneOffset()) * 60000);
+  const dhEmi = brasiliaTime.toISOString().replace(/\.\d{3}Z$/, '') + '-03:00';
   const dCompet = data_competencia || now.toISOString().slice(0, 10);
   // ID formato: DPS + CódMunicipio(7) + TipoInscrição(1=CPF,2=CNPJ) + InscriçãoFederal(14) + Série(5 dígitos numéricos, zero-padded) + Número(15 zero-padded)
   // IMPORTANTE: O pattern TSIdDPS exige série NUMÉRICA (regex: 0{0,4}\d{1,5})
