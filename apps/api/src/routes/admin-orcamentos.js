@@ -941,4 +941,105 @@ router.delete('/:id', async (req, res) => {
   }
 });
 
+// POST /api/admin/orcamentos/:id/pdf — Gerar PDF do orçamento
+router.post('/:id/pdf', async (req, res) => {
+  try {
+    const TENANT = req.tenantId || process.env.TENANT_ID || 'default';
+    const { id } = req.params;
+
+    // Buscar orçamento
+    const orcResult = await dynamo.send(new QueryCommand({
+      TableName: TABLE,
+      IndexName: 'GSI1',
+      KeyConditionExpression: 'GSI1PK = :pk AND GSI1SK = :sk',
+      ExpressionAttributeValues: { ':pk': 'ORCAMENTO', ':sk': `ORCAMENTO#${id}` },
+    }));
+    const orc = orcResult.Items?.[0];
+    if (!orc) return res.status(404).json({ success: false, message: 'Orçamento não encontrado' });
+
+    // Buscar configs empresa
+    const configResult = await dynamo.send(new QueryCommand({
+      TableName: TABLE,
+      KeyConditionExpression: 'PK = :pk AND begins_with(SK, :sk)',
+      ExpressionAttributeValues: { ':pk': `TENANT#${TENANT}`, ':sk': 'CONFIG#' },
+    }));
+    const configs = {};
+    for (const item of (configResult.Items || [])) {
+      if (item.chave && item.valor) configs[item.chave] = item.valor;
+    }
+
+    const empresaNome = configs.tradeName || configs.businessName || 'Marcelo Bloise Fotografia';
+    const empresaCnpj = configs.cnpj || '';
+    const empresaTel = configs.phone || '';
+    const empresaEmail = configs.email || '';
+
+    // Montar opções
+    const opcoes = orc.opcoes || [];
+    let opcoesHtml = '';
+    for (const op of opcoes) {
+      const itens = (op.itens_snapshot || []).map(i =>
+        `<tr><td>${i.nome || i.titulo || ''}</td><td style="text-align:center">${i.quantidade || 1}</td><td style="text-align:right">R$ ${(i.valor_unitario || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td></tr>`
+      ).join('');
+      const subtotal = (op.itens_snapshot || []).reduce((s, i) => s + (i.valor_unitario || 0) * (i.quantidade || 1), 0);
+      const desconto = op.desconto_tipo === 'pct' ? subtotal * ((op.desconto_valor || 0) / 100) : (op.desconto_valor || 0);
+      const total = Math.max(0, subtotal - desconto);
+      opcoesHtml += `
+        <div style="margin-bottom:20px;border:1px solid #ddd;border-radius:8px;padding:16px;">
+          <h3 style="margin:0 0 10px;color:#EA580C;">${op.titulo || op.nome || 'Opção'} ${op.destaque ? '⭐' : ''}</h3>
+          ${op.descricao ? `<p style="color:#666;font-size:13px;">${op.descricao}</p>` : ''}
+          <table style="width:100%;border-collapse:collapse;font-size:13px;margin-top:10px;">
+            <thead><tr style="border-bottom:1px solid #eee;"><th style="text-align:left;padding:6px;">Item</th><th style="text-align:center;padding:6px;">Qtd</th><th style="text-align:right;padding:6px;">Valor</th></tr></thead>
+            <tbody>${itens}</tbody>
+          </table>
+          ${desconto > 0 ? `<p style="color:#666;font-size:12px;margin-top:8px;">Desconto: -R$ ${desconto.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>` : ''}
+          <p style="font-size:16px;font-weight:bold;margin-top:10px;color:#EA580C;">Total: R$ ${total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
+        </div>`;
+    }
+
+    const valorTotal = orc.valor_total || opcoes.reduce((max, op) => {
+      const sub = (op.itens_snapshot || []).reduce((s, i) => s + (i.valor_unitario || 0) * (i.quantidade || 1), 0);
+      const desc = op.desconto_tipo === 'pct' ? sub * ((op.desconto_valor || 0) / 100) : (op.desconto_valor || 0);
+      return Math.max(max, sub - desc);
+    }, 0);
+
+    const dataEmissao = orc.created ? new Date(orc.created).toLocaleDateString('pt-BR') : new Date().toLocaleDateString('pt-BR');
+
+    const html = `<!DOCTYPE html>
+<html><head><meta charset="UTF-8"><title>Orçamento - ${orc.titulo || ''}</title>
+<style>body{font-family:Arial,sans-serif;max-width:800px;margin:0 auto;padding:40px;color:#333;}
+.header{display:flex;justify-content:space-between;align-items:center;border-bottom:2px solid #EA580C;padding-bottom:20px;margin-bottom:30px;}
+.header h1{color:#EA580C;margin:0;font-size:22px;}
+.info{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:30px;}
+.info-box{background:#f9f9f9;padding:15px;border-radius:8px;}
+.info-box h4{margin:0 0 8px;color:#666;font-size:12px;text-transform:uppercase;}
+.info-box p{margin:4px 0;font-size:14px;}
+.footer{margin-top:40px;padding-top:20px;border-top:1px solid #eee;text-align:center;color:#999;font-size:12px;}
+@media print{body{padding:20px;}}</style></head>
+<body>
+<div class="header">
+  <div><h1>${empresaNome}</h1><p style="margin:4px 0;color:#666;font-size:13px;">${empresaTel} | ${empresaEmail}</p></div>
+  <div style="text-align:right;"><p style="font-size:12px;color:#666;">ORÇAMENTO</p><p style="font-size:18px;font-weight:bold;color:#EA580C;">#${id.slice(0, 8).toUpperCase()}</p></div>
+</div>
+<div class="info">
+  <div class="info-box"><h4>Cliente</h4><p><strong>${orc.cliente_nome || orc.cliente?.nome || ''}</strong></p><p>${orc.cliente?.email || ''}</p><p>${orc.cliente?.whatsapp || orc.cliente?.telefone || ''}</p></div>
+  <div class="info-box"><h4>Detalhes</h4><p><strong>${orc.titulo || orc.tipo_evento || ''}</strong></p><p>Data evento: ${orc.data_evento ? new Date(orc.data_evento + 'T00:00').toLocaleDateString('pt-BR') : 'A definir'}</p><p>Emissão: ${dataEmissao}</p>${orc.validade_dias ? `<p>Validade: ${orc.validade_dias} dias</p>` : ''}</div>
+</div>
+${orc.descricao ? `<div style="margin-bottom:20px;"><h3 style="color:#333;font-size:15px;">Descrição</h3><p style="color:#666;font-size:14px;line-height:1.6;">${orc.descricao}</p></div>` : ''}
+<h3 style="color:#333;font-size:15px;margin-bottom:15px;">Opções</h3>
+${opcoesHtml || '<p style="color:#999;">Nenhuma opção cadastrada</p>'}
+<div style="text-align:right;margin-top:30px;padding:20px;background:#f9f9f9;border-radius:8px;">
+  <p style="font-size:12px;color:#666;">VALOR TOTAL</p>
+  <p style="font-size:28px;font-weight:bold;color:#EA580C;margin:5px 0;">R$ ${valorTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
+</div>
+${orc.observacoes ? `<div style="margin-top:20px;"><h4 style="color:#666;font-size:12px;text-transform:uppercase;">Observações</h4><p style="font-size:13px;color:#666;">${orc.observacoes}</p></div>` : ''}
+<div class="footer"><p>${empresaNome} | CNPJ: ${empresaCnpj}</p><p>Este orçamento é válido por ${orc.validade_dias || 30} dias a partir da data de emissão.</p></div>
+</body></html>`;
+
+    res.json({ success: true, data: { html, url: null } });
+  } catch (error) {
+    console.error('[PDF] Erro orçamento:', error.message);
+    res.status(400).json({ success: false, message: error.message });
+  }
+});
+
 module.exports = router;

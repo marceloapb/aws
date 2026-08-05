@@ -65,7 +65,14 @@ export default function OrcamentoDetalhe() {
     try {
       const r = await authFetch(`/admin/orcamentos/${id}/pdf`, { method: 'POST' });
       const j = await r.json();
-      if (j.success && j.data?.url) window.open(j.data.url, '_blank');
+      if (j.success && j.data?.html) {
+        const win = window.open('', '_blank');
+        win.document.write(j.data.html);
+        win.document.close();
+        setTimeout(() => win.print(), 500);
+      } else if (j.success && j.data?.url) {
+        window.open(j.data.url, '_blank');
+      }
     } catch {} finally { setActionLoading(''); }
   };
 
