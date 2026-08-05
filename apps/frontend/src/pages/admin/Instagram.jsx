@@ -269,6 +269,7 @@ export default function Instagram() {
 
   // Carousel preview navigation
   const [previewIndex, setPreviewIndex] = useState(0);
+  const [zoomFoto, setZoomFoto] = useState(null); // URL da foto ampliada
   useEffect(() => { setPreviewIndex(0); }, [selectedPhotos.length]);
 
 
@@ -401,13 +402,21 @@ export default function Instagram() {
                   {albumFotos.map((foto, i) => {
                     const fotoId = foto.id || foto.SK?.replace('FOTO#', '');
                     return (
-                    <div key={i} onClick={() => togglePhoto(fotoId)} className={`relative cursor-pointer rounded overflow-hidden border-2 ${selectedPhotos.includes(fotoId) ? 'border-[#EA580C]' : 'border-transparent'}`}>
-                      <img src={foto.url_thumb || foto.url || ''} alt="" className="w-full h-14 object-cover" />
+                    <div key={i} className={`relative group cursor-pointer rounded overflow-hidden border-2 ${selectedPhotos.includes(fotoId) ? 'border-[#EA580C]' : 'border-transparent hover:border-gray-300'}`}>
+                      <img src={foto.url_thumb || foto.url || ''} alt="" className="w-full h-14 object-cover" onClick={() => togglePhoto(fotoId)} />
                       {selectedPhotos.includes(fotoId) && (
-                        <div className="absolute inset-0 bg-orange-500/30 flex items-center justify-center">
+                        <div className="absolute inset-0 bg-orange-500/30 flex items-center justify-center pointer-events-none">
                           <CheckCircle size={14} className="text-white" />
                         </div>
                       )}
+                      {/* Botão zoom — aparece no hover */}
+                      <button
+                        onClick={(e) => { e.stopPropagation(); setZoomFoto(foto.url || foto.url_thumb || ''); }}
+                        className="absolute top-0.5 right-0.5 w-5 h-5 rounded-full bg-black/60 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                        title="Ampliar"
+                      >
+                        <Eye size={10} />
+                      </button>
                     </div>
                     );
                   })}
@@ -928,6 +937,16 @@ export default function Instagram() {
               <p className="text-center text-gray-400 py-8 text-sm">Nenhum custo registrado este mês.</p>
             )}
           </div>
+        </div>
+      )}
+
+      {/* ═══ LIGHTBOX: Foto ampliada ═══ */}
+      {zoomFoto && (
+        <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-8" onClick={() => setZoomFoto(null)}>
+          <button onClick={() => setZoomFoto(null)} className="absolute top-4 right-4 w-8 h-8 rounded-full bg-white/20 text-white flex items-center justify-center hover:bg-white/40 transition-colors">
+            <X size={18} />
+          </button>
+          <img src={zoomFoto} alt="Foto ampliada" className="max-w-full max-h-full object-contain rounded-lg shadow-2xl" onClick={e => e.stopPropagation()} />
         </div>
       )}
 
