@@ -293,8 +293,8 @@ async function despacharCanal(canal, regra, evento, dados) {
           // 1) Regra tem imagem customizada no CDN
           imagemUrl = `${CDN_BASE}/${regra.header_image_key}`;
         } else {
-          // 2) Mapeamento CDN por template (sempre retorna URL válida, nunca null)
-          imagemUrl = getTemplateImageUrl(templateName);
+          // 2) Buscar URL do DynamoDB (cache 30min) → fallback estático → logo default
+          imagemUrl = await resolveTemplateImageUrl(templateName);
         }
 
         await enviarWhatsApp({
