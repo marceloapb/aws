@@ -297,25 +297,42 @@ async function enviarDPS(xmlAssinado, config) {
 
   const pfxBuffer = Buffer.from(config.certPfxBase64, 'base64');
 
-  const agent = new https.Agent({
-    pfx: pfxBuffer,
-    passphrase: config.certPassphrase,
-    rejectUnauthorized: true,
+  // Usar https.request nativo para suportar mTLS (certificado client-side)
+  const responseText = await new Promise((resolve, reject) => {
+    const parsedUrl = new URL(url);
+    const options = {
+      hostname: parsedUrl.hostname,
+      port: 443,
+      path: parsedUrl.pathname,
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/xml',
+        'Content-Length': Buffer.byteLength(xmlAssinado, 'utf8'),
+      },
+      pfx: pfxBuffer,
+      passphrase: config.certPassphrase,
+      rejectUnauthorized: true,
+      timeout: 30000,
+    };
+
+    const req = https.request(options, (res) => {
+      const chunks = [];
+      res.on('data', (chunk) => chunks.push(chunk));
+      res.on('end', () => {
+        const body = Buffer.concat(chunks).toString('utf8');
+        if (res.statusCode >= 400) {
+          reject(new Error(`SEFIN HTTP ${res.statusCode}: ${body.substring(0, 500)}`));
+        } else {
+          resolve(body);
+        }
+      });
+    });
+
+    req.on('error', (err) => reject(new Error(`SEFIN conexão falhou: ${err.message}`)));
+    req.on('timeout', () => { req.destroy(); reject(new Error('SEFIN timeout (30s)')); });
+    req.write(xmlAssinado);
+    req.end();
   });
-
-  const response = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/xml' },
-    body: xmlAssinado,
-    dispatcher: agent,
-    signal: AbortSignal.timeout(30000),
-  });
-
-  const responseText = await response.text();
-
-  if (!response.ok) {
-    throw new Error(`SEFIN HTTP ${response.status}: ${responseText.substring(0, 500)}`);
-  }
 
   // Parsear resposta XML
   const cStat = extrairTag(responseText, 'cStat');
