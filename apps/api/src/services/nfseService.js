@@ -21,7 +21,7 @@ const { SSMClient, GetParameterCommand } = require('@aws-sdk/client-ssm');
 
 const ssm = new SSMClient({ region: 'us-east-1' });
 const PREFIX = process.env.SSM_PREFIX || '/mbf/prod';
-const TENANT = process.env.TENANT_ID || 'default';
+const TENANT = process.env.TENANT_ID || '1';
 
 // URLs da API
 const SEFIN_PROD = 'https://sefin.nfse.gov.br/SefinNacional';

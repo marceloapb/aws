@@ -1,15 +1,16 @@
 // ══════════════════════════════════════════════════════════════
-// ROUTES/ADMIN-NFSE.JS — Gestão NFS-e Padrão Nacional
+// ROUTES/ADMIN-NFSE.JS — Gestão NFS-e (Padrão Nacional + SP)
 // ══════════════════════════════════════════════════════════════
 
 const express = require('express');
 const router = express.Router();
 const crypto = require('crypto');
 const { dynamo, TABLE } = require('../config/dynamodb');
-const { GetCommand, PutCommand, QueryCommand } = require('@aws-sdk/lib-dynamodb');
+const { GetCommand, PutCommand, QueryCommand, UpdateCommand } = require('@aws-sdk/lib-dynamodb');
 const { emitirNFSe, getConfig, invalidateConfigCache } = require('../services/nfseService');
+const nfseSP = require('../lib/nf/nfse-sp-adapter');
 
-const TENANT = process.env.TENANT_ID || 'default';
+const TENANT = process.env.TENANT_ID || '1';
 
 // GET /api/admin/nfse/config — Retorna configuração atual
 router.get('/config', async (req, res) => {
@@ -43,11 +44,17 @@ router.put('/config', async (req, res) => {
       cnpj, inscricao_municipal, razao_social, codigo_municipio, uf,
       cnae, codigo_trib_nacional, serie, ambiente, emissao_automatica,
       descricao_servico_padrao,
+      // Campos SP (NF Paulistana)
+      provedor, // 'nacional' ou 'sp'
+      codigo_servico, // Código de serviço SP (ex: 09911)
+      serie_rps, // Série do RPS (ex: BB)
+      aliquota, // Alíquota ISS (ex: 0.05 = 5%)
     } = req.body;
 
     const item = {
       PK: `TENANT#${TENANT}`,
       SK: 'CONFIG#nfse',
+      provedor: provedor || 'sp', // Default: SP (NF Paulistana)
       cnpj: (cnpj || '').replace(/\D/g, ''),
       inscricao_municipal: inscricao_municipal || '',
       razao_social: razao_social || '',
@@ -59,6 +66,10 @@ router.put('/config', async (req, res) => {
       ambiente: ambiente || '2',
       emissao_automatica: emissao_automatica !== false,
       descricao_servico_padrao: descricao_servico_padrao || '',
+      // Campos específicos SP
+      codigo_servico: codigo_servico || '09911',
+      serie_rps: serie_rps || 'BB',
+      aliquota: aliquota || 0.05,
       updated: new Date().toISOString(),
     };
 
@@ -170,6 +181,23 @@ router.post('/certificado', async (req, res) => {
 // POST /api/admin/nfse/emitir — Emissão manual de NFS-e
 router.post('/emitir', async (req, res) => {
   try {
+    // Carregar config para determinar provedor
+    const [configResult] = await Promise.all([
+      dynamo.send(new GetCommand({
+        TableName: TABLE,
+        Key: { PK: `TENANT#${TENANT}`, SK: 'CONFIG#nfse' },
+      })),
+    ]);
+    const dbConfig = configResult.Item || {};
+    const provedor = dbConfig.provedor || 'sp';
+
+    if (provedor === 'sp') {
+      // Emitir via NF Paulistana (Web Service SP)
+      const resultado = await emitirNFSeSP(req.body, dbConfig);
+      return res.json({ success: true, data: resultado });
+    }
+
+    // Emitir via Padrão Nacional (SEFIN)
     const resultado = await emitirNFSe(req.body);
     res.json({ success: true, data: resultado });
   } catch (error) {
@@ -232,15 +260,264 @@ router.get('/status/resumo', async (req, res) => {
       success: true,
       data: {
         total: items.length,
-        autorizadas: items.filter(i => i.status === 'autorizada').length,
-        rejeitadas: items.filter(i => i.status === 'rejeitada').length,
+        autorizadas: items.filter(i => i.status === 'autorizada' || i.status === 'emitida').length,
+        rejeitadas: items.filter(i => i.status === 'rejeitada' || i.status === 'erro').length,
+        canceladas: items.filter(i => i.status === 'cancelada').length,
         totalMes: doMes.length,
-        valorMes: doMes.filter(i => i.status === 'autorizada').reduce((s, i) => s + (i.valor || 0), 0),
+        valorMes: doMes.filter(i => i.status === 'autorizada' || i.status === 'emitida').reduce((s, i) => s + (i.valor || 0), 0),
       },
     });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
 });
+
+// ══════════════════════════════════════════════════════════════
+// ROTAS SP (NF Paulistana) — Endpoints adicionais
+// ══════════════════════════════════════════════════════════════
+
+// POST /api/admin/nfse/sp/cancelar — Cancelar NFS-e via WS SP
+router.post('/sp/cancelar', async (req, res) => {
+  try {
+    const { numero_nf, id } = req.body;
+    if (!numero_nf) return res.status(400).json({ success: false, message: 'numero_nf obrigatorio' });
+
+    const configResult = await dynamo.send(new GetCommand({
+      TableName: TABLE,
+      Key: { PK: `TENANT#${TENANT}`, SK: 'CONFIG#nfse' },
+    }));
+    const dbConfig = configResult.Item || {};
+    const spConfig = buildSPConfig(dbConfig);
+
+    const resultado = await nfseSP.cancelar({ numero_nf, config: spConfig });
+
+    // Atualizar status no DynamoDB se tiver id
+    if (resultado.success && id) {
+      await dynamo.send(new UpdateCommand({
+        TableName: TABLE,
+        Key: { PK: `TENANT#${TENANT}`, SK: `NFSE#${id}` },
+        UpdateExpression: 'SET #s = :s, data_cancelamento = :dc',
+        ExpressionAttributeNames: { '#s': 'status' },
+        ExpressionAttributeValues: { ':s': 'cancelada', ':dc': new Date().toISOString() },
+      }));
+    }
+
+    res.json({ success: true, data: resultado });
+  } catch (error) {
+    res.status(400).json({ success: false, message: error.message });
+  }
+});
+
+// POST /api/admin/nfse/sp/consultar — Consultar NFS-e no WS SP
+router.post('/sp/consultar', async (req, res) => {
+  try {
+    const { numero_nf, numero_rps, serie_rps, codigo_verificacao } = req.body;
+    if (!numero_nf && !numero_rps) {
+      return res.status(400).json({ success: false, message: 'Informe numero_nf ou numero_rps' });
+    }
+
+    const configResult = await dynamo.send(new GetCommand({
+      TableName: TABLE,
+      Key: { PK: `TENANT#${TENANT}`, SK: 'CONFIG#nfse' },
+    }));
+    const spConfig = buildSPConfig(configResult.Item || {});
+
+    const resultado = await nfseSP.consultar({
+      numero_nf, numero_rps, serie_rps, codigo_verificacao, config: spConfig,
+    });
+
+    res.json({ success: true, data: resultado });
+  } catch (error) {
+    res.status(400).json({ success: false, message: error.message });
+  }
+});
+
+// POST /api/admin/nfse/sp/consultar-emitidas — Consultar NFS-e emitidas por periodo
+router.post('/sp/consultar-emitidas', async (req, res) => {
+  try {
+    const { data_inicio, data_fim, pagina } = req.body;
+    if (!data_inicio || !data_fim) {
+      return res.status(400).json({ success: false, message: 'data_inicio e data_fim obrigatorios' });
+    }
+
+    const configResult = await dynamo.send(new GetCommand({
+      TableName: TABLE,
+      Key: { PK: `TENANT#${TENANT}`, SK: 'CONFIG#nfse' },
+    }));
+    const spConfig = buildSPConfig(configResult.Item || {});
+
+    const resultado = await nfseSP.consultarEmitidas({
+      data_inicio, data_fim, pagina, config: spConfig,
+    });
+
+    res.json({ success: true, data: resultado });
+  } catch (error) {
+    res.status(400).json({ success: false, message: error.message });
+  }
+});
+
+// POST /api/admin/nfse/sp/testar — Teste de envio (nao gera NFS-e)
+router.post('/sp/testar', async (req, res) => {
+  try {
+    const configResult = await dynamo.send(new GetCommand({
+      TableName: TABLE,
+      Key: { PK: `TENANT#${TENANT}`, SK: 'CONFIG#nfse' },
+    }));
+    const dbConfig = configResult.Item || {};
+    const spConfig = buildSPConfig(dbConfig);
+
+    // Obter proximo numero RPS
+    const seqResult = await dynamo.send(new GetCommand({
+      TableName: TABLE,
+      Key: { PK: `TENANT#${TENANT}`, SK: 'NFSE_SEQUENCIA' },
+    }));
+    const proximoRPS = (seqResult.Item?.ultimo_numero || 0) + 1;
+
+    const rpsData = {
+      numero_rps: proximoRPS,
+      valor: req.body.valor_servico || req.body.valor || 100,
+      descricao_servico: req.body.descricao_servico || dbConfig.descricao_servico_padrao || 'Servicos fotograficos profissionais',
+      codigo_servico: dbConfig.codigo_servico || '09911',
+      aliquota: dbConfig.aliquota || 0.05,
+      tributacao: 'T',
+      iss_retido: false,
+      tomador: {
+        nome: req.body.cliente_nome || 'Teste',
+        cpf: req.body.cliente_cpf_cnpj || '',
+      },
+    };
+
+    const resultado = await nfseSP.testarLote({ config: spConfig, rps_list: [rpsData] });
+    res.json({ success: true, data: resultado });
+  } catch (error) {
+    res.status(400).json({ success: false, message: error.message });
+  }
+});
+
+// ══════════════════════════════════════════════════════════════
+// HELPERS
+// ══════════════════════════════════════════════════════════════
+
+/**
+ * Constroi config para o adapter SP a partir do DynamoDB
+ */
+function buildSPConfig(dbConfig) {
+  return {
+    cnpj: dbConfig.cnpj || '',
+    inscricao_municipal: dbConfig.inscricao_municipal || '',
+    razao_social: dbConfig.razao_social || '',
+    codigo_servico: dbConfig.codigo_servico || '09911',
+    serie_rps: dbConfig.serie_rps || 'BB',
+    aliquota: dbConfig.aliquota || 0.05,
+    ambiente: dbConfig.ambiente === '1' ? 'producao' : 'homologacao',
+    certificado_s3_key: 'certificates/nfse-cert-a1.pfx',
+    certificado_senha: null, // Sera preenchido pelo loadCertificate via SSM
+  };
+}
+
+/**
+ * Emite NFS-e via adapter SP (NF Paulistana) e salva no DynamoDB
+ */
+async function emitirNFSeSP(dados, dbConfig) {
+  const spConfig = buildSPConfig(dbConfig);
+
+  // Buscar senha do certificado via SSM
+  const { SSMClient, GetParameterCommand } = require('@aws-sdk/client-ssm');
+  const ssm = new SSMClient({ region: 'us-east-1' });
+  const PREFIX = process.env.SSM_PREFIX || '/mbf/prod';
+  const passParam = await ssm.send(new GetParameterCommand({
+    Name: `${PREFIX}/NFSE_CERT_PASSPHRASE`, WithDecryption: true,
+  }));
+  spConfig.certificado_senha = passParam.Parameter.Value;
+
+  // Obter proximo numero RPS
+  const seqResult = await dynamo.send(new GetCommand({
+    TableName: TABLE,
+    Key: { PK: `TENANT#${TENANT}`, SK: 'NFSE_SEQUENCIA' },
+  }));
+  const proximoRPS = (seqResult.Item?.ultimo_numero || 0) + 1;
+
+  // Atualizar sequencial
+  await dynamo.send(new PutCommand({
+    TableName: TABLE,
+    Item: {
+      PK: `TENANT#${TENANT}`, SK: 'NFSE_SEQUENCIA',
+      ultimo_numero: proximoRPS, updated: new Date().toISOString(),
+    },
+  }));
+
+  // Montar dados do RPS
+  const rpsData = {
+    numero_rps: proximoRPS,
+    valor: Number(dados.valor_servico || dados.valor || 0),
+    valor_deducoes: Number(dados.valor_deducoes || 0),
+    descricao_servico: dados.descricao_servico || dbConfig.descricao_servico_padrao || 'Servicos fotograficos profissionais',
+    codigo_servico: dbConfig.codigo_servico || '09911',
+    aliquota: dbConfig.aliquota || 0.05,
+    tributacao: dados.tributacao || 'T',
+    iss_retido: dados.iss_retido || false,
+    tomador: {
+      nome: dados.cliente_nome || '',
+      cpf: (dados.cliente_cpf_cnpj || '').length === 11 ? dados.cliente_cpf_cnpj : undefined,
+      cnpj: (dados.cliente_cpf_cnpj || '').length === 14 ? dados.cliente_cpf_cnpj : undefined,
+      email: dados.cliente_email || '',
+      logradouro: dados.cliente_endereco?.logradouro || '',
+      numero: dados.cliente_endereco?.numero || '',
+      complemento: dados.cliente_endereco?.complemento || '',
+      bairro: dados.cliente_endereco?.bairro || '',
+      cidade_ibge: dados.cliente_endereco?.codigo_municipio || '3550308',
+      uf: dados.cliente_endereco?.uf || 'SP',
+      cep: dados.cliente_endereco?.cep || '',
+    },
+  };
+
+  // Emitir via adapter SP
+  const resultado = await nfseSP.emitir({ ...rpsData, config: spConfig });
+
+  // Salvar no DynamoDB
+  const id = crypto.randomUUID();
+  const now = new Date().toISOString();
+
+  await dynamo.send(new PutCommand({
+    TableName: TABLE,
+    Item: {
+      PK: `TENANT#${TENANT}`,
+      SK: `NFSE#${id}`,
+      GSI1PK: 'NFSE',
+      GSI1SK: `NFSE#${now}`,
+      id,
+      provedor: 'sp',
+      numero_rps: proximoRPS,
+      serie_rps: dbConfig.serie_rps || 'BB',
+      numero_nfse: resultado.numero_nf || null,
+      codigo_verificacao: resultado.codigo_verificacao || null,
+      status: resultado.success ? 'emitida' : 'erro',
+      valor: rpsData.valor,
+      cliente_nome: rpsData.tomador.nome,
+      cliente_cpf_cnpj: dados.cliente_cpf_cnpj || '',
+      descricao: rpsData.descricao_servico,
+      cobranca_id: dados.cobranca_id || null,
+      cliente_id: dados.cliente_id || null,
+      erros: resultado.erros || [],
+      alertas: resultado.alertas || [],
+      pdf_url: resultado.pdf_url || null,
+      xml_retorno: resultado.xml_retorno || null,
+      ambiente: spConfig.ambiente,
+      created: now,
+    },
+  }));
+
+  return {
+    success: resultado.success,
+    id,
+    numero_rps: proximoRPS,
+    numero_nfse: resultado.numero_nf,
+    codigo_verificacao: resultado.codigo_verificacao,
+    status: resultado.success ? 'emitida' : 'erro',
+    pdf_url: resultado.pdf_url,
+    erros: resultado.erros,
+    alertas: resultado.alertas,
+  };
+}
 
 module.exports = router;
