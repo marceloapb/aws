@@ -334,8 +334,8 @@ router.get('/perfil', async (req, res) => {
     const avatarKey = perfil.avatarKey || perfil.avatar_key;
     let avatarUrl = null;
     if (avatarKey) {
-      const cdnDomain = process.env.CDN_DOMAIN || process.env.CLOUDFRONT_DOMAIN || '';
-      avatarUrl = cdnDomain ? `https://${cdnDomain}/${avatarKey}` : null;
+      const cdnDomain = process.env.CDN_DOMAIN || process.env.CLOUDFRONT_DOMAIN || 'd2112x4m4e89fv.cloudfront.net';
+      avatarUrl = `https://${cdnDomain}/${avatarKey}`;
     }
 
     res.json({
@@ -748,8 +748,8 @@ router.get('/perfil/avatar-url', async (req, res) => {
     const uploadUrl = await getSignedUrl(s3, command, { expiresIn: 120 });
 
     // Build CDN URL (use CloudFront domain if available)
-    const cdnDomain = process.env.CDN_DOMAIN || process.env.CLOUDFRONT_DOMAIN || '';
-    const cdnUrl = cdnDomain ? `https://${cdnDomain}/${key}` : uploadUrl.split('?')[0];
+    const cdnDomain = process.env.CDN_DOMAIN || process.env.CLOUDFRONT_DOMAIN || 'd2112x4m4e89fv.cloudfront.net';
+    const cdnUrl = `https://${cdnDomain}/${key}`;
 
     res.json({
       success: true,
