@@ -335,6 +335,7 @@ export default function WhatsApp() {
             ))}
           </div>
           <div className="flex items-center gap-2 flex-wrap w-full sm:w-auto">
+            <button onClick={async () => { if (!window.confirm('Criar 5 templates com botão URL na Meta?\n\nTemplates: contrato_assinatura, orcamento_pronto, fotos_prontas, feedback, pagamento_vencido\n\nSerão enviados para aprovação da Meta.')) return; try { const r = await authFetch(`${API}/templates/create-link-img`, { method: 'POST' }); const d = await r.json(); alert(d.message || 'Pronto!'); loadTab(); } catch(e) { alert('Erro: ' + e.message); } }} className="flex items-center gap-1 px-3 py-2 rounded text-sm border font-medium hover:bg-orange-50 text-orange-600 border-orange-200 flex-1 sm:flex-none justify-center" title="Criar templates com botão URL que direcionam o cliente para o portal"><ExternalLink size={14} /> Criar Link Templates</button>
             <button onClick={openNewTpl} className="flex items-center gap-1 px-3 py-2 rounded text-sm text-white font-medium flex-1 sm:flex-none justify-center" style={{ background: ACCENT }}><Plus size={14} /> Novo Template</button>
           </div>
         </div>
@@ -370,9 +371,12 @@ export default function WhatsApp() {
                 </p>
               )}
               {t.botoes?.length > 0 && (
-                <div className="flex gap-2 mt-2">
+                <div className="flex gap-2 mt-2 flex-wrap">
                   {t.botoes.map((b, i) => (
-                    <span key={i} className="text-xs bg-gray-100 px-2 py-1 rounded">{b.text || b.otp_type || b.type}</span>
+                    <span key={i} className={`text-xs px-2 py-1 rounded flex items-center gap-1 ${b.type === 'URL' ? 'bg-blue-50 text-blue-700' : 'bg-gray-100 text-gray-700'}`}>
+                      {b.type === 'URL' && <ExternalLink size={10} />}
+                      {b.text || b.otp_type || b.type}
+                    </span>
                   ))}
                 </div>
               )}
