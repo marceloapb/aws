@@ -230,7 +230,7 @@ function assinarXmlEnveloped(xml, privateKeyPem, certBase64, referenceUri = '') 
 
   sig.computeSignature(xml, {
     prefix: '',
-    location: { reference: "//*[local-name(.)='Signature']", action: 'after' },
+    location: { reference: "//*[local-name(.)='PedidoEnvioLoteRPS'] | //*[local-name(.)='PedidoEnvioRPS'] | //*[local-name(.)='PedidoCancelamentoNFe'] | //*[local-name(.)='PedidoConsultaNFe'] | //*[local-name(.)='PedidoConsultaNFePeriodo'] | //*[local-name(.)='PedidoConsultaLote'] | //*[local-name(.)='PedidoConsultaCNPJ'] | //*[local-name(.)='PedidoInformacoesLote']", action: 'append' },
   });
 
   return sig.getSignedXml();
