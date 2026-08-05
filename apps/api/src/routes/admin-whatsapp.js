@@ -144,6 +144,7 @@ router.post('/enviar-template', async (req, res) => {
         messageId: resultado.message_id || null,
         destinatario: numero,
         origem: 'admin',
+        data: now.toISOString().slice(0, 10),
         createdAt: now.toISOString(),
         timestamp: Math.floor(now.getTime() / 1000).toString(),
       },
@@ -199,6 +200,7 @@ router.post('/enviar-texto', async (req, res) => {
         messageId: result.message_id || null,
         destinatario: numero,
         origem: 'admin',
+        data: now.toISOString().slice(0, 10),
         createdAt: now.toISOString(),
         timestamp: Math.floor(now.getTime() / 1000).toString(),
       },
@@ -757,7 +759,7 @@ router.get('/custos', async (req, res) => {
     for (let i = 29; i >= 0; i--) {
       const d = new Date(now); d.setDate(d.getDate() - i);
       const diaStr = d.toISOString().slice(0, 10);
-      const qtd = envios.filter(e => e.data?.startsWith(diaStr)).length;
+      const qtd = envios.filter(e => (e.data || e.createdAt || '').startsWith(diaStr)).length;
       porDia.push({ dia: diaStr.slice(5), qtd });
     }
 
