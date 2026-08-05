@@ -223,7 +223,7 @@ function montarXmlDPS({ config, numeroDPS, dados }) {
         <cLocPrestacao>${codigo_municipio_prestacao || config.codigoMunicipio}</cLocPrestacao>
       </locPrest>
       <cServ>
-        <cTribNac>${(config.codigoTribNacional || '13030100').replace(/\D/g, '')}</cTribNac>
+        <cTribNac>${(config.codigoTribNacional || '130301').replace(/\D/g, '').substring(0, 6)}</cTribNac>
         <xDescServ>${escapeXml(descricao_servico || 'Cobertura fotografica profissional de evento social.')}</xDescServ>
       </cServ>
     </serv>
