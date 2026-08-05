@@ -52,6 +52,7 @@ export default function Financeiro() {
   // Form states
   const [formPagar, setFormPagar] = useState({ meio: 'PIX', data_pagamento: '', valor_pago: 0 });
   const [formCobranca, setFormCobranca] = useState({ cliente_id: '', valor: '', vencimento: '', parcela: '1/1', meio: 'PIX', descricao: '', num_parcelas: 1, gerar_parcelas: false });
+  const [eventosCliente, setEventosCliente] = useState([]);
   const [formDespesa, setFormDespesa] = useState({
     descricao: '', valor: '', categoria: 'Outros', data: '', evento_id: '',
     recorrente: false, recorrencia: 'mensal',
@@ -727,7 +728,24 @@ export default function Financeiro() {
               {/* Cliente */}
               <div>
                 <label className="text-xs font-medium text-gray-700">Cliente <span className="text-gray-400">(opcional)</span></label>
-                <select value={formCobranca.cliente_id} onChange={e => setFormCobranca(f => ({ ...f, cliente_id: e.target.value }))} className="w-full border rounded-lg px-3 py-2 text-sm mt-1">
+                <select value={formCobranca.cliente_id} onChange={async (e) => {
+                  const cid = e.target.value;
+                  setFormCobranca(f => ({ ...f, cliente_id: cid, descricao: '' }));
+                  setEventosCliente([]);
+                  if (cid) {
+                    try {
+                      // Buscar orçamentos/eventos do cliente
+                      const r = await authFetch(`/admin/orcamentos?cliente_id=${cid}`);
+                      const d = await r.json();
+                      const orcs = Array.isArray(d) ? d : (d.data || []);
+                      setEventosCliente(orcs.map(o => ({
+                        id: o.id,
+                        label: [o.tipo_evento || o.titulo || o.nome_evento, o.data_evento ? new Date(o.data_evento + 'T12:00').toLocaleDateString('pt-BR') : ''].filter(Boolean).join(' — '),
+                        valor: o.valor_total || o.total || 0,
+                      })).filter(e => e.label));
+                    } catch {}
+                  }
+                }} className="w-full border rounded-lg px-3 py-2 text-sm mt-1">
                   <option value="">— Sem vínculo (receita avulsa) —</option>
                   {clientes.sort((a, b) => (a.nome || '').localeCompare(b.nome || '')).map(c => (
                     <option key={c.id} value={c.id}>{c.nome}{c.email ? ` (${c.email})` : ''}</option>
@@ -739,7 +757,32 @@ export default function Financeiro() {
               {/* Descrição / Evento */}
               <div>
                 <label className="text-xs font-medium text-gray-700">Descrição / Evento</label>
-                <input value={formCobranca.descricao} onChange={e => setFormCobranca(f => ({ ...f, descricao: e.target.value }))} placeholder="Ex: Ensaio Gestante, Casamento..." className="w-full border rounded-lg px-3 py-2 text-sm mt-1" />
+                {eventosCliente.length > 0 ? (
+                  <select
+                    value={formCobranca.descricao}
+                    onChange={e => {
+                      const sel = e.target.value;
+                      setFormCobranca(f => ({ ...f, descricao: sel }));
+                      // Auto-preencher valor se evento selecionado tiver valor
+                      const evt = eventosCliente.find(ev => ev.label === sel);
+                      if (evt?.valor && !formCobranca.valor) {
+                        setFormCobranca(f => ({ ...f, descricao: sel, valor: String(evt.valor) }));
+                      }
+                    }}
+                    className="w-full border rounded-lg px-3 py-2 text-sm mt-1"
+                  >
+                    <option value="">Selecione um evento ou digite abaixo...</option>
+                    {eventosCliente.map(ev => (
+                      <option key={ev.id} value={ev.label}>{ev.label}{ev.valor ? ` (${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(ev.valor)})` : ''}</option>
+                    ))}
+                  </select>
+                ) : null}
+                <input
+                  value={formCobranca.descricao}
+                  onChange={e => setFormCobranca(f => ({ ...f, descricao: e.target.value }))}
+                  placeholder={eventosCliente.length > 0 ? 'Ou digite manualmente...' : 'Ex: Ensaio Gestante, Casamento...'}
+                  className="w-full border rounded-lg px-3 py-2 text-sm mt-1"
+                />
               </div>
 
               {/* Valor + Meio */}

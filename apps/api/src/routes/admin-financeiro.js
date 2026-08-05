@@ -140,17 +140,12 @@ router.get('/resumo', async (req, res) => {
       .filter(d => d.tipo !== 'entrada' && isInRange(d.data, range.inicio, range.fim))
       .reduce((sum, d) => sum + (d.valor || 0), 0);
 
-    // Evolução — adapta ao filtro selecionado
+    // Evolução — sempre 12 meses (jan-dez do ano corrente)
     const evolucao = [];
-    const rangeInicio = new Date(range.inicio + 'T12:00:00');
-    const rangeFim = new Date(range.fim + 'T12:00:00');
+    const anoAtual = new Date().getFullYear();
 
-    // Calcular quantos meses no range
-    const mesesNoRange = (rangeFim.getFullYear() - rangeInicio.getFullYear()) * 12 + (rangeFim.getMonth() - rangeInicio.getMonth()) + 1;
-    const numMeses = Math.min(Math.max(mesesNoRange, 1), 12); // min 1, max 12 barras
-
-    for (let i = 0; i < numMeses; i++) {
-      const d = new Date(rangeInicio.getFullYear(), rangeInicio.getMonth() + i, 1);
+    for (let i = 0; i < 12; i++) {
+      const d = new Date(anoAtual, i, 1);
       const mesKey = d.toISOString().slice(0, 7);
       const mesLabel = d.toLocaleDateString('pt-BR', { month: 'short' }).replace('.', '');
 
