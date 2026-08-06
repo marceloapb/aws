@@ -343,7 +343,7 @@ export default function NovidadesEditor() {
             title="Gerar conteúdo com IA"
           >
             <Zap size={14} />
-            <span className="hidden sm:inline">IA</span>
+            <span>IA</span>
           </button>
           <button
             onClick={() => setShowPreview(!showPreview)}
@@ -655,6 +655,17 @@ export default function NovidadesEditor() {
 
           {/* Action Buttons */}
           <div className="bg-white border border-gray-200 rounded-xl p-4 space-y-3">
+            {/* Botão IA - Gerar Conteúdo */}
+            <button
+              onClick={() => setShowAiModal(true)}
+              className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium text-white bg-gradient-to-r from-purple-500 to-indigo-500 hover:from-purple-600 hover:to-indigo-600 shadow-sm transition-all"
+            >
+              <Zap size={16} />
+              Gerar com IA
+            </button>
+
+            <div className="border-t border-gray-100 my-2" />
+
             <button
               onClick={() => handleSave('publicado')}
               disabled={saving}
