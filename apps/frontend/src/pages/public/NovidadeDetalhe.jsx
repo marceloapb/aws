@@ -11,7 +11,6 @@ export default function NovidadeDetalhe() {
   const [post, setPost] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
-  const [comment, setComment] = useState('');
 
   useEffect(() => {
     setLoading(true);
@@ -85,13 +84,18 @@ export default function NovidadeDetalhe() {
   return (
     <div className="min-h-screen bg-stone-950 py-12 sm:py-16">
       <article className="max-w-3xl mx-auto px-4 sm:px-6">
-        {/* Back button */}
-        <Link
-          to="/novidades"
-          className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-stone-700 text-stone-300 hover:text-white hover:border-stone-500 transition-colors text-sm font-medium mb-8"
-        >
-          Voltar
-        </Link>
+        {/* Top banner - viewing indicator */}
+        <div className="flex items-center justify-between mb-8">
+          <span className="text-xs text-stone-500 bg-stone-900 px-3 py-1 rounded-full">
+            Você está no modo visualização
+          </span>
+          <Link
+            to="/novidades"
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-stone-700 text-stone-300 hover:text-white hover:border-stone-500 transition-colors text-sm font-medium"
+          >
+            Voltar
+          </Link>
+        </div>
 
         {/* Author + Date */}
         <div className="flex items-center gap-3 mb-6">
@@ -109,7 +113,7 @@ export default function NovidadeDetalhe() {
               {nome.split(' ').slice(0, 2).join(' ')}
             </p>
             <p className="text-stone-500 text-xs">
-              {formatDate(post.publicado_em || post.data || post.created_at)}
+              {formatDate(post.publicado_em)}
             </p>
           </div>
         </div>
@@ -119,71 +123,55 @@ export default function NovidadeDetalhe() {
           {post.titulo}
         </h1>
 
-        {/* Cover image */}
-        {post.capa_url && (
-          <div className="overflow-hidden rounded-xl mb-8">
-            <img
-              src={post.capa_url}
-              alt={post.titulo}
-              className="w-full h-auto object-cover"
-            />
+        {/* Cover image + resumo side by side on desktop */}
+        {(post.capa_url || post.resumo) && (
+          <div className="flex flex-col sm:flex-row gap-6 mb-10">
+            {post.capa_url && (
+              <div className="sm:w-1/2 overflow-hidden rounded-xl shrink-0">
+                <img
+                  src={post.capa_url}
+                  alt={post.titulo}
+                  className="w-full h-auto object-cover rounded-xl"
+                />
+              </div>
+            )}
+            {post.resumo && (
+              <div className="sm:w-1/2 flex items-center">
+                <p className="text-stone-300 leading-relaxed text-sm sm:text-base">
+                  {post.resumo}
+                </p>
+              </div>
+            )}
           </div>
         )}
 
-        {/* Body */}
+        {/* Body content */}
         <div
           className="prose prose-invert prose-lg max-w-none text-stone-300
             prose-headings:text-stone-50 prose-strong:text-stone-50
             prose-a:text-[#EA580C] prose-a:no-underline hover:prose-a:underline
             prose-img:rounded-xl prose-blockquote:border-[#EA580C]
-            prose-p:leading-relaxed prose-li:leading-relaxed"
-          dangerouslySetInnerHTML={{ __html: post.corpo_html || post.corpo || post.body || post.conteudo }}
+            prose-p:leading-relaxed prose-li:leading-relaxed
+            prose-hr:border-stone-800
+            [&_figure]:my-6 [&_figure]:text-center
+            [&_figcaption]:text-xs [&_figcaption]:text-stone-500 [&_figcaption]:mt-2
+            [&_img]:mx-auto [&_img]:rounded-xl"
+          dangerouslySetInnerHTML={{ __html: post.corpo_html || '' }}
         />
 
-        {/* Category / Tags link (if available) */}
+        {/* Category tag */}
         {post.categoria && (
           <div className="mt-10 pt-6 border-t border-stone-800">
             <Link
-              to={`/novidades`}
-              className="text-[#EA580C] text-sm hover:underline font-medium"
+              to="/novidades"
+              className="inline-flex items-center gap-2 text-[#EA580C] text-sm hover:underline font-medium"
             >
-              {post.categoria}
+              <span className="px-3 py-1 rounded-full border border-[#EA580C]/30 bg-[#EA580C]/10 text-[#EA580C] text-xs font-medium">
+                {post.categoria}
+              </span>
             </Link>
           </div>
         )}
-
-        {/* Comments Section */}
-        <section className="mt-12 pt-8 border-t border-stone-800">
-          <h2 className="text-xl font-bold text-stone-50 mb-6">Comentários</h2>
-
-          {/* Comment input */}
-          <div className="bg-stone-900 rounded-xl border border-stone-800 p-4">
-            <textarea
-              value={comment}
-              onChange={(e) => setComment(e.target.value)}
-              placeholder="Escreva um comentário..."
-              rows={3}
-              className="w-full bg-transparent text-stone-200 placeholder-stone-600 outline-none resize-none text-sm"
-            />
-            <div className="flex justify-end mt-3">
-              <button
-                disabled={!comment.trim()}
-                onClick={() => {
-                  // TODO: integrate with comments API
-                  setComment('');
-                }}
-                className="px-4 py-2 rounded-lg text-sm font-medium bg-[#EA580C] text-white hover:opacity-90 transition-opacity disabled:opacity-40 disabled:cursor-not-allowed"
-              >
-                Publicar
-              </button>
-            </div>
-          </div>
-
-          {/* Empty state for comments */}
-          <p className="text-stone-600 text-sm text-center mt-6">
-            Nenhum comentário ainda. Seja o primeiro!
-          </p>
-        </section>
 
         {/* Bottom back link */}
         <div className="mt-12 pt-8 border-t border-stone-800">

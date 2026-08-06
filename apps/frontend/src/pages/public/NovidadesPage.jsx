@@ -11,12 +11,25 @@ export default function NovidadesPage() {
   const [lastKey, setLastKey] = useState(null);
   const [loadingMore, setLoadingMore] = useState(false);
 
-  const fetchPosts = async (cursor, append = false) => {
+  // Categorias
+  const [categorias, setCategorias] = useState([]);
+  const [categoriaAtiva, setCategoriaAtiva] = useState('');
+
+  // Carregar categorias
+  useEffect(() => {
+    fetch(`${API}/public/novidades/categorias`)
+      .then(r => r.json())
+      .then(data => setCategorias(data.data || []))
+      .catch(() => setCategorias([]));
+  }, []);
+
+  const fetchPosts = async (cursor, append = false, categoria = categoriaAtiva) => {
     const setLoadState = append ? setLoadingMore : setLoading;
     setLoadState(true);
     try {
       let url = `${API}/public/novidades?limit=12`;
       if (cursor) url += `&lastKey=${cursor}`;
+      if (categoria) url += `&categoria=${encodeURIComponent(categoria)}`;
       const res = await fetch(url);
       const data = await res.json();
       const items = data.data || [];
@@ -35,11 +48,16 @@ export default function NovidadesPage() {
   };
 
   useEffect(() => {
-    fetchPosts(null);
-  }, []);
+    fetchPosts(null, false, categoriaAtiva);
+  }, [categoriaAtiva]);
 
   const loadMore = () => {
     if (lastKey) fetchPosts(lastKey, true);
+  };
+
+  const handleCategoriaChange = (cat) => {
+    setCategoriaAtiva(cat);
+    setLastKey(null);
   };
 
   const formatDate = (dateStr) => {
@@ -60,9 +78,8 @@ export default function NovidadesPage() {
 
   return (
     <div className="min-h-screen bg-stone-950">
-      {/* Hero Header with background */}
+      {/* Hero Header */}
       <section className="relative py-16 sm:py-20 overflow-hidden">
-        {/* Background overlay */}
         <div className="absolute inset-0 bg-gradient-to-b from-stone-900/80 to-stone-950" />
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6">
           <h1 className="text-3xl sm:text-4xl font-bold text-stone-50 text-center mb-4">
@@ -74,8 +91,41 @@ export default function NovidadesPage() {
         </div>
       </section>
 
-      {/* Posts Grid - Blog style cards */}
-      <section className="pb-20">
+      {/* Category tabs */}
+      {categorias.length > 0 && (
+        <section className="border-b border-stone-800">
+          <div className="max-w-6xl mx-auto px-4 sm:px-6">
+            <nav className="flex gap-1 overflow-x-auto no-scrollbar -mb-px">
+              <button
+                onClick={() => handleCategoriaChange('')}
+                className={`whitespace-nowrap px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
+                  !categoriaAtiva
+                    ? 'border-[#EA580C] text-[#EA580C]'
+                    : 'border-transparent text-stone-400 hover:text-stone-200'
+                }`}
+              >
+                Todos posts
+              </button>
+              {categorias.map(cat => (
+                <button
+                  key={cat.id}
+                  onClick={() => handleCategoriaChange(cat.nome)}
+                  className={`whitespace-nowrap px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
+                    categoriaAtiva === cat.nome
+                      ? 'border-[#EA580C] text-[#EA580C]'
+                      : 'border-transparent text-stone-400 hover:text-stone-200'
+                  }`}
+                >
+                  {cat.nome}
+                </button>
+              ))}
+            </nav>
+          </div>
+        </section>
+      )}
+
+      {/* Posts Grid */}
+      <section className="py-12 sm:py-16">
         <div className="max-w-6xl mx-auto px-4 sm:px-6">
           {loading ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
@@ -93,7 +143,9 @@ export default function NovidadesPage() {
             </div>
           ) : posts.length === 0 ? (
             <p className="text-center text-stone-500 py-16 text-lg">
-              Nenhuma novidade publicada ainda.
+              {categoriaAtiva
+                ? `Nenhuma novidade encontrada em "${categoriaAtiva}".`
+                : 'Nenhuma novidade publicada ainda.'}
             </p>
           ) : (
             <>
@@ -106,9 +158,9 @@ export default function NovidadesPage() {
                   >
                     {/* Cover Image */}
                     <div className="aspect-[4/3] overflow-hidden rounded-lg bg-stone-900 mb-4">
-                      {post.capa_url || post.cover_url ? (
+                      {post.capa_url ? (
                         <img
-                          src={post.capa_url || post.cover_url}
+                          src={post.capa_url}
                           alt={post.titulo}
                           loading="lazy"
                           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
@@ -137,8 +189,17 @@ export default function NovidadesPage() {
                           {nome.split(' ').slice(0, 2).join(' ')}
                         </p>
                         <p className="text-stone-500 text-xs">
-                          {formatDate(post.publicado_em || post.data || post.created_at)}
+                          {formatDate(post.publicado_em)}
                         </p>
+                      </div>
+
+                      {/* Three dots menu placeholder (like the reference image) */}
+                      <div className="ml-auto text-stone-600 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <svg width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                          <circle cx="8" cy="3" r="1.5" />
+                          <circle cx="8" cy="8" r="1.5" />
+                          <circle cx="8" cy="13" r="1.5" />
+                        </svg>
                       </div>
                     </div>
 
