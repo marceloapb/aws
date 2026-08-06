@@ -1,20 +1,35 @@
 import React, { useRef, useCallback, useEffect, useState } from 'react';
-import {
-  Bold, Italic, Underline, List, ListOrdered, Image, Link2,
-  Heading1, Heading2, Quote, Minus, AlignLeft, AlignCenter,
-  Loader2, Undo2, Redo2, Code
-} from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 
 const ACCENT = '#EA580C';
 
+// Toolbar icons como SVG inline (evita dependência de versão do lucide)
+const ToolIcon = ({ children, ...props }) => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+    {children}
+  </svg>
+);
+
+const icons = {
+  bold: <ToolIcon><path d="M6 4h8a4 4 0 0 1 4 4 4 4 0 0 1-4 4H6z"/><path d="M6 12h9a4 4 0 0 1 4 4 4 4 0 0 1-4 4H6z"/></ToolIcon>,
+  italic: <ToolIcon><line x1="19" y1="4" x2="10" y2="4"/><line x1="14" y1="20" x2="5" y2="20"/><line x1="15" y1="4" x2="9" y2="20"/></ToolIcon>,
+  underline: <ToolIcon><path d="M6 3v7a6 6 0 0 0 6 6 6 6 0 0 0 6-6V3"/><line x1="4" y1="21" x2="20" y2="21"/></ToolIcon>,
+  h2: <span className="text-xs font-bold leading-none">H2</span>,
+  h3: <span className="text-xs font-bold leading-none">H3</span>,
+  ul: <ToolIcon><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></ToolIcon>,
+  ol: <ToolIcon><line x1="10" y1="6" x2="21" y2="6"/><line x1="10" y1="12" x2="21" y2="12"/><line x1="10" y1="18" x2="21" y2="18"/><path d="M4 6h1v4"/><path d="M4 10h2"/><path d="M6 18H4c0-1 2-2 2-3s-1-1.5-2-1"/></ToolIcon>,
+  quote: <ToolIcon><path d="M3 21c3 0 7-1 7-8V5c0-1.25-.756-2.017-2-2H4c-1.25 0-2 .75-2 1.972V11c0 1.25.75 2 2 2 1 0 1 0 1 1v1c0 1-1 2-2 2s-1 .008-1 1.031V21z"/><path d="M15 21c3 0 7-1 7-8V5c0-1.25-.757-2.017-2-2h-4c-1.25 0-2 .75-2 1.972V11c0 1.25.75 2 2 2h.75c0 2.25.25 4-2.75 4v3z"/></ToolIcon>,
+  alignLeft: <ToolIcon><line x1="17" y1="10" x2="3" y2="10"/><line x1="21" y1="6" x2="3" y2="6"/><line x1="21" y1="14" x2="3" y2="14"/><line x1="17" y1="18" x2="3" y2="18"/></ToolIcon>,
+  alignCenter: <ToolIcon><line x1="18" y1="10" x2="6" y2="10"/><line x1="21" y1="6" x2="3" y2="6"/><line x1="21" y1="14" x2="3" y2="14"/><line x1="18" y1="18" x2="6" y2="18"/></ToolIcon>,
+  image: <ToolIcon><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></ToolIcon>,
+  link: <ToolIcon><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></ToolIcon>,
+  hr: <ToolIcon><line x1="5" y1="12" x2="19" y2="12"/></ToolIcon>,
+  undo: <ToolIcon><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></ToolIcon>,
+  redo: <ToolIcon><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></ToolIcon>,
+};
+
 /**
  * Editor de texto rico baseado em contentEditable.
- * Props:
- *  - value: HTML string
- *  - onChange: (html: string) => void
- *  - onImageUpload: (file: File) => Promise<string> — retorna URL da imagem
- *  - placeholder: string
- *  - minHeight: string (default '400px')
  */
 export default function RichTextEditor({
   value = '',
@@ -29,7 +44,6 @@ export default function RichTextEditor({
   const fileInputRef = useRef(null);
   const isInternalChange = useRef(false);
 
-  // Sync value prop → editor content (only on initial or external change)
   useEffect(() => {
     if (editorRef.current && !isInternalChange.current) {
       if (editorRef.current.innerHTML !== value) {
@@ -60,16 +74,13 @@ export default function RichTextEditor({
   };
 
   const handleKeyDown = (e) => {
-    // Tab indentation
     if (e.key === 'Tab') {
       e.preventDefault();
       execCommand('insertHTML', '&emsp;');
     }
   };
 
-  // Paste - strip formatting except images
   const handlePaste = (e) => {
-    // Allow images in paste
     const items = e.clipboardData?.items;
     if (items) {
       for (let i = 0; i < items.length; i++) {
@@ -81,12 +92,9 @@ export default function RichTextEditor({
         }
       }
     }
-
-    // For text paste, keep html if available
     const html = e.clipboardData?.getData('text/html');
     if (html) {
       e.preventDefault();
-      // Clean unwanted styles but keep structure
       const cleaned = cleanPastedHtml(html);
       execCommand('insertHTML', cleaned);
     }
@@ -95,9 +103,7 @@ export default function RichTextEditor({
   const cleanPastedHtml = (html) => {
     const div = document.createElement('div');
     div.innerHTML = html;
-    // Remove script/style tags
     div.querySelectorAll('script, style, meta, link').forEach(el => el.remove());
-    // Remove inline styles but keep structure
     div.querySelectorAll('*').forEach(el => {
       el.removeAttribute('style');
       el.removeAttribute('class');
@@ -105,7 +111,6 @@ export default function RichTextEditor({
     return div.innerHTML;
   };
 
-  // Drag & drop images
   const handleDrop = async (e) => {
     const files = e.dataTransfer?.files;
     if (files && files.length > 0 && onImageUpload) {
@@ -117,7 +122,6 @@ export default function RichTextEditor({
     }
   };
 
-  // Image upload
   const handleImageClick = () => {
     fileInputRef.current?.click();
   };
@@ -132,13 +136,12 @@ export default function RichTextEditor({
 
   const uploadAndInsertImage = async (file) => {
     if (!onImageUpload) return;
-
     try {
       setUploading(true);
       const url = await onImageUpload(file);
       if (url) {
         editorRef.current?.focus();
-        const imgHtml = `<figure class="editor-image"><img src="${url}" alt="" style="max-width:100%;height:auto;border-radius:8px;margin:16px 0;" /><figcaption></figcaption></figure><p><br/></p>`;
+        const imgHtml = `<figure><img src="${url}" alt="" style="max-width:100%;height:auto;border-radius:8px;margin:16px 0;" /><figcaption></figcaption></figure><p><br/></p>`;
         execCommand('insertHTML', imgHtml);
       }
     } catch (err) {
@@ -148,7 +151,6 @@ export default function RichTextEditor({
     }
   };
 
-  // Insert link
   const handleLinkClick = () => {
     const url = prompt('URL do link:');
     if (url) {
@@ -156,23 +158,19 @@ export default function RichTextEditor({
     }
   };
 
-  // Insert horizontal rule
   const handleHrClick = () => {
     execCommand('insertHTML', '<hr style="border:none;border-top:1px solid #e5e5e5;margin:24px 0;" />');
   };
 
-  // Toolbar button component
-  const ToolBtn = ({ icon: Icon, title, onClick, active, disabled }) => (
+  const ToolBtn = ({ icon, title, onClick, disabled }) => (
     <button
       type="button"
       title={title}
       onClick={onClick}
       disabled={disabled}
-      className={`p-1.5 rounded transition-colors ${
-        active ? 'bg-orange-100 text-orange-700' : 'text-gray-600 hover:bg-gray-100 hover:text-gray-800'
-      } disabled:opacity-40 disabled:cursor-not-allowed`}
+      className="p-1.5 rounded transition-colors text-gray-600 hover:bg-gray-100 hover:text-gray-800 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center"
     >
-      <Icon size={16} />
+      {icon}
     </button>
   );
 
@@ -180,44 +178,37 @@ export default function RichTextEditor({
     <div className="border border-gray-200 rounded-lg overflow-hidden focus-within:ring-2 focus-within:ring-orange-200 focus-within:border-transparent transition-all">
       {/* Toolbar */}
       <div className="flex flex-wrap items-center gap-0.5 px-3 py-2 bg-gray-50 border-b border-gray-200">
-        {/* Text formatting */}
-        <ToolBtn icon={Bold} title="Negrito (Ctrl+B)" onClick={() => execCommand('bold')} />
-        <ToolBtn icon={Italic} title="Itálico (Ctrl+I)" onClick={() => execCommand('italic')} />
-        <ToolBtn icon={Underline} title="Sublinhado (Ctrl+U)" onClick={() => execCommand('underline')} />
+        <ToolBtn icon={icons.bold} title="Negrito (Ctrl+B)" onClick={() => execCommand('bold')} />
+        <ToolBtn icon={icons.italic} title="Itálico (Ctrl+I)" onClick={() => execCommand('italic')} />
+        <ToolBtn icon={icons.underline} title="Sublinhado (Ctrl+U)" onClick={() => execCommand('underline')} />
 
         <div className="w-px h-5 bg-gray-300 mx-1.5" />
 
-        {/* Headings */}
-        <ToolBtn icon={Heading1} title="Título H2" onClick={() => execCommand('formatBlock', 'h2')} />
-        <ToolBtn icon={Heading2} title="Subtítulo H3" onClick={() => execCommand('formatBlock', 'h3')} />
+        <ToolBtn icon={icons.h2} title="Título H2" onClick={() => execCommand('formatBlock', 'h2')} />
+        <ToolBtn icon={icons.h3} title="Subtítulo H3" onClick={() => execCommand('formatBlock', 'h3')} />
 
         <div className="w-px h-5 bg-gray-300 mx-1.5" />
 
-        {/* Lists */}
-        <ToolBtn icon={List} title="Lista" onClick={() => execCommand('insertUnorderedList')} />
-        <ToolBtn icon={ListOrdered} title="Lista numerada" onClick={() => execCommand('insertOrderedList')} />
-        <ToolBtn icon={Quote} title="Citação" onClick={() => execCommand('formatBlock', 'blockquote')} />
+        <ToolBtn icon={icons.ul} title="Lista" onClick={() => execCommand('insertUnorderedList')} />
+        <ToolBtn icon={icons.ol} title="Lista numerada" onClick={() => execCommand('insertOrderedList')} />
+        <ToolBtn icon={icons.quote} title="Citação" onClick={() => execCommand('formatBlock', 'blockquote')} />
 
         <div className="w-px h-5 bg-gray-300 mx-1.5" />
 
-        {/* Alignment */}
-        <ToolBtn icon={AlignLeft} title="Alinhar esquerda" onClick={() => execCommand('justifyLeft')} />
-        <ToolBtn icon={AlignCenter} title="Centralizar" onClick={() => execCommand('justifyCenter')} />
+        <ToolBtn icon={icons.alignLeft} title="Alinhar esquerda" onClick={() => execCommand('justifyLeft')} />
+        <ToolBtn icon={icons.alignCenter} title="Centralizar" onClick={() => execCommand('justifyCenter')} />
 
         <div className="w-px h-5 bg-gray-300 mx-1.5" />
 
-        {/* Media & links */}
-        <ToolBtn icon={Image} title="Inserir imagem" onClick={handleImageClick} disabled={uploading} />
-        <ToolBtn icon={Link2} title="Inserir link" onClick={handleLinkClick} />
-        <ToolBtn icon={Minus} title="Linha separadora" onClick={handleHrClick} />
+        <ToolBtn icon={icons.image} title="Inserir imagem" onClick={handleImageClick} disabled={uploading} />
+        <ToolBtn icon={icons.link} title="Inserir link" onClick={handleLinkClick} />
+        <ToolBtn icon={icons.hr} title="Linha separadora" onClick={handleHrClick} />
 
         <div className="w-px h-5 bg-gray-300 mx-1.5" />
 
-        {/* Undo/Redo */}
-        <ToolBtn icon={Undo2} title="Desfazer" onClick={() => execCommand('undo')} />
-        <ToolBtn icon={Redo2} title="Refazer" onClick={() => execCommand('redo')} />
+        <ToolBtn icon={icons.undo} title="Desfazer" onClick={() => execCommand('undo')} />
+        <ToolBtn icon={icons.redo} title="Refazer" onClick={() => execCommand('redo')} />
 
-        {/* Upload indicator */}
         {uploading && (
           <div className="ml-auto flex items-center gap-1.5 text-xs text-gray-500">
             <Loader2 size={14} className="animate-spin" />
