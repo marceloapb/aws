@@ -89,9 +89,28 @@ router.post('/:id/pagar-cartao', async (req, res) => {
     const { getConfig } = require('../services/asaasService');
     const config = await getConfig();
 
-    // Injetar email do usuário logado no holderInfo (Asaas exige)
+    // Injetar email e telefone do cadastro do cliente (Asaas exige ambos)
     if (creditCardHolderInfo) {
-      creditCardHolderInfo.email = creditCardHolderInfo.email || req.clienteEmail || req.user?.email || 'cliente@mbfoto.com.br';
+      // Buscar dados do cadastro do cliente
+      let clienteProfile = null;
+      try {
+        const { GetCommand } = require('@aws-sdk/lib-dynamodb');
+        const profResult = await dynamo.send(new GetCommand({
+          TableName: TABLE,
+          Key: { PK: `CLIENT#${req.clienteId}`, SK: 'PROFILE' },
+        }));
+        clienteProfile = profResult.Item;
+        if (!clienteProfile) {
+          const profResult2 = await dynamo.send(new GetCommand({
+            TableName: TABLE,
+            Key: { PK: `TENANT#${process.env.TENANT_ID || 'default'}`, SK: `CLIENTE#${req.clienteId}` },
+          }));
+          clienteProfile = profResult2.Item;
+        }
+      } catch {}
+
+      creditCardHolderInfo.email = creditCardHolderInfo.email || req.clienteEmail || clienteProfile?.email || req.user?.email || 'cliente@mbfoto.com.br';
+      creditCardHolderInfo.phone = creditCardHolderInfo.phone || clienteProfile?.telefone || clienteProfile?.whatsapp || clienteProfile?.mobilePhone || '11999999999';
     }
 
     const response = await fetch(`${config.baseUrl}/payments/${cobranca.gateway_id}/payWithCreditCard`, {
