@@ -7,7 +7,35 @@ const { dynamo, TABLE } = require('../config/dynamodb');
 const { QueryCommand, ScanCommand } = require('@aws-sdk/lib-dynamodb');
 
 const router = Router();
-const TENANT = process.env.TENANT_ID || 'default';
+const TENANT = process.env.TENANT_ID || '1';
+
+// ─── GET /categorias — Listar categorias públicas ───────────
+
+router.get('/categorias', async (req, res) => {
+  try {
+    const result = await dynamo.send(new QueryCommand({
+      TableName: TABLE,
+      KeyConditionExpression: 'PK = :pk AND begins_with(SK, :sk)',
+      ExpressionAttributeValues: {
+        ':pk': `TENANT#${TENANT}`,
+        ':sk': 'CATNOVIDADE#',
+      },
+    }));
+
+    const categorias = (result.Items || [])
+      .sort((a, b) => (a.ordem || 0) - (b.ordem || 0))
+      .map(cat => ({
+        id: cat.id,
+        nome: cat.nome,
+        slug: cat.slug,
+      }));
+
+    res.set('Cache-Control', 'public, max-age=600');
+    res.json({ success: true, data: categorias });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
 
 // ─── GET / — Listar posts publicados ────────────────────────
 
@@ -16,22 +44,35 @@ router.get('/', async (req, res) => {
     const limit = Math.min(Math.max(Number(req.query.limit) || 10, 1), 20);
     const lastKey = req.query.lastKey ? JSON.parse(decodeURIComponent(req.query.lastKey)) : undefined;
     const q = req.query.q ? req.query.q.trim() : null;
+    const categoria = req.query.categoria ? req.query.categoria.trim() : null;
 
     let items = [];
     let lastEvaluatedKey = undefined;
 
-    if (q) {
-      // Text search: Scan com filtro contains no titulo + status publicado
+    if (q || categoria) {
+      // Scan com filtro (busca textual ou por categoria)
+      let filterParts = ['PK = :pk', 'begins_with(SK, :sk)', '#s = :status'];
+      const exprValues = {
+        ':pk': `TENANT#${TENANT}`,
+        ':sk': 'NOVIDADE#',
+        ':status': 'publicado',
+      };
+
+      if (q) {
+        filterParts.push('contains(titulo, :q)');
+        exprValues[':q'] = q;
+      }
+
+      if (categoria) {
+        filterParts.push('categoria = :cat');
+        exprValues[':cat'] = categoria;
+      }
+
       const params = {
         TableName: TABLE,
-        FilterExpression: 'PK = :pk AND begins_with(SK, :sk) AND #s = :status AND contains(titulo, :q)',
+        FilterExpression: filterParts.join(' AND '),
         ExpressionAttributeNames: { '#s': 'status' },
-        ExpressionAttributeValues: {
-          ':pk': `TENANT#${TENANT}`,
-          ':sk': 'NOVIDADE#',
-          ':status': 'publicado',
-          ':q': q,
-        },
+        ExpressionAttributeValues: exprValues,
       };
 
       const result = await dynamo.send(new ScanCommand(params));
@@ -84,6 +125,7 @@ router.get('/', async (req, res) => {
       slug: item.slug,
       resumo: item.resumo,
       capa_url: item.capa_url,
+      categoria: item.categoria || '',
       publicado_em: item.publicado_em,
     }));
 
@@ -129,6 +171,7 @@ router.get('/:slug', async (req, res) => {
       capa_url: post.capa_url,
       publicado_em: post.publicado_em,
       resumo: post.resumo,
+      categoria: post.categoria || '',
     };
 
     res.set('Cache-Control', 'public, max-age=600');

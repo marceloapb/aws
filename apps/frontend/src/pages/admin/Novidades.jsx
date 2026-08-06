@@ -5,7 +5,7 @@ import { useToast } from '../../components/ui/Toast';
 import Modal from '../../components/ui/Modal';
 import {
   Newspaper, Plus, Search, Edit, Trash2, Calendar,
-  Image, Clock, Loader2
+  Image, Clock, Loader2, Tag
 } from 'lucide-react';
 
 const ACCENT = '#EA580C';
@@ -133,11 +133,11 @@ export default function Novidades() {
       setScheduling(true);
       const res = await authFetch(`/admin/novidades/${scheduleTarget.id}/agendar`, {
         method: 'POST',
-        body: JSON.stringify({ publicar_em: scheduleDate }),
+        body: JSON.stringify({ agendado_para: scheduleDate }),
       });
       if (res.ok) {
         setPosts(prev => prev.map(p =>
-          p.id === scheduleTarget.id ? { ...p, status: 'agendado', publicar_em: scheduleDate } : p
+          p.id === scheduleTarget.id ? { ...p, status: 'agendado', agendado_para: scheduleDate } : p
         ));
         toast.success('Post agendado com sucesso');
       } else {
@@ -183,7 +183,7 @@ export default function Novidades() {
         <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
         <input
           type="text"
-          placeholder="Buscar posts por título ou conteúdo..."
+          placeholder="Buscar posts por título..."
           value={search}
           onChange={(e) => handleSearchChange(e.target.value)}
           className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-gray-200 bg-white text-sm focus:outline-none focus:ring-2 focus:border-transparent"
@@ -260,6 +260,12 @@ export default function Novidades() {
                         <Clock size={12} />
                         {formatDate(date)}
                       </span>
+                      {post.categoria && (
+                        <span className="text-xs text-orange-600 flex items-center gap-1 bg-orange-50 px-2 py-0.5 rounded-full">
+                          <Tag size={10} />
+                          {post.categoria}
+                        </span>
+                      )}
                     </div>
                   </div>
 

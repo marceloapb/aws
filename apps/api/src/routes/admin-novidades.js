@@ -11,7 +11,7 @@ const { getSignedUrl } = require('@aws-sdk/s3-request-presigner');
 const { slugify } = require('../utils/slugify');
 
 const router = Router();
-const TENANT = process.env.TENANT_ID || 'default';
+const TENANT = process.env.TENANT_ID || '1';
 const s3 = new S3Client({});
 const BUCKET = process.env.S3_BUCKET_NAME;
 const CDN_BASE_URL = process.env.CDN_BASE_URL || '';
@@ -43,11 +43,169 @@ async function generateUniqueSlug(titulo) {
   return slug;
 }
 
+// ═══════════════════════════════════════════════════════════════
+// CATEGORIAS DE NOVIDADES
+// ═══════════════════════════════════════════════════════════════
+
+// ─── GET /categorias — Listar categorias de novidades ───────
+
+router.get('/categorias', async (req, res) => {
+  try {
+    const result = await dynamo.send(new QueryCommand({
+      TableName: TABLE,
+      KeyConditionExpression: 'PK = :pk AND begins_with(SK, :sk)',
+      ExpressionAttributeValues: {
+        ':pk': `TENANT#${TENANT}`,
+        ':sk': 'CATNOVIDADE#',
+      },
+    }));
+
+    const categorias = (result.Items || []).sort((a, b) => (a.ordem || 0) - (b.ordem || 0));
+    res.json({ success: true, data: categorias });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// ─── POST /categorias — Criar categoria de novidades ────────
+
+router.post('/categorias', async (req, res) => {
+  try {
+    const { nome, ordem } = req.body;
+
+    if (!nome || !nome.trim()) {
+      return res.status(400).json({ success: false, message: 'nome é obrigatório' });
+    }
+    if (nome.length > 100) {
+      return res.status(400).json({ success: false, message: 'nome deve ter no máximo 100 caracteres' });
+    }
+
+    const id = randomUUID();
+    const ordemVal = ordem !== undefined ? Number(ordem) : 0;
+    const now = new Date().toISOString();
+    const slug = slugify(nome);
+
+    const item = {
+      PK: `TENANT#${TENANT}`,
+      SK: `CATNOVIDADE#${id}`,
+      id,
+      nome: nome.trim(),
+      slug,
+      ordem: ordemVal,
+      criado_em: now,
+    };
+
+    await dynamo.send(new PutCommand({ TableName: TABLE, Item: item }));
+    res.status(201).json({ success: true, data: item });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// ─── PUT /categorias/:id — Atualizar categoria ─────────────
+
+router.put('/categorias/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { nome, ordem } = req.body;
+
+    // Find existing
+    const result = await dynamo.send(new QueryCommand({
+      TableName: TABLE,
+      KeyConditionExpression: 'PK = :pk AND begins_with(SK, :sk)',
+      FilterExpression: 'id = :id',
+      ExpressionAttributeValues: {
+        ':pk': `TENANT#${TENANT}`,
+        ':sk': 'CATNOVIDADE#',
+        ':id': id,
+      },
+    }));
+
+    const existing = result.Items && result.Items[0];
+    if (!existing) {
+      return res.status(404).json({ success: false, message: 'Categoria não encontrada' });
+    }
+
+    const updateParts = [];
+    const exprNames = {};
+    const exprValues = {};
+
+    if (nome !== undefined) {
+      updateParts.push('#nome = :nome');
+      exprNames['#nome'] = 'nome';
+      exprValues[':nome'] = nome.trim();
+
+      updateParts.push('#slug = :slug');
+      exprNames['#slug'] = 'slug';
+      exprValues[':slug'] = slugify(nome);
+    }
+    if (ordem !== undefined) {
+      updateParts.push('#ordem = :ordem');
+      exprNames['#ordem'] = 'ordem';
+      exprValues[':ordem'] = Number(ordem);
+    }
+
+    if (updateParts.length === 0) {
+      return res.status(400).json({ success: false, message: 'Nenhum campo para atualizar' });
+    }
+
+    const updated = await dynamo.send(new UpdateCommand({
+      TableName: TABLE,
+      Key: { PK: existing.PK, SK: existing.SK },
+      UpdateExpression: 'SET ' + updateParts.join(', '),
+      ExpressionAttributeNames: exprNames,
+      ExpressionAttributeValues: exprValues,
+      ReturnValues: 'ALL_NEW',
+    }));
+
+    res.json({ success: true, data: updated.Attributes });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// ─── DELETE /categorias/:id — Excluir categoria ─────────────
+
+router.delete('/categorias/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const result = await dynamo.send(new QueryCommand({
+      TableName: TABLE,
+      KeyConditionExpression: 'PK = :pk AND begins_with(SK, :sk)',
+      FilterExpression: 'id = :id',
+      ExpressionAttributeValues: {
+        ':pk': `TENANT#${TENANT}`,
+        ':sk': 'CATNOVIDADE#',
+        ':id': id,
+      },
+    }));
+
+    const existing = result.Items && result.Items[0];
+    if (!existing) {
+      return res.status(404).json({ success: false, message: 'Categoria não encontrada' });
+    }
+
+    await dynamo.send(new DeleteCommand({
+      TableName: TABLE,
+      Key: { PK: existing.PK, SK: existing.SK },
+    }));
+
+    res.json({ success: true, message: 'Categoria excluída com sucesso' });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// ═══════════════════════════════════════════════════════════════
+// POSTS (NOVIDADES)
+// ═══════════════════════════════════════════════════════════════
+
 // ─── POST / — Criar post ────────────────────────────────────
 
 router.post('/', async (req, res) => {
   try {
-    const { titulo, corpo_html, resumo, capa_url, status } = req.body;
+    const { titulo, corpo_html, resumo, capa_url, status, categoria } = req.body;
 
     // Validações
     if (!titulo || !titulo.trim()) {
@@ -77,6 +235,7 @@ router.post('/', async (req, res) => {
       corpo_html: corpo_html || '',
       resumo: resumo || '',
       capa_url: capa_url || '',
+      categoria: categoria || '',
       status: postStatus,
       criado_em: now,
       atualizado_em: now,
@@ -163,13 +322,13 @@ router.post('/imagens/upload', async (req, res) => {
   try {
     const { post_id, content_type, filename, size } = req.body;
 
-    if (!post_id || !content_type || !filename) {
-      return res.status(400).json({ success: false, message: 'post_id, content_type e filename são obrigatórios' });
+    if (!content_type || !filename) {
+      return res.status(400).json({ success: false, message: 'content_type e filename são obrigatórios' });
     }
 
-    const allowedTypes = ['image/jpeg', 'image/png', 'image/webp'];
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
     if (!allowedTypes.includes(content_type)) {
-      return res.status(400).json({ success: false, message: 'content_type deve ser image/jpeg, image/png ou image/webp' });
+      return res.status(400).json({ success: false, message: 'content_type deve ser image/jpeg, image/png, image/webp ou image/gif' });
     }
 
     const maxSize = 20 * 1024 * 1024; // 20MB
@@ -178,7 +337,8 @@ router.post('/imagens/upload', async (req, res) => {
     }
 
     const img_id = randomUUID();
-    const s3Key = `novidades/${post_id}/${img_id}/original/${filename}`;
+    const folder = post_id || 'geral';
+    const s3Key = `novidades/${folder}/${img_id}/original/${filename}`;
 
     const command = new PutObjectCommand({
       Bucket: BUCKET,
@@ -329,9 +489,6 @@ router.post('/:id/agendar', async (req, res) => {
         ':now': now,
       },
     }));
-
-    // TODO: Criar EventBridge Scheduler rule para publicar automaticamente na data agendada.
-    // Por enquanto, um cron job verificará posts com agendado_para <= now e status=rascunho.
 
     res.json({
       success: true,

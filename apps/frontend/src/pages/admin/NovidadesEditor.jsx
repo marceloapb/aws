@@ -1,9 +1,11 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useToast } from '../../components/ui/Toast';
+import RichTextEditor from '../../components/ui/RichTextEditor';
 import {
-  ArrowLeft, Save, Send, Upload, Image, Loader2, X, Clock
+  ArrowLeft, Save, Send, Upload, Image, Loader2, X, Clock,
+  Tag, Plus, Eye
 } from 'lucide-react';
 
 const ACCENT = '#EA580C';
@@ -20,16 +22,30 @@ export default function NovidadesEditor() {
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [lastSaved, setLastSaved] = useState(null);
+  const [showPreview, setShowPreview] = useState(false);
+
+  // Categorias
+  const [categorias, setCategorias] = useState([]);
+  const [loadingCategorias, setLoadingCategorias] = useState(true);
+  const [showNewCategoria, setShowNewCategoria] = useState(false);
+  const [newCatNome, setNewCatNome] = useState('');
+  const [creatingCat, setCreatingCat] = useState(false);
 
   const [form, setForm] = useState({
     titulo: '',
     resumo: '',
     corpo_html: '',
     capa_url: '',
+    categoria: '',
     status: 'rascunho',
   });
 
   const [errors, setErrors] = useState({});
+
+  // Load categorias
+  useEffect(() => {
+    loadCategorias();
+  }, []);
 
   // Load post data when editing
   useEffect(() => {
@@ -37,6 +53,46 @@ export default function NovidadesEditor() {
       loadPost();
     }
   }, [id]);
+
+  const loadCategorias = async () => {
+    try {
+      setLoadingCategorias(true);
+      const res = await authFetch('/admin/novidades/categorias');
+      const json = await res.json();
+      if (res.ok) {
+        setCategorias(json.data || []);
+      }
+    } catch {
+      // silently fail
+    } finally {
+      setLoadingCategorias(false);
+    }
+  };
+
+  const createCategoria = async () => {
+    if (!newCatNome.trim()) return;
+    try {
+      setCreatingCat(true);
+      const res = await authFetch('/admin/novidades/categorias', {
+        method: 'POST',
+        body: JSON.stringify({ nome: newCatNome.trim() }),
+      });
+      const json = await res.json();
+      if (res.ok) {
+        setCategorias(prev => [...prev, json.data]);
+        handleChange('categoria', json.data.nome);
+        setNewCatNome('');
+        setShowNewCategoria(false);
+        toast.success('Categoria criada!');
+      } else {
+        toast.error(json.message || 'Erro ao criar categoria');
+      }
+    } catch {
+      toast.error('Erro de conexão');
+    } finally {
+      setCreatingCat(false);
+    }
+  };
 
   const loadPost = async () => {
     try {
@@ -50,6 +106,7 @@ export default function NovidadesEditor() {
           resumo: post.resumo || '',
           corpo_html: post.corpo_html || '',
           capa_url: post.capa_url || '',
+          categoria: post.categoria || '',
           status: post.status || 'rascunho',
         });
       } else {
@@ -80,18 +137,15 @@ export default function NovidadesEditor() {
     return Object.keys(errs).length === 0;
   };
 
-  // Image upload
-  const handleImageUpload = async (e) => {
+  // Cover image upload
+  const handleCoverUpload = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Validate file type
     if (!file.type.startsWith('image/')) {
       toast.error('Selecione um arquivo de imagem');
       return;
     }
-
-    // Validate file size (max 5MB)
     if (file.size > 5 * 1024 * 1024) {
       toast.error('Imagem deve ter no máximo 5MB');
       return;
@@ -99,46 +153,62 @@ export default function NovidadesEditor() {
 
     try {
       setUploading(true);
-
-      // Get presigned URL
-      const uploadRes = await authFetch('/admin/novidades/imagens/upload', {
-        method: 'POST',
-        body: JSON.stringify({
-          filename: file.name,
-          content_type: file.type,
-        }),
-      });
-      const uploadData = await uploadRes.json();
-
-      if (!uploadRes.ok) {
-        toast.error(uploadData.message || 'Erro ao iniciar upload');
-        return;
+      const url = await uploadImage(file);
+      if (url) {
+        handleChange('capa_url', url);
+        toast.success('Imagem de capa enviada!');
       }
-
-      const { upload_url, cdn_url } = uploadData;
-
-      // PUT file to presigned URL
-      const putRes = await fetch(upload_url, {
-        method: 'PUT',
-        headers: { 'Content-Type': file.type },
-        body: file,
-      });
-
-      if (!putRes.ok) {
-        toast.error('Erro ao enviar imagem');
-        return;
-      }
-
-      handleChange('capa_url', cdn_url);
-      toast.success('Imagem enviada com sucesso');
     } catch {
-      toast.error('Erro de conexão ao enviar imagem');
+      toast.error('Erro ao enviar imagem');
     } finally {
       setUploading(false);
-      // Reset file input
       if (fileInputRef.current) fileInputRef.current.value = '';
     }
   };
+
+  // Generic image upload — returns CDN URL
+  const uploadImage = useCallback(async (file) => {
+    const uploadRes = await authFetch('/admin/novidades/imagens/upload', {
+      method: 'POST',
+      body: JSON.stringify({
+        post_id: id || 'novo',
+        filename: file.name,
+        content_type: file.type,
+        size: file.size,
+      }),
+    });
+    const uploadData = await uploadRes.json();
+
+    if (!uploadRes.ok) {
+      toast.error(uploadData.message || 'Erro ao iniciar upload');
+      return null;
+    }
+
+    const { upload_url, cdn_url } = uploadData.data || uploadData;
+
+    // PUT file to presigned URL
+    const putRes = await fetch(upload_url, {
+      method: 'PUT',
+      headers: { 'Content-Type': file.type },
+      body: file,
+    });
+
+    if (!putRes.ok) {
+      toast.error('Erro ao enviar imagem para o servidor');
+      return null;
+    }
+
+    return cdn_url;
+  }, [authFetch, id, toast]);
+
+  // Inline image upload for the rich editor
+  const handleInlineImageUpload = useCallback(async (file) => {
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error('Imagem deve ter no máximo 10MB');
+      return null;
+    }
+    return await uploadImage(file);
+  }, [uploadImage, toast]);
 
   // Save post
   const handleSave = async (status) => {
@@ -189,7 +259,7 @@ export default function NovidadesEditor() {
   }
 
   return (
-    <div className="p-4 md:p-6 max-w-4xl mx-auto">
+    <div className="p-4 md:p-6 max-w-5xl mx-auto">
       {/* Header */}
       <div className="flex items-center justify-between gap-4 mb-6">
         <div className="flex items-center gap-3">
@@ -204,161 +274,264 @@ export default function NovidadesEditor() {
             {isEditing ? 'Editar Post' : 'Novo Post'}
           </h1>
         </div>
-        {lastSaved && (
-          <span className="text-xs text-gray-400 flex items-center gap-1">
-            <Clock size={12} />
-            Salvo às {lastSaved.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
-          </span>
-        )}
+        <div className="flex items-center gap-2">
+          {lastSaved && (
+            <span className="text-xs text-gray-400 flex items-center gap-1">
+              <Clock size={12} />
+              Salvo às {lastSaved.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+            </span>
+          )}
+          <button
+            onClick={() => setShowPreview(!showPreview)}
+            className={`p-2 rounded-lg transition-colors ${showPreview ? 'bg-orange-100 text-orange-700' : 'text-gray-500 hover:bg-gray-100 hover:text-gray-700'}`}
+            title="Pré-visualizar"
+          >
+            <Eye size={18} />
+          </button>
+        </div>
       </div>
 
-      {/* Form */}
-      <div className="space-y-6">
-        {/* Título */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Título <span className="text-red-500">*</span>
-          </label>
-          <input
-            type="text"
-            value={form.titulo}
-            onChange={(e) => handleChange('titulo', e.target.value)}
-            maxLength={150}
-            placeholder="Título do post"
-            className={`w-full px-4 py-2.5 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:border-transparent transition-colors ${
-              errors.titulo ? 'border-red-300 focus:ring-red-200' : 'border-gray-200 focus:ring-orange-200'
-            }`}
-          />
-          <div className="flex items-center justify-between mt-1">
-            {errors.titulo && <p className="text-xs text-red-500">{errors.titulo}</p>}
-            <p className="text-xs text-gray-400 ml-auto">{form.titulo.length}/150</p>
-          </div>
-        </div>
-
-        {/* Resumo */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Resumo
-          </label>
-          <textarea
-            value={form.resumo}
-            onChange={(e) => handleChange('resumo', e.target.value)}
-            maxLength={300}
-            rows={3}
-            placeholder="Breve descrição do post (exibido na listagem)"
-            className={`w-full px-4 py-2.5 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:border-transparent resize-none transition-colors ${
-              errors.resumo ? 'border-red-300 focus:ring-red-200' : 'border-gray-200 focus:ring-orange-200'
-            }`}
-          />
-          <div className="flex items-center justify-between mt-1">
-            {errors.resumo && <p className="text-xs text-red-500">{errors.resumo}</p>}
-            <p className={`text-xs ml-auto ${form.resumo.length > 280 ? 'text-orange-500' : 'text-gray-400'}`}>
-              {form.resumo.length}/300
-            </p>
-          </div>
-        </div>
-
-        {/* Capa */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Imagem de Capa
-          </label>
-          {form.capa_url ? (
-            <div className="relative rounded-lg overflow-hidden border border-gray-200 bg-gray-50">
-              <img
-                src={form.capa_url}
-                alt="Capa"
-                className="w-full h-48 object-cover"
-              />
-              <button
-                onClick={() => handleChange('capa_url', '')}
-                className="absolute top-2 right-2 p-1.5 rounded-full bg-black/50 text-white hover:bg-black/70 transition-colors"
-                title="Remover imagem"
-              >
-                <X size={14} />
-              </button>
+      {/* Main content area - two columns on large screens */}
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_300px] gap-6">
+        {/* Left: Main editor */}
+        <div className="space-y-6">
+          {/* Título */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Título <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="text"
+              value={form.titulo}
+              onChange={(e) => handleChange('titulo', e.target.value)}
+              maxLength={150}
+              placeholder="Título do post"
+              className={`w-full px-4 py-2.5 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:border-transparent transition-colors ${
+                errors.titulo ? 'border-red-300 focus:ring-red-200' : 'border-gray-200 focus:ring-orange-200'
+              }`}
+            />
+            <div className="flex items-center justify-between mt-1">
+              {errors.titulo && <p className="text-xs text-red-500">{errors.titulo}</p>}
+              <p className="text-xs text-gray-400 ml-auto">{form.titulo.length}/150</p>
             </div>
-          ) : (
+          </div>
+
+          {/* Resumo */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Resumo
+              <span className="ml-2 text-xs font-normal text-gray-400">(exibido na listagem)</span>
+            </label>
+            <textarea
+              value={form.resumo}
+              onChange={(e) => handleChange('resumo', e.target.value)}
+              maxLength={300}
+              rows={3}
+              placeholder="Breve descrição do post..."
+              className={`w-full px-4 py-2.5 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:border-transparent resize-none transition-colors ${
+                errors.resumo ? 'border-red-300 focus:ring-red-200' : 'border-gray-200 focus:ring-orange-200'
+              }`}
+            />
+            <div className="flex items-center justify-between mt-1">
+              {errors.resumo && <p className="text-xs text-red-500">{errors.resumo}</p>}
+              <p className={`text-xs ml-auto ${form.resumo.length > 280 ? 'text-orange-500' : 'text-gray-400'}`}>
+                {form.resumo.length}/300
+              </p>
+            </div>
+          </div>
+
+          {/* Conteúdo - Editor WYSIWYG */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Conteúdo
+            </label>
+            {showPreview ? (
+              <div className="border border-gray-200 rounded-lg p-6 min-h-[400px] bg-white">
+                <div
+                  className="prose prose-sm max-w-none text-gray-800
+                    prose-headings:text-gray-900 prose-strong:text-gray-900
+                    prose-a:text-[#EA580C] prose-a:no-underline hover:prose-a:underline
+                    prose-img:rounded-xl prose-blockquote:border-[#EA580C]
+                    prose-p:leading-relaxed prose-li:leading-relaxed"
+                  dangerouslySetInnerHTML={{ __html: form.corpo_html }}
+                />
+                {!form.corpo_html && (
+                  <p className="text-gray-400 text-sm italic">Nenhum conteúdo para pré-visualizar.</p>
+                )}
+              </div>
+            ) : (
+              <RichTextEditor
+                value={form.corpo_html}
+                onChange={(html) => handleChange('corpo_html', html)}
+                onImageUpload={handleInlineImageUpload}
+                placeholder="Escreva o conteúdo do post. Use a toolbar para formatar texto, inserir imagens, links..."
+                minHeight="400px"
+              />
+            )}
+          </div>
+        </div>
+
+        {/* Right: Sidebar (cover image, categoria, actions) */}
+        <div className="space-y-6">
+          {/* Capa */}
+          <div className="bg-white border border-gray-200 rounded-xl p-4">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Imagem de Capa
+            </label>
+            {form.capa_url ? (
+              <div className="relative rounded-lg overflow-hidden border border-gray-200 bg-gray-50">
+                <img
+                  src={form.capa_url}
+                  alt="Capa"
+                  className="w-full h-40 object-cover"
+                />
+                <button
+                  onClick={() => handleChange('capa_url', '')}
+                  className="absolute top-2 right-2 p-1.5 rounded-full bg-black/50 text-white hover:bg-black/70 transition-colors"
+                  title="Remover imagem"
+                >
+                  <X size={14} />
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploading}
+                className="w-full h-32 rounded-lg border-2 border-dashed border-gray-200 hover:border-gray-300 flex flex-col items-center justify-center gap-2 transition-colors disabled:opacity-50"
+              >
+                {uploading ? (
+                  <>
+                    <Loader2 size={20} className="animate-spin text-gray-400" />
+                    <span className="text-xs text-gray-500">Enviando...</span>
+                  </>
+                ) : (
+                  <>
+                    <Upload size={20} className="text-gray-400" />
+                    <span className="text-xs text-gray-500">Clique para enviar</span>
+                    <span className="text-xs text-gray-400">JPG, PNG, WebP • Máx 5MB</span>
+                  </>
+                )}
+              </button>
+            )}
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              onChange={handleCoverUpload}
+              className="hidden"
+            />
+          </div>
+
+          {/* Categoria */}
+          <div className="bg-white border border-gray-200 rounded-xl p-4">
+            <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-1.5">
+              <Tag size={14} className="text-gray-500" />
+              Categoria
+            </label>
+            {loadingCategorias ? (
+              <div className="flex items-center gap-2 py-2">
+                <Loader2 size={14} className="animate-spin text-gray-400" />
+                <span className="text-xs text-gray-400">Carregando...</span>
+              </div>
+            ) : (
+              <>
+                <select
+                  value={form.categoria}
+                  onChange={(e) => handleChange('categoria', e.target.value)}
+                  className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-orange-200 focus:border-transparent"
+                >
+                  <option value="">Sem categoria</option>
+                  {categorias.map(cat => (
+                    <option key={cat.id} value={cat.nome}>{cat.nome}</option>
+                  ))}
+                </select>
+
+                {/* Create new category */}
+                {!showNewCategoria ? (
+                  <button
+                    onClick={() => setShowNewCategoria(true)}
+                    className="mt-2 flex items-center gap-1 text-xs text-orange-600 hover:text-orange-700 font-medium"
+                  >
+                    <Plus size={12} />
+                    Nova categoria
+                  </button>
+                ) : (
+                  <div className="mt-2 flex gap-2">
+                    <input
+                      type="text"
+                      value={newCatNome}
+                      onChange={(e) => setNewCatNome(e.target.value)}
+                      placeholder="Nome da categoria"
+                      maxLength={100}
+                      className="flex-1 px-2.5 py-1.5 rounded border border-gray-200 text-xs focus:outline-none focus:ring-1 focus:ring-orange-200"
+                      onKeyDown={(e) => e.key === 'Enter' && createCategoria()}
+                    />
+                    <button
+                      onClick={createCategoria}
+                      disabled={creatingCat || !newCatNome.trim()}
+                      className="px-2.5 py-1.5 rounded text-xs font-medium text-white disabled:opacity-50"
+                      style={{ backgroundColor: ACCENT }}
+                    >
+                      {creatingCat ? '...' : 'Criar'}
+                    </button>
+                    <button
+                      onClick={() => { setShowNewCategoria(false); setNewCatNome(''); }}
+                      className="px-2 py-1.5 rounded text-xs text-gray-500 hover:text-gray-700"
+                    >
+                      <X size={12} />
+                    </button>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+
+          {/* Status info */}
+          <div className="bg-white border border-gray-200 rounded-xl p-4">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Status
+            </label>
+            <div className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border ${
+              form.status === 'publicado'
+                ? 'text-green-700 bg-green-50 border-green-200'
+                : 'text-yellow-700 bg-yellow-50 border-yellow-200'
+            }`}>
+              <div className={`w-1.5 h-1.5 rounded-full ${
+                form.status === 'publicado' ? 'bg-green-500' : 'bg-yellow-500'
+              }`} />
+              {form.status === 'publicado' ? 'Publicado' : 'Rascunho'}
+            </div>
+          </div>
+
+          {/* Action Buttons */}
+          <div className="bg-white border border-gray-200 rounded-xl p-4 space-y-3">
             <button
-              onClick={() => fileInputRef.current?.click()}
-              disabled={uploading}
-              className="w-full h-40 rounded-lg border-2 border-dashed border-gray-200 hover:border-gray-300 flex flex-col items-center justify-center gap-2 transition-colors disabled:opacity-50"
+              onClick={() => handleSave('publicado')}
+              disabled={saving}
+              className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-white text-sm font-medium hover:opacity-90 disabled:opacity-50 transition-opacity shadow-sm"
+              style={{ backgroundColor: ACCENT }}
             >
-              {uploading ? (
-                <>
-                  <Loader2 size={24} className="animate-spin text-gray-400" />
-                  <span className="text-sm text-gray-500">Enviando...</span>
-                </>
-              ) : (
-                <>
-                  <Upload size={24} className="text-gray-400" />
-                  <span className="text-sm text-gray-500">Clique para enviar imagem de capa</span>
-                  <span className="text-xs text-gray-400">JPG, PNG ou WebP • Máximo 5MB</span>
-                </>
-              )}
+              {saving ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
+              Publicar
             </button>
-          )}
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/*"
-            onChange={handleImageUpload}
-            className="hidden"
-          />
-        </div>
 
-        {/* Corpo HTML */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Conteúdo
-            <span className="ml-2 text-xs font-normal text-gray-400 bg-gray-100 px-2 py-0.5 rounded">
-              Suporta HTML
-            </span>
-          </label>
-          <textarea
-            value={form.corpo_html}
-            onChange={(e) => handleChange('corpo_html', e.target.value)}
-            placeholder="<h2>Subtítulo</h2>\n<p>Escreva o conteúdo do post aqui...</p>"
-            className="w-full px-4 py-3 rounded-lg border border-gray-200 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-orange-200 focus:border-transparent resize-y min-h-[400px] transition-colors"
-            style={{ minHeight: '400px' }}
-          />
-          <p className="text-xs text-gray-400 mt-1">
-            Use tags HTML para formatar: &lt;h2&gt;, &lt;p&gt;, &lt;strong&gt;, &lt;em&gt;, &lt;ul&gt;, &lt;img&gt;, etc.
-          </p>
-        </div>
+            <button
+              onClick={() => handleSave('rascunho')}
+              disabled={saving}
+              className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg border border-gray-200 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 transition-colors"
+            >
+              {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+              Salvar Rascunho
+            </button>
 
-        {/* Action Buttons */}
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 pt-4 border-t border-gray-100">
-          <button
-            onClick={() => navigate('/admin/novidades')}
-            className="px-4 py-2.5 rounded-lg border border-gray-200 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors order-3 sm:order-1"
-          >
-            <span className="flex items-center justify-center gap-2">
+            <button
+              onClick={() => navigate('/admin/novidades')}
+              className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium text-gray-500 hover:text-gray-700 hover:bg-gray-50 transition-colors"
+            >
               <ArrowLeft size={16} />
               Voltar
-            </span>
-          </button>
-
-          <div className="flex-1 order-1 sm:order-2" />
-
-          <button
-            onClick={() => handleSave('rascunho')}
-            disabled={saving}
-            className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg border border-gray-200 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 transition-colors order-2 sm:order-3"
-          >
-            {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
-            Salvar como Rascunho
-          </button>
-
-          <button
-            onClick={() => handleSave('publicado')}
-            disabled={saving}
-            className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg text-white text-sm font-medium hover:opacity-90 disabled:opacity-50 transition-opacity shadow-sm order-1 sm:order-4"
-            style={{ backgroundColor: ACCENT }}
-          >
-            {saving ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
-            Publicar
-          </button>
+            </button>
+          </div>
         </div>
       </div>
     </div>
