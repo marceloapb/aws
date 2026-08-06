@@ -1,9 +1,11 @@
 const { Router } = require('express');
+const crypto = require('crypto');
 const { dynamo, TABLE } = require('../config/dynamodb');
 const { QueryCommand, PutCommand, UpdateCommand } = require('@aws-sdk/lib-dynamodb');
 const { criarCobranca, consultarCobranca, cancelarCobranca } = require('../adapters/index');
 
 const router = Router();
+const TENANT = process.env.TENANT_ID || 'default';
 
 async function findCobranca(id) {
   const result = await dynamo.send(new QueryCommand({
@@ -125,6 +127,60 @@ router.post('/:id/cancelar', async (req, res) => {
     }));
 
     res.json({ success: true, message: 'Cobrança cancelada' });
+  } catch (error) {
+    res.status(400).json({ success: false, message: error.message });
+  }
+});
+
+// POST /api/admin/cobrancas/:id/enviar-gateway — Envia cobrança existente para o Asaas
+router.post('/:id/enviar-gateway', async (req, res) => {
+  try {
+    const { enviarCobrancaParaAsaas } = require('../services/asaasService');
+    const result = await enviarCobrancaParaAsaas(req.params.id);
+    res.json({ success: true, data: result, message: 'Cobrança enviada para Asaas com sucesso' });
+  } catch (error) {
+    res.status(400).json({ success: false, message: error.message });
+  }
+});
+
+// POST /api/admin/cobrancas/:id/pagar — Marcar como pago manualmente
+router.put('/:id/pagar', async (req, res) => {
+  try {
+    const cobranca = await findCobranca(req.params.id);
+    if (!cobranca) return res.status(404).json({ success: false, message: 'Cobrança não encontrada' });
+
+    const { meio, data_pagamento, valor_pago } = req.body;
+    await dynamo.send(new UpdateCommand({
+      TableName: TABLE,
+      Key: { PK: cobranca.PK, SK: cobranca.SK },
+      UpdateExpression: 'SET #s = :s, meio_pagamento = :m, data_pagamento = :d, valor_pago = :v, pago_em = :pe',
+      ExpressionAttributeNames: { '#s': 'status' },
+      ExpressionAttributeValues: {
+        ':s': 'pago',
+        ':m': meio || cobranca.meio || 'PIX',
+        ':d': data_pagamento || new Date().toISOString().slice(0, 10),
+        ':v': valor_pago || cobranca.valor,
+        ':pe': new Date().toISOString(),
+      },
+    }));
+
+    // Disparar evento pagamento_confirmado
+    try {
+      const { processarEvento } = require('../services/notificationDispatcher');
+      await processarEvento({
+        evento_id: `pag_manual_${req.params.id}_${Date.now()}`,
+        tipo_evento: 'pagamento_confirmado',
+        tenant_id: TENANT,
+        dados: {
+          cliente_id: cobranca.cliente_id,
+          cliente_nome: cobranca.cliente_nome || '',
+          valor: valor_pago || cobranca.valor,
+          cobranca_id: req.params.id,
+        },
+      });
+    } catch {}
+
+    res.json({ success: true, message: 'Pagamento registrado' });
   } catch (error) {
     res.status(400).json({ success: false, message: error.message });
   }

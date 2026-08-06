@@ -439,7 +439,18 @@ export default function Financeiro() {
                                 className="p-1 rounded hover:bg-green-100 text-green-600" title="Marcar pago"><Check size={14} /></button>
                               <button onClick={() => cancelarCobranca(c.id)} className="p-1 rounded hover:bg-red-100 text-red-600" title="Cancelar"><X size={14} /></button>
                               <button className="p-1 rounded hover:bg-green-100 text-green-600" title="Lembrete WhatsApp"><Send size={14} /></button>
-                              <button className="p-1 rounded hover:bg-blue-100 text-blue-600" title="Link pagamento"><Link2 size={14} /></button>
+                              {c.link_pagamento ? (
+                                <a href={c.link_pagamento} target="_blank" rel="noreferrer" className="p-1 rounded hover:bg-blue-100 text-blue-600" title="Abrir link pagamento"><Link2 size={14} /></a>
+                              ) : (
+                                <button onClick={async () => {
+                                  try {
+                                    const r = await authFetch(`/admin/cobrancas/${c.id}/enviar-gateway`, { method: 'POST' });
+                                    const d = await r.json();
+                                    if (d.success) { alert('✅ Cobrança enviada para Asaas!\nLink: ' + (d.data.link_pagamento || 'gerado')); fetchData(); }
+                                    else alert('Erro: ' + (d.message || 'Falha ao enviar'));
+                                  } catch (err) { alert('Erro: ' + err.message); }
+                                }} className="p-1 rounded hover:bg-purple-100 text-purple-600" title="Gerar PIX/Boleto (Asaas)"><CreditCard size={14} /></button>
+                              )}
                             </>
                           )}
                         </div>
