@@ -188,90 +188,87 @@ export default function Storage() {
         )}
       </div>
 
-      {/* Breakdown by Context */}
-      <div className="bg-white rounded-xl border p-6 mb-6">
-        <div className="flex items-center gap-2 mb-4">
-          <BarChart3 size={18} style={{ color: ACCENT }} />
-          <h3 className="font-semibold text-gray-900">Uso por Contexto</h3>
+      {/* Uso por Contexto (70%) + Estimativa de Custo (30%) */}
+      <div className="grid grid-cols-1 lg:grid-cols-10 gap-6">
+        {/* Uso por Contexto — 70% */}
+        <div className="lg:col-span-7 bg-white rounded-xl border p-6">
+          <div className="flex items-center gap-2 mb-4">
+            <BarChart3 size={18} style={{ color: ACCENT }} />
+            <h3 className="font-semibold text-gray-900">Uso por Contexto</h3>
+          </div>
+          <div className="space-y-4">
+            {CONTEXTOS.map((ctx) => {
+              const ctxData = breakdown[ctx];
+              const ctxBytes = ctxData?.totalBytes || 0;
+              const ctxFiles = ctxData?.totalFiles || 0;
+              const pct = breakdownTotal > 0 ? (ctxBytes / breakdownTotal) * 100 : 0;
+
+              return (
+                <div key={ctx}>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <div className="flex items-center gap-2">
+                      <Folder size={14} style={{ color: CONTEXTO_COLORS[ctx] }} />
+                      <span className="text-sm font-medium text-gray-700">{CONTEXTO_LABELS[ctx]}</span>
+                    </div>
+                    <div className="text-right">
+                      <span className="text-sm font-semibold text-gray-800">{fmtSize(ctxBytes)}</span>
+                      <span className="text-xs text-gray-400 ml-2">({pct.toFixed(1)}%)</span>
+                      <span className="text-xs text-gray-400 ml-2">{ctxFiles.toLocaleString('pt-BR')} arq.</span>
+                    </div>
+                  </div>
+                  <div className="w-full bg-gray-100 rounded-full h-3 overflow-hidden">
+                    <div
+                      className="h-full rounded-full transition-all duration-500"
+                      style={{ width: `${Math.max(pct, 0.5)}%`, background: CONTEXTO_COLORS[ctx] }}
+                    />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         </div>
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-x-8 gap-y-4">
-          {CONTEXTOS.map((ctx) => {
-            const ctxData = breakdown[ctx];
-            const ctxBytes = ctxData?.totalBytes || 0;
-            const ctxFiles = ctxData?.totalFiles || 0;
-            const pct = breakdownTotal > 0 ? (ctxBytes / breakdownTotal) * 100 : 0;
+
+        {/* Estimativa de Custo S3 — 30% */}
+        <div className="lg:col-span-3 bg-white rounded-xl border p-6">
+          <div className="flex items-center gap-2 mb-4">
+            <DollarSign size={18} style={{ color: ACCENT }} />
+            <h3 className="font-semibold text-gray-900">Custo S3</h3>
+          </div>
+          {(() => {
+            const totalBytes = metrics?.totalBytes || 0;
+            const totalGB = totalBytes / (1024 * 1024 * 1024);
+            const custoArmazenamento = totalGB * 0.023;
+            const custoRequests = 0.012;
+            const transferGB = Math.min(totalGB * 0.5, 10);
+            const custoTransfer = transferGB * 0.09;
+            const custoTotal = custoArmazenamento + custoRequests + custoTransfer;
 
             return (
-              <div key={ctx}>
-                <div className="flex items-center justify-between mb-1.5">
-                  <div className="flex items-center gap-2">
-                    <Folder size={14} style={{ color: CONTEXTO_COLORS[ctx] }} />
-                    <span className="text-sm font-medium text-gray-700">{CONTEXTO_LABELS[ctx]}</span>
+              <div className="space-y-3">
+                <div className="rounded-lg p-4 text-center" style={{ background: `${ACCENT}10` }}>
+                  <p className="text-xs" style={{ color: ACCENT }}>Total Estimado</p>
+                  <p className="text-2xl font-bold" style={{ color: ACCENT }}>${custoTotal.toFixed(2)}<span className="text-sm font-normal">/mês</span></p>
+                  <p className="text-xs text-gray-400 mt-1">~R$ {(custoTotal * 5.5).toFixed(2)}/mês</p>
+                </div>
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-gray-500">Armazenamento</span>
+                    <span className="font-medium">${custoArmazenamento.toFixed(3)}</span>
                   </div>
-                  <div className="text-right">
-                    <span className="text-sm font-semibold text-gray-800">{fmtSize(ctxBytes)}</span>
-                    <span className="text-xs text-gray-400 ml-2">({pct.toFixed(1)}%)</span>
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-gray-500">Requests</span>
+                    <span className="font-medium">${custoRequests.toFixed(3)}</span>
+                  </div>
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-gray-500">Transfer Out</span>
+                    <span className="font-medium">${custoTransfer.toFixed(3)}</span>
                   </div>
                 </div>
-                <div className="w-full bg-gray-100 rounded-full h-3 overflow-hidden">
-                  <div
-                    className="h-full rounded-full transition-all duration-500"
-                    style={{ width: `${Math.max(pct, 0.5)}%`, background: CONTEXTO_COLORS[ctx] }}
-                  />
-                </div>
-                <p className="text-xs text-gray-400 mt-0.5">{ctxFiles.toLocaleString('pt-BR')} arquivos</p>
+                <p className="text-[9px] text-gray-400 text-center pt-2 border-t">S3 Standard us-east-1 · $1≈R$5,50</p>
               </div>
             );
-          })}
+          })()}
         </div>
-      </div>
-
-      {/* Estimativa de Custo S3 */}
-      <div className="bg-white rounded-xl border p-6">
-        <div className="flex items-center gap-2 mb-4">
-          <DollarSign size={18} style={{ color: ACCENT }} />
-          <h3 className="font-semibold text-gray-900">Estimativa de Custo S3</h3>
-        </div>
-        {(() => {
-          const totalBytes = metrics?.totalBytes || 0;
-          const totalGB = totalBytes / (1024 * 1024 * 1024);
-          // AWS S3 Standard pricing us-east-1: $0.023/GB/mês (primeiros 50TB)
-          const custoArmazenamento = totalGB * 0.023;
-          // Estimativa de requests (GET): ~1000 requests/dia * 30 = 30000/mês * $0.0004/1000 = $0.012
-          const custoRequests = 0.012;
-          // Transfer out: ~5GB/mês estimado * $0.09/GB = $0.45
-          const transferGB = Math.min(totalGB * 0.5, 10);
-          const custoTransfer = transferGB * 0.09;
-          const custoTotal = custoArmazenamento + custoRequests + custoTransfer;
-
-          return (
-            <div className="space-y-3">
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                <div className="bg-gray-50 rounded-lg p-3 text-center">
-                  <p className="text-xs text-gray-500">Armazenamento</p>
-                  <p className="text-sm font-bold text-gray-900">${custoArmazenamento.toFixed(3)}</p>
-                  <p className="text-[10px] text-gray-400">{totalGB.toFixed(2)} GB × $0.023</p>
-                </div>
-                <div className="bg-gray-50 rounded-lg p-3 text-center">
-                  <p className="text-xs text-gray-500">Requests</p>
-                  <p className="text-sm font-bold text-gray-900">${custoRequests.toFixed(3)}</p>
-                  <p className="text-[10px] text-gray-400">~30k GET/mês</p>
-                </div>
-                <div className="bg-gray-50 rounded-lg p-3 text-center">
-                  <p className="text-xs text-gray-500">Transfer Out</p>
-                  <p className="text-sm font-bold text-gray-900">${custoTransfer.toFixed(3)}</p>
-                  <p className="text-[10px] text-gray-400">~{transferGB.toFixed(1)} GB/mês</p>
-                </div>
-                <div className="rounded-lg p-3 text-center" style={{ background: `${ACCENT}10` }}>
-                  <p className="text-xs" style={{ color: ACCENT }}>Total Estimado</p>
-                  <p className="text-lg font-bold" style={{ color: ACCENT }}>${custoTotal.toFixed(2)}<span className="text-xs font-normal">/mês</span></p>
-                  <p className="text-[10px] text-gray-400">~R$ {(custoTotal * 5.5).toFixed(2)}/mês</p>
-                </div>
-              </div>
-              <p className="text-[10px] text-gray-400 text-center">Estimativa baseada em S3 Standard us-east-1. Transfer via CloudFront pode variar. Câmbio estimado: $1 = R$5,50.</p>
-            </div>
-          );
-        })()}
       </div>
 
     </div>
