@@ -5,7 +5,7 @@ import { useToast } from '../../components/ui/Toast';
 import RichTextEditor from '../../components/ui/RichTextEditor';
 import {
   ArrowLeft, Save, Send, Upload, Image, Loader2, X, Clock,
-  Tag, Plus, Eye, Sparkles
+  Tag, Plus, Eye, Zap
 } from 'lucide-react';
 
 const ACCENT = '#EA580C';
@@ -342,7 +342,7 @@ export default function NovidadesEditor() {
             className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium bg-gradient-to-r from-purple-500 to-indigo-500 text-white hover:from-purple-600 hover:to-indigo-600 shadow-sm transition-all"
             title="Gerar conteúdo com IA"
           >
-            <Sparkles size={14} />
+            <Zap size={14} />
             <span className="hidden sm:inline">IA</span>
           </button>
           <button
@@ -363,7 +363,7 @@ export default function NovidadesEditor() {
             <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
               <div className="flex items-center gap-2">
                 <div className="p-1.5 rounded-lg bg-gradient-to-r from-purple-500 to-indigo-500">
-                  <Sparkles size={16} className="text-white" />
+                  <Zap size={16} className="text-white" />
                 </div>
                 <h2 className="text-lg font-bold text-gray-900">Assistente IA</h2>
               </div>
@@ -431,7 +431,7 @@ export default function NovidadesEditor() {
                   </>
                 ) : (
                   <>
-                    <Sparkles size={16} />
+                    <Zap size={16} />
                     Gerar Conteúdo
                   </>
                 )}

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import usePendingCounts from '../hooks/usePendingCounts';
-import { LayoutDashboard, Calendar, Package, FileText, CreditCard, Image, Settings, FolderOpen, LogOut, Camera, X, Users, Star, Receipt, FilePlus, Wrench, Instagram, MessageCircle, Upload, HardDrive, Zap, ScrollText, Plug, Mail, MapPin, PlusCircle, Newspaper } from 'lucide-react';
+import { LayoutDashboard, Calendar, Package, FileText, CreditCard, Image, Settings, FolderOpen, LogOut, Camera, X, Users, Star, Receipt, FilePlus, Wrench, Instagram, MessageCircle, Upload, HardDrive, Zap, ScrollText, Plug, Mail, MapPin, PlusCircle } from 'lucide-react';
 
 const ACCENT = '#EA580C';
 
@@ -37,7 +37,7 @@ const adminSections = [
   {
     label: 'Marketing',
     links: [
-      { to: '/admin/novidades', icon: Newspaper, label: 'Novidades' },
+      { to: '/admin/novidades', icon: FileText, label: 'Novidades' },
       { to: '/admin/feedback', icon: Star, label: 'Feedback' },
       { to: '/admin/instagram', icon: Instagram, label: 'Instagram' },
     ],

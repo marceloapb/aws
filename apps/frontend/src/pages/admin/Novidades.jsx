@@ -4,8 +4,8 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useToast } from '../../components/ui/Toast';
 import Modal from '../../components/ui/Modal';
 import {
-  Newspaper, Plus, Search, Edit, Trash2, Calendar,
-  Image, Clock, Loader2, Tag
+  FileText, Plus, Search, Edit2, Trash2, Calendar,
+  Image, Clock, Loader2
 } from 'lucide-react';
 
 const ACCENT = '#EA580C';
@@ -159,7 +159,7 @@ export default function Novidades() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
         <div className="flex items-center gap-3">
           <div className="p-2 rounded-lg" style={{ backgroundColor: ACCENT + '15' }}>
-            <Newspaper size={22} style={{ color: ACCENT }} />
+            <FileText size={22} style={{ color: ACCENT }} />
           </div>
           <h1 className="text-2xl font-bold text-gray-900">Novidades</h1>
           {posts.length > 0 && (
@@ -198,7 +198,7 @@ export default function Novidades() {
         </div>
       ) : posts.length === 0 ? (
         <div className="text-center py-20">
-          <Newspaper size={48} className="mx-auto text-gray-300 mb-4" />
+          <FileText size={48} className="mx-auto text-gray-300 mb-4" />
           <h3 className="text-lg font-semibold text-gray-600 mb-1">Nenhum post encontrado</h3>
           <p className="text-sm text-gray-400 mb-4">
             {search ? 'Tente buscar por outro termo.' : 'Crie seu primeiro post para começar.'}
@@ -262,7 +262,7 @@ export default function Novidades() {
                       </span>
                       {post.categoria && (
                         <span className="text-xs text-orange-600 flex items-center gap-1 bg-orange-50 px-2 py-0.5 rounded-full">
-                          <Tag size={10} />
+                          <span className="w-2 h-2 rounded-full bg-orange-500 inline-block"></span>
                           {post.categoria}
                         </span>
                       )}
@@ -276,7 +276,7 @@ export default function Novidades() {
                       className="p-2 rounded-lg hover:bg-gray-100 text-gray-500 hover:text-gray-700"
                       title="Editar"
                     >
-                      <Edit size={16} />
+                      <Edit2 size={16} />
                     </button>
                     {post.status === 'rascunho' && (
                       <button
