@@ -142,11 +142,36 @@ async function salvarAsaasCustomerId(clienteId, asaasCustomerId) {
 }
 
 // ═══════════════════════════════════════════════════════════════
+// CONFIGURAÇÕES DE PAGAMENTO — busca condições salvas no DynamoDB
+// ═══════════════════════════════════════════════════════════════
+
+async function getCondicoesPagamento() {
+  try {
+    const result = await dynamo.send(new GetCommand({
+      TableName: TABLE,
+      Key: { PK: `TENANT#${TENANT}`, SK: 'CONFIG#geral' },
+    }));
+    return result.Item?.condicoes_pagamento || [];
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Busca a condição padrão de pagamento ou a primeira disponível
+ */
+async function getCondicaoPadrao() {
+  const condicoes = await getCondicoesPagamento();
+  return condicoes.find(c => c.padrao) || condicoes[0] || null;
+}
+
+// ═══════════════════════════════════════════════════════════════
 // PAYMENT — Criar cobrança no Asaas
 // ═══════════════════════════════════════════════════════════════
 
 /**
  * Cria uma cobrança no Asaas e retorna link PIX/boleto
+ * Aplica configurações de pagamento (desconto, juros, parcelas) automaticamente
  * @param {Object} opts
  * @param {string} opts.asaas_customer_id - ID do customer no Asaas
  * @param {number} opts.valor - Valor em reais (ex: 425.33)
@@ -154,13 +179,21 @@ async function salvarAsaasCustomerId(clienteId, asaasCustomerId) {
  * @param {string} opts.descricao - Descrição da cobrança
  * @param {string} opts.meio - 'pix' | 'boleto' | 'cartao' (default: pix)
  * @param {string} opts.referencia - ID externo (cobranca_id do sistema)
- * @returns {Object} { gateway_id, status, link_pagamento, pix_copia_cola, pix_qr_code, boleto_url }
+ * @param {number} opts.parcelas - Nº de parcelas (se cartão)
+ * @param {Object} opts.condicao - Condição de pagamento específica (override)
+ * @returns {Object} { gateway_id, status, link_pagamento, pix_copia_cola, pix_qr_code, boleto_url, valor_cobrado }
  */
-async function criarCobrancaAsaas({ asaas_customer_id, valor, vencimento, descricao, meio = 'pix', referencia }) {
+async function criarCobrancaAsaas({ asaas_customer_id, valor, vencimento, descricao, meio = 'pix', referencia, parcelas, condicao }) {
+  // Buscar condição de pagamento se não foi passada
+  if (!condicao) {
+    condicao = await getCondicaoPadrao();
+  }
+
   const billingType = {
     pix: 'PIX',
     boleto: 'BOLETO',
     cartao: 'CREDIT_CARD',
+    credit_card: 'CREDIT_CARD',
     'Cartão Crédito': 'CREDIT_CARD',
     'Cartão Débito': 'PIX',
     PIX: 'PIX',
@@ -169,14 +202,54 @@ async function criarCobrancaAsaas({ asaas_customer_id, valor, vencimento, descri
     Dinheiro: 'UNDEFINED',
   }[meio] || 'PIX';
 
+  let valorCobrado = valor;
+
   const body = {
     customer: asaas_customer_id,
     billingType,
-    value: valor,
+    value: valorCobrado,
     dueDate: vencimento,
     description: descricao || 'Cobrança MBFoto',
     externalReference: referencia || '',
   };
+
+  // Aplicar configurações da condição de pagamento
+  if (condicao) {
+    // Desconto à vista (PIX/Boleto)
+    if ((billingType === 'PIX' || billingType === 'BOLETO') && condicao.desconto_avista > 0) {
+      const desconto = condicao.desconto_avista;
+      body.discount = {
+        value: desconto,
+        dueDateLimitDays: 0, // desconto só até o vencimento
+        type: 'PERCENTAGE',
+      };
+    }
+
+    // Juros por atraso
+    if (condicao.juros_parcela > 0) {
+      body.interest = { value: condicao.juros_parcela }; // % ao mês
+    }
+
+    // Multa por atraso (2% padrão)
+    body.fine = { value: 2 }; // 2% multa
+
+    // Parcelamento (cartão de crédito)
+    if (billingType === 'CREDIT_CARD') {
+      const numParcelas = parcelas || condicao.parcelas || 1;
+      if (numParcelas > 1) {
+        body.installmentCount = numParcelas;
+        // Se tem juros de parcela, calcular valor com juros
+        if (condicao.juros_parcela > 0) {
+          const taxa = condicao.juros_parcela / 100;
+          const valorComJuros = valor * (taxa * Math.pow(1 + taxa, numParcelas)) / (Math.pow(1 + taxa, numParcelas) - 1);
+          body.installmentValue = Math.ceil(valorComJuros * 100) / 100;
+          valorCobrado = body.installmentValue * numParcelas;
+        } else {
+          body.installmentValue = Math.ceil((valor / numParcelas) * 100) / 100;
+        }
+      }
+    }
+  }
 
   const payment = await asaasFetch('/payments', {
     method: 'POST',
@@ -190,6 +263,9 @@ async function criarCobrancaAsaas({ asaas_customer_id, valor, vencimento, descri
     pix_copia_cola: '',
     pix_qr_code: '',
     boleto_url: payment.bankSlipUrl || '',
+    valor_cobrado: valorCobrado,
+    desconto_aplicado: condicao?.desconto_avista || 0,
+    juros_aplicado: condicao?.juros_parcela || 0,
   };
 
   // Buscar QR Code PIX se aplicável
@@ -288,5 +364,7 @@ module.exports = {
   getOrCreateCustomer,
   criarCobrancaAsaas,
   enviarCobrancaParaAsaas,
+  getCondicoesPagamento,
+  getCondicaoPadrao,
   getConfig,
 };
