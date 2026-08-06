@@ -64,9 +64,30 @@ export default function GatewayConfig() {
 
   const loadConfig = async () => {
     try {
+      // Buscar config local (ativo, padrao, ambiente, credenciais locais)
       const res = await authFetch('/admin/configuracoes');
       const json = await res.json();
-      if (json.success && json.data?.gateways) setGateways(json.data.gateways);
+      if (json.success && json.data?.gateways) {
+        const localConfig = typeof json.data.gateways === 'string' ? JSON.parse(json.data.gateways) : json.data.gateways;
+        setGateways(localConfig);
+      }
+
+      // Buscar status real do SSM (configurado sim/não, ambiente)
+      const ssmRes = await authFetch('/admin/configuracoes/gateways');
+      const ssmJson = await ssmRes.json();
+      if (ssmJson.success && ssmJson.data) {
+        setGateways(prev => {
+          const updated = { ...prev };
+          for (const g of ssmJson.data) {
+            if (!updated[g.id]) updated[g.id] = {};
+            updated[g.id].configurado_ssm = g.configurado;
+            if (g.configurado && !updated[g.id].ambiente) updated[g.id].ambiente = g.ambiente;
+            if (g.ativo !== undefined) updated[g.id].ativo = g.ativo;
+            if (g.is_padrao) updated[g.id].is_padrao = g.is_padrao;
+          }
+          return updated;
+        });
+      }
     } catch {}
     setLoading(false);
   };
@@ -131,7 +152,10 @@ export default function GatewayConfig() {
   };
 
   const hasCredentials = (slug) => {
-    const creds = gateways[slug]?.credenciais;
+    const cfg = gateways[slug];
+    // Verificar se tem credenciais no SSM (prioridade) ou locais
+    if (cfg?.configurado_ssm) return true;
+    const creds = cfg?.credenciais;
     return creds && Object.values(creds).some(v => v);
   };
 
