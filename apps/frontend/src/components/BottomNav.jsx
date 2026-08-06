@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
-import { Home, Calendar, FileText, Users, MoreHorizontal, X, Package, FolderOpen, CreditCard, Image, Settings, Star, Wrench, MessageCircle, Receipt, Instagram, HardDrive } from 'lucide-react';
+import { Home, Calendar, FileText, Users, MoreHorizontal, X, Package, FolderOpen, CreditCard, Image, Settings, Star, Wrench, MessageCircle, Receipt, Instagram, HardDrive, Newspaper } from 'lucide-react';
 
 const ACCENT = '#EA580C';
 
@@ -18,6 +18,7 @@ const moreItems = [
   { to: '/admin/notas-fiscais', icon: Receipt, label: 'Notas Fiscais' },
   { to: '/admin/albuns', icon: Image, label: 'Álbuns' },
   { to: '/admin/equipamentos', icon: Wrench, label: 'Equipamentos' },
+  { to: '/admin/novidades', icon: Newspaper, label: 'Novidades' },
   { to: '/admin/feedback', icon: Star, label: 'Feedback' },
   { to: '/admin/instagram', icon: Instagram, label: 'Instagram' },
   { to: '/admin/whatsapp', icon: MessageCircle, label: 'WhatsApp' },
