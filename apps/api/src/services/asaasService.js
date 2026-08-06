@@ -98,9 +98,16 @@ async function getOrCreateCustomer(cliente) {
     name: cliente.nome || 'Cliente',
     email: cliente.email || undefined,
     cpfCnpj: cliente.cpf_cnpj ? cliente.cpf_cnpj.replace(/\D/g, '') : undefined,
-    mobilePhone: cliente.telefone ? cliente.telefone.replace(/\D/g, '') : undefined,
     externalReference: cliente.id,
   };
+
+  // Telefone: só enviar se for válido (10-11 dígitos)
+  if (cliente.telefone) {
+    const telLimpo = cliente.telefone.replace(/\D/g, '');
+    if (telLimpo.length >= 10 && telLimpo.length <= 11) {
+      body.mobilePhone = telLimpo;
+    }
+  }
 
   const result = await asaasFetch('/customers', {
     method: 'POST',
