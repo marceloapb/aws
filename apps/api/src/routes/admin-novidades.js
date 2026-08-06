@@ -198,6 +198,95 @@ router.delete('/categorias/:id', async (req, res) => {
 });
 
 // ═══════════════════════════════════════════════════════════════
+// IA — GERAR CONTEÚDO COM BEDROCK
+// ═══════════════════════════════════════════════════════════════
+
+router.post('/gerar-conteudo', async (req, res) => {
+  try {
+    const { necessidade, prompt_agente } = req.body;
+
+    if (!necessidade || !necessidade.trim()) {
+      return res.status(400).json({ success: false, message: 'necessidade é obrigatório' });
+    }
+
+    const { BedrockRuntimeClient, ConverseCommand } = require('@aws-sdk/client-bedrock-runtime');
+    const bedrock = new BedrockRuntimeClient({ region: 'us-east-1' });
+    const MODEL_ID = 'amazon.nova-micro-v1:0';
+
+    // Montar o prompt base com as instruções do agente e a necessidade do usuário
+    const systemPrompt = prompt_agente && prompt_agente.trim()
+      ? prompt_agente.trim()
+      : `Você é um redator profissional de blog para um fotógrafo brasileiro. 
+Crie conteúdo envolvente, informativo e bem estruturado em HTML.
+Use tags semânticas: <h2>, <h3>, <p>, <strong>, <em>, <ul>, <li>, <blockquote>.
+O tom deve ser profissional mas acessível.
+NÃO inclua tags <html>, <head>, <body> ou <style>. Apenas o conteúdo interno do artigo.`;
+
+    const userMessage = `Crie um post de blog completo sobre o seguinte tema/necessidade:
+
+"${necessidade.trim()}"
+
+Retorne o conteúdo em formato HTML bem estruturado, pronto para ser exibido em um blog.
+Inclua:
+- Um título sugerido (dentro de um comentário HTML <!-- TITULO: ... -->)
+- Um resumo de 1-2 frases (dentro de um comentário HTML <!-- RESUMO: ... -->)
+- O corpo do artigo em HTML com subtítulos, parágrafos, listas quando aplicável
+
+NÃO use markdown. Use APENAS HTML.`;
+
+    const command = new ConverseCommand({
+      modelId: MODEL_ID,
+      system: [{ text: systemPrompt }],
+      messages: [{ role: 'user', content: [{ text: userMessage }] }],
+      inferenceConfig: { maxTokens: 4000, temperature: 0.7, topP: 0.9 },
+    });
+
+    const response = await bedrock.send(command);
+    const generatedText = response.output.message.content[0].text.trim();
+
+    // Extrair titulo e resumo dos comentários HTML
+    let titulo = '';
+    let resumo = '';
+    let corpo_html = generatedText;
+
+    const tituloMatch = generatedText.match(/<!--\s*TITULO:\s*(.*?)\s*-->/i);
+    if (tituloMatch) {
+      titulo = tituloMatch[1].trim();
+      corpo_html = corpo_html.replace(tituloMatch[0], '').trim();
+    }
+
+    const resumoMatch = generatedText.match(/<!--\s*RESUMO:\s*(.*?)\s*-->/i);
+    if (resumoMatch) {
+      resumo = resumoMatch[1].trim();
+      corpo_html = corpo_html.replace(resumoMatch[0], '').trim();
+    }
+
+    res.json({
+      success: true,
+      data: {
+        titulo,
+        resumo,
+        corpo_html,
+      },
+    });
+  } catch (error) {
+    if (error.name === 'AccessDeniedException' || error.message?.includes('not authorized')) {
+      return res.status(503).json({
+        success: false,
+        message: 'Modelo de IA não habilitado. Verifique o Amazon Bedrock na região us-east-1.',
+      });
+    }
+    if (error.name === 'ThrottlingException') {
+      return res.status(429).json({
+        success: false,
+        message: 'Limite de requisições da IA atingido. Tente novamente em alguns segundos.',
+      });
+    }
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// ═══════════════════════════════════════════════════════════════
 // POSTS (NOVIDADES)
 // ═══════════════════════════════════════════════════════════════
 

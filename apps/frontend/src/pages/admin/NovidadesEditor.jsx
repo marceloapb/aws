@@ -5,7 +5,7 @@ import { useToast } from '../../components/ui/Toast';
 import RichTextEditor from '../../components/ui/RichTextEditor';
 import {
   ArrowLeft, Save, Send, Upload, Image, Loader2, X, Clock,
-  Tag, Plus, Eye
+  Tag, Plus, Eye, Sparkles
 } from 'lucide-react';
 
 const ACCENT = '#EA580C';
@@ -41,6 +41,12 @@ export default function NovidadesEditor() {
   });
 
   const [errors, setErrors] = useState({});
+
+  // IA
+  const [showAiModal, setShowAiModal] = useState(false);
+  const [aiNecessidade, setAiNecessidade] = useState('');
+  const [aiPrompt, setAiPrompt] = useState('');
+  const [aiGenerating, setAiGenerating] = useState(false);
 
   // Load categorias
   useEffect(() => {
@@ -210,6 +216,56 @@ export default function NovidadesEditor() {
     return await uploadImage(file);
   }, [uploadImage, toast]);
 
+  // AI content generation
+  const handleAiGenerate = async () => {
+    if (!aiNecessidade.trim()) {
+      toast.error('Descreva o que você precisa');
+      return;
+    }
+
+    try {
+      setAiGenerating(true);
+      const res = await authFetch('/admin/novidades/gerar-conteudo', {
+        method: 'POST',
+        body: JSON.stringify({
+          necessidade: aiNecessidade.trim(),
+          prompt_agente: aiPrompt.trim() || undefined,
+        }),
+      });
+      const json = await res.json();
+
+      if (res.ok && json.data) {
+        const { titulo, resumo, corpo_html } = json.data;
+
+        // Preencher campos se estiverem vazios (ou perguntar se quer substituir)
+        if (titulo && !form.titulo) {
+          handleChange('titulo', titulo);
+        }
+        if (resumo && !form.resumo) {
+          handleChange('resumo', resumo);
+        }
+        if (corpo_html) {
+          // Append ou substituir baseado se já tem conteúdo
+          if (form.corpo_html.trim()) {
+            handleChange('corpo_html', form.corpo_html + '\n' + corpo_html);
+          } else {
+            handleChange('corpo_html', corpo_html);
+          }
+        }
+
+        toast.success('Conteúdo gerado pela IA! Revise e ajuste conforme necessário.');
+        setShowAiModal(false);
+        setAiNecessidade('');
+      } else {
+        toast.error(json.message || 'Erro ao gerar conteúdo');
+      }
+    } catch {
+      toast.error('Erro de conexão com a IA');
+    } finally {
+      setAiGenerating(false);
+    }
+  };
+
   // Save post
   const handleSave = async (status) => {
     if (!validate()) return;
@@ -282,6 +338,14 @@ export default function NovidadesEditor() {
             </span>
           )}
           <button
+            onClick={() => setShowAiModal(true)}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium bg-gradient-to-r from-purple-500 to-indigo-500 text-white hover:from-purple-600 hover:to-indigo-600 shadow-sm transition-all"
+            title="Gerar conteúdo com IA"
+          >
+            <Sparkles size={14} />
+            <span className="hidden sm:inline">IA</span>
+          </button>
+          <button
             onClick={() => setShowPreview(!showPreview)}
             className={`p-2 rounded-lg transition-colors ${showPreview ? 'bg-orange-100 text-orange-700' : 'text-gray-500 hover:bg-gray-100 hover:text-gray-700'}`}
             title="Pré-visualizar"
@@ -290,6 +354,92 @@ export default function NovidadesEditor() {
           </button>
         </div>
       </div>
+
+      {/* AI Generation Modal */}
+      {showAiModal && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => !aiGenerating && setShowAiModal(false)}>
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg" onClick={e => e.stopPropagation()}>
+            {/* Modal header */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+              <div className="flex items-center gap-2">
+                <div className="p-1.5 rounded-lg bg-gradient-to-r from-purple-500 to-indigo-500">
+                  <Sparkles size={16} className="text-white" />
+                </div>
+                <h2 className="text-lg font-bold text-gray-900">Assistente IA</h2>
+              </div>
+              <button
+                onClick={() => !aiGenerating && setShowAiModal(false)}
+                className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Modal body */}
+            <div className="px-6 py-5 space-y-5">
+              {/* Campo: Necessidade */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                  O que você precisa? <span className="text-red-500">*</span>
+                </label>
+                <textarea
+                  value={aiNecessidade}
+                  onChange={(e) => setAiNecessidade(e.target.value)}
+                  rows={3}
+                  placeholder="Ex: Um post sobre formas de entrega das fotografias, explicando a galeria digital online e a opção de pendrive personalizado..."
+                  className="w-full px-4 py-3 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-purple-200 focus:border-transparent resize-none placeholder-gray-400"
+                />
+                <p className="text-xs text-gray-400 mt-1">Descreva o tema, assunto e o que quer comunicar no post.</p>
+              </div>
+
+              {/* Campo: Prompt do agente */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                  Instruções para a IA <span className="text-gray-400 font-normal">(opcional)</span>
+                </label>
+                <textarea
+                  value={aiPrompt}
+                  onChange={(e) => setAiPrompt(e.target.value)}
+                  rows={4}
+                  placeholder="Ex: Você é um fotógrafo profissional que escreve de forma pessoal e acolhedora. Use linguagem simples, direta e com exemplos práticos. Inclua seções com subtítulos..."
+                  className="w-full px-4 py-3 rounded-lg border border-gray-200 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-purple-200 focus:border-transparent resize-none placeholder-gray-400"
+                />
+                <p className="text-xs text-gray-400 mt-1">
+                  Defina o tom, estilo e formato. Se vazio, usa o padrão do sistema.
+                </p>
+              </div>
+            </div>
+
+            {/* Modal footer */}
+            <div className="flex items-center justify-between px-6 py-4 border-t border-gray-100 bg-gray-50 rounded-b-2xl">
+              <button
+                onClick={() => { setShowAiModal(false); }}
+                disabled={aiGenerating}
+                className="px-4 py-2 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-200 transition-colors disabled:opacity-50"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleAiGenerate}
+                disabled={aiGenerating || !aiNecessidade.trim()}
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium text-white bg-gradient-to-r from-purple-500 to-indigo-500 hover:from-purple-600 hover:to-indigo-600 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+              >
+                {aiGenerating ? (
+                  <>
+                    <Loader2 size={16} className="animate-spin" />
+                    Gerando...
+                  </>
+                ) : (
+                  <>
+                    <Sparkles size={16} />
+                    Gerar Conteúdo
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Main content area - two columns on large screens */}
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_300px] gap-6">
