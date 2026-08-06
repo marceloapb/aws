@@ -35,10 +35,8 @@ function CartaoForm({ cobrancaId, gatewayId, valor, authFetch, onSuccess }) {
           creditCardHolderInfo: {
             name: form.holderName,
             cpfCnpj: form.cpf.replace(/\D/g, ''),
-            postalCode: form.cep.replace(/\D/g, ''),
+            postalCode: form.cep.replace(/\D/g, '') || '00000000',
             addressNumber: form.addressNumber || '0',
-            email: '',
-            phone: '',
           },
         }),
       });

@@ -89,6 +89,11 @@ router.post('/:id/pagar-cartao', async (req, res) => {
     const { getConfig } = require('../services/asaasService');
     const config = await getConfig();
 
+    // Injetar email do usuário logado no holderInfo (Asaas exige)
+    if (creditCardHolderInfo) {
+      creditCardHolderInfo.email = creditCardHolderInfo.email || req.clienteEmail || req.user?.email || 'cliente@mbfoto.com.br';
+    }
+
     const response = await fetch(`${config.baseUrl}/payments/${cobranca.gateway_id}/payWithCreditCard`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'access_token': config.apiKey },
