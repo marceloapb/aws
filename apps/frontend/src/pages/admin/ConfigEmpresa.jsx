@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useSearchParams } from 'react-router-dom';
-import { Settings, Save, Building2, Image, Receipt } from 'lucide-react';
+import { Settings, Save, Building2, Image, Receipt, CreditCard } from 'lucide-react';
 import ConfigDadosEmpresa from '../../components/ConfigDadosEmpresa';
 import ConfigPrazos from '../../components/ConfigPrazos';
 import ConfigBackup from '../../components/ConfigBackup';
+import ConfigPagamento from '../../components/ConfigPagamento';
 import AlbumConfigContent from './AlbumConfig';
 import NfseConfigContent from './NfseConfig';
 
@@ -12,6 +13,7 @@ const ACCENT = '#EA580C';
 
 const TABS = [
   { key: 'empresa', label: 'Empresa', icon: Building2 },
+  { key: 'pagamentos', label: 'Pagamentos', icon: CreditCard },
   { key: 'albuns', label: 'Álbuns', icon: Image },
   { key: 'nfse', label: 'NFS-e', icon: Receipt },
 ];
@@ -240,6 +242,7 @@ export default function ConfigEmpresa() {
         </>
       )}
 
+      {tab === 'pagamentos' && <ConfigPagamento form={form} setForm={setForm} />}
       {tab === 'albuns' && <AlbumConfigContent />}
       {tab === 'nfse' && <NfseConfigContent />}
     </div>
