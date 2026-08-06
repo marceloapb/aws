@@ -5,7 +5,7 @@ import { useToast } from '../../components/ui/Toast';
 import RichTextEditor from '../../components/ui/RichTextEditor';
 import {
   ArrowLeft, Save, Send, Upload, Image, Loader2, X, Clock,
-  Tag, Plus, Eye, Zap
+  Tag, Plus, Eye
 } from 'lucide-react';
 
 const ACCENT = '#EA580C';
@@ -343,7 +343,7 @@ export default function NovidadesEditor() {
             style={{ backgroundColor: '#7C3AED' }}
             title="Gerar conteúdo com IA"
           >
-            <Zap size={14} />
+            <span role="img" aria-label="ia">⚡</span>
             <span>IA</span>
           </button>
           <button
@@ -364,7 +364,7 @@ export default function NovidadesEditor() {
             <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
               <div className="flex items-center gap-2">
                 <div className="p-1.5 rounded-lg" style={{ backgroundColor: '#7C3AED' }}>
-                  <Zap size={16} className="text-white" />
+                  <span className="text-white text-sm">⚡</span>
                 </div>
                 <h2 className="text-lg font-bold text-gray-900">Assistente IA</h2>
               </div>
@@ -433,7 +433,7 @@ export default function NovidadesEditor() {
                   </>
                 ) : (
                   <>
-                    <Zap size={16} />
+                    <span role="img" aria-label="ia">⚡</span>
                     Gerar Conteúdo
                   </>
                 )}
@@ -663,7 +663,7 @@ export default function NovidadesEditor() {
               className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium text-white shadow-sm transition-all hover:opacity-90"
               style={{ backgroundColor: '#7C3AED' }}
             >
-              <Zap size={16} />
+              <span role="img" aria-label="ia">⚡</span>
               Gerar com IA
             </button>
 
