@@ -367,4 +367,5 @@ module.exports = {
   getCondicoesPagamento,
   getCondicaoPadrao,
   getConfig,
+  _clearCache: () => { cachedConfig = null; },
 };

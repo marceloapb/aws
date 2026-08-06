@@ -101,10 +101,33 @@ export default function GatewayConfig() {
     setModal(provider);
   };
 
-  const saveModal = () => {
-    const updated = { ...gateways, [modal.slug]: { ...gateways[modal.slug], ambiente: modalForm.ambiente, credenciais: modalForm.credenciais } };
-    saveGateways(updated);
-    setModal(null);
+  const saveModal = async () => {
+    setSaving(true);
+    try {
+      // 1. Salvar credenciais no SSM
+      const credRes = await authFetch(`/admin/configuracoes/gateways/${modal.slug}/credenciais`, {
+        method: 'PUT',
+        body: JSON.stringify({ credenciais: modalForm.credenciais, ambiente: modalForm.ambiente }),
+      });
+      const credData = await credRes.json();
+      if (!credData.success) { setMsg(credData.message || 'Erro ao salvar credenciais'); setSaving(false); return; }
+
+      // 2. Salvar config local (ativo, padrao, ambiente)
+      const updated = { ...gateways, [modal.slug]: { ...gateways[modal.slug], ambiente: modalForm.ambiente, credenciais: modalForm.credenciais } };
+      await saveGateways(updated);
+      setMsg('Credenciais salvas no cofre (SSM) com sucesso!');
+      setModal(null);
+    } catch (err) { setMsg('Erro: ' + err.message); }
+    setSaving(false);
+  };
+
+  const testConnection = async (slug) => {
+    try {
+      const r = await authFetch(`/admin/configuracoes/gateways/${slug}/testar`, { method: 'POST' });
+      const d = await r.json();
+      if (d.success) alert('✅ ' + d.message);
+      else alert('❌ ' + d.message);
+    } catch (err) { alert('Erro: ' + err.message); }
   };
 
   const hasCredentials = (slug) => {
@@ -286,7 +309,7 @@ export default function GatewayConfig() {
 
             {/* Actions */}
             <div className="flex gap-2 pt-2">
-              <button onClick={() => alert('Teste de conexão em breve!')} className="flex-1 border border-gray-200 rounded-lg px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
+              <button onClick={() => testConnection(modal.slug)} className="flex-1 border border-gray-200 rounded-lg px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
                 Testar Conexão
               </button>
               <button onClick={saveModal} disabled={saving} style={{ background: ACCENT }}
