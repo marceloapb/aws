@@ -339,7 +339,8 @@ export default function NovidadesEditor() {
           )}
           <button
             onClick={() => setShowAiModal(true)}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium bg-gradient-to-r from-purple-500 to-indigo-500 text-white hover:from-purple-600 hover:to-indigo-600 shadow-sm transition-all"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium text-white shadow-sm transition-all hover:opacity-90"
+            style={{ backgroundColor: '#7C3AED' }}
             title="Gerar conteúdo com IA"
           >
             <Zap size={14} />
@@ -362,7 +363,7 @@ export default function NovidadesEditor() {
             {/* Modal header */}
             <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
               <div className="flex items-center gap-2">
-                <div className="p-1.5 rounded-lg bg-gradient-to-r from-purple-500 to-indigo-500">
+                <div className="p-1.5 rounded-lg" style={{ backgroundColor: '#7C3AED' }}>
                   <Zap size={16} className="text-white" />
                 </div>
                 <h2 className="text-lg font-bold text-gray-900">Assistente IA</h2>
@@ -387,7 +388,7 @@ export default function NovidadesEditor() {
                   onChange={(e) => setAiNecessidade(e.target.value)}
                   rows={3}
                   placeholder="Ex: Um post sobre formas de entrega das fotografias, explicando a galeria digital online e a opção de pendrive personalizado..."
-                  className="w-full px-4 py-3 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-purple-200 focus:border-transparent resize-none placeholder-gray-400"
+                  className="w-full px-4 py-3 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-orange-200 focus:border-transparent resize-none placeholder-gray-400"
                 />
                 <p className="text-xs text-gray-400 mt-1">Descreva o tema, assunto e o que quer comunicar no post.</p>
               </div>
@@ -402,7 +403,7 @@ export default function NovidadesEditor() {
                   onChange={(e) => setAiPrompt(e.target.value)}
                   rows={4}
                   placeholder="Ex: Você é um fotógrafo profissional que escreve de forma pessoal e acolhedora. Use linguagem simples, direta e com exemplos práticos. Inclua seções com subtítulos..."
-                  className="w-full px-4 py-3 rounded-lg border border-gray-200 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-purple-200 focus:border-transparent resize-none placeholder-gray-400"
+                  className="w-full px-4 py-3 rounded-lg border border-gray-200 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-orange-200 focus:border-transparent resize-none placeholder-gray-400"
                 />
                 <p className="text-xs text-gray-400 mt-1">
                   Defina o tom, estilo e formato. Se vazio, usa o padrão do sistema.
@@ -422,7 +423,8 @@ export default function NovidadesEditor() {
               <button
                 onClick={handleAiGenerate}
                 disabled={aiGenerating || !aiNecessidade.trim()}
-                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium text-white bg-gradient-to-r from-purple-500 to-indigo-500 hover:from-purple-600 hover:to-indigo-600 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium text-white shadow-sm disabled:opacity-50 disabled:cursor-not-allowed transition-all hover:opacity-90"
+                style={{ backgroundColor: '#7C3AED' }}
               >
                 {aiGenerating ? (
                   <>
@@ -658,7 +660,8 @@ export default function NovidadesEditor() {
             {/* Botão IA - Gerar Conteúdo */}
             <button
               onClick={() => setShowAiModal(true)}
-              className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium text-white bg-gradient-to-r from-purple-500 to-indigo-500 hover:from-purple-600 hover:to-indigo-600 shadow-sm transition-all"
+              className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium text-white shadow-sm transition-all hover:opacity-90"
+              style={{ backgroundColor: '#7C3AED' }}
             >
               <Zap size={16} />
               Gerar com IA
