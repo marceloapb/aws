@@ -6,6 +6,7 @@ const router = Router();
 
 router.get('/', async (req, res) => {
   try {
+    // Buscar via GSI1 (COBRANCA) com filtro cliente_id
     const result = await dynamo.send(new QueryCommand({
       TableName: TABLE,
       IndexName: 'GSI1',
@@ -13,7 +14,19 @@ router.get('/', async (req, res) => {
       FilterExpression: 'cliente_id = :cid',
       ExpressionAttributeValues: { ':pk': 'COBRANCA', ':cid': req.clienteId },
     }));
-    const items = (result.Items || []).sort((a, b) => (b.created || '').localeCompare(a.created || ''));
+    let items = result.Items || [];
+
+    // Fallback: buscar direto por PK (CLIENTE#id / COBRANCA#)
+    if (items.length === 0) {
+      const directResult = await dynamo.send(new QueryCommand({
+        TableName: TABLE,
+        KeyConditionExpression: 'PK = :pk AND begins_with(SK, :sk)',
+        ExpressionAttributeValues: { ':pk': `CLIENTE#${req.clienteId}`, ':sk': 'COBRANCA#' },
+      }));
+      items = directResult.Items || [];
+    }
+
+    items.sort((a, b) => (a.vencimento || '').localeCompare(b.vencimento || ''));
     res.json({ success: true, data: items });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
