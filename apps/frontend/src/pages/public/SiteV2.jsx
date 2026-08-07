@@ -629,17 +629,24 @@ export default function SiteV2() {
       .then(json => setDepoimentos(json.data || []))
       .catch(() => {});
 
-    // Try to load portfolio
-    fetch(`${API}/public/portfolio/recent?limit=8`)
+    // Load portfolio (same endpoint as v1)
+    fetch(`${API}/public/portfolio`)
       .then(r => r.json())
       .then(json => {
-        if (json.data && json.data.length > 0) {
-          setPortfolioData(json.data.map((f, i) => ({
-            id: i + 1,
-            category: f.categoria || 'Fotografia',
-            title: f.titulo || `Foto ${i + 1}`,
-            img: f.url || f.thumb_url || f,
-          })));
+        const portfolio = json.data || json;
+        if (portfolio?.categorias && portfolio.categorias.length > 0) {
+          const allFotos = [];
+          portfolio.categorias.forEach(cat => {
+            (cat.fotos || []).forEach((f, i) => {
+              allFotos.push({
+                id: `${cat.id}-${i}`,
+                category: cat.nome,
+                title: f.titulo || cat.nome,
+                img: f.url || f.thumb_url || '',
+              });
+            });
+          });
+          setPortfolioData(allFotos);
         }
       })
       .catch(() => {});
