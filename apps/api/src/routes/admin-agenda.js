@@ -172,7 +172,7 @@ router.put('/:id', async (req, res) => {
       }
     }
 
-    // Disparar eventos de mudança de status (confirmado/realizado)
+    // Disparar eventos de mudança de status (confirmado/realizado/cancelado)
     const clienteId = evento.cliente_id || dados.cliente_id;
     if (clienteId && dados.status && dados.status !== evento.status) {
       try {
@@ -191,9 +191,47 @@ router.put('/:id', async (req, res) => {
             descricao: `Evento realizado – ${evento.tipo_evento || evento.titulo || 'Sessão'} em ${evento.data_evento || ''}`,
             metadata: { evento_id: evento.id, tipo_evento: evento.tipo_evento, data_evento: evento.data_evento },
           });
+        } else if (dados.status === 'cancelado') {
+          await registrarEvento({
+            cliente_id: clienteId,
+            tipo: 'evento_cancelado',
+            descricao: `Evento cancelado – ${evento.tipo_evento || evento.titulo || 'Sessão'} que estava agendado para ${evento.data_evento || ''}`,
+            metadata: { evento_id: evento.id, tipo_evento: evento.tipo_evento, data_evento: evento.data_evento },
+          });
         }
       } catch (evtErr) {
         console.error('[AGENDA] Erro ao registrar evento de status:', evtErr.message);
+      }
+    }
+
+    // Disparar evento de reagendamento se data ou horário mudou
+    if (clienteId && !dados.status) {
+      const dataAnterior = evento.data_evento;
+      const horarioAnterior = evento.horario_inicio || evento.time;
+      const novaData = dados.data_evento;
+      const novoHorario = dados.horario_inicio || dados.time;
+      const dataMudou = novaData && novaData !== dataAnterior;
+      const horarioMudou = novoHorario && novoHorario !== horarioAnterior;
+
+      if (dataMudou || horarioMudou) {
+        try {
+          const { registrarEvento } = require('../services/clienteHistoricoService');
+          await registrarEvento({
+            cliente_id: clienteId,
+            tipo: 'evento_reagendado',
+            descricao: `Evento reagendado – ${evento.tipo_evento || evento.titulo || 'Sessão'} de ${dataAnterior || '?'}${horarioAnterior ? ' ' + horarioAnterior : ''} para ${novaData || dataAnterior || '?'}${novoHorario ? ' ' + novoHorario : (horarioAnterior ? ' ' + horarioAnterior : '')}`,
+            metadata: {
+              evento_id: evento.id,
+              tipo_evento: evento.tipo_evento,
+              data_anterior: dataAnterior,
+              horario_anterior: horarioAnterior,
+              data_nova: novaData || dataAnterior,
+              horario_novo: novoHorario || horarioAnterior,
+            },
+          });
+        } catch (evtErr) {
+          console.error('[AGENDA] Erro ao registrar evento_reagendado:', evtErr.message);
+        }
       }
     }
 
@@ -260,6 +298,27 @@ router.delete('/:id', async (req, res) => {
 
     if (features.googleCalendar && evento.google_event_id) {
       try { await excluirEvento(evento.google_event_id); } catch (e) { console.error('[AGENDA] Erro ao excluir do Google:', e.message); }
+    }
+
+    // Notificar cliente sobre cancelamento antes de deletar
+    const clienteId = evento.cliente_id;
+    if (clienteId) {
+      try {
+        const { registrarEvento } = require('../services/clienteHistoricoService');
+        await registrarEvento({
+          cliente_id: clienteId,
+          tipo: 'evento_cancelado',
+          descricao: `Evento cancelado – ${evento.tipo_evento || evento.titulo || 'Sessão'} que estava agendado para ${evento.data_evento || ''}`,
+          metadata: {
+            evento_id: evento.id,
+            tipo_evento: evento.tipo_evento,
+            data_evento: evento.data_evento,
+            horario: evento.horario_inicio || evento.time || '',
+          },
+        });
+      } catch (evtErr) {
+        console.error('[AGENDA] Erro ao registrar evento_cancelado:', evtErr.message);
+      }
     }
 
     await dynamo.send(new DeleteCommand({ TableName: TABLE, Key: { PK: evento.PK, SK: evento.SK } }));

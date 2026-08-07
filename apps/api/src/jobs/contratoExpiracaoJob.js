@@ -88,7 +88,7 @@ exports.handler = async (event) => {
 };
 
 /**
- * Marca contrato como expirado
+ * Marca contrato como expirado e notifica cliente + admin
  */
 async function expirarContrato(contrato) {
   await docClient.send(new UpdateCommand({
@@ -102,6 +102,26 @@ async function expirarContrato(contrato) {
     },
   }));
 
+  // Notificar que contrato expirou (admin + cliente via dispatcher)
+  try {
+    const { processarEvento } = require('../services/notificationDispatcher');
+    const crypto = require('crypto');
+    await processarEvento({
+      evento_id: crypto.randomUUID(),
+      tipo_evento: 'contrato_expirado',
+      tenant_id: process.env.TENANT_ID || '1',
+      dados: {
+        cliente_id: contrato.cliente_id,
+        cliente_nome: contrato.cliente_nome || '',
+        tipo_evento: contrato.tipo_evento || contrato.evento_nome || 'evento',
+        contrato_id: contrato.id,
+      },
+    });
+    logger.info({ action: 'contrato_expirado_notificacao_enviada', contratoId: contrato.id });
+  } catch (notifErr) {
+    logger.error({ action: 'contrato_expirado_notificacao_erro', contratoId: contrato.id, error: notifErr.message });
+  }
+
   logger.info({
     action: 'contrato_expirado',
     contratoId: contrato.id,
@@ -111,7 +131,7 @@ async function expirarContrato(contrato) {
 }
 
 /**
- * Marca que lembrete foi enviado (para não duplicar)
+ * Marca que lembrete foi enviado e ENVIA notificação real ao cliente
  */
 async function marcarLembreteEnviado(contrato) {
   await docClient.send(new UpdateCommand({
@@ -123,6 +143,27 @@ async function marcarLembreteEnviado(contrato) {
       ':le': new Date().toISOString(),
     },
   }));
+
+  // Enviar notificação real ao cliente (WhatsApp + Email via dispatcher)
+  try {
+    const { processarEvento } = require('../services/notificationDispatcher');
+    const crypto = require('crypto');
+    await processarEvento({
+      evento_id: crypto.randomUUID(),
+      tipo_evento: 'contrato_expirando',
+      tenant_id: process.env.TENANT_ID || '1',
+      dados: {
+        cliente_id: contrato.cliente_id,
+        cliente_nome: contrato.cliente_nome || '',
+        tipo_evento: contrato.tipo_evento || contrato.evento_nome || 'evento',
+        horas_restantes: String(Math.round(HORAS_PARA_EXPIRAR - ((new Date().getTime() - new Date(contrato.enviado_em).getTime()) / (1000 * 60 * 60)))),
+        contrato_id: contrato.id,
+      },
+    });
+    logger.info({ action: 'contrato_lembrete_notificacao_enviada', contratoId: contrato.id });
+  } catch (notifErr) {
+    logger.error({ action: 'contrato_lembrete_notificacao_erro', contratoId: contrato.id, error: notifErr.message });
+  }
 
   logger.info({
     action: 'contrato_lembrete_marcado',

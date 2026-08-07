@@ -179,6 +179,10 @@ async function despacharCanal(canal, regra, evento, dados) {
           titulo: `Novo Orçamento Solicitado`,
           mensagem: `${dados.cliente_nome || 'Um cliente'} solicitou orçamento para ${dados.tipo_evento || dados.nome_evento || 'evento'}. Data: ${dados.data_evento ? new Date(dados.data_evento + 'T00:00').toLocaleDateString('pt-BR') : 'a definir'}. Acesse o sistema para montar a proposta.`,
         },
+        'orcamento_pronto': {
+          titulo: `Seu Orçamento está Pronto!`,
+          mensagem: `Olá ${dados.cliente_nome || 'Cliente'}! Seu orçamento para ${dados.tipo_evento || 'o evento'} está pronto para visualização. Acesse seu portal para conferir os detalhes e aprovar.`,
+        },
         'contrato_enviado': {
           titulo: `Contrato Enviado para Assinatura`,
           mensagem: `O contrato de ${dados.cliente_nome || 'cliente'} para ${dados.tipo_evento || 'o evento'} foi enviado e aguarda assinatura digital.`,
@@ -186,6 +190,14 @@ async function despacharCanal(canal, regra, evento, dados) {
         'contrato_assinado': {
           titulo: `Contrato Assinado com Sucesso!`,
           mensagem: `${dados.cliente_nome || 'O cliente'} assinou o contrato para ${dados.tipo_evento || 'o evento'}. Tudo certo para seguir com o planejamento!`,
+        },
+        'contrato_expirando': {
+          titulo: `Contrato Expirando em Breve!`,
+          mensagem: `Olá ${dados.cliente_nome || 'Cliente'}! Seu contrato para ${dados.tipo_evento || 'o evento'} expira em ${dados.horas_restantes || '24'} horas. Assine agora para garantir seu agendamento!`,
+        },
+        'contrato_expirado': {
+          titulo: `Contrato Expirado`,
+          mensagem: `O contrato de ${dados.cliente_nome || 'cliente'} para ${dados.tipo_evento || 'o evento'} expirou sem assinatura. É necessário reenviar caso deseje prosseguir.`,
         },
         'pagamento_confirmado': {
           titulo: `Pagamento Confirmado!`,
@@ -211,6 +223,14 @@ async function despacharCanal(canal, regra, evento, dados) {
           titulo: `Evento Realizado!`,
           mensagem: `O evento de ${dados.cliente_nome || 'cliente'} (${dados.tipo_evento || 'sessão'}) foi marcado como realizado. Próximos passos: edição e entrega.`,
         },
+        'evento_reagendado': {
+          titulo: `Evento Reagendado`,
+          mensagem: `Olá ${dados.cliente_nome || 'Cliente'}! Seu evento (${dados.tipo_evento || 'sessão'}) foi reagendado de ${dados.data_anterior ? new Date(dados.data_anterior + 'T00:00').toLocaleDateString('pt-BR') : '—'}${dados.horario_anterior ? ' às ' + dados.horario_anterior : ''} para ${dados.data_nova ? new Date(dados.data_nova + 'T00:00').toLocaleDateString('pt-BR') : '—'}${dados.horario_novo ? ' às ' + dados.horario_novo : ''}.`,
+        },
+        'evento_cancelado': {
+          titulo: `Evento Cancelado`,
+          mensagem: `Olá ${dados.cliente_nome || 'Cliente'}! Informamos que o evento (${dados.tipo_evento || 'sessão'}) agendado para ${dados.data_evento ? new Date(dados.data_evento + 'T00:00').toLocaleDateString('pt-BR') : '—'} foi cancelado. Entre em contato caso tenha dúvidas.`,
+        },
         'feedback_respondido': {
           titulo: `Novo Feedback Recebido`,
           mensagem: `${dados.cliente_nome || 'Um cliente'} respondeu a pesquisa de satisfação. Confira a avaliação no sistema.`,
@@ -223,9 +243,9 @@ async function despacharCanal(canal, regra, evento, dados) {
           titulo: `Álbum Expirando!`,
           mensagem: `O álbum "${dados.titulo || dados.album_titulo || 'Fotos'}" de ${dados.cliente_nome || 'cliente'} expira em ${dados.dias_restantes || '3'} dias. Baixe suas fotos antes que o link expire!`,
         },
-        'orcamento_solicitado': {
-          titulo: `Novo Orçamento Solicitado`,
-          mensagem: `${dados.cliente_nome || 'Um cliente'} solicitou orçamento para ${dados.tipo_evento || dados.nome_evento || 'evento'}. Data: ${dados.data_evento ? new Date(dados.data_evento + 'T00:00').toLocaleDateString('pt-BR') : 'a definir'}. Acesse o sistema para montar a proposta.`,
+        'nfse_emitida': {
+          titulo: `Nota Fiscal Emitida`,
+          mensagem: `Olá ${dados.cliente_nome || 'Cliente'}! Sua Nota Fiscal de Serviço${dados.numero_nf ? ' nº ' + dados.numero_nf : ''} no valor de R$ ${dados.valor ? Number(dados.valor).toLocaleString('pt-BR', { minimumFractionDigits: 2 }) : '—'} foi emitida com sucesso.`,
         },
       };
 
@@ -259,16 +279,21 @@ async function despacharCanal(canal, regra, evento, dados) {
         'orcamento_pronto': 'mbf_orcamento_pronto_link_img',
         'contrato_enviado': 'mbf_contrato_assinatura_link_img',
         'contrato_assinado': 'mbf_contrato_assinado_img',
+        'contrato_expirando': 'mbf_notificacao_geral_img',
+        'contrato_expirado': 'mbf_notificacao_geral_img',
         'pagamento_confirmado': 'mbf_pagamento_confirmado_img',
         'pagamento_vencido': 'mbf_pagamento_vencido_link_img',
         'album_publicado': 'mbf_fotos_prontas_link_img',
         'evento_confirmado': 'mbf_evento_confirmado_img',
         'evento_criado': 'mbf_notificacao_geral_img',
         'evento_realizado': 'mbf_notificacao_geral_img',
+        'evento_reagendado': 'mbf_notificacao_geral_img',
+        'evento_cancelado': 'mbf_notificacao_geral_img',
         'album_baixado': 'mbf_notificacao_geral_img',
         'feedback_respondido': 'mbf_feedback_img',
         'solicitar_feedback': 'mbf_feedback_link_img',
         'mensagem_recebida': 'mbf_notificacao_geral_img',
+        'nfse_emitida': 'mbf_notificacao_geral_img',
       };
 
       const templateName = regra.whatsapp_template || templatePorEvento[evento.tipo_evento] || 'mbf_notificacao_geral_img';
