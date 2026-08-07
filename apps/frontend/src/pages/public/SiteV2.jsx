@@ -775,7 +775,7 @@ export default function SiteV2() {
           ))}
         </div>
 
-        <span className="hidden sm:block font-mono text-[9px] tracking-widest uppercase" style={{ color: '#8a8a8a' }}>© 2026 Marcelo Bloise Fotografia. Todos os direitos reservados.</span>
+        <span className="hidden sm:block font-mono text-[11px] tracking-widest uppercase" style={{ color: '#8a8a8a' }}>© 2026 Marcelo Bloise Fotografia. Todos os direitos reservados.</span>
       </footer>
 
       {/* Google Font */}
