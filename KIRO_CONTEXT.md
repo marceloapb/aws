@@ -49,12 +49,12 @@ apps/
 │   │   ├── handler.js          # Lambda handler (serverless-express)
 │   │   ├── config/             # env.js, dynamodb.js, constants.js
 │   │   ├── routes/             # admin-*, client-*, public, webhooks
-│   │   ├── services/           # lógica de negócio
-│   │   ├── jobs/               # scheduled jobs (EventBridge)
-│   │   ├── functions/          # Lambda functions isoladas
-│   │   ├── lib/                # clients (instagram, whatsapp, gateway)
-│   │   ├── middlewares/        # auth, error handler
-│   │   ├── adapters/           # gateways de pagamento
+│   │   ├── services/           # lógica de negócio (notificationDispatcher, followupService, etc)
+│   │   ├── jobs/               # scheduled jobs (EventBridge): contratoExpiracao, followUp, whatsappReminder, calendarSync, orphanCleanup, albumRetention, instagramPublisher
+│   │   ├── functions/          # Lambda functions isoladas (media processing, webhooks)
+│   │   ├── lib/                # clients (instagram, whatsapp, gateway, nf)
+│   │   ├── middlewares/        # auth, error handler, validateFields
+│   │   ├── adapters/           # gateways de pagamento + notificacoes (emailAdapter, whatsappAdapter)
 │   │   └── utils/
 │   ├── template.yaml           # SAM template (CloudFormation)
 │   └── samconfig.toml          # SAM deploy config
@@ -62,9 +62,10 @@ apps/
 │   ├── src/
 │   │   ├── App.js              # Rotas React Router
 │   │   ├── components/         # Sidebar, Layout, ConfigXxx, UI
-│   │   ├── pages/admin/        # Dashboard, Agenda, Clientes, etc.
-│   │   ├── pages/cliente/      # Portal do cliente
-│   │   ├── pages/public/       # Landing page
+│   │   ├── pages/admin/        # Dashboard, Agenda, Clientes, SiteBuilder, etc.
+│   │   ├── pages/admin/site-builder/  # AIAssistant, AIFieldHelper, BlockPreview, LivePreview
+│   │   ├── pages/cliente/      # Portal do cliente (MeusAditivos, ProrrogacaoPage, etc)
+│   │   ├── pages/public/       # Site público (SitePage, HomePage, Portfolio, Novidades)
 │   │   ├── contexts/           # AuthContext (Cognito)
 │   │   ├── hooks/
 │   │   ├── utils/
@@ -76,24 +77,42 @@ apps/
 ## Funcionalidades implementadas
 - Dashboard com KPIs e pendências
 - Agenda (integração Google Calendar)
-- Clientes (CRUD + histórico)
-- Orçamentos (criação, envio, aprovação)
-- Contratos (geração, assinatura)
+- Clientes (CRUD + histórico + deleção com cascata)
+- Orçamentos (criação, envio, aprovação + notificação IA)
+- Contratos (geração, assinatura + notificação de expiração)
 - Financeiro (cobranças, parcelas)
 - Álbuns de fotos (upload S3, entrega CloudFront com signed URLs)
 - Catálogo de serviços
 - Follow-up automatizado
 - WhatsApp (Meta Cloud API)
 - Instagram (Meta Graph API — publicação automática)
-- Notificações (e-mail SES + in-app)
+- Notificações (e-mail SES + WhatsApp + in-app) — cobertura completa de todos os eventos
 - Equipamentos
-- Notas Fiscais
+- Notas Fiscais (NFS-e SP + Nacional)
 - Aditivos contratuais
 - Import CSV
 - Feedback de clientes
 - Gateways de pagamento: Asaas, Stripe, MercadoPago, Pagarme, PagBank, PicPay, SumUp, Banco Inter, Stone, InfinitePay
-- Portal do cliente (álbuns, contratos, orçamentos, pagamentos)
+- Portal do cliente (álbuns, contratos, orçamentos, pagamentos, aditivos, prorrogação)
 - Tela de logs de integrações com botão de teste
+- **Site Builder com IA** (Amazon Bedrock):
+  - Editor visual split view com preview ao vivo (desktop/mobile)
+  - Blocos drag-and-drop: hero, text, gallery, testimonials, cta, faq, video, separator, services
+  - Templates prontos (Minimalista, Editorial, Bold, Clean, Elegante)
+  - Assistente IA (chat flutuante) — cria páginas inteiras a partir de descrição
+  - Geração IA por campo (titulo, subtitulo, conteudo, botão) com 6 estilos
+  - Reescrita IA de textos existentes
+  - Geração automática de FAQ e Serviços com IA
+  - SEO automático com IA (meta title + description)
+  - API: /admin/site/ai com 8 endpoints (generate-text, generate-faq, generate-services, generate-seo, rewrite, generate-page, suggest-blocks, chat)
+- **Sistema de notificações completo**:
+  - Dispatcher baseado em regras (DynamoDB REGRA_NTF#)
+  - Canais: inapp, email (SES), whatsapp (Meta Cloud API)
+  - 35+ regras ativas cobrindo todos os eventos de negócio
+  - Eventos cobertos: orcamento_solicitado/criado/pronto/enviado/aceito/recusado, contrato_enviado/assinado/expirando/expirado, pagamento_confirmado/vencido, evento_criado/confirmado/realizado/reagendado/cancelado, album_publicado/expirando/baixado, feedback_respondido/solicitar_feedback, nfse_emitida, mensagem_recebida
+  - Follow-up automático com régua configurável (escalação email→whatsapp)
+  - Opt-out por cliente (bloquear_notificacoes)
+  - Log de entregas com filtros por canal/status/tipo
 
 ## CI/CD (GitHub Actions)
 - Workflow: `.github/workflows/deploy.yml`
@@ -130,20 +149,12 @@ apps/
 - Não perguntar sobre cache do navegador ou se o deploy está no lugar certo — confia no processo
 
 ## Pendências / Próximas implementações
-- **Templates de E-mail**: criar aba em Configurações > E-mails com:
-  - Nome do remetente configurável (na tela Integrações)
-  - Editor visual (tipo o do contrato) para cada template
-  - Logo da empresa no cabeçalho de todos os e-mails
-  - Templates para: contrato assinatura, orçamento novo, álbum publicado, lembrete pagamento, boas-vindas, follow-up, notificação geral
-  - Variáveis dinâmicas disponíveis em cada template
-  - O SES_FROM_EMAIL está em SSM (/mbf/prod/SES_FROM_EMAIL = contato@bloise.com.br)
-  - Domínio verificado no SES: bloise.com.br
+- **NFS-e**: Aguardando correção bug SEFIN Nacional (E0714 com declaração XML). Alternativa: API intermediária (Nuvem Fiscal).
 
 ## Problemas conhecidos
 - Despesas recorrentes: o POST funciona mas precisa testar se está gravando
 - Modelo Bedrock para texto (amazon.nova-micro): funciona, mas para contratos longos usa nova-lite com chunks
 - Portfolio: pipeline de thumbnails (SQS → Lambda) criado mas a Lambda de processamento pode não estar deployada ainda (depende do SAM deploy com sharp)
-- **Página pública do álbum (AlbumGaleria.jsx)**: Ignora quase todo o tema — cores, layout, fontes, bordas. Usa grid hardcoded. Precisa refatorar para usar tema da API.
 - **qualidade_imagem**: Salva no tema mas não é consumido em nenhum lugar (precisa backend/CDN)
 - **Fontes na página pública**: Não carrega Google Fonts dinamicamente
 
@@ -205,36 +216,7 @@ apps/
 - **Apagar Envios**: DELETE /admin/whatsapp/envios apaga todos os WA_ENVIO. Botão vermelho na toolbar.
 
 ## Pendências / Próximas implementações
-- **Templates WhatsApp com botão URL (_link_img)**: Criar na Meta templates com botão type=url para: contrato_assinatura, orcamento_pronto, fotos_prontas, feedback, pagamento_vencido. Formato: mbf_<nome>_link_img. Botão direciona cliente para página logada.
 - **NFS-e**: Aguardando correção bug SEFIN Nacional (E0714 com declaração XML). Alternativa: API intermediária (Nuvem Fiscal).
-- **Verificar rotas migradas**: Testar catálogo, financeiro, feedback após migração PHOTOGRAPHER# → TENANT#default.
-
-
-## Notas técnicas da sessão 05/08/2026 (noite)
-* **Gateway Asaas — integração completa (sandbox ativo)**:
-  * SSM: ASAAS_API_KEY (sandbox), ASAAS_BASE_URL (sandbox.asaas.com), ASAAS_WEBHOOK_TOKEN, ASAAS_WALLET_ID
-  * SSM (produção guardada, NÃO ATIVA): ASAAS_API_KEY_PRODUCAO, ASAAS_WEBHOOK_TOKEN_PRODUCAO
-  * Webhook URL: https://setvwal0cd.execute-api.us-east-1.amazonaws.com/prod/webhooks/asaas
-  * Webhook valida token via header 'asaas-access-token'
-  * asaasService.js: getOrCreateCustomer, criarCobrancaAsaas (aplica condições pagamento), enviarCobrancaParaAsaas
-  * webhookProcessorService.js: PAYMENT_CONFIRMED → atualiza cobrança → WhatsApp → NFS-e automática
-  * Formulário cartão: MeusPagamentos.jsx CartaoForm → POST /client/pagamentos/:id/pagar-cartao → Asaas payWithCreditCard
-  * Backend injeta email+telefone do cadastro do cliente automaticamente
-  * Tela /admin/gateway: salva credenciais no SSM, testa conexão real, mostra status SSM
-  * Aba Pagamentos adicionada em /admin/config (ConfigPagamento.js)
-  * Condições pagamento (desconto à vista, juros, multa, parcelas) aplicadas automaticamente ao Asaas
-* **Para ativar produção Asaas**: trocar ASAAS_API_KEY→PRODUCAO, ASAAS_BASE_URL→api.asaas.com/v3, ASAAS_WEBHOOK_TOKEN→PRODUCAO
-* **Templates WhatsApp _link_img**: 5 templates com botão URL criados (contrato, orcamento, fotos, feedback, pagamento)
-* **Despesas recorrentes**: gera ocorrências individuais automaticamente (BatchWrite). Registro-pai oculto no GET.
-* **Cobranças automáticas**: ao aceitar orçamento, gera COBRANCA# com parcelas mensais
-* **Financeiro corrigido**: filtro período (fim do mês), evolução 12 meses fixo, top clientes, categorias editáveis
-* **Portal cliente corrigido**: queryByPK em vez de GSI2, foto CDN_DOMAIN fallback, feedback POST aceita campos frontend
-* **Feedback**: atualiza pendente (não cria duplicado), notifica WhatsApp ao responder, botões Reenviar/Copiar Link
-* **Instagram redesign**: layout 80/20, instruções IA grandes, prompt config, zoom fotos
-* **Layout admin**: margens 1,5cm (px-14), portal cliente max-w-3xl
-* **Catálogo**: dados migrados PHOTOGRAPHER#→TENANT#default (11 itens)
-* **Storage**: removido DLQ Monitor, layout 70/30 (contexto + custo)
-* **Dados teste cartão sandbox**: 5162306219378829, 05/2028, CVV 318, CPF 24971563792, CEP 89223005
 
 ## Pendências próxima sessão
 * Comprovante de pagamento (botão nas parcelas pagas)
