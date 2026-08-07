@@ -20,6 +20,7 @@ export default function ConfigSEO() {
     og_image_key: '',
     google_analytics_id: '',
     google_search_console: '',
+    google_place_id: '',
     schema_type: 'Photographer',
     schema_nome: '',
     schema_descricao: '',
@@ -429,6 +430,17 @@ export default function ConfigSEO() {
                 className="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-orange-200 focus:border-orange-400" />
               <p className="text-xs text-gray-400 mt-1">
                 Permite rastrear visitantes e fazer remarketing no Instagram/Facebook.
+              </p>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Google Place ID (Avaliações)</label>
+              <input type="text" value={form.google_place_id}
+                onChange={e => setForm({ ...form, google_place_id: e.target.value })}
+                placeholder="ChIJ..."
+                className="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-orange-200 focus:border-orange-400" />
+              <p className="text-xs text-gray-400 mt-1">
+                Usado no botão "Avalie no Google" após feedback. Encontre em: <a href="https://developers.google.com/maps/documentation/places/web-service/place-id" target="_blank" rel="noopener noreferrer" className="text-orange-500 hover:underline">Google Place ID Finder</a>
               </p>
             </div>
           </div>

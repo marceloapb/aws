@@ -5,7 +5,7 @@ import { useToast } from '../../components/ui/Toast';
 import RichTextEditor from '../../components/ui/RichTextEditor';
 import {
   ArrowLeft, Save, Send, Upload, Image, Loader2, X, Clock,
-  Tag, Plus, Eye
+  Tag, Plus, Eye, Search
 } from 'lucide-react';
 
 const ACCENT = '#EA580C';
@@ -38,6 +38,9 @@ export default function NovidadesEditor() {
     capa_url: '',
     categoria: '',
     status: 'rascunho',
+    seo_titulo: '',
+    seo_descricao: '',
+    seo_keywords: '',
   });
 
   const [errors, setErrors] = useState({});
@@ -114,6 +117,9 @@ export default function NovidadesEditor() {
           capa_url: post.capa_url || '',
           categoria: post.categoria || '',
           status: post.status || 'rascunho',
+          seo_titulo: post.seo_titulo || '',
+          seo_descricao: post.seo_descricao || '',
+          seo_keywords: post.seo_keywords || '',
         });
       } else {
         toast.error(json.message || 'Erro ao carregar post');
@@ -652,6 +658,47 @@ export default function NovidadesEditor() {
                 form.status === 'publicado' ? 'bg-green-500' : 'bg-yellow-500'
               }`} />
               {form.status === 'publicado' ? 'Publicado' : 'Rascunho'}
+            </div>
+          </div>
+
+          {/* SEO */}
+          <div className="bg-white border border-gray-200 rounded-xl p-4">
+            <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-1.5">
+              <Search size={14} className="text-gray-500" />
+              SEO do Post
+            </label>
+            <div className="space-y-3">
+              <div>
+                <input
+                  type="text"
+                  value={form.seo_titulo}
+                  onChange={(e) => handleChange('seo_titulo', e.target.value)}
+                  maxLength={70}
+                  placeholder="Título SEO (Google)"
+                  className="w-full px-3 py-2 rounded-lg border border-gray-200 text-xs focus:outline-none focus:ring-2 focus:ring-orange-200 focus:border-transparent"
+                />
+                <p className="text-[10px] text-gray-400 mt-0.5">{form.seo_titulo?.length || 0}/70 • Se vazio, usa o título do post</p>
+              </div>
+              <div>
+                <textarea
+                  value={form.seo_descricao}
+                  onChange={(e) => handleChange('seo_descricao', e.target.value)}
+                  maxLength={160}
+                  rows={2}
+                  placeholder="Descrição SEO (Google)"
+                  className="w-full px-3 py-2 rounded-lg border border-gray-200 text-xs focus:outline-none focus:ring-2 focus:ring-orange-200 focus:border-transparent resize-none"
+                />
+                <p className="text-[10px] text-gray-400 mt-0.5">{form.seo_descricao?.length || 0}/160 • Se vazio, usa o resumo</p>
+              </div>
+              <div>
+                <input
+                  type="text"
+                  value={form.seo_keywords}
+                  onChange={(e) => handleChange('seo_keywords', e.target.value)}
+                  placeholder="Palavras-chave (separar por vírgula)"
+                  className="w-full px-3 py-2 rounded-lg border border-gray-200 text-xs focus:outline-none focus:ring-2 focus:ring-orange-200 focus:border-transparent"
+                />
+              </div>
             </div>
           </div>
 

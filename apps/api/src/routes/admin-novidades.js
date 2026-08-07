@@ -294,7 +294,7 @@ NÃO use markdown. Use APENAS HTML.`;
 
 router.post('/', async (req, res) => {
   try {
-    const { titulo, corpo_html, resumo, capa_url, status, categoria } = req.body;
+    const { titulo, corpo_html, resumo, capa_url, status, categoria, seo_titulo, seo_descricao, seo_keywords } = req.body;
 
     // Validações
     if (!titulo || !titulo.trim()) {
@@ -305,6 +305,12 @@ router.post('/', async (req, res) => {
     }
     if (resumo && resumo.length > 300) {
       return res.status(400).json({ success: false, message: 'resumo deve ter no máximo 300 caracteres' });
+    }
+    if (seo_titulo && seo_titulo.length > 70) {
+      return res.status(400).json({ success: false, message: 'seo_titulo deve ter no máximo 70 caracteres' });
+    }
+    if (seo_descricao && seo_descricao.length > 320) {
+      return res.status(400).json({ success: false, message: 'seo_descricao deve ter no máximo 320 caracteres' });
     }
     const validStatus = ['rascunho', 'publicado'];
     const postStatus = validStatus.includes(status) ? status : 'rascunho';
@@ -325,6 +331,9 @@ router.post('/', async (req, res) => {
       resumo: resumo || '',
       capa_url: capa_url || '',
       categoria: categoria || '',
+      seo_titulo: seo_titulo || '',
+      seo_descricao: seo_descricao || '',
+      seo_keywords: seo_keywords || '',
       status: postStatus,
       criado_em: now,
       atualizado_em: now,

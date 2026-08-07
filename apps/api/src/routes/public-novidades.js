@@ -172,6 +172,9 @@ router.get('/:slug', async (req, res) => {
       publicado_em: post.publicado_em,
       resumo: post.resumo,
       categoria: post.categoria || '',
+      seo_titulo: post.seo_titulo || '',
+      seo_descricao: post.seo_descricao || '',
+      seo_keywords: post.seo_keywords || '',
     };
 
     res.set('Cache-Control', 'public, max-age=600');

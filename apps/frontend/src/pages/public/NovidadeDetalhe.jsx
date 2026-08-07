@@ -25,6 +25,80 @@ export default function NovidadeDetalhe() {
       .finally(() => setLoading(false));
   }, [slug]);
 
+  // Dynamic SEO meta tags for this post
+  useEffect(() => {
+    if (!post) return;
+
+    const title = post.seo_titulo || post.titulo || '';
+    const description = post.seo_descricao || post.resumo || '';
+    const keywords = post.seo_keywords || '';
+    const image = post.capa_url || '';
+    const url = `https://www.marcelobloisefotografia.com.br/novidades/${slug}`;
+
+    // Title
+    if (title) document.title = title;
+
+    // Helper
+    const setMeta = (attr, attrValue, content) => {
+      if (!content) return;
+      let el = document.querySelector(`meta[${attr}="${attrValue}"]`);
+      if (!el) {
+        el = document.createElement('meta');
+        el.setAttribute(attr, attrValue);
+        document.head.appendChild(el);
+      }
+      el.setAttribute('content', content);
+    };
+
+    setMeta('name', 'description', description);
+    if (keywords) setMeta('name', 'keywords', keywords);
+    setMeta('property', 'og:title', title);
+    setMeta('property', 'og:description', description);
+    setMeta('property', 'og:url', url);
+    setMeta('property', 'og:type', 'article');
+    if (image) {
+      setMeta('property', 'og:image', image);
+      setMeta('name', 'twitter:image', image);
+    }
+    setMeta('name', 'twitter:card', 'summary_large_image');
+    setMeta('name', 'twitter:title', title);
+    setMeta('name', 'twitter:description', description);
+
+    // Update canonical
+    let canonical = document.querySelector('link[rel="canonical"]');
+    if (!canonical) {
+      canonical = document.createElement('link');
+      canonical.setAttribute('rel', 'canonical');
+      document.head.appendChild(canonical);
+    }
+    canonical.setAttribute('href', url);
+
+    // Article JSON-LD
+    let scriptEl = document.getElementById('post-schema-jsonld');
+    if (!scriptEl) {
+      scriptEl = document.createElement('script');
+      scriptEl.id = 'post-schema-jsonld';
+      scriptEl.type = 'application/ld+json';
+      document.head.appendChild(scriptEl);
+    }
+    scriptEl.textContent = JSON.stringify({
+      '@context': 'https://schema.org',
+      '@type': 'Article',
+      headline: title,
+      description: description,
+      ...(image && { image }),
+      url,
+      datePublished: post.publicado_em,
+      author: { '@type': 'Person', name: config?.nome || 'Marcelo Bloise' },
+    });
+
+    return () => {
+      // Cleanup article schema on unmount
+      const el = document.getElementById('post-schema-jsonld');
+      if (el) el.parentNode?.removeChild(el);
+    };
+  }, [post, slug, config]);
+
   const formatDate = (dateStr) => {
     if (!dateStr) return '';
     try {
@@ -131,6 +205,7 @@ export default function NovidadeDetalhe() {
                 <img
                   src={post.capa_url}
                   alt={post.titulo}
+                  loading="lazy"
                   className="w-full h-auto object-cover rounded-xl"
                 />
               </div>
