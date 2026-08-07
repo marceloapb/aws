@@ -8,7 +8,7 @@ import {
 const API = process.env.REACT_APP_API_URL || '';
 const ACCENT = '#ff5c00';
 
-const SECTIONS = ['Home', 'Portfolio', 'Serviços', 'Sobre', 'Contato'];
+const SECTIONS = ['Home', 'Portfolio', 'Serviços', 'Sobre', 'Novidades', 'Contato'];
 
 const WORDS = ['Emociona', 'Conecta', 'Transforma', 'Inspira', 'Permanece'];
 
@@ -404,6 +404,112 @@ function AboutSection({ goTo, config }) {
 }
 
 // ══════════════════════════════════════════════════════════════
+// NOVIDADES SECTION
+// ══════════════════════════════════════════════════════════════
+
+function NovidadesSection() {
+  const [posts, setPosts] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [categorias, setCategorias] = useState([]);
+  const [filtro, setFiltro] = useState('');
+
+  useEffect(() => {
+    fetch(`${API}/public/novidades?limit=12`)
+      .then(r => r.json())
+      .then(data => setPosts(data.data || []))
+      .catch(() => {})
+      .finally(() => setLoading(false));
+
+    fetch(`${API}/public/novidades/categorias`)
+      .then(r => r.json())
+      .then(data => setCategorias(data.data || []))
+      .catch(() => {});
+  }, []);
+
+  const filtered = filtro ? posts.filter(p => p.categoria === filtro) : posts;
+
+  const formatDate = (dateStr) => {
+    if (!dateStr) return '';
+    try { return new Date(dateStr).toLocaleDateString('pt-BR', { day: 'numeric', month: 'short', year: 'numeric' }); }
+    catch { return ''; }
+  };
+
+  return (
+    <div className="w-full h-full flex flex-col overflow-hidden" style={{ background: '#0d0d0d' }}>
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between px-4 sm:px-8 lg:px-16 pt-5 pb-4 shrink-0 gap-3" style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+        <div>
+          <Label>Blog</Label>
+          <SectionTitle className="text-3xl sm:text-4xl md:text-5xl" style={{ color: '#f0ece4' }}>Novidades</SectionTitle>
+        </div>
+        {categorias.length > 0 && (
+          <div className="flex gap-2 flex-wrap">
+            <button onClick={() => setFiltro('')}
+              className="px-3 sm:px-4 py-1.5 text-[10px] tracking-widest uppercase font-bold transition-all duration-200"
+              style={!filtro ? { background: ACCENT, color: '#0d0d0d' } : { border: '1px solid rgba(255,255,255,0.08)', color: '#8a8a8a' }}>
+              Todos
+            </button>
+            {categorias.map(cat => (
+              <button key={cat.id} onClick={() => setFiltro(cat.nome)}
+                className="px-3 sm:px-4 py-1.5 text-[10px] tracking-widest uppercase font-bold transition-all duration-200"
+                style={filtro === cat.nome ? { background: ACCENT, color: '#0d0d0d' } : { border: '1px solid rgba(255,255,255,0.08)', color: '#8a8a8a' }}>
+                {cat.nome}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Grid */}
+      <div className="flex-1 overflow-y-auto px-4 sm:px-8 lg:px-16 py-6" style={{ scrollbarWidth: 'none' }}>
+        {loading ? (
+          <div className="flex items-center justify-center h-full">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2" style={{ borderColor: ACCENT }} />
+          </div>
+        ) : filtered.length === 0 ? (
+          <div className="flex items-center justify-center h-full">
+            <p className="font-mono text-sm" style={{ color: '#8a8a8a' }}>Nenhuma publicação encontrada.</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+            {filtered.map(post => (
+              <a key={post.slug} href={`/novidades/${post.slug}`} target="_blank" rel="noopener noreferrer"
+                className="group block overflow-hidden transition-all duration-300 hover:translate-y-[-2px]"
+                style={{ background: '#141414', border: '1px solid rgba(255,255,255,0.04)' }}>
+                {post.capa_url && (
+                  <div className="aspect-[16/9] overflow-hidden">
+                    <img src={post.capa_url} alt={post.titulo} loading="lazy"
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                  </div>
+                )}
+                <div className="p-4">
+                  <div className="flex items-center gap-3 mb-2">
+                    {post.categoria && (
+                      <span className="font-mono text-[9px] tracking-widest uppercase" style={{ color: ACCENT }}>{post.categoria}</span>
+                    )}
+                    <span className="font-mono text-[9px] tracking-widest uppercase" style={{ color: '#8a8a8a' }}>{formatDate(post.publicado_em)}</span>
+                  </div>
+                  <h3 className="font-['Barlow_Condensed',sans-serif] font-bold text-lg uppercase leading-tight mb-2 group-hover:text-orange-400 transition-colors" style={{ color: '#f0ece4' }}>
+                    {post.titulo}
+                  </h3>
+                  {post.resumo && (
+                    <p className="text-xs font-light leading-relaxed line-clamp-2" style={{ color: '#8a8a8a' }}>{post.resumo}</p>
+                  )}
+                  <div className="flex items-center gap-2 mt-3">
+                    <span className="font-mono text-[9px] tracking-widest uppercase" style={{ color: ACCENT }}>Ler mais</span>
+                    <ArrowRight size={10} style={{ color: ACCENT }} />
+                  </div>
+                </div>
+              </a>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ══════════════════════════════════════════════════════════════
 // CONTACT SECTION
 // ══════════════════════════════════════════════════════════════
 
@@ -555,6 +661,7 @@ export default function SiteV2() {
     <PortfolioSection goTo={goTo} portfolioData={portfolioData} />,
     <ServicesSection goTo={goTo} />,
     <AboutSection goTo={goTo} config={config} />,
+    <NovidadesSection />,
     <ContactSection config={config} />,
   ];
 
