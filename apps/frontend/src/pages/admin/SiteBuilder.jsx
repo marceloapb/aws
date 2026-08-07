@@ -7,14 +7,16 @@ import {
   Layout, Plus, Trash2, GripVertical, Save, Image, Type, Grid3X3,
   Star, MousePointer, HelpCircle, Video, Minus, Briefcase,
   Copy, Globe, EyeOff, Home, FileText, Settings2, Sparkles,
-  X, PanelRightOpen, PanelRightClose, Layers
+  X, PanelRightOpen, PanelRightClose, Layers, Bot, Search,
+  Wand2, Zap
 } from 'lucide-react';
 import { SITE_TEMPLATES } from './siteTemplates';
 import BlockPreview from './site-builder/BlockPreview';
 import LivePreview from './site-builder/LivePreview';
+import AIAssistant from './site-builder/AIAssistant';
+import AIFieldHelper, { AIFaqGenerator, AIServicesGenerator, AISeoGenerator } from './site-builder/AIFieldHelper';
 
 const ACCENT = '#EA580C';
-
 
 const BLOCK_TYPES = [
   { type: 'hero', label: 'Hero', icon: Image, description: 'Banner principal com imagem e texto' },
@@ -54,7 +56,7 @@ function SortablePageItem({ page, isActive, onSelect, onDelete }) {
 
   return (
     <div ref={setNodeRef} style={style}
-      className={`flex items-center gap-2 p-2 rounded-lg cursor-pointer border transition-all ${
+      className={`group flex items-center gap-2 p-2 rounded-lg cursor-pointer border transition-all ${
         isActive
           ? 'border-orange-500 bg-orange-50 shadow-sm'
           : 'border-gray-200 bg-white hover:bg-gray-50 hover:border-gray-300'
@@ -79,7 +81,7 @@ function SortablePageItem({ page, isActive, onSelect, onDelete }) {
 
 
 // ═══════════════════════════════════════════════════════════════
-// SORTABLE BLOCK CARD — Versão visual com preview thumbnail
+// SORTABLE BLOCK CARD — Visual com preview thumbnail
 // ═══════════════════════════════════════════════════════════════
 
 function SortableBlockCard({ block, isSelected, onSelect, onDelete, onDuplicate }) {
@@ -90,10 +92,7 @@ function SortableBlockCard({ block, isSelected, onSelect, onDelete, onDuplicate 
 
   return (
     <div ref={setNodeRef} style={style} className="group">
-      <div className={`relative transition-all duration-200 ${
-        isSelected ? 'scale-[1.02]' : ''
-      }`}>
-        {/* Drag handle + label header */}
+      <div className={`relative transition-all duration-200 ${isSelected ? 'scale-[1.02]' : ''}`}>
         <div className={`flex items-center gap-1.5 px-2 py-1 rounded-t-lg text-xs font-medium ${
           isSelected ? 'bg-orange-500 text-white' : 'bg-gray-100 text-gray-600'
         }`}>
@@ -111,7 +110,6 @@ function SortableBlockCard({ block, isSelected, onSelect, onDelete, onDuplicate 
             <Trash2 size={11} />
           </button>
         </div>
-        {/* Visual preview card */}
         <BlockPreview block={block} isSelected={isSelected} onClick={() => onSelect(block.id)} />
       </div>
     </div>
@@ -120,7 +118,7 @@ function SortableBlockCard({ block, isSelected, onSelect, onDelete, onDuplicate 
 
 
 // ═══════════════════════════════════════════════════════════════
-// EDIT PANEL — Painel lateral de edição de bloco
+// EDIT PANEL — Painel lateral com IA integrada em cada campo
 // ═══════════════════════════════════════════════════════════════
 
 function EditPanel({ block, onUpdate, onClose, authFetch }) {
@@ -159,43 +157,68 @@ function EditPanel({ block, onUpdate, onClose, authFetch }) {
     input.click();
   };
 
+  // Renderiza campo com botão IA integrado
+  const renderField = (label, field, type = 'text', options = null) => {
+    const isTextType = type === 'text' || type === 'textarea';
+    const tipoCampo = field === 'titulo' ? 'titulo' : field === 'subtitulo' ? 'subtitulo' : field === 'conteudo' ? 'conteudo' : field === 'botao_texto' ? 'botao_texto' : 'titulo';
 
-  const renderField = (label, field, type = 'text', options = null) => (
-    <div key={field}>
-      <label className={labelCls}>{label}</label>
-      {type === 'textarea' ? (
-        <textarea className={inputCls} rows={3} value={block.data?.[field] || ''} onChange={e => update(field, e.target.value)} />
-      ) : type === 'select' ? (
-        <select className={selectCls} value={block.data?.[field] || ''} onChange={e => update(field, e.target.value)}>
-          {options.sort().map(o => <option key={o} value={o}>{o}</option>)}
-        </select>
-      ) : type === 'number' ? (
-        <input type="number" className={inputCls} value={block.data?.[field] || ''} onChange={e => update(field, parseInt(e.target.value) || 0)} min={options?.min} max={options?.max} />
-      ) : type === 'image' ? (
-        <div className="space-y-2">
-          <div className="flex gap-2">
-            <input type="text" className={inputCls} value={block.data?.[field] || ''} onChange={e => update(field, e.target.value)} placeholder="URL da imagem ou faça upload" />
-            <button type="button" onClick={() => handleImageUpload(field)}
-              className="shrink-0 px-3 py-2 text-xs font-medium text-white rounded-lg hover:opacity-90 transition-opacity" style={{ background: ACCENT }}>
-              Upload
-            </button>
-          </div>
-          {block.data?.[field] && (
-            <img src={block.data[field]} alt="" className="h-24 w-full rounded-lg border border-gray-200 object-cover" />
+    return (
+      <div key={field}>
+        <div className="flex items-center justify-between mb-1.5">
+          <label className="text-xs font-semibold text-gray-700">{label}</label>
+          {isTextType && (
+            <AIFieldHelper
+              authFetch={authFetch}
+              tipoCampo={tipoCampo}
+              contexto={`${blockType?.label || block.type} - ${block.data?.titulo || ''}`}
+              valorAtual={block.data?.[field] || ''}
+              onGenerated={(texto) => update(field, texto)}
+              compact={true}
+            />
           )}
         </div>
-      ) : (
-        <input type="text" className={inputCls} value={block.data?.[field] || ''} onChange={e => update(field, e.target.value)} />
-      )}
-    </div>
-  );
+        {type === 'textarea' ? (
+          <textarea className={inputCls} rows={3} value={block.data?.[field] || ''} onChange={e => update(field, e.target.value)} />
+        ) : type === 'select' ? (
+          <select className={selectCls} value={block.data?.[field] || ''} onChange={e => update(field, e.target.value)}>
+            {options.sort().map(o => <option key={o} value={o}>{o}</option>)}
+          </select>
+        ) : type === 'number' ? (
+          <input type="number" className={inputCls} value={block.data?.[field] || ''} onChange={e => update(field, parseInt(e.target.value) || 0)} min={options?.min} max={options?.max} />
+        ) : type === 'image' ? (
+          <div className="space-y-2">
+            <div className="flex gap-2">
+              <input type="text" className={inputCls} value={block.data?.[field] || ''} onChange={e => update(field, e.target.value)} placeholder="URL da imagem ou faça upload" />
+              <button type="button" onClick={() => handleImageUpload(field)}
+                className="shrink-0 px-3 py-2 text-xs font-medium text-white rounded-lg hover:opacity-90 transition-opacity" style={{ background: ACCENT }}>
+                Upload
+              </button>
+            </div>
+            {block.data?.[field] && (
+              <img src={block.data[field]} alt="" className="h-24 w-full rounded-lg border border-gray-200 object-cover" />
+            )}
+          </div>
+        ) : (
+          <input type="text" className={inputCls} value={block.data?.[field] || ''} onChange={e => update(field, e.target.value)} />
+        )}
+      </div>
+    );
+  };
 
-
-  const renderItems = (fields) => {
+  // Renderiza itens (FAQ/Services) com IA
+  const renderItems = (fields, blockType) => {
     const items = block.data?.items || [];
     return (
       <div>
-        <label className={labelCls}>Itens</label>
+        <div className="flex items-center justify-between mb-1.5">
+          <label className={labelCls}>Itens</label>
+          {blockType === 'faq' && (
+            <AIFaqGenerator authFetch={authFetch} onGenerated={(newItems) => update('items', newItems)} />
+          )}
+          {blockType === 'services' && (
+            <AIServicesGenerator authFetch={authFetch} onGenerated={(newItems) => update('items', newItems)} />
+          )}
+        </div>
         <div className="space-y-2">
           {items.map((item, i) => (
             <div key={i} className="flex gap-2 items-start p-2 bg-gray-50 rounded-lg border border-gray-100">
@@ -222,7 +245,6 @@ function EditPanel({ block, onUpdate, onClose, authFetch }) {
       </div>
     );
   };
-
 
   const formFields = {
     hero: () => (
@@ -271,7 +293,7 @@ function EditPanel({ block, onUpdate, onClose, authFetch }) {
       <div className="space-y-4">
         {renderField('Variante', 'variant', 'select', ['accordion', 'cards', 'lista'])}
         {renderField('Título', 'titulo')}
-        {renderItems(['pergunta', 'resposta'])}
+        {renderItems(['pergunta', 'resposta'], 'faq')}
       </div>
     ),
     video: () => (
@@ -291,13 +313,12 @@ function EditPanel({ block, onUpdate, onClose, authFetch }) {
       <div className="space-y-4">
         {renderField('Variante', 'variant', 'select', ['cards', 'grid', 'lista'])}
         {renderField('Título', 'titulo')}
-        {renderItems(['nome', 'descricao', 'icone'])}
+        {renderItems(['nome', 'descricao', 'icone'], 'services')}
       </div>
     ),
   };
 
   const FormContent = formFields[block.type];
-
 
   return (
     <div className="h-full flex flex-col bg-white border-l border-gray-200 overflow-hidden">
@@ -322,7 +343,58 @@ function EditPanel({ block, onUpdate, onClose, authFetch }) {
 
 
 // ═══════════════════════════════════════════════════════════════
-// MAIN SITE BUILDER — Layout com split view
+// SEO PANEL — Painel de SEO com geração por IA
+// ═══════════════════════════════════════════════════════════════
+
+function SeoPanel({ page, onUpdate, authFetch, blocks }) {
+  if (!page) return null;
+
+  return (
+    <div className="border-t border-gray-200 bg-gray-50 px-3 py-3">
+      <div className="flex items-center justify-between mb-2">
+        <h4 className="text-xs font-semibold text-gray-600 flex items-center gap-1">
+          <Search size={11} /> SEO
+        </h4>
+        <AISeoGenerator
+          authFetch={authFetch}
+          tituloPagina={page.titulo}
+          blocos={blocks}
+          onGenerated={(seo) => {
+            onUpdate(prev => ({ ...prev, seo_titulo: seo.seo_titulo, seo_descricao: seo.seo_descricao }));
+          }}
+        />
+      </div>
+      <div className="space-y-2">
+        <div>
+          <label className="text-[10px] text-gray-500 mb-0.5 block">Título SEO</label>
+          <input
+            type="text"
+            value={page.seo_titulo || ''}
+            onChange={e => onUpdate(prev => ({ ...prev, seo_titulo: e.target.value }))}
+            placeholder="Título para buscadores (50-60 chars)"
+            className="w-full border border-gray-200 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-orange-300"
+          />
+          <span className="text-[9px] text-gray-400">{(page.seo_titulo || '').length}/60</span>
+        </div>
+        <div>
+          <label className="text-[10px] text-gray-500 mb-0.5 block">Meta Description</label>
+          <textarea
+            value={page.seo_descricao || ''}
+            onChange={e => onUpdate(prev => ({ ...prev, seo_descricao: e.target.value }))}
+            placeholder="Descrição para buscadores (130-155 chars)"
+            rows={2}
+            className="w-full border border-gray-200 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-orange-300 resize-none"
+          />
+          <span className="text-[9px] text-gray-400">{(page.seo_descricao || '').length}/155</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
+// ═══════════════════════════════════════════════════════════════
+// MAIN SITE BUILDER — Layout split view + IA
 // ═══════════════════════════════════════════════════════════════
 
 export default function SiteBuilder() {
@@ -337,10 +409,13 @@ export default function SiteBuilder() {
   const [showTemplateModal, setShowTemplateModal] = useState(false);
   const [applyingTemplate, setApplyingTemplate] = useState(false);
   const [showPreview, setShowPreview] = useState(true);
+  const [showAI, setShowAI] = useState(false);
+  const [showSeo, setShowSeo] = useState(false);
   const [error, setError] = useState(null);
 
   const selectedBlock = blocks.find(b => b.id === selectedBlockId);
 
+  // ─── Data Operations ──────────────────────────────────────
 
   const loadPages = useCallback(async () => {
     try {
@@ -385,14 +460,14 @@ export default function SiteBuilder() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ titulo: 'Nova Página', slug: 'nova-pagina', visivel: false, blocos: [] }),
       });
-      const newPage = await res.json();
+      const json = await res.json();
+      const newPage = json.data || json;
       setPages(prev => [...prev, newPage]);
       await selectPage(newPage);
     } catch (err) {
       setError('Erro ao criar página');
     }
   };
-
 
   const deletePage = async (id) => {
     if (!confirm('Excluir esta página?')) return;
@@ -448,7 +523,6 @@ export default function SiteBuilder() {
     }
   };
 
-
   const handleBlockReorder = (event) => {
     const { active, over } = event;
     if (!over || active.id === over.id) return;
@@ -478,6 +552,40 @@ export default function SiteBuilder() {
 
   const updateBlockData = (id, data) => setBlocks(prev => prev.map(b => b.id === id ? { ...b, data } : b));
 
+  // ─── AI Page Generation ───────────────────────────────────
+
+  const handleAIPageGenerated = async (pageData) => {
+    try {
+      // Create the page via API
+      const blocosForApi = (pageData.blocos || []).map(b => ({
+        id: b.id || crypto.randomUUID(),
+        type: b.type,
+        variant: b.variant || '',
+        props: b.props || {},
+      }));
+
+      const res = await authFetch('/admin/site/pages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          titulo: pageData.titulo,
+          slug: pageData.slug,
+          visivel: false,
+          blocos: blocosForApi,
+          seo_titulo: pageData.seo_titulo || '',
+          seo_descricao: pageData.seo_descricao || '',
+        }),
+      });
+      const json = await res.json();
+      const newPage = json.data || json;
+      setPages(prev => [...prev, newPage]);
+      await selectPage(newPage);
+    } catch (err) {
+      setError('Erro ao aplicar página gerada pela IA');
+    }
+  };
+
+  // ─── Template Application ─────────────────────────────────
 
   const applyTemplate = async (template) => {
     if (!window.confirm(`Aplicar template "${template.label}"? Isso vai criar ${template.pages.length} página(s) novas.`)) return;
@@ -514,6 +622,8 @@ export default function SiteBuilder() {
   }
 
 
+  // ─── RENDER ─────────────────────────────────────────────────
+
   return (
     <div className="flex h-[calc(100vh-4rem)] bg-gray-50 -m-6">
       {/* ══════ LEFT SIDEBAR — Páginas ══════ */}
@@ -542,9 +652,13 @@ export default function SiteBuilder() {
             className="w-full flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-medium text-gray-700 rounded-lg border border-gray-200 hover:bg-gray-50">
             <Sparkles size={14} /> Templates
           </button>
+          {/* AI Assistant Toggle */}
+          <button onClick={() => setShowAI(true)}
+            className="w-full flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-medium text-white rounded-lg bg-gradient-to-r from-violet-500 to-purple-600 hover:from-violet-600 hover:to-purple-700 shadow-sm">
+            <Bot size={14} /> Assistente IA
+          </button>
         </div>
       </aside>
-
 
       {/* ══════ CENTER — Block List (visual cards) ══════ */}
       <div className="flex flex-col w-72 shrink-0 border-r border-gray-200 bg-gray-50">
@@ -567,6 +681,11 @@ export default function SiteBuilder() {
                   onChange={e => setSelectedPage(prev => ({ ...prev, slug: e.target.value }))}
                   className="w-full border border-gray-200 rounded px-2 py-1 text-xs" />
               </div>
+              <button onClick={() => setShowSeo(!showSeo)}
+                className={`p-1.5 rounded transition-colors ${showSeo ? 'bg-orange-100 text-orange-600' : 'hover:bg-gray-100 text-gray-400'}`}
+                title="SEO">
+                <Search size={12} />
+              </button>
               <button onClick={savePage} disabled={saving}
                 className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-white rounded-lg disabled:opacity-50 transition-opacity hover:opacity-90"
                 style={{ backgroundColor: ACCENT }}>
@@ -576,6 +695,15 @@ export default function SiteBuilder() {
           </header>
         )}
 
+        {/* SEO Panel (collapsible) */}
+        {showSeo && selectedPage && (
+          <SeoPanel
+            page={selectedPage}
+            onUpdate={setSelectedPage}
+            authFetch={authFetch}
+            blocks={blocks}
+          />
+        )}
 
         {/* Error Banner */}
         {error && (
@@ -614,6 +742,7 @@ export default function SiteBuilder() {
               <div className="text-center py-10 text-gray-400">
                 <Settings2 size={32} className="mx-auto mb-2 opacity-50" />
                 <p className="text-xs">Nenhum bloco adicionado</p>
+                <p className="text-[10px] text-gray-300 mt-1">Use o Assistente IA ou adicione manualmente</p>
               </div>
             )}
 
@@ -660,11 +789,10 @@ export default function SiteBuilder() {
         )}
       </div>
 
-
       {/* ══════ MODAL — Adicionar Bloco ══════ */}
       {showBlockModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setShowBlockModal(false)}>
-          <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-lg animate-in fade-in zoom-in-95" onClick={e => e.stopPropagation()}>
+          <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-lg" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-5">
               <h3 className="text-lg font-bold text-gray-900">Adicionar Bloco</h3>
               <button onClick={() => setShowBlockModal(false)} className="p-1 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100">
@@ -687,11 +815,10 @@ export default function SiteBuilder() {
         </div>
       )}
 
-
       {/* ══════ MODAL — Templates com Preview Visual ══════ */}
       {showTemplateModal && (
         <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4" onClick={() => !applyingTemplate && setShowTemplateModal(false)}>
-          <div className="bg-white rounded-2xl shadow-2xl max-w-3xl w-full max-h-[85vh] overflow-hidden animate-in fade-in zoom-in-95" onClick={e => e.stopPropagation()}>
+          <div className="bg-white rounded-2xl shadow-2xl max-w-3xl w-full max-h-[85vh] overflow-hidden" onClick={e => e.stopPropagation()}>
             <div className="p-6 border-b border-gray-100 flex items-center justify-between">
               <div>
                 <h3 className="text-xl font-bold text-gray-900 flex items-center gap-2">
@@ -716,7 +843,6 @@ export default function SiteBuilder() {
                         <div className="w-4 h-1 bg-stone-800 rounded" />
                       </div>
                     </div>
-                    {/* Mini block representations */}
                     <div className="space-y-1">
                       {tpl.pages[0]?.blocos.slice(0, 3).map((b, i) => (
                         <div key={i} className={`rounded ${
@@ -739,7 +865,6 @@ export default function SiteBuilder() {
                       </span>
                     </div>
                   </div>
-                  {/* Template info */}
                   <div className="p-3">
                     <h4 className="font-semibold text-gray-900 text-sm">{tpl.label}</h4>
                     <p className="text-[11px] text-gray-500 mt-0.5 line-clamp-2">{tpl.description}</p>
@@ -756,6 +881,15 @@ export default function SiteBuilder() {
           </div>
         </div>
       )}
+
+      {/* ══════ AI ASSISTANT (floating chat) ══════ */}
+      <AIAssistant
+        isOpen={showAI}
+        onClose={() => setShowAI(false)}
+        authFetch={authFetch}
+        currentPage={selectedPage}
+        onPageGenerated={handleAIPageGenerated}
+      />
     </div>
   );
 }
