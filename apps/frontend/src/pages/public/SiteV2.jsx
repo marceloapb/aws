@@ -567,7 +567,7 @@ export default function SiteV2() {
         <nav className="hidden md:flex items-center gap-1.5">
           {SECTIONS.map((name, i) => (
             <button key={name} onClick={() => goTo(i)}
-              className="relative px-3.5 py-2 text-[11px] tracking-widest uppercase font-bold transition-colors"
+              className="relative px-3.5 py-2 text-[12px] tracking-widest uppercase font-bold transition-colors"
               style={{ color: current === i ? ACCENT : '#8a8a8a' }}>
               {name}
               {current === i && <span className="absolute bottom-0 left-3 right-3 h-px" style={{ background: ACCENT }} />}
