@@ -134,6 +134,9 @@ export default function Login() {
     <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
+          <Link to="/" className="inline-flex items-center gap-1 text-sm font-medium mb-6 hover:opacity-80 transition-opacity" style={{ color: ACCENT }}>
+            ← Voltar ao site
+          </Link>
           {logoUrl ? (
             <img src={logoUrl} alt={nomeSite} className="h-24 max-w-[220px] mx-auto mb-4 object-contain" onError={(e) => { e.target.onerror = null; e.target.src = '/logo.svg'; }} />
           ) : (
