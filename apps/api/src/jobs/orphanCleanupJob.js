@@ -8,7 +8,7 @@ const { S3Client, ListObjectsV2Command, DeleteObjectsCommand } = require('@aws-s
 
 const s3 = new S3Client({});
 const BUCKET = process.env.S3_BUCKET_NAME || 'mbf-backend-v3-fotos';
-const TENANT_PREFIX = '3438a468-a031-7040-2d21-abc059a80915';
+const TENANT_PREFIX = process.env.TENANT_PREFIX || process.env.TENANT_ID || '1';
 
 /**
  * Busca todos os álbuns ativos no DynamoDB

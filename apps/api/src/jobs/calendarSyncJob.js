@@ -1,40 +1,36 @@
 // ══════════════════════════════════════════════════════════════
-// JOBS/CALENDAR-SYNC-JOB.JS — Sincronização periódica Google Calendar
+// JOBS/CALENDAR-SYNC-JOB.JS — Sincronização Google Calendar (Lambda)
+// Executado via EventBridge Schedule a cada 30 minutos
 // ══════════════════════════════════════════════════════════════
 
 const { sincronizarBidirecional } = require('../services/googleCalendarSyncService');
 const { features } = require('../config/env');
 
-const INTERVAL_MS = 30 * 60 * 1000; // 30 minutos
-
-function startCalendarSyncJob() {
+/**
+ * Handler Lambda — executado pelo EventBridge Schedule
+ */
+async function handler() {
   if (!features.googleCalendar) {
-    console.log('[CALENDAR SYNC JOB] Feature desabilitada — job não iniciado');
-    return;
+    console.log('[CALENDAR SYNC] Feature desabilitada — ignorando');
+    return { statusCode: 200, body: { skipped: true, reason: 'feature_disabled' } };
   }
 
-  console.log('[CALENDAR SYNC JOB] Iniciado — sincronizando a cada 30 minutos');
-  setInterval(executarSync, INTERVAL_MS);
-  // Aguardar 10s antes da primeira execução para dar tempo do server iniciar
-  setTimeout(executarSync, 10000);
-}
-
-async function executarSync() {
   try {
-    console.log('[CALENDAR SYNC JOB] Iniciando sincronização...');
+    console.log('[CALENDAR SYNC] Iniciando sincronização...');
     const resultado = await sincronizarBidirecional();
 
     if (resultado.success) {
-      console.log(`[CALENDAR SYNC JOB] Concluído — ${resultado.logs.length} operações`);
+      console.log(`[CALENDAR SYNC] Concluído — ${resultado.logs.length} operações`);
+      return { statusCode: 200, body: { success: true, operations: resultado.logs.length } };
     } else {
-      console.error('[CALENDAR SYNC JOB] Falhou:', resultado.error);
+      console.error('[CALENDAR SYNC] Falhou:', resultado.error);
+      return { statusCode: 500, body: { success: false, error: resultado.error } };
     }
   } catch (error) {
-    console.error('[CALENDAR SYNC JOB] Erro:', error.message);
+    console.error('[CALENDAR SYNC] Erro:', error.message);
+    throw error;
   }
 }
 
-const handler = async () => { await executarSync(); };
-
-module.exports = { startCalendarSyncJob, handler };
+module.exports = { handler };
 module.exports.default = { handler };

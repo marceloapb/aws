@@ -148,18 +148,18 @@ apps/
 - **Fontes na página pública**: Não carrega Google Fonts dinamicamente
 
 ## Contexto técnico importante
-- **TENANT ÚNICO: `TENANT#default`** — TODO o sistema usa apenas este tenant. NÃO existe mais TENANT#1 nem TENANT#<cognitoSub>.
+- **TENANT ÚNICO: `TENANT#1`** — TODO o sistema usa apenas este tenant via `process.env.TENANT_ID || '1'`.
 - tenantId do admin Cognito: 3438a468-a031-7040-2d21-abc059a80915 (mas NÃO é usado como PK de tenant)
-- O código resolve tenant via: `process.env.TENANT_ID || 'default'` ou `req.tenantId || 'default'`
-- Configurações ficam em TENANT#default / CONFIG#...
-- Modelos de contrato ficam em TENANT#default / MODELO_CONTRATO#<id>
+- O código resolve tenant via: `process.env.TENANT_ID || '1'`
+- Configurações ficam em TENANT#1 / CONFIG#...
+- Modelos de contrato ficam em TENANT#1 / MODELO_CONTRATO#<id>
 - Clientes self-signup ficam em CLIENT#<cognitoSub>/PROFILE
-- Clientes criados pelo admin ficam em TENANT#default / CLIENTE#<id>
+- Clientes criados pelo admin ficam em TENANT#1 / CLIENTE#<id>
 - Orçamentos ficam em CLIENTE#<clienteId>/ORCAMENTO#<id> com GSI1PK=ORCAMENTO
 - Contratos ficam em CLIENTE#<clienteId>/CONTRATO#<id> com GSI1PK=CONTRATO
 - Status normalizado no frontend admin: aprovado→accepted, solicitado→draft, rascunho→draft
 - Portfolio fotos: bucket público para /1/portfolio/*, usa -web.webp para exibição
-- **NUNCA usar TENANT#1 ou TENANT#<cognitoSub> — sempre TENANT#default**
+- **NUNCA usar TENANT#<cognitoSub> — sempre process.env.TENANT_ID || '1'**
 
 ## Notas técnicas da sessão 30/07/2026
 - **AlbumPreview.jsx**: CUIDADO com useState — TODOS os hooks devem ficar ANTES dos `if (loading) return` / `if (!album) return`. Já causou tela branca 2x.

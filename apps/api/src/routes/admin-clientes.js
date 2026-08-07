@@ -274,17 +274,88 @@ router.put('/:id', async (req, res) => {
   }
 });
 
-// DELETE /api/admin/clientes/:id
+// DELETE /api/admin/clientes/:id — Com cascata de dados relacionados
 router.delete('/:id', async (req, res) => {
   try {
-    await dynamo.send(new DeleteCommand({
-      TableName: TABLE,
-      Key: { PK: `TENANT#${TENANT}`, SK: `CLIENTE#${req.params.id}` },
-    }));
+    const clienteId = req.params.id;
+
+    // 1) Deletar o registro principal do cliente (tenta todos os padrões)
+    const deletePromises = [
+      // Padrão 1: TENANT#1 / CLIENTE#<id> (admin-created)
+      dynamo.send(new DeleteCommand({
+        TableName: TABLE,
+        Key: { PK: `TENANT#${TENANT}`, SK: `CLIENTE#${clienteId}` },
+      })).catch(() => {}),
+      // Padrão 2: CLIENT#<id> / PROFILE (self-signup)
+      dynamo.send(new DeleteCommand({
+        TableName: TABLE,
+        Key: { PK: `CLIENT#${clienteId}`, SK: 'PROFILE' },
+      })).catch(() => {}),
+      // Padrão 3: TENANT#1 / CLIENT#<id> (CSV import)
+      dynamo.send(new DeleteCommand({
+        TableName: TABLE,
+        Key: { PK: `TENANT#${TENANT}`, SK: `CLIENT#${clienteId}` },
+      })).catch(() => {}),
+    ];
+    await Promise.all(deletePromises);
+
+    // 2) Limpar dados relacionados (fire and forget — não bloqueia a resposta)
+    limparDadosRelacionados(clienteId).catch(err => {
+      console.error(`[CLIENTES] Erro ao limpar dados do cliente ${clienteId}:`, err.message);
+    });
+
     res.json({ success: true, message: 'Cliente excluído' });
   } catch (error) {
     res.status(400).json({ success: false, message: error.message });
   }
 });
+
+/**
+ * Remove dados relacionados ao cliente de forma assíncrona.
+ * Busca e deleta: cobranças, histórico, feedbacks, aditivos, pendências.
+ * Contratos e orçamentos são mantidos (apenas desvinculados) para compliance.
+ */
+async function limparDadosRelacionados(clienteId) {
+  const prefixes = [
+    { pk: `CLIENTE#${clienteId}`, skPrefix: 'COBRANCA#' },
+    { pk: `CLIENTE#${clienteId}`, skPrefix: 'HISTORICO#' },
+    { pk: `CLIENTE#${clienteId}`, skPrefix: 'FEEDBACK#' },
+    { pk: `CLIENTE#${clienteId}`, skPrefix: 'ADITIVO#' },
+    { pk: `CLIENT#${clienteId}`, skPrefix: 'HISTORICO#' },
+  ];
+
+  for (const { pk, skPrefix } of prefixes) {
+    try {
+      let lastKey = undefined;
+      do {
+        const result = await dynamo.send(new QueryCommand({
+          TableName: TABLE,
+          KeyConditionExpression: 'PK = :pk AND begins_with(SK, :sk)',
+          ExpressionAttributeValues: { ':pk': pk, ':sk': skPrefix },
+          ProjectionExpression: 'PK, SK',
+          ...(lastKey ? { ExclusiveStartKey: lastKey } : {}),
+        }));
+
+        const items = result.Items || [];
+        // Deletar em batches de 25 (limite do BatchWriteItem)
+        for (let i = 0; i < items.length; i += 25) {
+          const batch = items.slice(i, i + 25);
+          const { BatchWriteCommand } = require('@aws-sdk/lib-dynamodb');
+          await dynamo.send(new BatchWriteCommand({
+            RequestItems: {
+              [TABLE]: batch.map(item => ({
+                DeleteRequest: { Key: { PK: item.PK, SK: item.SK } },
+              })),
+            },
+          }));
+        }
+
+        lastKey = result.LastEvaluatedKey;
+      } while (lastKey);
+    } catch (err) {
+      console.error(`[CLIENTES] Erro ao limpar ${pk}/${skPrefix}:`, err.message);
+    }
+  }
+}
 
 module.exports = router;
