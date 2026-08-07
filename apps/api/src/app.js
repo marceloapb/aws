@@ -169,8 +169,8 @@ app.use('/admin/financeiro', adminAuth, adminFinanceiroRoutes);
 app.use('/admin/notificacoes/calendario', adminAuth, adminCalendarioRulesRoutes);
 app.use('/admin/notificacoes', adminAuth, adminNotificacoesRoutes);
 app.use('/admin/novidades', adminAuth, adminNovidadesRoutes);
-app.use('/admin/site', adminAuth, adminSiteRoutes);
 app.use('/admin/site/pages', adminAuth, adminSitePageRoutes);
+app.use('/admin/site', adminAuth, adminSiteRoutes);
 app.use('/admin/media', adminAuth, adminMediaRoutes);
 app.use('/admin/upload', adminAuth, adminUploadRoutes);
 app.use('/admin/portfolio', adminAuth, adminPortfolioRoutes);
@@ -209,8 +209,8 @@ app.use('/public/album/:slug', publicAlbumRoutes);
 app.use('/public/assinatura', publicAssinaturaRoutes);
 app.use('/public', publicRoutes);
 app.use('/public/novidades', publicNovidadesRoutes);
-app.use('/public/site', publicSiteRoutes);
 app.use('/public/site/pages', publicSitePageRoutes);
+app.use('/public/site', publicSiteRoutes);
 
 // Auth pública (login/signup - sem auth)
 app.use('/auth', authLimiter, clientAuthRoutes);
