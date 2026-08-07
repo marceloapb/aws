@@ -424,14 +424,14 @@ export default function SiteBuilder() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-screen">
+      <div className="flex items-center justify-center py-20">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2" style={{ borderColor: ACCENT }} />
       </div>
     );
   }
 
   return (
-    <div className="flex h-screen bg-gray-50">
+    <div className="flex h-[calc(100vh-4rem)] bg-gray-50 -m-6">
       {/* Sidebar */}
       <aside className="w-64 border-r border-gray-200 bg-white flex flex-col">
         <div className="p-4 border-b border-gray-200 flex items-center gap-2">
