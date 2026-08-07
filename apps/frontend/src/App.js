@@ -14,6 +14,7 @@ import NovidadeDetalhe from './pages/public/NovidadeDetalhe';
 import SobrePage from './pages/public/SobrePage';
 import ContatoPage from './pages/public/ContatoPage';
 import SitePage from './pages/public/SitePage';
+import SiteV2 from './pages/public/SiteV2';
 import ContratoAssinar from './pages/public/ContratoAssinar';
 import VerificarAssinatura from './pages/public/VerificarAssinatura';
 import AlbumPublico from './pages/public/AlbumPublico';
@@ -127,6 +128,9 @@ function App() {
         <Route path="/contato" element={<ContatoPage />} />
         <Route path="/p/:slug" element={<SitePage />} />
       </Route>
+
+      {/* Site V2 - Layout fullscreen horizontal */}
+      <Route path="/v2" element={<SiteV2 />} />
 
       <Route path="/login" element={user ? <Navigate to={user.role === 'admin' ? '/admin' : '/cliente'} /> : <Login />} />
       <Route path="/cadastro" element={<Cadastro />} />
