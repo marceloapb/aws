@@ -9,12 +9,19 @@ const API = process.env.REACT_APP_API_URL || '';
 const SiteConfigContext = createContext(null);
 export const useSiteConfig = () => useContext(SiteConfigContext);
 
-const NAV_LINKS = [
+// Fallback nav links used when no dynamic pages exist
+const DEFAULT_NAV_LINKS = [
   { to: '/', label: 'Home' },
   { to: '/sobre', label: 'A Empresa' },
   { to: '/portfolio', label: 'Portfólio' },
   { to: '/novidades', label: 'Novidades' },
   { to: '/contato', label: 'Fale Conosco' },
+];
+
+// Fixed links that always show (not managed by builder)
+const FIXED_LINKS = [
+  { to: '/portfolio', label: 'Portfólio' },
+  { to: '/novidades', label: 'Novidades' },
 ];
 
 const SOCIAL_ICONS = {
@@ -48,7 +55,27 @@ export default function SiteLayout() {
     return null;
   });
   const [menuOpen, setMenuOpen] = useState(false);
+  const [navLinks, setNavLinks] = useState(DEFAULT_NAV_LINKS);
   const location = useLocation();
+
+  // Load dynamic menu from site builder
+  useEffect(() => {
+    fetch(`${API}/public/site/pages/menu`)
+      .then(r => r.json())
+      .then(json => {
+        const pages = json.data || json || [];
+        if (pages.length > 0) {
+          // Build nav from dynamic pages + fixed links
+          const dynamicLinks = pages.map(p => ({
+            to: p.is_home ? '/' : `/p/${p.slug}`,
+            label: p.titulo,
+          }));
+          // Insert fixed links (portfolio, novidades) after the dynamic pages
+          setNavLinks([...dynamicLinks, ...FIXED_LINKS]);
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     fetch(`${API}/public/site/config`)
@@ -108,7 +135,7 @@ export default function SiteLayout() {
 
               {/* Left: Navigation Links */}
               <nav className="hidden md:flex items-center gap-0.5">
-                {NAV_LINKS.map(link => (
+                {navLinks.map(link => (
                   <NavLink
                     key={link.to}
                     to={link.to}
@@ -207,7 +234,7 @@ export default function SiteLayout() {
                 </button>
               </div>
               <nav className="flex flex-col p-4 gap-1">
-                {NAV_LINKS.map(link => (
+                {navLinks.map(link => (
                   <NavLink
                     key={link.to}
                     to={link.to}

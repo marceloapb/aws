@@ -59,7 +59,7 @@ function SortablePageItem({ page, isActive, onSelect, onDelete }) {
   );
 }
 
-function SortableBlock({ block, onToggle, onDelete, onDuplicate, onUpdate, expanded }) {
+function SortableBlock({ block, onToggle, onDelete, onDuplicate, onUpdate, expanded, authFetch }) {
   const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id: block.id });
   const style = { transform: CSS.Transform.toString(transform), transition };
   const blockType = BLOCK_TYPES.find(b => b.type === block.type);
@@ -82,18 +82,45 @@ function SortableBlock({ block, onToggle, onDelete, onDuplicate, onUpdate, expan
       </div>
       {expanded && (
         <div className="px-4 pb-4 border-t border-gray-100 pt-3">
-          <BlockForm block={block} onUpdate={onUpdate} />
+          <BlockForm block={block} onUpdate={onUpdate} authFetch={authFetch} />
         </div>
       )}
     </div>
   );
 }
 
-function BlockForm({ block, onUpdate }) {
+function BlockForm({ block, onUpdate, authFetch }) {
   const update = (field, value) => onUpdate(block.id, { ...block.data, [field]: value });
   const inputCls = "w-full border border-gray-300 rounded px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-300";
   const labelCls = "block text-xs font-medium text-gray-600 mb-1";
   const selectCls = inputCls;
+
+  const handleImageUpload = async (field) => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+    input.onchange = async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      try {
+        const res = await authFetch('/admin/fotos/upload-url', {
+          method: 'POST',
+          body: JSON.stringify({ albumId: 'site', contentType: file.type }),
+        });
+        const json = await res.json();
+        if (json.success && json.data?.uploadUrl) {
+          await fetch(json.data.uploadUrl, { method: 'PUT', body: file, headers: { 'Content-Type': file.type } });
+          // Use CDN URL directly
+          const cdnDomain = 'd2112x4m4e89fv.cloudfront.net';
+          const cdnUrl = `https://${cdnDomain}/${json.data.key}`;
+          update(field, cdnUrl);
+        }
+      } catch (err) {
+        console.error('Upload failed:', err);
+      }
+    };
+    input.click();
+  };
 
   const renderField = (label, field, type = 'text', options = null) => (
     <div key={field}>
@@ -106,6 +133,18 @@ function BlockForm({ block, onUpdate }) {
         </select>
       ) : type === 'number' ? (
         <input type="number" className={inputCls} value={block.data?.[field] || ''} onChange={e => update(field, parseInt(e.target.value) || 0)} min={options?.min} max={options?.max} />
+      ) : type === 'image' ? (
+        <div className="space-y-2">
+          <div className="flex gap-2">
+            <input type="text" className={inputCls} value={block.data?.[field] || ''} onChange={e => update(field, e.target.value)} placeholder="URL da imagem ou faça upload" />
+            <button type="button" onClick={() => handleImageUpload(field)} className="shrink-0 px-3 py-1.5 text-xs font-medium text-white rounded hover:opacity-90" style={{ background: ACCENT }}>
+              Upload
+            </button>
+          </div>
+          {block.data?.[field] && (
+            <img src={block.data[field]} alt="" className="h-20 w-auto rounded border border-gray-200 object-cover" />
+          )}
+        </div>
       ) : (
         <input type="text" className={inputCls} value={block.data?.[field] || ''} onChange={e => update(field, e.target.value)} />
       )}
@@ -143,7 +182,7 @@ function BlockForm({ block, onUpdate }) {
       <div className="space-y-3">
         {renderField('Título', 'titulo')}
         {renderField('Subtítulo', 'subtitulo')}
-        {renderField('Imagem URL', 'imagem_url')}
+        {renderField('Imagem', 'imagem_url', 'image')}
         {renderField('Texto do botão', 'botao_texto')}
         {renderField('URL do botão', 'botao_url')}
         {renderField('Variante', 'variant', 'select', ['fullscreen', 'minimal', 'split'])}
@@ -153,7 +192,7 @@ function BlockForm({ block, onUpdate }) {
       <div className="space-y-3">
         {renderField('Título', 'titulo')}
         {renderField('Conteúdo', 'conteudo', 'textarea')}
-        {renderField('Imagem URL', 'imagem_url')}
+        {renderField('Imagem', 'imagem_url', 'image')}
         {renderField('Posição da imagem', 'imagem_posicao', 'select', ['acima', 'direita', 'esquerda'])}
         {renderField('Variante', 'variant', 'select', ['citacao', 'destaque', 'simples'])}
       </div>
@@ -454,7 +493,7 @@ export default function SiteBuilder() {
             <DndContext collisionDetection={closestCenter} onDragEnd={handleBlockReorder}>
               <SortableContext items={blocks.map(b => b.id)} strategy={verticalListSortingStrategy}>
                 {blocks.map(block => (
-                  <SortableBlock key={block.id} block={block} expanded={!!expandedBlocks[block.id]} onToggle={toggleBlock} onDelete={deleteBlock} onDuplicate={duplicateBlock} onUpdate={updateBlockData} />
+                  <SortableBlock key={block.id} block={block} expanded={!!expandedBlocks[block.id]} onToggle={toggleBlock} onDelete={deleteBlock} onDuplicate={duplicateBlock} onUpdate={updateBlockData} authFetch={authFetch} />
                 ))}
               </SortableContext>
             </DndContext>
