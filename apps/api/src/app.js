@@ -61,6 +61,7 @@ const adminCalendarioRulesRoutes = require('./routes/admin-calendario-rules');
 const adminNovidadesRoutes = require('./routes/admin-novidades');
 const adminSiteRoutes = require('./routes/admin-site');
 const adminSitePageRoutes = require('./routes/admin-site-pages');
+const adminSiteAiRoutes = require('./routes/admin-site-ai');
 const adminMediaRoutes = require('./routes/admin-media');
 const adminUploadRoutes = require('./routes/admin-upload');
 const adminPortfolioRoutes = require('./routes/admin-portfolio');
@@ -170,6 +171,7 @@ app.use('/admin/notificacoes/calendario', adminAuth, adminCalendarioRulesRoutes)
 app.use('/admin/notificacoes', adminAuth, adminNotificacoesRoutes);
 app.use('/admin/novidades', adminAuth, adminNovidadesRoutes);
 app.use('/admin/site/pages', adminAuth, adminSitePageRoutes);
+app.use('/admin/site/ai', adminAuth, adminSiteAiRoutes);
 app.use('/admin/site', adminAuth, adminSiteRoutes);
 app.use('/admin/media', adminAuth, adminMediaRoutes);
 app.use('/admin/upload', adminAuth, adminUploadRoutes);
