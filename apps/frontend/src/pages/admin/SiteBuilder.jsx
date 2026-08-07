@@ -4,13 +4,17 @@ import { DndContext, closestCenter } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy, useSortable, arrayMove } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import {
-  Layout, Plus, Trash2, GripVertical, Save, Eye, Image, Type, Grid3X3,
-  Star, MousePointer, HelpCircle, Video, Minus, Briefcase, ChevronDown,
-  ChevronUp, Copy, Globe, EyeOff, Home, FileText, Settings2, Sparkles
+  Layout, Plus, Trash2, GripVertical, Save, Image, Type, Grid3X3,
+  Star, MousePointer, HelpCircle, Video, Minus, Briefcase,
+  Copy, Globe, EyeOff, Home, FileText, Settings2, Sparkles,
+  X, PanelRightOpen, PanelRightClose, Layers
 } from 'lucide-react';
 import { SITE_TEMPLATES } from './siteTemplates';
+import BlockPreview from './site-builder/BlockPreview';
+import LivePreview from './site-builder/LivePreview';
 
 const ACCENT = '#EA580C';
+
 
 const BLOCK_TYPES = [
   { type: 'hero', label: 'Hero', icon: Image, description: 'Banner principal com imagem e texto' },
@@ -39,12 +43,24 @@ const getDefaultData = (type) => {
   return defaults[type] || {};
 };
 
+
+// ═══════════════════════════════════════════════════════════════
+// SORTABLE PAGE ITEM
+// ═══════════════════════════════════════════════════════════════
+
 function SortablePageItem({ page, isActive, onSelect, onDelete }) {
   const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id: page.id });
   const style = { transform: CSS.Transform.toString(transform), transition };
 
   return (
-    <div ref={setNodeRef} style={style} className={`flex items-center gap-2 p-2 rounded cursor-pointer border ${isActive ? 'border-orange-500 bg-orange-50' : 'border-gray-200 bg-white hover:bg-gray-50'}`} onClick={() => onSelect(page)}>
+    <div ref={setNodeRef} style={style}
+      className={`flex items-center gap-2 p-2 rounded-lg cursor-pointer border transition-all ${
+        isActive
+          ? 'border-orange-500 bg-orange-50 shadow-sm'
+          : 'border-gray-200 bg-white hover:bg-gray-50 hover:border-gray-300'
+      }`}
+      onClick={() => onSelect(page)}
+    >
       <button {...attributes} {...listeners} className="cursor-grab text-gray-400 hover:text-gray-600">
         <GripVertical size={14} />
       </button>
@@ -52,48 +68,70 @@ function SortablePageItem({ page, isActive, onSelect, onDelete }) {
         <p className="text-sm font-medium truncate">{page.titulo || 'Sem título'}</p>
         <p className="text-xs text-gray-500 truncate">/{page.slug}</p>
       </div>
-      <button onClick={(e) => { e.stopPropagation(); onDelete(page.id); }} className="text-gray-400 hover:text-red-500 p-1">
+      {page.is_home && <Home size={12} className="text-orange-500" />}
+      <button onClick={(e) => { e.stopPropagation(); onDelete(page.id); }}
+        className="text-gray-400 hover:text-red-500 p-1 opacity-0 group-hover:opacity-100 transition-opacity">
         <Trash2 size={14} />
       </button>
     </div>
   );
 }
 
-function SortableBlock({ block, onToggle, onDelete, onDuplicate, onUpdate, expanded, authFetch }) {
+
+// ═══════════════════════════════════════════════════════════════
+// SORTABLE BLOCK CARD — Versão visual com preview thumbnail
+// ═══════════════════════════════════════════════════════════════
+
+function SortableBlockCard({ block, isSelected, onSelect, onDelete, onDuplicate }) {
   const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id: block.id });
   const style = { transform: CSS.Transform.toString(transform), transition };
   const blockType = BLOCK_TYPES.find(b => b.type === block.type);
   const Icon = blockType?.icon || FileText;
 
   return (
-    <div ref={setNodeRef} style={style} className="border border-gray-200 rounded-lg bg-white mb-2">
-      <div className="flex items-center gap-2 p-3">
-        <button {...attributes} {...listeners} className="cursor-grab text-gray-400 hover:text-gray-600">
-          <GripVertical size={16} />
-        </button>
-        <Icon size={16} style={{ color: ACCENT }} />
-        <span className="text-sm font-medium flex-1">{blockType?.label || block.type}</span>
-        <span className="text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded">{block.data?.variant || '—'}</span>
-        <button onClick={() => onDuplicate(block)} className="p-1 text-gray-400 hover:text-blue-500"><Copy size={14} /></button>
-        <button onClick={() => onDelete(block.id)} className="p-1 text-gray-400 hover:text-red-500"><Trash2 size={14} /></button>
-        <button onClick={() => onToggle(block.id)} className="p-1 text-gray-400 hover:text-gray-700">
-          {expanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-        </button>
-      </div>
-      {expanded && (
-        <div className="px-4 pb-4 border-t border-gray-100 pt-3">
-          <BlockForm block={block} onUpdate={onUpdate} authFetch={authFetch} />
+    <div ref={setNodeRef} style={style} className="group">
+      <div className={`relative transition-all duration-200 ${
+        isSelected ? 'scale-[1.02]' : ''
+      }`}>
+        {/* Drag handle + label header */}
+        <div className={`flex items-center gap-1.5 px-2 py-1 rounded-t-lg text-xs font-medium ${
+          isSelected ? 'bg-orange-500 text-white' : 'bg-gray-100 text-gray-600'
+        }`}>
+          <button {...attributes} {...listeners} className="cursor-grab hover:opacity-70">
+            <GripVertical size={12} />
+          </button>
+          <Icon size={12} />
+          <span className="flex-1 truncate">{blockType?.label || block.type}</span>
+          <button onClick={(e) => { e.stopPropagation(); onDuplicate(block); }}
+            className="opacity-0 group-hover:opacity-100 hover:text-blue-300 transition-opacity p-0.5">
+            <Copy size={11} />
+          </button>
+          <button onClick={(e) => { e.stopPropagation(); onDelete(block.id); }}
+            className="opacity-0 group-hover:opacity-100 hover:text-red-300 transition-opacity p-0.5">
+            <Trash2 size={11} />
+          </button>
         </div>
-      )}
+        {/* Visual preview card */}
+        <BlockPreview block={block} isSelected={isSelected} onClick={() => onSelect(block.id)} />
+      </div>
     </div>
   );
 }
 
-function BlockForm({ block, onUpdate, authFetch }) {
+
+// ═══════════════════════════════════════════════════════════════
+// EDIT PANEL — Painel lateral de edição de bloco
+// ═══════════════════════════════════════════════════════════════
+
+function EditPanel({ block, onUpdate, onClose, authFetch }) {
+  if (!block) return null;
+
   const update = (field, value) => onUpdate(block.id, { ...block.data, [field]: value });
-  const inputCls = "w-full border border-gray-300 rounded px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-300";
-  const labelCls = "block text-xs font-medium text-gray-600 mb-1";
+  const inputCls = "w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-300 focus:border-orange-300 transition-all";
+  const labelCls = "block text-xs font-semibold text-gray-700 mb-1.5";
   const selectCls = inputCls;
+  const blockType = BLOCK_TYPES.find(b => b.type === block.type);
+  const Icon = blockType?.icon || FileText;
 
   const handleImageUpload = async (field) => {
     const input = document.createElement('input');
@@ -110,7 +148,6 @@ function BlockForm({ block, onUpdate, authFetch }) {
         const json = await res.json();
         if (json.success && json.data?.uploadUrl) {
           await fetch(json.data.uploadUrl, { method: 'PUT', body: file, headers: { 'Content-Type': file.type } });
-          // Use CDN URL directly
           const cdnDomain = 'd2112x4m4e89fv.cloudfront.net';
           const cdnUrl = `https://${cdnDomain}/${json.data.key}`;
           update(field, cdnUrl);
@@ -121,6 +158,7 @@ function BlockForm({ block, onUpdate, authFetch }) {
     };
     input.click();
   };
+
 
   const renderField = (label, field, type = 'text', options = null) => (
     <div key={field}>
@@ -137,12 +175,13 @@ function BlockForm({ block, onUpdate, authFetch }) {
         <div className="space-y-2">
           <div className="flex gap-2">
             <input type="text" className={inputCls} value={block.data?.[field] || ''} onChange={e => update(field, e.target.value)} placeholder="URL da imagem ou faça upload" />
-            <button type="button" onClick={() => handleImageUpload(field)} className="shrink-0 px-3 py-1.5 text-xs font-medium text-white rounded hover:opacity-90" style={{ background: ACCENT }}>
+            <button type="button" onClick={() => handleImageUpload(field)}
+              className="shrink-0 px-3 py-2 text-xs font-medium text-white rounded-lg hover:opacity-90 transition-opacity" style={{ background: ACCENT }}>
               Upload
             </button>
           </div>
           {block.data?.[field] && (
-            <img src={block.data[field]} alt="" className="h-20 w-auto rounded border border-gray-200 object-cover" />
+            <img src={block.data[field]} alt="" className="h-24 w-full rounded-lg border border-gray-200 object-cover" />
           )}
         </div>
       ) : (
@@ -151,120 +190,157 @@ function BlockForm({ block, onUpdate, authFetch }) {
     </div>
   );
 
+
   const renderItems = (fields) => {
     const items = block.data?.items || [];
     return (
       <div>
         <label className={labelCls}>Itens</label>
-        {items.map((item, i) => (
-          <div key={i} className="flex gap-2 mb-2 items-start">
-            <div className="flex-1 space-y-1">
-              {fields.map(f => (
-                <input key={f} className={inputCls} placeholder={f} value={item[f] || ''} onChange={e => {
-                  const newItems = [...items];
-                  newItems[i] = { ...newItems[i], [f]: e.target.value };
-                  update('items', newItems);
-                }} />
-              ))}
+        <div className="space-y-2">
+          {items.map((item, i) => (
+            <div key={i} className="flex gap-2 items-start p-2 bg-gray-50 rounded-lg border border-gray-100">
+              <div className="flex-1 space-y-1.5">
+                {fields.map(f => (
+                  <input key={f} className={inputCls} placeholder={f.charAt(0).toUpperCase() + f.slice(1)} value={item[f] || ''} onChange={e => {
+                    const newItems = [...items];
+                    newItems[i] = { ...newItems[i], [f]: e.target.value };
+                    update('items', newItems);
+                  }} />
+                ))}
+              </div>
+              <button onClick={() => update('items', items.filter((_, idx) => idx !== i))}
+                className="text-gray-400 hover:text-red-500 mt-1 p-1">
+                <Trash2 size={14} />
+              </button>
             </div>
-            <button onClick={() => update('items', items.filter((_, idx) => idx !== i))} className="text-red-400 hover:text-red-600 mt-1"><Trash2 size={14} /></button>
-          </div>
-        ))}
-        <button onClick={() => update('items', [...items, fields.reduce((a, f) => ({ ...a, [f]: '' }), {})])} className="text-sm flex items-center gap-1 mt-1" style={{ color: ACCENT }}>
+          ))}
+        </div>
+        <button onClick={() => update('items', [...items, fields.reduce((a, f) => ({ ...a, [f]: '' }), {})])}
+          className="text-sm flex items-center gap-1 mt-2 font-medium" style={{ color: ACCENT }}>
           <Plus size={14} /> Adicionar item
         </button>
       </div>
     );
   };
 
+
   const formFields = {
     hero: () => (
-      <div className="space-y-3">
+      <div className="space-y-4">
+        {renderField('Variante', 'variant', 'select', ['fullscreen', 'minimal', 'split'])}
         {renderField('Título', 'titulo')}
         {renderField('Subtítulo', 'subtitulo')}
-        {renderField('Imagem', 'imagem_url', 'image')}
+        {renderField('Imagem de fundo', 'imagem_url', 'image')}
         {renderField('Texto do botão', 'botao_texto')}
         {renderField('URL do botão', 'botao_url')}
-        {renderField('Variante', 'variant', 'select', ['fullscreen', 'minimal', 'split'])}
       </div>
     ),
     text: () => (
-      <div className="space-y-3">
+      <div className="space-y-4">
+        {renderField('Variante', 'variant', 'select', ['citacao', 'destaque', 'simples'])}
         {renderField('Título', 'titulo')}
         {renderField('Conteúdo', 'conteudo', 'textarea')}
         {renderField('Imagem', 'imagem_url', 'image')}
         {renderField('Posição da imagem', 'imagem_posicao', 'select', ['acima', 'direita', 'esquerda'])}
-        {renderField('Variante', 'variant', 'select', ['citacao', 'destaque', 'simples'])}
       </div>
     ),
     gallery: () => (
-      <div className="space-y-3">
-        {renderField('Título', 'titulo')}
-        {renderField('Quantidade', 'quantidade', 'number', { min: 4, max: 12 })}
+      <div className="space-y-4">
         {renderField('Variante', 'variant', 'select', ['carousel', 'grid', 'masonry'])}
+        {renderField('Título', 'titulo')}
+        {renderField('Quantidade de fotos', 'quantidade', 'number', { min: 4, max: 12 })}
       </div>
     ),
     testimonials: () => (
-      <div className="space-y-3">
+      <div className="space-y-4">
+        {renderField('Variante', 'variant', 'select', ['carousel', 'grid', 'lista'])}
         {renderField('Título', 'titulo')}
         {renderField('Quantidade', 'quantidade', 'number', { min: 3, max: 6 })}
-        {renderField('Variante', 'variant', 'select', ['carousel', 'grid', 'lista'])}
       </div>
     ),
     cta: () => (
-      <div className="space-y-3">
+      <div className="space-y-4">
+        {renderField('Variante', 'variant', 'select', ['banner', 'destaque', 'simples'])}
         {renderField('Título', 'titulo')}
         {renderField('Subtítulo', 'subtitulo')}
         {renderField('Texto do botão', 'botao_texto')}
         {renderField('URL do botão', 'botao_url')}
-        {renderField('Variante', 'variant', 'select', ['banner', 'destaque', 'simples'])}
       </div>
     ),
     faq: () => (
-      <div className="space-y-3">
+      <div className="space-y-4">
+        {renderField('Variante', 'variant', 'select', ['accordion', 'cards', 'lista'])}
         {renderField('Título', 'titulo')}
         {renderItems(['pergunta', 'resposta'])}
-        {renderField('Variante', 'variant', 'select', ['accordion', 'cards', 'lista'])}
       </div>
     ),
     video: () => (
-      <div className="space-y-3">
-        {renderField('Título', 'titulo')}
-        {renderField('URL do vídeo', 'url')}
+      <div className="space-y-4">
         {renderField('Variante', 'variant', 'select', ['background', 'contained', 'fullwidth'])}
+        {renderField('Título', 'titulo')}
+        {renderField('URL do vídeo (YouTube/Vimeo)', 'url')}
       </div>
     ),
     separator: () => (
-      <div className="space-y-3">
+      <div className="space-y-4">
         {renderField('Variante', 'variant', 'select', ['decorativo', 'espaco', 'linha'])}
         {renderField('Altura (px)', 'altura', 'number', { min: 10, max: 200 })}
       </div>
     ),
     services: () => (
-      <div className="space-y-3">
+      <div className="space-y-4">
+        {renderField('Variante', 'variant', 'select', ['cards', 'grid', 'lista'])}
         {renderField('Título', 'titulo')}
         {renderItems(['nome', 'descricao', 'icone'])}
-        {renderField('Variante', 'variant', 'select', ['cards', 'grid', 'lista'])}
       </div>
     ),
   };
 
   const FormContent = formFields[block.type];
-  return FormContent ? <FormContent /> : <p className="text-sm text-gray-500">Tipo de bloco desconhecido.</p>;
+
+
+  return (
+    <div className="h-full flex flex-col bg-white border-l border-gray-200 overflow-hidden">
+      {/* Panel Header */}
+      <div className="flex items-center gap-2 px-4 py-3 border-b border-gray-200 bg-gray-50">
+        <Icon size={16} style={{ color: ACCENT }} />
+        <h3 className="font-semibold text-sm text-gray-800 flex-1">{blockType?.label || block.type}</h3>
+        <span className="text-[10px] text-gray-500 bg-white px-2 py-0.5 rounded-full border border-gray-200">
+          {block.data?.variant || '—'}
+        </span>
+        <button onClick={onClose} className="p-1 text-gray-400 hover:text-gray-600 rounded hover:bg-gray-200 transition-colors">
+          <X size={16} />
+        </button>
+      </div>
+      {/* Panel Body */}
+      <div className="flex-1 overflow-y-auto p-4">
+        {FormContent ? <FormContent /> : <p className="text-sm text-gray-500">Tipo de bloco desconhecido.</p>}
+      </div>
+    </div>
+  );
 }
+
+
+// ═══════════════════════════════════════════════════════════════
+// MAIN SITE BUILDER — Layout com split view
+// ═══════════════════════════════════════════════════════════════
 
 export default function SiteBuilder() {
   const { authFetch } = useAuth();
   const [pages, setPages] = useState([]);
   const [selectedPage, setSelectedPage] = useState(null);
   const [blocks, setBlocks] = useState([]);
-  const [expandedBlocks, setExpandedBlocks] = useState({});
+  const [selectedBlockId, setSelectedBlockId] = useState(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [showBlockModal, setShowBlockModal] = useState(false);
   const [showTemplateModal, setShowTemplateModal] = useState(false);
   const [applyingTemplate, setApplyingTemplate] = useState(false);
+  const [showPreview, setShowPreview] = useState(true);
   const [error, setError] = useState(null);
+
+  const selectedBlock = blocks.find(b => b.id === selectedBlockId);
+
 
   const loadPages = useCallback(async () => {
     try {
@@ -286,18 +362,17 @@ export default function SiteBuilder() {
   const selectPage = async (page) => {
     try {
       setSelectedPage(page);
+      setSelectedBlockId(null);
       const res = await authFetch(`/admin/site/pages/${page.id}`);
       const json = await res.json();
       const data = json.data || json;
       setSelectedPage(data);
-      // Convert API format {id, type, variant, props} to internal {id, type, data}
       const internalBlocks = (data.blocos || []).map(b => ({
         id: b.id,
         type: b.type,
         data: { variant: b.variant || '', ...(b.props || {}) },
       }));
       setBlocks(internalBlocks);
-      setExpandedBlocks({});
     } catch (err) {
       setError('Erro ao carregar página');
     }
@@ -318,6 +393,7 @@ export default function SiteBuilder() {
     }
   };
 
+
   const deletePage = async (id) => {
     if (!confirm('Excluir esta página?')) return;
     try {
@@ -337,7 +413,6 @@ export default function SiteBuilder() {
     if (!selectedPage) return;
     try {
       setSaving(true);
-      // Convert internal format {id, type, data} to API format {id, type, variant, props}
       const blocosForApi = blocks.map(b => {
         const { variant, ...props } = b.data || {};
         return { id: b.id, type: b.type, variant: variant || '', props };
@@ -373,6 +448,7 @@ export default function SiteBuilder() {
     }
   };
 
+
   const handleBlockReorder = (event) => {
     const { active, over } = event;
     if (!over || active.id === over.id) return;
@@ -384,17 +460,24 @@ export default function SiteBuilder() {
   const addBlock = (type) => {
     const newBlock = { id: crypto.randomUUID(), type, data: getDefaultData(type) };
     setBlocks(prev => [...prev, newBlock]);
-    setExpandedBlocks(prev => ({ ...prev, [newBlock.id]: true }));
+    setSelectedBlockId(newBlock.id);
     setShowBlockModal(false);
   };
 
-  const deleteBlock = (id) => setBlocks(prev => prev.filter(b => b.id !== id));
+  const deleteBlock = (id) => {
+    setBlocks(prev => prev.filter(b => b.id !== id));
+    if (selectedBlockId === id) setSelectedBlockId(null);
+  };
+
   const duplicateBlock = (block) => {
     const newBlock = { ...block, id: crypto.randomUUID(), data: { ...block.data } };
-    setBlocks(prev => [...prev, newBlock]);
+    const idx = blocks.findIndex(b => b.id === block.id);
+    setBlocks(prev => [...prev.slice(0, idx + 1), newBlock, ...prev.slice(idx + 1)]);
+    setSelectedBlockId(newBlock.id);
   };
+
   const updateBlockData = (id, data) => setBlocks(prev => prev.map(b => b.id === id ? { ...b, data } : b));
-  const toggleBlock = (id) => setExpandedBlocks(prev => ({ ...prev, [id]: !prev[id] }));
+
 
   const applyTemplate = async (template) => {
     if (!window.confirm(`Aplicar template "${template.label}"? Isso vai criar ${template.pages.length} página(s) novas.`)) return;
@@ -430,131 +513,243 @@ export default function SiteBuilder() {
     );
   }
 
+
   return (
     <div className="flex h-[calc(100vh-4rem)] bg-gray-50 -m-6">
-      {/* Sidebar */}
-      <aside className="w-64 border-r border-gray-200 bg-white flex flex-col">
-        <div className="p-4 border-b border-gray-200 flex items-center gap-2">
-          <Layout size={20} style={{ color: ACCENT }} />
-          <h2 className="font-semibold text-gray-800">Páginas</h2>
+      {/* ══════ LEFT SIDEBAR — Páginas ══════ */}
+      <aside className="w-56 border-r border-gray-200 bg-white flex flex-col shrink-0">
+        <div className="p-3 border-b border-gray-200 flex items-center gap-2">
+          <Layout size={18} style={{ color: ACCENT }} />
+          <h2 className="font-semibold text-sm text-gray-800">Páginas</h2>
         </div>
-        <div className="flex-1 overflow-y-auto p-3 space-y-2">
+        <div className="flex-1 overflow-y-auto p-2 space-y-1.5">
           <DndContext collisionDetection={closestCenter} onDragEnd={handlePageReorder}>
             <SortableContext items={pages.map(p => p.id)} strategy={verticalListSortingStrategy}>
               {pages.map(page => (
-                <SortablePageItem key={page.id} page={page} isActive={selectedPage?.id === page.id} onSelect={selectPage} onDelete={deletePage} />
+                <SortablePageItem key={page.id} page={page} isActive={selectedPage?.id === page.id}
+                  onSelect={selectPage} onDelete={deletePage} />
               ))}
             </SortableContext>
           </DndContext>
         </div>
-        <div className="p-3 border-t border-gray-200">
-          <button onClick={addPage} className="w-full flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium text-white rounded-lg" style={{ backgroundColor: ACCENT }}>
-            <Plus size={16} /> Nova Página
+        <div className="p-2 border-t border-gray-200 space-y-1.5">
+          <button onClick={addPage}
+            className="w-full flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-medium text-white rounded-lg transition-opacity hover:opacity-90"
+            style={{ backgroundColor: ACCENT }}>
+            <Plus size={14} /> Nova Página
           </button>
-          <button onClick={() => setShowTemplateModal(true)} className="w-full flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium text-gray-700 rounded-lg border border-gray-200 hover:bg-gray-50 mt-2">
-            <Sparkles size={16} /> Usar Template
+          <button onClick={() => setShowTemplateModal(true)}
+            className="w-full flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-medium text-gray-700 rounded-lg border border-gray-200 hover:bg-gray-50">
+            <Sparkles size={14} /> Templates
           </button>
         </div>
       </aside>
 
-      {/* Main Area */}
-      <main className="flex-1 flex flex-col overflow-hidden">
-        {/* Toolbar */}
+
+      {/* ══════ CENTER — Block List (visual cards) ══════ */}
+      <div className="flex flex-col w-72 shrink-0 border-r border-gray-200 bg-gray-50">
+        {/* Page toolbar */}
         {selectedPage && (
-          <header className="bg-white border-b border-gray-200 px-6 py-3 flex items-center gap-4">
-            <input type="text" value={selectedPage.titulo || ''} onChange={e => setSelectedPage(prev => ({ ...prev, titulo: e.target.value }))} placeholder="Título da página" className="text-lg font-semibold border-none outline-none flex-1 bg-transparent" />
-            <div className="flex items-center gap-1 text-sm text-gray-500">
-              <span>/</span>
-              <input type="text" value={selectedPage.slug || ''} onChange={e => setSelectedPage(prev => ({ ...prev, slug: e.target.value }))} className="w-32 border border-gray-300 rounded px-2 py-1 text-sm" />
+          <header className="bg-white border-b border-gray-200 px-3 py-2.5 space-y-2">
+            <div className="flex items-center gap-2">
+              <input type="text" value={selectedPage.titulo || ''}
+                onChange={e => setSelectedPage(prev => ({ ...prev, titulo: e.target.value }))}
+                placeholder="Título" className="text-sm font-semibold border-none outline-none flex-1 bg-transparent min-w-0" />
+              <button onClick={() => setSelectedPage(prev => ({ ...prev, visivel: !prev.visivel }))}
+                className="p-1.5 rounded hover:bg-gray-100" title={selectedPage.visivel ? 'Visível' : 'Oculta'}>
+                {selectedPage.visivel ? <Globe size={14} className="text-green-600" /> : <EyeOff size={14} className="text-gray-400" />}
+              </button>
             </div>
-            <button onClick={() => setSelectedPage(prev => ({ ...prev, visivel: !prev.visivel }))} className="p-2 rounded hover:bg-gray-100" title={selectedPage.visivel ? 'Visível' : 'Oculta'}>
-              {selectedPage.visivel ? <Globe size={18} className="text-green-600" /> : <EyeOff size={18} className="text-gray-400" />}
-            </button>
-            <button onClick={savePage} disabled={saving} className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white rounded-lg disabled:opacity-50" style={{ backgroundColor: ACCENT }}>
-              <Save size={16} /> {saving ? 'Salvando...' : 'Salvar'}
-            </button>
-            <button onClick={() => window.open(`/${selectedPage.slug}`, '_blank')} className="flex items-center gap-2 px-4 py-2 text-sm font-medium border border-gray-300 rounded-lg hover:bg-gray-50">
-              <Eye size={16} /> Preview
-            </button>
+            <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1 text-xs text-gray-500 flex-1 min-w-0">
+                <span>/</span>
+                <input type="text" value={selectedPage.slug || ''}
+                  onChange={e => setSelectedPage(prev => ({ ...prev, slug: e.target.value }))}
+                  className="w-full border border-gray-200 rounded px-2 py-1 text-xs" />
+              </div>
+              <button onClick={savePage} disabled={saving}
+                className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-white rounded-lg disabled:opacity-50 transition-opacity hover:opacity-90"
+                style={{ backgroundColor: ACCENT }}>
+                <Save size={12} /> {saving ? '...' : 'Salvar'}
+              </button>
+            </div>
           </header>
         )}
 
+
         {/* Error Banner */}
         {error && (
-          <div className="mx-6 mt-3 px-4 py-2 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm flex justify-between items-center">
+          <div className="mx-3 mt-2 px-3 py-1.5 bg-red-50 border border-red-200 rounded-lg text-red-700 text-xs flex justify-between items-center">
             <span>{error}</span>
-            <button onClick={() => setError(null)} className="text-red-500 hover:text-red-700 font-bold">×</button>
+            <button onClick={() => setError(null)} className="text-red-500 hover:text-red-700 font-bold ml-2">×</button>
           </div>
         )}
 
-        {/* Block Editor */}
+        {/* Block list */}
         {selectedPage ? (
-          <div className="flex-1 overflow-y-auto p-6">
+          <div className="flex-1 overflow-y-auto p-3 space-y-2">
+            <div className="flex items-center justify-between mb-1">
+              <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider flex items-center gap-1">
+                <Layers size={12} /> Blocos ({blocks.length})
+              </h3>
+              <button onClick={() => setShowPreview(prev => !prev)}
+                className="p-1 text-gray-400 hover:text-gray-600 rounded hover:bg-gray-200" title={showPreview ? 'Esconder preview' : 'Mostrar preview'}>
+                {showPreview ? <PanelRightClose size={14} /> : <PanelRightOpen size={14} />}
+              </button>
+            </div>
+
             <DndContext collisionDetection={closestCenter} onDragEnd={handleBlockReorder}>
               <SortableContext items={blocks.map(b => b.id)} strategy={verticalListSortingStrategy}>
                 {blocks.map(block => (
-                  <SortableBlock key={block.id} block={block} expanded={!!expandedBlocks[block.id]} onToggle={toggleBlock} onDelete={deleteBlock} onDuplicate={duplicateBlock} onUpdate={updateBlockData} authFetch={authFetch} />
+                  <SortableBlockCard key={block.id} block={block}
+                    isSelected={selectedBlockId === block.id}
+                    onSelect={setSelectedBlockId}
+                    onDelete={deleteBlock}
+                    onDuplicate={duplicateBlock} />
                 ))}
               </SortableContext>
             </DndContext>
+
             {blocks.length === 0 && (
-              <div className="text-center py-16 text-gray-400">
-                <Settings2 size={40} className="mx-auto mb-3 opacity-50" />
-                <p className="text-sm">Nenhum bloco adicionado. Clique abaixo para começar.</p>
+              <div className="text-center py-10 text-gray-400">
+                <Settings2 size={32} className="mx-auto mb-2 opacity-50" />
+                <p className="text-xs">Nenhum bloco adicionado</p>
               </div>
             )}
-            <button onClick={() => setShowBlockModal(true)} className="w-full mt-4 flex items-center justify-center gap-2 px-4 py-3 border-2 border-dashed border-gray-300 rounded-lg text-gray-500 hover:border-orange-400 hover:text-orange-600 transition-colors">
-              <Plus size={18} /> Adicionar Bloco
+
+            <button onClick={() => setShowBlockModal(true)}
+              className="w-full mt-2 flex items-center justify-center gap-1.5 px-3 py-2.5 border-2 border-dashed border-gray-300 rounded-lg text-gray-500 hover:border-orange-400 hover:text-orange-600 text-xs font-medium transition-colors">
+              <Plus size={14} /> Adicionar Bloco
             </button>
           </div>
         ) : (
           <div className="flex-1 flex items-center justify-center text-gray-400">
             <div className="text-center">
-              <Home size={40} className="mx-auto mb-3 opacity-50" />
-              <p>Selecione ou crie uma página para editar</p>
+              <Home size={32} className="mx-auto mb-2 opacity-50" />
+              <p className="text-xs">Selecione uma página</p>
             </div>
           </div>
         )}
-      </main>
+      </div>
 
-      {/* Block Type Modal */}
+
+      {/* ══════ RIGHT — Live Preview + Edit Panel ══════ */}
+      <div className="flex-1 flex overflow-hidden">
+        {/* Live Preview */}
+        {showPreview && (
+          <div className="flex-1 p-3 overflow-hidden">
+            <LivePreview
+              blocks={blocks}
+              pageTitle={selectedPage?.titulo || ''}
+              selectedBlockId={selectedBlockId}
+              onBlockClick={(id) => setSelectedBlockId(id)}
+            />
+          </div>
+        )}
+
+        {/* Edit Panel (shows when a block is selected) */}
+        {selectedBlock && (
+          <div className="w-80 shrink-0">
+            <EditPanel
+              block={selectedBlock}
+              onUpdate={updateBlockData}
+              onClose={() => setSelectedBlockId(null)}
+              authFetch={authFetch}
+            />
+          </div>
+        )}
+      </div>
+
+
+      {/* ══════ MODAL — Adicionar Bloco ══════ */}
       {showBlockModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setShowBlockModal(false)}>
-          <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-lg" onClick={e => e.stopPropagation()}>
-            <h3 className="text-lg font-semibold mb-4">Adicionar Bloco</h3>
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setShowBlockModal(false)}>
+          <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-lg animate-in fade-in zoom-in-95" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-5">
+              <h3 className="text-lg font-bold text-gray-900">Adicionar Bloco</h3>
+              <button onClick={() => setShowBlockModal(false)} className="p-1 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100">
+                <X size={18} />
+              </button>
+            </div>
             <div className="grid grid-cols-3 gap-3">
               {BLOCK_TYPES.map(bt => (
-                <button key={bt.type} onClick={() => addBlock(bt.type)} className="flex flex-col items-center gap-2 p-4 border border-gray-200 rounded-lg hover:border-orange-400 hover:bg-orange-50 transition-colors">
-                  <bt.icon size={24} style={{ color: ACCENT }} />
-                  <span className="text-sm font-medium">{bt.label}</span>
-                  <span className="text-xs text-gray-500 text-center leading-tight">{bt.description}</span>
+                <button key={bt.type} onClick={() => addBlock(bt.type)}
+                  className="flex flex-col items-center gap-2 p-4 border-2 border-gray-100 rounded-xl hover:border-orange-400 hover:bg-orange-50 transition-all hover:shadow-md group">
+                  <div className="w-10 h-10 rounded-lg flex items-center justify-center bg-gray-50 group-hover:bg-orange-100 transition-colors">
+                    <bt.icon size={20} style={{ color: ACCENT }} />
+                  </div>
+                  <span className="text-sm font-medium text-gray-800">{bt.label}</span>
+                  <span className="text-[10px] text-gray-500 text-center leading-tight">{bt.description}</span>
                 </button>
               ))}
             </div>
-            <button onClick={() => setShowBlockModal(false)} className="mt-4 w-full py-2 text-sm text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50">
-              Cancelar
-            </button>
           </div>
         </div>
       )}
 
-      {/* Template Modal */}
+
+      {/* ══════ MODAL — Templates com Preview Visual ══════ */}
       {showTemplateModal && (
         <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4" onClick={() => !applyingTemplate && setShowTemplateModal(false)}>
-          <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[80vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
-            <div className="p-6 border-b border-gray-100">
-              <h3 className="text-xl font-bold text-gray-900 flex items-center gap-2">
-                <Sparkles size={20} style={{ color: ACCENT }} /> Templates Prontos
-              </h3>
-              <p className="text-sm text-gray-500 mt-1">Escolha um template para criar as páginas automaticamente.</p>
+          <div className="bg-white rounded-2xl shadow-2xl max-w-3xl w-full max-h-[85vh] overflow-hidden animate-in fade-in zoom-in-95" onClick={e => e.stopPropagation()}>
+            <div className="p-6 border-b border-gray-100 flex items-center justify-between">
+              <div>
+                <h3 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+                  <Sparkles size={20} style={{ color: ACCENT }} /> Templates Prontos
+                </h3>
+                <p className="text-sm text-gray-500 mt-1">Escolha um template para criar as páginas automaticamente.</p>
+              </div>
+              <button onClick={() => setShowTemplateModal(false)} className="p-1 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100">
+                <X size={18} />
+              </button>
             </div>
-            <div className="p-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="p-6 overflow-y-auto max-h-[65vh] grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {SITE_TEMPLATES.map(tpl => (
                 <button key={tpl.key} onClick={() => applyTemplate(tpl)} disabled={applyingTemplate}
-                  className="text-left p-4 border border-gray-200 rounded-xl hover:border-orange-300 hover:bg-orange-50/50 transition-colors disabled:opacity-50">
-                  <h4 className="font-semibold text-gray-900 mb-1">{tpl.label}</h4>
-                  <p className="text-xs text-gray-500 mb-2">{tpl.description}</p>
-                  <p className="text-xs text-gray-400">{tpl.pages.length} página(s)</p>
+                  className="text-left border-2 border-gray-100 rounded-xl hover:border-orange-300 hover:shadow-lg transition-all disabled:opacity-50 overflow-hidden group">
+                  {/* Template preview thumbnail */}
+                  <div className="h-32 bg-stone-900 p-3 relative overflow-hidden">
+                    <div className="border-t-2 border-[#EA580C] rounded-t bg-stone-950 p-1.5 mb-1">
+                      <div className="flex gap-1">
+                        <div className="w-1 h-1 rounded-full bg-stone-700" />
+                        <div className="w-4 h-1 bg-stone-800 rounded" />
+                        <div className="w-4 h-1 bg-stone-800 rounded" />
+                      </div>
+                    </div>
+                    {/* Mini block representations */}
+                    <div className="space-y-1">
+                      {tpl.pages[0]?.blocos.slice(0, 3).map((b, i) => (
+                        <div key={i} className={`rounded ${
+                          b.type === 'hero' ? 'h-8 bg-gradient-to-r from-stone-700 to-stone-800' :
+                          b.type === 'gallery' ? 'h-5 bg-stone-800 grid grid-cols-3 gap-0.5 p-0.5' :
+                          b.type === 'cta' ? 'h-5 bg-orange-600/30' :
+                          b.type === 'testimonials' ? 'h-4 bg-stone-800' :
+                          b.type === 'text' ? 'h-4 bg-stone-800/50' :
+                          'h-3 bg-stone-800/30'
+                        }`}>
+                          {b.type === 'gallery' && Array.from({length: 3}).map((_, j) => (
+                            <div key={j} className="bg-stone-700 rounded-sm" />
+                          ))}
+                        </div>
+                      ))}
+                    </div>
+                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center">
+                      <span className="opacity-0 group-hover:opacity-100 transition-opacity text-white text-xs font-medium bg-black/50 px-3 py-1 rounded-full">
+                        Usar template
+                      </span>
+                    </div>
+                  </div>
+                  {/* Template info */}
+                  <div className="p-3">
+                    <h4 className="font-semibold text-gray-900 text-sm">{tpl.label}</h4>
+                    <p className="text-[11px] text-gray-500 mt-0.5 line-clamp-2">{tpl.description}</p>
+                    <div className="flex items-center gap-2 mt-2">
+                      <span className="text-[10px] text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">{tpl.pages.length} página(s)</span>
+                      <span className="text-[10px] text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">
+                        {tpl.pages.reduce((acc, p) => acc + p.blocos.length, 0)} blocos
+                      </span>
+                    </div>
+                  </div>
                 </button>
               ))}
             </div>
