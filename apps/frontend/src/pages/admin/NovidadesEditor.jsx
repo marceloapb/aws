@@ -49,11 +49,26 @@ export default function NovidadesEditor() {
   const [showAiModal, setShowAiModal] = useState(false);
   const [aiNecessidade, setAiNecessidade] = useState('');
   const [aiPrompt, setAiPrompt] = useState('');
+  const [aiPromptSaved, setAiPromptSaved] = useState('');
+  const [aiSavingPrompt, setAiSavingPrompt] = useState(false);
   const [aiGenerating, setAiGenerating] = useState(false);
 
   // Load categorias
   useEffect(() => {
     loadCategorias();
+  }, []);
+
+  // Load saved AI prompt
+  useEffect(() => {
+    authFetch('/admin/novidades/config')
+      .then(r => r.json())
+      .then(json => {
+        if (json.success && json.data?.prompt_agente) {
+          setAiPrompt(json.data.prompt_agente);
+          setAiPromptSaved(json.data.prompt_agente);
+        }
+      })
+      .catch(() => {});
   }, []);
 
   // Load post data when editing
@@ -401,9 +416,32 @@ export default function NovidadesEditor() {
 
               {/* Campo: Prompt do agente */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                  Instruções para a IA <span className="text-gray-400 font-normal">(opcional)</span>
-                </label>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="block text-sm font-medium text-gray-700">
+                    Instruções para a IA <span className="text-gray-400 font-normal">(fixo)</span>
+                  </label>
+                  {aiPrompt.trim() && aiPrompt !== aiPromptSaved && (
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        setAiSavingPrompt(true);
+                        try {
+                          await authFetch('/admin/novidades/config', {
+                            method: 'PUT',
+                            body: JSON.stringify({ prompt_agente: aiPrompt.trim() }),
+                          });
+                          setAiPromptSaved(aiPrompt.trim());
+                          toast.success('Prompt salvo como padrão!');
+                        } catch { toast.error('Erro ao salvar prompt'); }
+                        setAiSavingPrompt(false);
+                      }}
+                      disabled={aiSavingPrompt}
+                      className="text-xs font-medium text-orange-600 hover:text-orange-700 disabled:opacity-50"
+                    >
+                      {aiSavingPrompt ? 'Salvando...' : '💾 Salvar como padrão'}
+                    </button>
+                  )}
+                </div>
                 <textarea
                   value={aiPrompt}
                   onChange={(e) => setAiPrompt(e.target.value)}
@@ -412,7 +450,7 @@ export default function NovidadesEditor() {
                   className="w-full px-4 py-3 rounded-lg border border-gray-200 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-orange-200 focus:border-transparent resize-none placeholder-gray-400"
                 />
                 <p className="text-xs text-gray-400 mt-1">
-                  Defina o tom, estilo e formato. Se vazio, usa o padrão do sistema.
+                  {aiPromptSaved ? '✓ Prompt salvo — será usado automaticamente em todos os posts.' : 'Defina o tom, estilo e formato. Clique "Salvar como padrão" para reutilizar.'}
                 </p>
               </div>
             </div>

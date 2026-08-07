@@ -624,4 +624,45 @@ router.delete('/:id', async (req, res) => {
   }
 });
 
+// ─── GET /config — Configuração do módulo Novidades (prompt IA) ─
+
+router.get('/config', async (req, res) => {
+  try {
+    const result = await dynamo.send(new GetCommand({
+      TableName: TABLE,
+      Key: { PK: `TENANT#${TENANT}`, SK: 'CONFIG#NOVIDADES_AI' },
+    }));
+
+    if (!result.Item) {
+      return res.json({ success: true, data: { prompt_agente: '' } });
+    }
+
+    const { PK, SK, ...data } = result.Item;
+    res.json({ success: true, data });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// ─── PUT /config — Salvar configuração do módulo Novidades ──
+
+router.put('/config', async (req, res) => {
+  try {
+    const { prompt_agente } = req.body;
+
+    const now = new Date().toISOString();
+    const item = {
+      PK: `TENANT#${TENANT}`,
+      SK: 'CONFIG#NOVIDADES_AI',
+      prompt_agente: prompt_agente || '',
+      updated_at: now,
+    };
+
+    await dynamo.send(new PutCommand({ TableName: TABLE, Item: item }));
+    res.json({ success: true, data: { prompt_agente: item.prompt_agente } });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
 module.exports = router;
