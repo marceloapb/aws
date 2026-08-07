@@ -117,9 +117,12 @@ function App() {
 
   return (
     <Routes>
-      {/* Público - Site */}
+      {/* Site principal - Layout fullscreen horizontal */}
+      <Route path="/" element={<SiteV2 />} />
+
+      {/* Site V1 (antigo) */}
       <Route element={<SiteLayout />}>
-        <Route path="/" element={<HomePage />} />
+        <Route path="/v1" element={<HomePage />} />
         <Route path="/portfolio" element={<PortfolioPage />} />
         <Route path="/portfolio/:categoriaId" element={<PortfolioGaleria />} />
         <Route path="/novidades" element={<NovidadesPage />} />
@@ -128,9 +131,6 @@ function App() {
         <Route path="/contato" element={<ContatoPage />} />
         <Route path="/p/:slug" element={<SitePage />} />
       </Route>
-
-      {/* Site V2 - Layout fullscreen horizontal */}
-      <Route path="/v2" element={<SiteV2 />} />
 
       <Route path="/login" element={user ? <Navigate to={user.role === 'admin' ? '/admin' : '/cliente'} /> : <Login />} />
       <Route path="/cadastro" element={<Cadastro />} />
