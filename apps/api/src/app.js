@@ -165,7 +165,6 @@ app.use('/admin/import', adminAuth, adminImportRoutes);
 app.use('/admin/feedback', adminAuth, adminFeedbackRoutes);
 app.use('/admin/aditivos', adminAuth, adminAditivosRoutes);
 app.use('/admin/notas-fiscais', adminAuth, adminNotasFiscaisRoutes);
-app.use('/admin/nfse', adminAuth, require('./routes/admin-nfse'));
 app.use('/admin/financeiro', adminAuth, adminFinanceiroRoutes);
 app.use('/admin/notificacoes/calendario', adminAuth, adminCalendarioRulesRoutes);
 app.use('/admin/notificacoes', adminAuth, adminNotificacoesRoutes);
@@ -179,7 +178,6 @@ app.use('/admin/portfolio', adminAuth, adminPortfolioRoutes);
 app.use('/admin/email-templates', adminAuth, adminEmailTemplatesRoutes);
 app.use('/admin/nfse', adminAuth, adminNfseRoutes);
 app.use('/admin/assinaturas', adminAuth, adminAssinaturasRoutes);
-
 // Registrar rotas Client (protegidas por clientAuth)
 app.use('/client/auth', clientAuthRoutes);
 app.use('/client/albuns/prorrogacao', clientAuth, clientProrrogacaoRoutes);
@@ -217,7 +215,7 @@ app.use('/public/novo-cliente', publicFormLimiter, require('./routes/public-novo
 app.use('/public/album/:slug/tema', publicAlbumTemaRoutes);
 app.use('/public/album/:slug', publicAlbumRoutes);
 app.use('/public/assinatura', publicAssinaturaRoutes);
-app.use('/public', publicRoutes);
+app.use('/public', publicFormLimiter, publicRoutes);
 app.use('/public/novidades', publicNovidadesRoutes);
 app.use('/public/site/pages', publicSitePageRoutes);
 app.use('/public/site', publicSiteRoutes);
@@ -353,7 +351,7 @@ app.get('/admin/dashboard/badges', adminAuth, async (req, res) => {
     const { DynamoDBClient } = require('@aws-sdk/client-dynamodb');
     const { DynamoDBDocumentClient, QueryCommand } = require('@aws-sdk/lib-dynamodb');
     const ddb = DynamoDBDocumentClient.from(new DynamoDBClient({}));
-    const tenantId = req.user.sub;
+    const TENANT = process.env.TENANT_ID || '1';
     const TABLE = process.env.TABLE_NAME;
 
     const [orcResult, ctResult, finResult, notifResult] = await Promise.all([
@@ -363,7 +361,7 @@ app.get('/admin/dashboard/badges', adminAuth, async (req, res) => {
         KeyConditionExpression: 'PK = :pk AND begins_with(SK, :sk)',
         FilterExpression: '#s IN (:s1, :s2, :s3)',
         ExpressionAttributeNames: { '#s': 'status' },
-        ExpressionAttributeValues: { ':pk': `TENANT#${tenantId}`, ':sk': 'ORC#', ':s1': 'enviado', ':s2': 'rascunho', ':s3': 'pendente' },
+        ExpressionAttributeValues: { ':pk': `TENANT#${TENANT}`, ':sk': 'ORC#', ':s1': 'enviado', ':s2': 'rascunho', ':s3': 'pendente' },
         Select: 'COUNT',
       })).catch(() => ({ Count: 0 })),
       // Contratos aguardando aceite
@@ -372,7 +370,7 @@ app.get('/admin/dashboard/badges', adminAuth, async (req, res) => {
         KeyConditionExpression: 'PK = :pk AND begins_with(SK, :sk)',
         FilterExpression: '#s IN (:s1, :s2)',
         ExpressionAttributeNames: { '#s': 'status' },
-        ExpressionAttributeValues: { ':pk': `TENANT#${tenantId}`, ':sk': 'CT#', ':s1': 'aguardando', ':s2': 'enviado' },
+        ExpressionAttributeValues: { ':pk': `TENANT#${TENANT}`, ':sk': 'CT#', ':s1': 'aguardando', ':s2': 'enviado' },
         Select: 'COUNT',
       })).catch(() => ({ Count: 0 })),
       // Cobranças atrasadas
@@ -381,7 +379,7 @@ app.get('/admin/dashboard/badges', adminAuth, async (req, res) => {
         KeyConditionExpression: 'PK = :pk AND begins_with(SK, :sk)',
         FilterExpression: '#s = :s1',
         ExpressionAttributeNames: { '#s': 'status' },
-        ExpressionAttributeValues: { ':pk': `TENANT#${tenantId}`, ':sk': 'COBRANCA#', ':s1': 'atrasada' },
+        ExpressionAttributeValues: { ':pk': `TENANT#${TENANT}`, ':sk': 'COBRANCA#', ':s1': 'atrasada' },
         Select: 'COUNT',
       })).catch(() => ({ Count: 0 })),
       // Notificações não lidas
@@ -390,7 +388,7 @@ app.get('/admin/dashboard/badges', adminAuth, async (req, res) => {
         IndexName: 'GSI1',
         KeyConditionExpression: 'GSI1PK = :pk AND begins_with(GSI1SK, :sk)',
         FilterExpression: 'lida = :false',
-        ExpressionAttributeValues: { ':pk': `TENANT#${process.env.TENANT_ID || '1'}`, ':sk': 'NTF#', ':false': false },
+        ExpressionAttributeValues: { ':pk': `TENANT#${TENANT}`, ':sk': 'NTF#', ':false': false },
         Select: 'COUNT',
       })).catch(() => ({ Count: 0 })),
     ]);

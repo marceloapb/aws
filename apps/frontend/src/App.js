@@ -50,7 +50,6 @@ import Storage from './pages/admin/Storage';
 import Notificacoes from './pages/admin/Notificacoes';
 import NotificacoesConfig from './pages/admin/NotificacoesConfig';
 import NotificacoesLog from './pages/admin/NotificacoesLog';
-import CentralComunicacao from './pages/admin/CentralComunicacao';
 import MensagensSistema from './pages/admin/MensagensSistema';
 import ConfigEmails from './components/ConfigEmails';
 
