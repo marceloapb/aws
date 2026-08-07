@@ -561,13 +561,13 @@ export default function SiteV2() {
   return (
     <div className="fixed inset-0 flex flex-col overflow-hidden" style={{ background: '#0d0d0d', color: '#f0ece4', fontFamily: "'Barlow', sans-serif" }}>
       {/* NAV */}
-      <header className="shrink-0 h-14 sm:h-[60px] z-40 grid grid-cols-[1fr_auto_1fr] items-center px-4 sm:px-8 lg:px-16"
+      <header className="shrink-0 h-16 sm:h-[72px] z-40 grid grid-cols-[1fr_auto_1fr] items-center px-4 sm:px-8 lg:px-16"
         style={{ borderBottom: '1px solid rgba(255,255,255,0.08)', background: 'rgba(13,13,13,0.98)' }}>
         {/* Left nav (desktop) */}
-        <nav className="hidden md:flex items-center gap-1">
+        <nav className="hidden md:flex items-center gap-1.5">
           {SECTIONS.map((name, i) => (
             <button key={name} onClick={() => goTo(i)}
-              className="relative px-3 py-1.5 text-[10px] tracking-widest uppercase font-bold transition-colors"
+              className="relative px-3.5 py-2 text-[11px] tracking-widest uppercase font-bold transition-colors"
               style={{ color: current === i ? ACCENT : '#8a8a8a' }}>
               {name}
               {current === i && <span className="absolute bottom-0 left-3 right-3 h-px" style={{ background: ACCENT }} />}
@@ -577,28 +577,28 @@ export default function SiteV2() {
 
         {/* Mobile hamburger */}
         <button className="md:hidden justify-self-start" style={{ color: '#f0ece4' }} onClick={() => setMobileMenu(!mobileMenu)}>
-          {mobileMenu ? <X size={20} /> : <Menu size={20} />}
+          {mobileMenu ? <X size={22} /> : <Menu size={22} />}
         </button>
 
         {/* Center logo */}
-        <button onClick={() => goTo(0)} className="flex items-center justify-center h-8 sm:h-9">
+        <button onClick={() => goTo(0)} className="flex items-center justify-center h-10 sm:h-12">
           {logoUrl ? (
-            <img src={logoUrl} alt={nome} className="h-8 sm:h-9 w-auto object-contain" />
+            <img src={logoUrl} alt={nome} className="h-10 sm:h-12 w-auto object-contain" />
           ) : (
-            <span className="font-['Barlow_Condensed',sans-serif] font-black text-lg uppercase tracking-wide" style={{ color: '#f0ece4' }}>{nome}</span>
+            <span className="font-['Barlow_Condensed',sans-serif] font-black text-xl uppercase tracking-wide" style={{ color: '#f0ece4' }}>{nome}</span>
           )}
         </button>
 
         {/* Right */}
         <div className="flex items-center justify-end gap-3 sm:gap-4">
-          <span className="hidden md:flex font-mono text-[10px] items-center gap-1" style={{ color: '#8a8a8a' }}>
+          <span className="hidden md:flex font-mono text-[11px] items-center gap-1" style={{ color: '#8a8a8a' }}>
             <span className="font-bold" style={{ color: ACCENT }}>{String(current + 1).padStart(2, '0')}</span>
             <span className="opacity-30 mx-0.5">/</span>
             {String(SECTIONS.length).padStart(2, '0')}
           </span>
-          <button onClick={() => goTo(4)} className="hidden md:flex items-center gap-2 px-4 py-1.5 text-[9px] tracking-widest uppercase font-black transition-all"
+          <button onClick={() => goTo(4)} className="hidden md:flex items-center gap-2 px-5 py-2 text-[10px] tracking-widest uppercase font-black transition-all"
             style={{ border: `1px solid rgba(255,92,0,0.4)`, color: ACCENT }}>
-            Contato <ArrowRight size={10} />
+            Contato <ArrowRight size={11} />
           </button>
         </div>
       </header>
