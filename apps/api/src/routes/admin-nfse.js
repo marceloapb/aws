@@ -191,14 +191,40 @@ router.post('/emitir', async (req, res) => {
     const dbConfig = configResult.Item || {};
     const provedor = dbConfig.provedor || 'sp';
 
+    let resultado;
     if (provedor === 'sp') {
       // Emitir via NF Paulistana (Web Service SP)
-      const resultado = await emitirNFSeSP(req.body, dbConfig);
-      return res.json({ success: true, data: resultado });
+      resultado = await emitirNFSeSP(req.body, dbConfig);
+    } else {
+      // Emitir via Padrão Nacional (SEFIN)
+      resultado = await emitirNFSe(req.body);
     }
 
-    // Emitir via Padrão Nacional (SEFIN)
-    const resultado = await emitirNFSe(req.body);
+    // Notificar cliente sobre NFS-e emitida (fire and forget)
+    const clienteEmail = req.body.cliente_email || resultado?.cliente_email;
+    const clienteId = req.body.cliente_id || resultado?.cliente_id;
+    if (clienteEmail || clienteId) {
+      try {
+        const { processarEvento } = require('../services/notificationDispatcher');
+        const crypto = require('crypto');
+        await processarEvento({
+          evento_id: crypto.randomUUID(),
+          tipo_evento: 'nfse_emitida',
+          tenant_id: TENANT,
+          dados: {
+            cliente_id: clienteId || '',
+            cliente_nome: req.body.cliente_nome || '',
+            email: clienteEmail || '',
+            valor: req.body.valor || resultado?.valor || 0,
+            numero_nf: resultado?.numero_nf || resultado?.numero || '',
+            descricao_servico: req.body.descricao_servico || '',
+          },
+        });
+      } catch (notifErr) {
+        console.error('[NFSE] Erro ao notificar cliente (nfse_emitida):', notifErr.message);
+      }
+    }
+
     res.json({ success: true, data: resultado });
   } catch (error) {
     res.status(400).json({ success: false, message: error.message });

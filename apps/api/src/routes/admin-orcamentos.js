@@ -796,6 +796,26 @@ router.post('/:id/enviar', async (req, res) => {
       } catch (histErr) {
         console.error('[ORCAMENTO] Erro ao registrar histórico envio:', histErr.message);
       }
+
+      // Notificar CLIENTE que orçamento está pronto para visualização
+      try {
+        const { processarEvento } = require('../services/notificationDispatcher');
+        const crypto = require('crypto');
+        await processarEvento({
+          evento_id: crypto.randomUUID(),
+          tipo_evento: 'orcamento_pronto',
+          tenant_id: process.env.TENANT_ID || '1',
+          dados: {
+            cliente_id: clienteId,
+            cliente_nome: orc.cliente_nome || orc.nome_cliente || '',
+            tipo_evento: orc.tipo_evento || orc.titulo || 'Evento',
+            orcamento_id: req.params.id,
+            valor: orc.valor_total || orc.total || 0,
+          },
+        });
+      } catch (notifErr) {
+        console.error('[ORCAMENTO] Erro ao notificar cliente (orcamento_pronto):', notifErr.message);
+      }
     }
 
     res.json({ success: true, data: result.Attributes });
