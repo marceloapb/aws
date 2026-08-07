@@ -13,6 +13,7 @@ import NovidadesPage from './pages/public/NovidadesPage';
 import NovidadeDetalhe from './pages/public/NovidadeDetalhe';
 import SobrePage from './pages/public/SobrePage';
 import ContatoPage from './pages/public/ContatoPage';
+import SitePage from './pages/public/SitePage';
 import ContratoAssinar from './pages/public/ContratoAssinar';
 import VerificarAssinatura from './pages/public/VerificarAssinatura';
 import AlbumPublico from './pages/public/AlbumPublico';
@@ -65,6 +66,7 @@ import Integracoes from './pages/admin/Integracoes';
 import Novidades from './pages/admin/Novidades';
 import NovidadesEditor from './pages/admin/NovidadesEditor';
 import CmsEditor from './pages/admin/CmsEditor';
+import SiteBuilder from './pages/admin/SiteBuilder';
 import MeusOrcamentos from './pages/cliente/MeusOrcamentos';
 import SolicitarOrcamento from './pages/cliente/SolicitarOrcamento';
 import OrcamentoView from './pages/cliente/OrcamentoView';
@@ -121,6 +123,7 @@ function App() {
         <Route path="/novidades/:slug" element={<NovidadeDetalhe />} />
         <Route path="/sobre" element={<SobrePage />} />
         <Route path="/contato" element={<ContatoPage />} />
+        <Route path="/p/:slug" element={<SitePage />} />
       </Route>
 
       <Route path="/login" element={user ? <Navigate to={user.role === 'admin' ? '/admin' : '/cliente'} /> : <Login />} />
@@ -195,6 +198,7 @@ function App() {
         <Route path="novidades/novo" element={<NovidadesEditor />} />
         <Route path="novidades/:id/editar" element={<NovidadesEditor />} />
         <Route path="cms" element={<CmsEditor />} />
+        <Route path="site-builder" element={<SiteBuilder />} />
         <Route path="import" element={<ImportCSV />} />
         <Route path="storage" element={<Storage />} />
         <Route path="notificacoes" element={<Notificacoes />} />

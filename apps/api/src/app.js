@@ -60,6 +60,7 @@ const adminNotificacoesRoutes = require('./routes/admin-notificacoes');
 const adminCalendarioRulesRoutes = require('./routes/admin-calendario-rules');
 const adminNovidadesRoutes = require('./routes/admin-novidades');
 const adminSiteRoutes = require('./routes/admin-site');
+const adminSitePageRoutes = require('./routes/admin-site-pages');
 const adminMediaRoutes = require('./routes/admin-media');
 const adminUploadRoutes = require('./routes/admin-upload');
 const adminPortfolioRoutes = require('./routes/admin-portfolio');
@@ -96,6 +97,7 @@ const clientNotificacoesRoutes = require('./routes/client-notificacoes');
 const publicRoutes = require('./routes/public');
 const publicNovidadesRoutes = require('./routes/public-novidades');
 const publicSiteRoutes = require('./routes/public-site');
+const publicSitePageRoutes = require('./routes/public-site-pages');
 const publicAlbumTemaRoutes = require('./routes/public-album-tema');
 const publicAlbumRoutes = require('./routes/public-album');
 const publicAssinaturaRoutes = require('./routes/public-assinatura');
@@ -168,6 +170,7 @@ app.use('/admin/notificacoes/calendario', adminAuth, adminCalendarioRulesRoutes)
 app.use('/admin/notificacoes', adminAuth, adminNotificacoesRoutes);
 app.use('/admin/novidades', adminAuth, adminNovidadesRoutes);
 app.use('/admin/site', adminAuth, adminSiteRoutes);
+app.use('/admin/site/pages', adminAuth, adminSitePageRoutes);
 app.use('/admin/media', adminAuth, adminMediaRoutes);
 app.use('/admin/upload', adminAuth, adminUploadRoutes);
 app.use('/admin/portfolio', adminAuth, adminPortfolioRoutes);
@@ -207,6 +210,7 @@ app.use('/public/assinatura', publicAssinaturaRoutes);
 app.use('/public', publicRoutes);
 app.use('/public/novidades', publicNovidadesRoutes);
 app.use('/public/site', publicSiteRoutes);
+app.use('/public/site/pages', publicSitePageRoutes);
 
 // Auth pública (login/signup - sem auth)
 app.use('/auth', authLimiter, clientAuthRoutes);
