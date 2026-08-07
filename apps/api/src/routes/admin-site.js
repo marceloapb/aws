@@ -140,4 +140,98 @@ router.put('/paginas/:tipo', async (req, res) => {
   }
 });
 
+// ─── GET /seo — Obter configuração SEO ──────────────────────
+
+router.get('/seo', async (req, res) => {
+  try {
+    const result = await dynamo.send(new GetCommand({
+      TableName: TABLE,
+      Key: { PK: `TENANT#${TENANT}`, SK: 'CONFIG#SEO' },
+    }));
+
+    if (!result.Item) {
+      return res.json({ success: true, data: null });
+    }
+
+    const { PK, SK, ...data } = result.Item;
+    res.json({ success: true, data });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// ─── PUT /seo — Atualizar configuração SEO ──────────────────
+
+router.put('/seo', async (req, res) => {
+  try {
+    const {
+      titulo_padrao,
+      descricao_padrao,
+      keywords,
+      og_image_url,
+      og_image_key,
+      google_analytics_id,
+      google_search_console,
+      schema_type,
+      schema_nome,
+      schema_descricao,
+      schema_endereco,
+      schema_cidade,
+      schema_estado,
+      schema_cep,
+      schema_telefone,
+      schema_email,
+      schema_preco_min,
+      schema_preco_max,
+      schema_areas_atuacao,
+      meta_facebook_pixel,
+      meta_custom_head,
+    } = req.body;
+
+    // Validações
+    if (titulo_padrao && titulo_padrao.length > 70) {
+      return res.status(400).json({ success: false, message: 'titulo_padrao deve ter no máximo 70 caracteres' });
+    }
+    if (descricao_padrao && descricao_padrao.length > 320) {
+      return res.status(400).json({ success: false, message: 'descricao_padrao deve ter no máximo 320 caracteres' });
+    }
+
+    const now = new Date().toISOString();
+
+    const item = {
+      PK: `TENANT#${TENANT}`,
+      SK: 'CONFIG#SEO',
+      titulo_padrao: titulo_padrao || '',
+      descricao_padrao: descricao_padrao || '',
+      keywords: keywords || '',
+      og_image_url: og_image_url || '',
+      og_image_key: og_image_key || '',
+      google_analytics_id: google_analytics_id || '',
+      google_search_console: google_search_console || '',
+      schema_type: schema_type || 'Photographer',
+      schema_nome: schema_nome || '',
+      schema_descricao: schema_descricao || '',
+      schema_endereco: schema_endereco || '',
+      schema_cidade: schema_cidade || '',
+      schema_estado: schema_estado || '',
+      schema_cep: schema_cep || '',
+      schema_telefone: schema_telefone || '',
+      schema_email: schema_email || '',
+      schema_preco_min: schema_preco_min || '',
+      schema_preco_max: schema_preco_max || '',
+      schema_areas_atuacao: schema_areas_atuacao || [],
+      meta_facebook_pixel: meta_facebook_pixel || '',
+      meta_custom_head: meta_custom_head || '',
+      updated_at: now,
+    };
+
+    await dynamo.send(new PutCommand({ TableName: TABLE, Item: item }));
+
+    const { PK, SK, ...data } = item;
+    res.json({ success: true, data });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
 module.exports = router;

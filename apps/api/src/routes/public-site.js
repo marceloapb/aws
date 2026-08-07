@@ -132,6 +132,75 @@ router.get('/config', async (req, res) => {
   }
 });
 
+// ─── GET /seo — Configuração SEO pública ────────────────────
+
+router.get('/seo', async (req, res) => {
+  try {
+    const result = await dynamo.send(new GetCommand({
+      TableName: TABLE,
+      Key: { PK: `TENANT#${TENANT}`, SK: 'CONFIG#SEO' },
+    }));
+
+    if (!result.Item) {
+      return res.json({ success: true, data: null });
+    }
+
+    // Retornar apenas campos públicos (não expor custom_head, pixel, etc.)
+    const {
+      PK, SK, updated_at,
+      titulo_padrao,
+      descricao_padrao,
+      keywords,
+      og_image_url,
+      google_analytics_id,
+      google_search_console,
+      schema_type,
+      schema_nome,
+      schema_descricao,
+      schema_endereco,
+      schema_cidade,
+      schema_estado,
+      schema_cep,
+      schema_telefone,
+      schema_email,
+      schema_preco_min,
+      schema_preco_max,
+      schema_areas_atuacao,
+      meta_facebook_pixel,
+      meta_custom_head,
+    } = result.Item;
+
+    res.set('Cache-Control', 'public, max-age=600');
+    res.json({
+      success: true,
+      data: {
+        titulo_padrao,
+        descricao_padrao,
+        keywords,
+        og_image_url,
+        google_analytics_id,
+        google_search_console,
+        schema_type,
+        schema_nome,
+        schema_descricao,
+        schema_endereco,
+        schema_cidade,
+        schema_estado,
+        schema_cep,
+        schema_telefone,
+        schema_email,
+        schema_preco_min,
+        schema_preco_max,
+        schema_areas_atuacao,
+        meta_facebook_pixel,
+        meta_custom_head,
+      },
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
 // ─── GET /depoimentos — Depoimentos aprovados ──────────────
 
 router.get('/depoimentos', async (req, res) => {

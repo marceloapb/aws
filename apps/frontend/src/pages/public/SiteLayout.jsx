@@ -2,6 +2,7 @@ import React, { useState, useEffect, createContext, useContext } from 'react';
 import { Outlet, Link, NavLink, useLocation } from 'react-router-dom';
 import { Menu, X, Camera, Instagram, Facebook, Youtube, Mail, LogIn } from 'lucide-react';
 import FloatingCTA from '../../components/FloatingCTA';
+import SEOHead from '../../components/SEOHead';
 
 const API = process.env.REACT_APP_API_URL || '';
 
@@ -95,6 +96,7 @@ export default function SiteLayout() {
 
   return (
     <SiteConfigContext.Provider value={config}>
+      <SEOHead />
       <div className="min-h-screen bg-stone-950 text-stone-50 flex flex-col">
         {/* Header */}
         <header className="sticky top-0 z-50">

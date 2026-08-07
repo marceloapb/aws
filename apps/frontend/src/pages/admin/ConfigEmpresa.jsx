@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useSearchParams } from 'react-router-dom';
-import { Settings, Save, Building2, Image, Receipt, CreditCard } from 'lucide-react';
+import { Settings, Save, Building2, Image, Receipt, CreditCard, Search } from 'lucide-react';
 import ConfigDadosEmpresa from '../../components/ConfigDadosEmpresa';
 import ConfigPrazos from '../../components/ConfigPrazos';
 import ConfigBackup from '../../components/ConfigBackup';
 import ConfigPagamento from '../../components/ConfigPagamento';
+import ConfigSEO from '../../components/ConfigSEO';
 import AlbumConfigContent from './AlbumConfig';
 import NfseConfigContent from './NfseConfig';
 
@@ -16,6 +17,7 @@ const TABS = [
   { key: 'pagamentos', label: 'Pagamentos', icon: CreditCard },
   { key: 'albuns', label: 'Álbuns', icon: Image },
   { key: 'nfse', label: 'NFS-e', icon: Receipt },
+  { key: 'seo', label: 'SEO', icon: Search },
 ];
 
 const SUB_TABS_EMPRESA = [
@@ -245,6 +247,7 @@ export default function ConfigEmpresa() {
       {tab === 'pagamentos' && <ConfigPagamento form={form} setForm={setForm} />}
       {tab === 'albuns' && <AlbumConfigContent />}
       {tab === 'nfse' && <NfseConfigContent />}
+      {tab === 'seo' && <ConfigSEO />}
     </div>
   );
 }
