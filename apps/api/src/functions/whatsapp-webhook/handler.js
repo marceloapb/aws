@@ -120,7 +120,7 @@ async function handleNotification(event) {
           await processarEvento({
             evento_id: msg.id,
             tipo_evento: 'mensagem_recebida',
-            tenant_id: process.env.TENANT_ID || 'default',
+            tenant_id: process.env.TENANT_ID || '1',
             dados: { telefone: msg.from, tipo_mensagem: msg.type, texto: msg.text?.body || '' },
           });
         } catch (evtErr) {

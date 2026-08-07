@@ -1,9 +1,10 @@
 const { Router } = require('express');
 const { dynamo, TABLE } = require('../config/dynamodb');
 const { QueryCommand, PutCommand, UpdateCommand, DeleteCommand } = require('@aws-sdk/lib-dynamodb');
+const { stripReservedFields } = require('../middlewares/validateFields');
 
 const router = Router();
-const TENANT = process.env.TENANT_ID || 'default';
+const TENANT = process.env.TENANT_ID || '1';
 
 // GET /api/admin/fotografos
 router.get('/', async (req, res) => {
@@ -21,10 +22,16 @@ router.get('/', async (req, res) => {
 });
 
 // POST /api/admin/fotografos
-router.post('/', async (req, res) => {
+router.post('/', stripReservedFields, async (req, res) => {
   try {
+    const { nome, email, telefone, whatsapp, especialidade, comissao, ativo, observacoes } = req.body;
+    if (!nome || !nome.trim()) {
+      return res.status(400).json({ success: false, message: 'nome é obrigatório' });
+    }
     const id = crypto.randomUUID();
-    const item = { ...req.body, id, PK: `TENANT#${TENANT}`, SK: `FOTOGRAFO#${id}`, created: new Date().toISOString() };
+    const item = { nome: nome.trim(), email, telefone, whatsapp, especialidade, comissao, ativo, observacoes, id, PK: `TENANT#${TENANT}`, SK: `FOTOGRAFO#${id}`, created: new Date().toISOString() };
+    // Remove campos undefined
+    Object.keys(item).forEach(k => item[k] === undefined && delete item[k]);
     await dynamo.send(new PutCommand({ TableName: TABLE, Item: item }));
     res.status(201).json({ success: true, data: item });
   } catch (error) {
@@ -33,7 +40,7 @@ router.post('/', async (req, res) => {
 });
 
 // PUT /api/admin/fotografos/:id
-router.put('/:id', async (req, res) => {
+router.put('/:id', stripReservedFields, async (req, res) => {
   try {
     const updates = req.body;
     const keys = Object.keys(updates);

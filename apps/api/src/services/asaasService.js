@@ -8,7 +8,7 @@ const { GetCommand, PutCommand, UpdateCommand, QueryCommand } = require('@aws-sd
 
 const ssm = new SSMClient({ region: 'us-east-1' });
 const PREFIX = process.env.SSM_PREFIX || '/mbf/prod';
-const TENANT = process.env.TENANT_ID || 'default';
+const TENANT = process.env.TENANT_ID || '1';
 
 let cachedConfig = null;
 

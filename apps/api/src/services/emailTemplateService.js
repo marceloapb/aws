@@ -8,7 +8,7 @@ const { v4: uuid } = require('uuid');
 
 const ddb = DynamoDBDocumentClient.from(new DynamoDBClient({}));
 const TABLE = process.env.TABLE_NAME || 'mbf-backend-v3-table';
-const TENANT = process.env.TENANT_ID || 'default';
+const TENANT = process.env.TENANT_ID || '1';
 
 // Tipos de template disponíveis com suas variáveis
 const TEMPLATE_TYPES = {

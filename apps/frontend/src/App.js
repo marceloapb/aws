@@ -49,6 +49,7 @@ import ImportCSV from './pages/admin/ImportCSV';
 import Storage from './pages/admin/Storage';
 import Notificacoes from './pages/admin/Notificacoes';
 import NotificacoesConfig from './pages/admin/NotificacoesConfig';
+import NotificacoesLog from './pages/admin/NotificacoesLog';
 import CentralComunicacao from './pages/admin/CentralComunicacao';
 import MensagensSistema from './pages/admin/MensagensSistema';
 import ConfigEmails from './components/ConfigEmails';
@@ -83,6 +84,8 @@ import MeusPagamentos from './pages/cliente/MeusPagamentos';
 import MeuFeedback from './pages/cliente/MeuFeedback';
 import MeuPerfilCliente from './pages/cliente/MeuPerfil';
 import MinhasNotificacoes from './pages/cliente/MinhasNotificacoes';
+import MeusAditivos from './pages/cliente/MeusAditivos';
+import ProrrogacaoPage from './pages/cliente/ProrrogacaoPage';
 
 function ClienteGuard({ children }) {
   const { user } = useAuth();
@@ -203,6 +206,7 @@ function App() {
         <Route path="storage" element={<Storage />} />
         <Route path="notificacoes" element={<Notificacoes />} />
         <Route path="notificacoes/config" element={<NotificacoesConfig />} />
+        <Route path="notificacoes/log" element={<NotificacoesLog />} />
         <Route path="comunicacao" element={<WhatsAppPage />} />
         <Route path="comunicacao/emails" element={<ComunicacaoEmails />} />
         <Route path="comunicacao/mensagens" element={<ComunicacaoMensagens />} />
@@ -227,6 +231,8 @@ function App() {
         <Route path="albuns/:slug" element={<AlbumView />} />
         <Route path="feedback/:id" element={<MeuFeedback />} />
         <Route path="notificacoes" element={<MinhasNotificacoes />} />
+        <Route path="aditivos" element={<MeusAditivos />} />
+        <Route path="prorrogacao" element={<ProrrogacaoPage />} />
         <Route path="dados" element={<MeuPerfilCliente />} />
       </Route>
 

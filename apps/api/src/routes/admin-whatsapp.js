@@ -10,7 +10,7 @@ const router = Router();
 // Helpers: Template Metadata (timestamp tracking no DynamoDB)
 // Cada template da Meta tem um registro TPL_META#{nome} com updated_at
 // ══════════════════════════════════════════════════════════════
-const TENANT_ID = () => process.env.TENANT_ID || 'default';
+const TENANT_ID = () => process.env.TENANT_ID || '1';
 
 async function saveTemplateMetadata(templateName, extra = {}) {
   const now = new Date().toISOString();
@@ -911,7 +911,7 @@ router.post('/templates/gerar-img-variants', async (req, res) => {
       return res.json({ success: true, data: { criados: 0, templates: [] }, message: 'Todos os templates já possuem variante _img' });
     }
 
-    const TENANT = process.env.TENANT_ID || 'default';
+    const TENANT = process.env.TENANT_ID || '1';
     const criados = [];
 
     // Buscar rascunhos já existentes para evitar duplicação por nome
@@ -1029,7 +1029,7 @@ router.get('/templates/rascunhos', async (req, res) => {
 // DELETE /api/admin/whatsapp/templates/rascunhos/:id - Excluir rascunho local
 router.delete('/templates/rascunhos/:id', async (req, res) => {
   try {
-    const TENANT = process.env.TENANT_ID || 'default';
+    const TENANT = process.env.TENANT_ID || '1';
     const id = req.params.id;
 
     await dynamo.send(new DeleteCommand({
@@ -1195,7 +1195,7 @@ const TEMPLATE_DEFINITIONS = [
 // GET /api/admin/whatsapp/template-images
 router.get('/template-images', async (req, res) => {
   try {
-    const TENANT = process.env.TENANT_ID || 'default';
+    const TENANT = process.env.TENANT_ID || '1';
     const result = await dynamo.send(new QueryCommand({
       TableName: TABLE,
       KeyConditionExpression: 'PK = :pk AND begins_with(SK, :sk)',
@@ -1220,7 +1220,7 @@ router.post('/template-images/:key', async (req, res) => {
     const { s3_key } = req.body;
     if (!s3_key) return res.status(400).json({ success: false, message: 's3_key é obrigatório' });
     const image_url = `https://d2112x4m4e89fv.cloudfront.net/${s3_key}`;
-    const TENANT = process.env.TENANT_ID || 'default';
+    const TENANT = process.env.TENANT_ID || '1';
     await dynamo.send(new PutCommand({ TableName: TABLE, Item: { PK: `TENANT#${TENANT}`, SK: `TPL_IMG#${tpl.name}`, template_name: tpl.name, template_key: req.params.key, image_url, s3_key, updated_at: new Date().toISOString() } }));
     res.json({ success: true, data: { template_name: tpl.name, image_url } });
   } catch (error) { res.status(500).json({ success: false, message: error.message }); }
@@ -1244,7 +1244,7 @@ router.post('/template-images/recriar-todos', async (req, res) => {
     const token = params.WHATSAPP_ACCESS_TOKEN;
     const wabaId = params.WHATSAPP_WABA_ID || '2163797757810981';
     const appId = params.META_APP_ID || params.WHATSAPP_APP_ID || '951738347255153';
-    const TENANT = process.env.TENANT_ID || 'default';
+    const TENANT = process.env.TENANT_ID || '1';
     if (!token) return res.status(400).json({ success: false, message: 'Token WhatsApp não configurado' });
 
     // Buscar imagens salvas (validação síncrona rápida)

@@ -80,7 +80,7 @@ async function enviarAvisosExpiracao() {
       await processarEvento({
         evento_id: `album-expirando-${album.id}-${faixaAviso}d-${hojeStr}`,
         tipo_evento: 'album.expirando',
-        tenant_id: process.env.TENANT_ID || 'default',
+        tenant_id: process.env.TENANT_ID || '1',
         dados: {
           album_id: album.id,
           dias_restantes: diasRestantes,

@@ -557,7 +557,7 @@ router.post('/feedback', async (req, res) => {
       await dynamo.send(new PutCommand({
         TableName: TABLE,
         Item: {
-          PK: `TENANT#${process.env.TENANT_ID || 'default'}`,
+          PK: `TENANT#${process.env.TENANT_ID || '1'}`,
           SK: `FEEDBACK#${feedbackId}`,
           GSI1PK: 'FEEDBACK',
           GSI1SK: `FEEDBACK#${now}`,
@@ -592,7 +592,7 @@ router.post('/feedback', async (req, res) => {
       await processarEvento({
         evento_id: `feedback_${feedbackId}`,
         tipo_evento: 'feedback_respondido',
-        tenant_id: process.env.TENANT_ID || 'default',
+        tenant_id: process.env.TENANT_ID || '1',
         dados: {
           cliente_id: clienteId,
           cliente_nome: req.user.name || '',

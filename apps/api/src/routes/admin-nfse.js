@@ -10,7 +10,7 @@ const { GetCommand, PutCommand, QueryCommand, UpdateCommand } = require('@aws-sd
 const { emitirNFSe, getConfig, invalidateConfigCache } = require('../services/nfseService');
 const nfseSP = require('../lib/nf/nfse-sp-adapter');
 
-const TENANT = process.env.TENANT_ID || 'default';
+const TENANT = process.env.TENANT_ID || '1';
 
 // GET /api/admin/nfse/config — Retorna configuração atual
 router.get('/config', async (req, res) => {

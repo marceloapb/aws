@@ -7,7 +7,7 @@ const { dynamo, TABLE } = require('../config/dynamodb');
 const { GetCommand, QueryCommand } = require('@aws-sdk/lib-dynamodb');
 
 const router = Router();
-const TENANT = process.env.TENANT_ID || 'default';
+const TENANT = process.env.TENANT_ID || '1';
 const VALID_TIPOS = ['home', 'sobre', 'contato'];
 const BASE_URL = 'https://www.marcelobloisefotografia.com.br';
 

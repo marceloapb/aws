@@ -9,7 +9,7 @@ const { QueryCommand, PutCommand, UpdateCommand, DeleteCommand } = require('@aws
 const crypto = require('crypto');
 
 const router = Router();
-const TENANT = process.env.TENANT_ID || 'default';
+const TENANT = process.env.TENANT_ID || '1';
 
 // GET /admin/notificacoes/calendario — Listar regras de calendário
 router.get('/', async (req, res) => {

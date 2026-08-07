@@ -7,7 +7,7 @@ const { dynamo, TABLE } = require('../config/dynamodb');
 const { GetCommand, PutCommand } = require('@aws-sdk/lib-dynamodb');
 
 const router = Router();
-const TENANT = process.env.TENANT_ID || 'default';
+const TENANT = process.env.TENANT_ID || '1';
 const VALID_TIPOS = ['home', 'sobre', 'contato'];
 
 // ─── PUT /config — Atualizar configuração do site ───────────

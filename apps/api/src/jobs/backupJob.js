@@ -2,7 +2,7 @@ const { dynamo, TABLE } = require('../config/dynamodb');
 const { PutCommand, UpdateCommand } = require('@aws-sdk/lib-dynamodb');
 const { uploadBackup } = require('../services/s3Service');
 
-const TENANT = process.env.TENANT_ID || 'default';
+const TENANT = process.env.TENANT_ID || '1';
 
 async function executarBackup() {
   const inicio = Date.now();

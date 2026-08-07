@@ -9,7 +9,7 @@ const { QueryCommand, PutCommand, UpdateCommand, DeleteCommand, BatchWriteComman
 const { notificar } = require('./notificationService');
 const logger = require('../config/logger');
 
-const TENANT = process.env.TENANT_ID || 'default';
+const TENANT = process.env.TENANT_ID || '1';
 
 // ══════════ STATUS CONSTANTS ══════════
 const FOLLOWUP_STATUS = {

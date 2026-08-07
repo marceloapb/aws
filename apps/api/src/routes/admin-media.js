@@ -11,7 +11,7 @@ const { getBatchUrls } = require('../services/mediaUrlService');
 const { getStorageMetrics, getAllStorageMetrics } = require('../services/mediaMetricsService');
 
 const router = Router();
-const TENANT = process.env.TENANT_ID || 'default';
+const TENANT = process.env.TENANT_ID || '1';
 
 // POST /upload-url — Gera presigned URL para upload
 router.post('/upload-url', async (req, res) => {

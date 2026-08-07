@@ -45,7 +45,7 @@ async function notificar({
         return { bloqueado: true, motivo: 'Cliente com notificações bloqueadas' };
       }
       // Check TENANT#default/CLIENTE# pattern
-      const TENANT = process.env.TENANT_ID || 'default';
+      const TENANT = process.env.TENANT_ID || '1';
       const clienteCheck = await ddb.send(new GetCommand({
         TableName: TABLE,
         Key: { PK: `TENANT#${TENANT}`, SK: `CLIENTE#${destinatario_id}` },

@@ -9,7 +9,7 @@ const { QueryCommand, GetCommand, PutCommand } = require('@aws-sdk/lib-dynamodb'
 const { emitirNFSe } = require('../services/nfseService');
 const nfseSP = require('../lib/nf/nfse-sp-adapter');
 
-const TENANT = process.env.TENANT_ID || 'default';
+const TENANT = process.env.TENANT_ID || '1';
 
 // GET /admin/notas-fiscais — Listar notas emitidas
 router.get('/', async (req, res) => {

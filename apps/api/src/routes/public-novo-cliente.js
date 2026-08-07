@@ -14,7 +14,7 @@ const { enviarEmail } = require('../services/emailService');
 const router = Router();
 const cognito = new CognitoIdentityProviderClient({ region: 'us-east-1' });
 const USER_POOL_ID = process.env.COGNITO_USER_POOL_ID || 'us-east-1_ENV0dsEJx';
-const TENANT = process.env.TENANT_ID || 'default';
+const TENANT = process.env.TENANT_ID || '1';
 
 // Token de segurança para endpoints públicos (evita bots)
 const PUBLIC_TOKEN = process.env.PUBLIC_FORM_TOKEN || 'mbf-pub-2026-xK9mP4';
