@@ -1,9 +1,10 @@
 const { Router } = require('express');
 const { dynamo, TABLE } = require('../config/dynamodb');
 const { QueryCommand, PutCommand, UpdateCommand, DeleteCommand } = require('@aws-sdk/lib-dynamodb');
+const { stripReservedFields } = require('../middlewares/validateFields');
 
 const router = Router();
-const TENANT = process.env.TENANT_ID || 'default';
+const TENANT = process.env.TENANT_ID || '1';
 
 // GET /api/admin/pendencias
 router.get('/', async (req, res) => {
@@ -38,10 +39,15 @@ router.get('/', async (req, res) => {
 });
 
 // POST /api/admin/pendencias
-router.post('/', async (req, res) => {
+router.post('/', stripReservedFields, async (req, res) => {
   try {
+    const { titulo, descricao, tipo, prioridade, cliente_id, data_vencimento } = req.body;
+    if (!titulo || !titulo.trim()) {
+      return res.status(400).json({ success: false, message: 'titulo é obrigatório' });
+    }
     const id = crypto.randomUUID();
-    const item = { ...req.body, id, status: 'pendente', PK: `TENANT#${TENANT}`, SK: `PENDENCIA#${id}`, created: new Date().toISOString() };
+    const item = { titulo: titulo.trim(), descricao, tipo, prioridade: prioridade || 'media', cliente_id, data_vencimento, id, status: 'pendente', PK: `TENANT#${TENANT}`, SK: `PENDENCIA#${id}`, created: new Date().toISOString() };
+    Object.keys(item).forEach(k => item[k] === undefined && delete item[k]);
     await dynamo.send(new PutCommand({ TableName: TABLE, Item: item }));
     res.status(201).json({ success: true, data: item });
   } catch (error) {
@@ -50,7 +56,7 @@ router.post('/', async (req, res) => {
 });
 
 // PUT /api/admin/pendencias/:id
-router.put('/:id', async (req, res) => {
+router.put('/:id', stripReservedFields, async (req, res) => {
   try {
     const updates = req.body;
     const keys = Object.keys(updates);

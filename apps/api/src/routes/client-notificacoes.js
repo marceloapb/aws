@@ -7,7 +7,7 @@ const { GetCommand, PutCommand, QueryCommand, UpdateCommand } = require('@aws-sd
 const { dynamo, TABLE } = require('../config/dynamodb');
 
 const router = Router();
-const TENANT = process.env.TENANT_ID || 'default';
+const TENANT = process.env.TENANT_ID || '1';
 
 // ─── GET /preferencias — Obter preferencias de notificacao do cliente ────────
 router.get('/preferencias', async (req, res) => {

@@ -8,7 +8,7 @@ const logger = require('../config/logger');
 const client = new DynamoDBClient({});
 const docClient = DynamoDBDocumentClient.from(client);
 const TABLE_NAME = process.env.TABLE_NAME;
-const TENANT = process.env.TENANT_ID || 'default';
+const TENANT = process.env.TENANT_ID || '1';
 
 // ─── Helpers ────────────────────────────────────────────────────────────────────
 

@@ -413,7 +413,7 @@ router.post('/stories/ia-livre', async (req, res) => {
 });
 
 // ─── GET /admin/instagram/prompt-config — Buscar prompt do agente IA ───────────
-const TENANT = process.env.TENANT_ID || 'default';
+const TENANT = process.env.TENANT_ID || '1';
 
 router.get('/prompt-config', async (req, res) => {
   try {

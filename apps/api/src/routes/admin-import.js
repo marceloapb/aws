@@ -9,7 +9,7 @@ const { parseClientes, parseCatalogo, parseEquipamentos, TEMPLATES } = require('
 const client = new DynamoDBClient({});
 const docClient = DynamoDBDocumentClient.from(client);
 const TABLE_NAME = process.env.TABLE_NAME;
-const TENANT = process.env.TENANT_ID || 'default';
+const TENANT = process.env.TENANT_ID || '1';
 
 // Utilitário para batch write em chunks de 25
 async function batchWrite(items) {

@@ -174,7 +174,7 @@ router.get('/logs', async (req, res) => {
     }
 
     // Buscar logs de notificações (LOG_NTF) — sempre, e filtrar por canal se necessário
-    const TENANT = process.env.TENANT_ID || 'default';
+    const TENANT = process.env.TENANT_ID || '1';
     const ntfParams = {
       TableName: TABLE,
       KeyConditionExpression: 'PK = :pk AND begins_with(SK, :sk)',
@@ -257,7 +257,7 @@ router.delete('/logs', async (req, res) => {
     } while (lastEvaluatedKey);
 
     // 2) Apagar logs LOG_NTF (PK=TENANT#default, SK begins_with LOG_NTF#)
-    const TENANT = process.env.TENANT_ID || 'default';
+    const TENANT = process.env.TENANT_ID || '1';
     let lastKey2 = undefined;
     do {
       const params2 = {

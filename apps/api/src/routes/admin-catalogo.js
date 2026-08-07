@@ -8,7 +8,7 @@ const logger = require('../config/logger');
 const { calcularValorBase, resolverValorBase } = require('../services/catalogoPrecificacaoService');
 const { generateUploadUrl, CONTEXT_RULES } = require('../services/mediaUploadService');
 
-const TENANT = process.env.TENANT_ID || 'default';
+const TENANT = process.env.TENANT_ID || '1';
 
 const client = new DynamoDBClient({});
 const docClient = DynamoDBDocumentClient.from(client);

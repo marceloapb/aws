@@ -4,7 +4,7 @@ const { deleteAlbumFolder } = require('../services/s3Service');
 const { ALBUM_STATUS } = require('../config/constants');
 const { enviarAvisosExpiracao } = require('../services/albumExpiracaoService');
 
-const TENANT = process.env.TENANT_ID || 'default';
+const TENANT = process.env.TENANT_ID || '1';
 
 async function getRetencaoDias() {
   try {

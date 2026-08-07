@@ -9,7 +9,7 @@ const { QueryCommand, GetCommand, PutCommand, DeleteCommand } = require('@aws-sd
 const { slugify } = require('../utils/slugify');
 
 const router = Router();
-const TENANT = process.env.TENANT_ID || 'default';
+const TENANT = process.env.TENANT_ID || '1';
 
 // ─── Helpers ────────────────────────────────────────────────
 

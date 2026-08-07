@@ -78,7 +78,7 @@ async function gerarContrato(orcamentoId, modeloId, tenantId) {
 
   // Padrão 3: TENANT#default / CLIENTE#<id>
   if (!cliente) {
-    const TENANT = process.env.TENANT_ID || 'default';
+    const TENANT = process.env.TENANT_ID || '1';
     const { GetCommand } = require('@aws-sdk/lib-dynamodb');
     const cli3 = await dynamo.send(new GetCommand({
       TableName: TABLE,
@@ -89,7 +89,7 @@ async function gerarContrato(orcamentoId, modeloId, tenantId) {
 
   if (!cliente) throw new Error('Cliente não encontrado no orçamento');
 
-  const TENANT = tenantId || process.env.TENANT_ID || 'default';
+  const TENANT = tenantId || process.env.TENANT_ID || '1';
   let conteudo = null;
 
   // Se modelo_id fornecido, buscar o MODELO_CONTRATO cadastrado
@@ -247,7 +247,7 @@ async function enviarParaAssinatura(contratoId) {
     if (cli2.Item) cliente = { ...cli2.Item, id: contrato.cliente_id };
   }
   if (!cliente) {
-    const TENANT = process.env.TENANT_ID || 'default';
+    const TENANT = process.env.TENANT_ID || '1';
     const { GetCommand } = require('@aws-sdk/lib-dynamodb');
     const cli3 = await dynamo.send(new GetCommand({ TableName: TABLE, Key: { PK: `TENANT#${TENANT}`, SK: `CLIENTE#${contrato.cliente_id}` } }));
     if (cli3.Item) cliente = cli3.Item;

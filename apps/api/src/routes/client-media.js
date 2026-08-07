@@ -8,7 +8,7 @@ const { getMediaById, listMedia } = require('../services/mediaService');
 const { getPresignedReadUrl, getBatchUrls, getKeyForVersion } = require('../services/mediaUrlService');
 
 const router = Router();
-const TENANT = process.env.TENANT_ID || 'default';
+const TENANT = process.env.TENANT_ID || '1';
 
 // POST /upload-url — Upload APENAS para contexto 'perfil'
 router.post('/upload-url', async (req, res) => {

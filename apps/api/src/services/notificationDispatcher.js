@@ -8,7 +8,7 @@ const { dynamo, TABLE } = require('../config/dynamodb');
 const { verificarDedup, marcarProcessado } = require('./dedupService');
 const { getTemplateImageUrl, resolveTemplateImageUrl, isImageTemplate, isButtonUrlTemplate } = require('./whatsappTemplateCache');
 
-const TENANT = process.env.TENANT_ID || 'default';
+const TENANT = process.env.TENANT_ID || '1';
 
 /**
  * Processa um evento e dispara notificações conforme regras ativas

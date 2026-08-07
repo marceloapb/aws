@@ -103,7 +103,7 @@ router.post('/:id/pagar-cartao', async (req, res) => {
         if (!clienteProfile) {
           const profResult2 = await dynamo.send(new GetCommand({
             TableName: TABLE,
-            Key: { PK: `TENANT#${process.env.TENANT_ID || 'default'}`, SK: `CLIENTE#${req.clienteId}` },
+            Key: { PK: `TENANT#${process.env.TENANT_ID || '1'}`, SK: `CLIENTE#${req.clienteId}` },
           }));
           clienteProfile = profResult2.Item;
         }
@@ -150,7 +150,7 @@ router.post('/:id/pagar-cartao', async (req, res) => {
       await processarEvento({
         evento_id: `pag_cartao_${req.params.id}_${Date.now()}`,
         tipo_evento: 'pagamento_confirmado',
-        tenant_id: process.env.TENANT_ID || 'default',
+        tenant_id: process.env.TENANT_ID || '1',
         dados: {
           cliente_id: req.clienteId,
           valor: cobranca.valor,

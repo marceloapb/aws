@@ -50,6 +50,7 @@ const adminSections = [
       { to: '/admin/comunicacao/emails', icon: Mail, label: 'E-mail Templates' },
       { to: '/admin/comunicacao/mensagens', icon: MessageCircle, label: 'Mensagens do Sistema' },
       { to: '/admin/comunicacao/regras', icon: Zap, label: 'Regras de Notificação' },
+      { to: '/admin/notificacoes/log', icon: ScrollText, label: 'Log de Envios' },
     ],
   },
   {
@@ -77,6 +78,7 @@ const clienteLinks = [
   { to: '/cliente/contratos', icon: FolderOpen, label: 'Contratos' },
   { to: '/cliente/pagamentos', icon: CreditCard, label: 'Pagamentos' },
   { to: '/cliente/albuns', icon: Image, label: 'Minhas Fotos' },
+  { to: '/cliente/aditivos', icon: FilePlus, label: 'Aditivos' },
   { to: '/cliente/dados', icon: Users, label: 'Meus Dados' },
 ];
 

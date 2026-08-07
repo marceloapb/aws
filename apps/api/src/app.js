@@ -194,8 +194,16 @@ app.use('/client/orcamentos', clientAuth, clientOrcamentosRoutes);
 app.use('/client/pagamentos', clientAuth, clientPagamentosRoutes);
 
 // Rotas Client públicas (acesso via token, sem auth)
-app.use('/client/feedback', clientFeedbackRoutes);
-app.use('/client/aditivos', clientAditivosRoutes);
+// Rate limiting para prevenir DoS via full table scan
+const tokenLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutos
+  max: 20, // 20 requests por IP por janela
+  message: { success: false, message: 'Muitas solicitações. Tente novamente em alguns minutos.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+app.use('/client/feedback', tokenLimiter, clientFeedbackRoutes);
+app.use('/client/aditivos', tokenLimiter, clientAditivosRoutes);
 
 // Rotas Client Portal (consolidadas, com auth)
 app.use('/client/portal', clientAuth, clientPortalRoutes);
@@ -246,7 +254,7 @@ app.post('/admin/maps/distance-from-company', adminAuth, async (req, res) => {
     const { DynamoDBDocumentClient, QueryCommand } = require('@aws-sdk/lib-dynamodb');
     const ddb = DynamoDBDocumentClient.from(new DynamoDBClient({}));
     const TABLE = process.env.TABLE_NAME;
-    const tenantId = process.env.TENANT_ID || 'default';
+    const tenantId = process.env.TENANT_ID || '1';
 
     const { destino_lat, destino_lng } = req.body;
     if (!destino_lat || !destino_lng) {
@@ -316,7 +324,7 @@ app.get('/admin/config/mensagens', adminAuth, async (req, res) => {
     const { DynamoDBClient } = require('@aws-sdk/client-dynamodb');
     const ddb = DynamoDBDocumentClient.from(new DynamoDBClient({}));
     const TABLE = process.env.TABLE_NAME || 'mbf-backend-v3-table';
-    const TENANT = process.env.TENANT_ID || 'default';
+    const TENANT = process.env.TENANT_ID || '1';
     const result = await ddb.send(new GetCommand({ TableName: TABLE, Key: { PK: `TENANT#${TENANT}`, SK: 'CONFIG#MENSAGENS_SISTEMA' } }));
     res.json({ success: true, data: result.Item || {} });
   } catch (error) { res.json({ success: true, data: {} }); }
@@ -328,10 +336,12 @@ app.put('/admin/config/mensagens', adminAuth, async (req, res) => {
     const { DynamoDBClient } = require('@aws-sdk/client-dynamodb');
     const ddb = DynamoDBDocumentClient.from(new DynamoDBClient({}));
     const TABLE = process.env.TABLE_NAME || 'mbf-backend-v3-table';
-    const TENANT = process.env.TENANT_ID || 'default';
+    const TENANT = process.env.TENANT_ID || '1';
+    // Sanitizar body: remover campos reservados
+    const { PK, SK, GSI1PK, GSI1SK, ...safeBody } = req.body;
     await ddb.send(new PutCommand({
       TableName: TABLE,
-      Item: { PK: `TENANT#${TENANT}`, SK: 'CONFIG#MENSAGENS_SISTEMA', ...req.body, updated: new Date().toISOString() },
+      Item: { PK: `TENANT#${TENANT}`, SK: 'CONFIG#MENSAGENS_SISTEMA', ...safeBody, updated: new Date().toISOString() },
     }));
     res.json({ success: true });
   } catch (error) { res.status(400).json({ success: false, message: error.message }); }
@@ -380,7 +390,7 @@ app.get('/admin/dashboard/badges', adminAuth, async (req, res) => {
         IndexName: 'GSI1',
         KeyConditionExpression: 'GSI1PK = :pk AND begins_with(GSI1SK, :sk)',
         FilterExpression: 'lida = :false',
-        ExpressionAttributeValues: { ':pk': `TENANT#${process.env.TENANT_ID || 'default'}`, ':sk': 'NTF#', ':false': false },
+        ExpressionAttributeValues: { ':pk': `TENANT#${process.env.TENANT_ID || '1'}`, ':sk': 'NTF#', ':false': false },
         Select: 'COUNT',
       })).catch(() => ({ Count: 0 })),
     ]);

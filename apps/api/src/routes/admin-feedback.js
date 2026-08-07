@@ -9,7 +9,7 @@ const emailService = require('../services/emailService');
 const client = new DynamoDBClient({});
 const docClient = DynamoDBDocumentClient.from(client);
 const TABLE_NAME = process.env.TABLE_NAME;
-const TENANT = process.env.TENANT_ID || 'default';
+const TENANT = process.env.TENANT_ID || '1';
 
 // GET /admin/feedback - Listar todos os feedbacks
 // Frontend espera: { success: true, data: [...feedbacks], resumo: { total_orcamentos, ... } }
@@ -287,7 +287,7 @@ router.post('/solicitar', async (req, res) => {
       return res.status(400).json({ success: false, error: 'cliente_id é obrigatório' });
     }
 
-    const TENANT = process.env.TENANT_ID || 'default';
+    const TENANT = process.env.TENANT_ID || '1';
 
     // Buscar dados do cliente (TENANT#default/CLIENTE#id)
     let clienteNome = '';

@@ -6,7 +6,7 @@ const { features } = require('../config/env');
 const { SYNC_STATUS } = require('../config/constants');
 
 const router = Router();
-const TENANT = process.env.TENANT_ID || 'default';
+const TENANT = process.env.TENANT_ID || '1';
 
 async function findEvento(id) {
   const result = await dynamo.send(new QueryCommand({

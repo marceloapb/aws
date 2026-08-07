@@ -5,7 +5,7 @@
 const { dynamo, TABLE } = require('../config/dynamodb');
 const { PutCommand, GetCommand, QueryCommand, UpdateCommand } = require('@aws-sdk/lib-dynamodb');
 
-const TENANT_PK = `TENANT#${process.env.TENANT_ID || 'default'}`;
+const TENANT_PK = `TENANT#${process.env.TENANT_ID || '1'}`;
 
 /**
  * Cria registro de mídia no DynamoDB

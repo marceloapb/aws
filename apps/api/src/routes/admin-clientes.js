@@ -4,7 +4,7 @@ const { QueryCommand, GetCommand, PutCommand, UpdateCommand, DeleteCommand, Scan
 const { registrarEvento, registrarMudancaStatusManual, buscarHistorico } = require('../services/clienteHistoricoService');
 
 const router = Router();
-const TENANT = process.env.TENANT_ID || 'default';
+const TENANT = process.env.TENANT_ID || '1';
 
 // GET /api/admin/clientes
 // Busca clientes de todas as origens:
@@ -166,8 +166,15 @@ router.get('/:id/historico', async (req, res) => {
 // POST /api/admin/clientes
 router.post('/', async (req, res) => {
   try {
+    // Sanitizar: remover campos reservados DynamoDB
+    const { PK, SK, GSI1PK, GSI1SK, GSI2PK, GSI2SK, created, created_at, ...safeBody } = req.body;
+    const { nome, name, email } = safeBody;
+    const nomeCliente = nome || name;
+    if (!nomeCliente || !nomeCliente.trim()) {
+      return res.status(400).json({ success: false, message: 'nome é obrigatório' });
+    }
     const id = crypto.randomUUID();
-    const item = { ...req.body, id, PK: `TENANT#${TENANT}`, SK: `CLIENTE#${id}`, status: req.body.status || 'Lead', created: new Date().toISOString() };
+    const item = { ...safeBody, id, PK: `TENANT#${TENANT}`, SK: `CLIENTE#${id}`, status: safeBody.status || 'Lead', created: new Date().toISOString() };
     await dynamo.send(new PutCommand({ TableName: TABLE, Item: item }));
 
     // Registrar evento de cadastro no histórico
@@ -193,7 +200,8 @@ router.post('/', async (req, res) => {
 router.put('/:id', async (req, res) => {
   try {
     const clienteId = req.params.id;
-    const updates = req.body;
+    // Sanitizar: remover campos reservados DynamoDB
+    const { PK, SK, GSI1PK, GSI1SK, GSI2PK, GSI2SK, created, created_at, ...updates } = req.body;
     const keys = Object.keys(updates);
     if (keys.length === 0) return res.status(400).json({ success: false, message: 'Nenhum campo para atualizar' });
 

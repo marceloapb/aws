@@ -3,7 +3,7 @@ const { dynamo, TABLE } = require('../config/dynamodb');
 const { QueryCommand, GetCommand, PutCommand } = require('@aws-sdk/lib-dynamodb');
 
 const router = Router();
-const TENANT = process.env.TENANT_ID || 'default';
+const TENANT = process.env.TENANT_ID || '1';
 
 // GET /api/admin/configuracoes
 router.get('/', async (req, res) => {

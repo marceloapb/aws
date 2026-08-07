@@ -5,7 +5,7 @@ const { QueryCommand, PutCommand, UpdateCommand } = require('@aws-sdk/lib-dynamo
 const { criarCobranca, consultarCobranca, cancelarCobranca } = require('../adapters/index');
 
 const router = Router();
-const TENANT = process.env.TENANT_ID || 'default';
+const TENANT = process.env.TENANT_ID || '1';
 
 async function findCobranca(id) {
   const result = await dynamo.send(new QueryCommand({

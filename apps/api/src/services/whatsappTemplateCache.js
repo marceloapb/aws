@@ -23,7 +23,7 @@ const { dynamo, TABLE } = require('../config/dynamodb');
 const { GetCommand, PutCommand } = require('@aws-sdk/lib-dynamodb');
 
 const CDN_BASE = 'https://d2112x4m4e89fv.cloudfront.net';
-const TENANT = process.env.TENANT_ID || 'default';
+const TENANT = process.env.TENANT_ID || '1';
 
 // Cache em memória (dura enquanto a Lambda estiver quente)
 let imageUrlCache = {};
