@@ -664,14 +664,33 @@ function ContactSection({ config, siteConfig }) {
                   </div>
                 ))}
               </div>
+              <div className="grid sm:grid-cols-2 gap-3 sm:gap-4">
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[9px] tracking-widest uppercase font-mono" style={{ color: '#8a8a8a' }}>Telefone / WhatsApp</label>
+                  <input type="tel" placeholder="+55 (11) 00000-0000" className="px-4 py-2.5 sm:py-3 text-sm focus:outline-none transition-colors"
+                    style={{ background: '#1f1f1f', border: '1px solid rgba(255,255,255,0.08)', color: '#f0ece4' }} />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[9px] tracking-widest uppercase font-mono" style={{ color: '#8a8a8a' }}>Tipo de Projeto</label>
+                  <select className="px-4 py-2.5 sm:py-3 text-sm focus:outline-none transition-colors appearance-none cursor-pointer"
+                    style={{ background: '#1f1f1f', border: '1px solid rgba(255,255,255,0.08)', color: '#f0ece4' }}>
+                    <option value="">Selecione</option>
+                    <option>Casamento</option>
+                    <option>Ensaio</option>
+                    <option>Evento Corporativo</option>
+                    <option>Editorial / Urbano</option>
+                    <option>Outro</option>
+                  </select>
+                </div>
+              </div>
               <div className="flex flex-col gap-1.5">
-                <label className="text-[9px] tracking-widest uppercase font-mono" style={{ color: '#8a8a8a' }}>Telefone / WhatsApp</label>
-                <input type="tel" placeholder="+55 (11) 00000-0000" className="px-4 py-2.5 sm:py-3 text-sm focus:outline-none transition-colors"
+                <label className="text-[9px] tracking-widest uppercase font-mono" style={{ color: '#8a8a8a' }}>Data prevista</label>
+                <input type="date" className="px-4 py-2.5 sm:py-3 text-sm focus:outline-none transition-colors"
                   style={{ background: '#1f1f1f', border: '1px solid rgba(255,255,255,0.08)', color: '#f0ece4' }} />
               </div>
               <div className="flex flex-col gap-1.5">
                 <label className="text-[9px] tracking-widest uppercase font-mono" style={{ color: '#8a8a8a' }}>Mensagem</label>
-                <textarea rows={3} required placeholder="Conte-me sobre seu projeto..." className="px-4 py-2.5 sm:py-3 text-sm focus:outline-none transition-colors resize-none"
+                <textarea rows={3} required placeholder="Conte-me sobre seu projeto, local, número de pessoas, expectativas..." className="px-4 py-2.5 sm:py-3 text-sm focus:outline-none transition-colors resize-none"
                   style={{ background: '#1f1f1f', border: '1px solid rgba(255,255,255,0.08)', color: '#f0ece4' }} />
               </div>
               <button type="submit" className="group flex items-center justify-center gap-3 py-3 sm:py-4 text-xs tracking-widest uppercase font-bold transition-all"
@@ -679,6 +698,22 @@ function ContactSection({ config, siteConfig }) {
                 Enviar Mensagem <ArrowRight size={14} className="group-hover:translate-x-1 transition-transform" />
               </button>
             </form>
+
+            {/* Mobile contact snippet */}
+            <div className="md:hidden mt-5 pt-5 grid grid-cols-2 gap-4" style={{ borderTop: '1px solid rgba(255,255,255,0.04)' }}>
+              {[
+                { Icon: Phone, label: 'WhatsApp', value: contatoWhatsapp },
+                { Icon: Instagram, label: 'Instagram', value: contatoInstagram },
+              ].map(({ Icon, label, value }) => (
+                <div key={label} className="flex items-center gap-2">
+                  <Icon size={13} style={{ color: ACCENT }} className="shrink-0" />
+                  <div>
+                    <p className="text-[9px] tracking-widest uppercase font-mono" style={{ color: '#8a8a8a' }}>{label}</p>
+                    <p className="text-xs font-medium mt-0.5" style={{ color: '#f0ece4' }}>{value}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
           </>
         )}
       </div>
