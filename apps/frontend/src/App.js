@@ -120,9 +120,8 @@ function App() {
       {/* Site principal - Layout fullscreen horizontal */}
       <Route path="/" element={<SiteV2 />} />
 
-      {/* Site V1 (antigo) */}
+      {/* Páginas internas do site */}
       <Route element={<SiteLayout />}>
-        <Route path="/v1" element={<HomePage />} />
         <Route path="/portfolio" element={<PortfolioPage />} />
         <Route path="/portfolio/:categoriaId" element={<PortfolioGaleria />} />
         <Route path="/novidades" element={<NovidadesPage />} />
