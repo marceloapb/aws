@@ -29,6 +29,11 @@ const FOLDER_RULES = {
     allowedTypes: ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'],
     description: 'Upload genérico',
   },
+  'site': {
+    maxBytes: 10 * 1024 * 1024,
+    allowedTypes: ['image/jpeg', 'image/png', 'image/webp'],
+    description: 'Imagens do site institucional',
+  },
 };
 
 /**

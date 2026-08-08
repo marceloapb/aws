@@ -105,17 +105,13 @@ export default function ConfigSiteNovo() {
       const file = e.target.files[0];
       if (!file) return;
       try {
-        const res = await authFetch('/admin/fotos/upload-url', {
-          method: 'POST', body: JSON.stringify({ albumId: 'site-novo', contentType: file.type }),
+        const res = await authFetch('/admin/upload/presign', {
+          method: 'POST', body: JSON.stringify({ filename: file.name, contentType: file.type, folder: 'site' }),
         });
         const json = await res.json();
-        if (json.success && json.data?.uploadUrl) {
-          await fetch(json.data.uploadUrl, { method: 'PUT', body: file, headers: { 'Content-Type': file.type } });
-          // Get viewable URL
-          const viewRes = await authFetch('/admin/fotos/view-url', { method: 'POST', body: JSON.stringify({ key: json.data.key }) });
-          const viewJson = await viewRes.json();
-          const url = viewJson.success ? viewJson.data.url : '';
-          setForm(prev => ({ ...prev, [field]: url, [`${field}_key`]: json.data.key }));
+        if (json.success && json.data?.upload_url) {
+          await fetch(json.data.upload_url, { method: 'PUT', body: file, headers: { 'Content-Type': file.type } });
+          setForm(prev => ({ ...prev, [field]: json.data.cdn_url }));
         }
       } catch {}
     };
@@ -131,16 +127,13 @@ export default function ConfigSiteNovo() {
       const files = Array.from(e.target.files);
       for (const file of files) {
         try {
-          const res = await authFetch('/admin/fotos/upload-url', {
-            method: 'POST', body: JSON.stringify({ albumId: 'site-novo', contentType: file.type }),
+          const res = await authFetch('/admin/upload/presign', {
+            method: 'POST', body: JSON.stringify({ filename: file.name, contentType: file.type, folder: 'site' }),
           });
           const json = await res.json();
-          if (json.success && json.data?.uploadUrl) {
-            await fetch(json.data.uploadUrl, { method: 'PUT', body: file, headers: { 'Content-Type': file.type } });
-            const viewRes = await authFetch('/admin/fotos/view-url', { method: 'POST', body: JSON.stringify({ key: json.data.key }) });
-            const viewJson = await viewRes.json();
-            const url = viewJson.success ? viewJson.data.url : '';
-            if (url) setForm(prev => ({ ...prev, [field]: [...(prev[field] || []), url] }));
+          if (json.success && json.data?.upload_url) {
+            await fetch(json.data.upload_url, { method: 'PUT', body: file, headers: { 'Content-Type': file.type } });
+            if (json.data.cdn_url) setForm(prev => ({ ...prev, [field]: [...(prev[field] || []), json.data.cdn_url] }));
           }
         } catch {}
       }
