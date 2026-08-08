@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { Save, Image, Upload, Plus, X, Trash2, GripVertical } from 'lucide-react';
+import RichTextEditor from '../../components/ui/RichTextEditor';
 
 const ACCENT = '#EA580C';
 
@@ -272,8 +273,12 @@ export default function ConfigSiteNovo() {
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Biografia</label>
-              <textarea rows={5} value={form.sobre_bio} onChange={e => update('sobre_bio', e.target.value)}
-                className="w-full px-3 py-2 border rounded-lg text-sm" placeholder="Conte sua história..." />
+              <RichTextEditor
+                value={form.sobre_bio}
+                onChange={(html) => update('sobre_bio', html)}
+                placeholder="Conte sua história..."
+                minHeight="180px"
+              />
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
@@ -289,8 +294,12 @@ export default function ConfigSiteNovo() {
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Citação</label>
-              <textarea rows={2} value={form.sobre_citacao} onChange={e => update('sobre_citacao', e.target.value)}
-                className="w-full px-3 py-2 border rounded-lg text-sm" />
+              <RichTextEditor
+                value={form.sobre_citacao}
+                onChange={(html) => update('sobre_citacao', html)}
+                placeholder="Uma frase inspiradora..."
+                minHeight="100px"
+              />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Autor da citação</label>
