@@ -14,7 +14,7 @@ import NovidadeDetalhe from './pages/public/NovidadeDetalhe';
 import SobrePage from './pages/public/SobrePage';
 import ContatoPage from './pages/public/ContatoPage';
 import SitePage from './pages/public/SitePage';
-import SiteV2 from './pages/public/SiteV2';
+import SiteV2 from './pages/public/mbfSiteNovo';
 import ContratoAssinar from './pages/public/ContratoAssinar';
 import VerificarAssinatura from './pages/public/VerificarAssinatura';
 import AlbumPublico from './pages/public/AlbumPublico';
