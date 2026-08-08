@@ -591,20 +591,24 @@ function NovidadesSection() {
 function ContactSection({ config, siteConfig }) {
   const [sent, setSent] = useState(false);
   const contatoTitulo = siteConfig?.contato_titulo || 'Vamos criar algo único';
-  const contatoSub = siteConfig?.contato_subtitulo || 'Cada projeto começa com uma conversa. Conte-me sobre o seu momento especial.';
+  const contatoSub = siteConfig?.contato_subtitulo || 'Cada projeto começa com uma conversa. Conte-me sobre o seu momento especial e vamos construir juntos imagens que durarão para sempre.';
   const contatoEmail = siteConfig?.contato_email || 'contato@marcelobloise.com.br';
   const contatoWhatsapp = siteConfig?.contato_whatsapp || '+55 (11) 99481-2037';
   const contatoInstagram = siteConfig?.contato_instagram || '@marcelobloisefoto';
   const contatoEndereco = siteConfig?.contato_endereco || 'São Paulo, SP — Brasil';
 
+  const inputStyle = { background: '#1a1a1a', border: '1px solid rgba(255,255,255,0.08)', color: '#f0ece4' };
+  const labelCls = "text-[9px] tracking-widest uppercase font-mono";
+
   return (
     <div className="w-full h-full flex overflow-hidden" style={{ background: '#0d0d0d' }}>
-      {/* Left info (md+) */}
+      {/* Left — info (md and up) */}
       <div className="hidden md:flex w-2/5 shrink-0 flex-col justify-between px-8 lg:px-14 py-10" style={{ borderRight: '1px solid rgba(255,255,255,0.04)', background: 'rgba(20,20,20,0.3)' }}>
         <div>
           <Label>Contato</Label>
           <SectionTitle className="text-4xl md:text-5xl lg:text-6xl mb-8">
-            <span style={{ color: '#f0ece4' }}>{contatoTitulo.split(' ').slice(0, 2).join(' ')}</span><br /><span style={{ color: ACCENT }}>{contatoTitulo.split(' ').slice(2).join(' ')}</span>
+            <span style={{ color: '#f0ece4' }}>{contatoTitulo.split(' ').slice(0, 2).join(' ')}</span><br />
+            <span style={{ color: ACCENT }}>{contatoTitulo.split(' ').slice(2).join(' ')}</span>
           </SectionTitle>
           <p className="font-light leading-relaxed text-sm max-w-xs" style={{ color: '#8a8a8a' }}>
             {contatoSub}
@@ -618,12 +622,13 @@ function ContactSection({ config, siteConfig }) {
             { Icon: MapPin, label: 'Localização', value: contatoEndereco },
             { Icon: Instagram, label: 'Instagram', value: contatoInstagram },
           ].map(({ Icon, label, value }) => (
-            <div key={label} className="flex items-start gap-3 group">
-              <div className="w-8 h-8 flex items-center justify-center shrink-0 transition-colors" style={{ border: '1px solid rgba(255,255,255,0.08)' }}>
-                <Icon size={13} style={{ color: '#8a8a8a' }} />
+            <div key={label} className="flex items-start gap-3 group cursor-default">
+              <div className="w-8 h-8 flex items-center justify-center shrink-0 transition-colors"
+                style={{ border: '1px solid rgba(255,255,255,0.08)' }}>
+                <Icon size={13} className="transition-colors" style={{ color: '#8a8a8a' }} />
               </div>
               <div>
-                <p className="text-[9px] tracking-widest uppercase font-mono" style={{ color: '#8a8a8a' }}>{label}</p>
+                <p className={labelCls} style={{ color: '#8a8a8a' }}>{label}</p>
                 <p className="text-sm font-medium mt-0.5" style={{ color: '#f0ece4' }}>{value}</p>
               </div>
             </div>
@@ -636,7 +641,7 @@ function ContactSection({ config, siteConfig }) {
         </div>
       </div>
 
-      {/* Right form */}
+      {/* Right — form */}
       <div className="flex-1 flex flex-col justify-center px-4 sm:px-8 lg:px-14 py-6 overflow-y-auto" style={{ scrollbarWidth: 'none' }}>
         {sent ? (
           <div className="flex flex-col items-center justify-center h-full gap-5 text-center">
@@ -644,9 +649,11 @@ function ContactSection({ config, siteConfig }) {
               <ArrowRight size={28} style={{ color: '#0d0d0d' }} />
             </div>
             <SectionTitle className="text-4xl" style={{ color: '#f0ece4' }}>Mensagem<br />enviada!</SectionTitle>
-            <p className="font-light" style={{ color: '#8a8a8a' }}>Responderei em até 24 horas.</p>
-            <button onClick={() => setSent(false)} className="px-6 py-2.5 text-xs tracking-widest uppercase font-bold transition-all"
-              style={{ border: '1px solid rgba(255,255,255,0.08)', color: '#8a8a8a' }}>Nova mensagem</button>
+            <p className="font-light" style={{ color: '#8a8a8a' }}>Responderei em até 24 horas. Obrigado pelo contato!</p>
+            <button onClick={() => setSent(false)} className="px-6 py-2.5 text-xs tracking-widest uppercase font-bold transition-all hover:text-orange-400"
+              style={{ border: '1px solid rgba(255,255,255,0.08)', color: '#8a8a8a' }}>
+              Nova mensagem
+            </button>
           </div>
         ) : (
           <>
@@ -658,25 +665,27 @@ function ContactSection({ config, siteConfig }) {
               <div className="grid sm:grid-cols-2 gap-3 sm:gap-4">
                 {[['Nome completo', 'text', 'Seu nome'], ['E-mail', 'email', 'seu@email.com']].map(([label, type, ph]) => (
                   <div key={label} className="flex flex-col gap-1.5">
-                    <label className="text-[9px] tracking-widest uppercase font-mono" style={{ color: '#8a8a8a' }}>{label}</label>
-                    <input type={type} placeholder={ph} required className="px-4 py-2.5 sm:py-3 text-sm focus:outline-none transition-colors"
-                      style={{ background: '#1f1f1f', border: '1px solid rgba(255,255,255,0.08)', color: '#f0ece4' }} />
+                    <label className={labelCls} style={{ color: '#8a8a8a' }}>{label}</label>
+                    <input type={type} placeholder={ph} required
+                      className="px-4 py-2.5 sm:py-3 text-sm focus:outline-none transition-colors placeholder:opacity-30"
+                      style={inputStyle} />
                   </div>
                 ))}
               </div>
               <div className="grid sm:grid-cols-2 gap-3 sm:gap-4">
                 <div className="flex flex-col gap-1.5">
-                  <label className="text-[9px] tracking-widest uppercase font-mono" style={{ color: '#8a8a8a' }}>Telefone / WhatsApp</label>
-                  <input type="tel" placeholder="+55 (11) 00000-0000" className="px-4 py-2.5 sm:py-3 text-sm focus:outline-none transition-colors"
-                    style={{ background: '#1f1f1f', border: '1px solid rgba(255,255,255,0.08)', color: '#f0ece4' }} />
+                  <label className={labelCls} style={{ color: '#8a8a8a' }}>Telefone / WhatsApp</label>
+                  <input type="tel" placeholder="+55 (11) 00000-0000"
+                    className="px-4 py-2.5 sm:py-3 text-sm focus:outline-none transition-colors placeholder:opacity-30"
+                    style={inputStyle} />
                 </div>
                 <div className="flex flex-col gap-1.5">
-                  <label className="text-[9px] tracking-widest uppercase font-mono" style={{ color: '#8a8a8a' }}>Tipo de Projeto</label>
+                  <label className={labelCls} style={{ color: '#8a8a8a' }}>Tipo de Projeto</label>
                   <select className="px-4 py-2.5 sm:py-3 text-sm focus:outline-none transition-colors appearance-none cursor-pointer"
-                    style={{ background: '#1f1f1f', border: '1px solid rgba(255,255,255,0.08)', color: '#f0ece4' }}>
+                    style={inputStyle}>
                     <option value="">Selecione</option>
+                    <option>Retrato</option>
                     <option>Casamento</option>
-                    <option>Ensaio</option>
                     <option>Evento Corporativo</option>
                     <option>Editorial / Urbano</option>
                     <option>Outro</option>
@@ -684,16 +693,18 @@ function ContactSection({ config, siteConfig }) {
                 </div>
               </div>
               <div className="flex flex-col gap-1.5">
-                <label className="text-[9px] tracking-widest uppercase font-mono" style={{ color: '#8a8a8a' }}>Data prevista</label>
+                <label className={labelCls} style={{ color: '#8a8a8a' }}>Data prevista</label>
                 <input type="date" className="px-4 py-2.5 sm:py-3 text-sm focus:outline-none transition-colors"
-                  style={{ background: '#1f1f1f', border: '1px solid rgba(255,255,255,0.08)', color: '#f0ece4' }} />
+                  style={inputStyle} />
               </div>
               <div className="flex flex-col gap-1.5">
-                <label className="text-[9px] tracking-widest uppercase font-mono" style={{ color: '#8a8a8a' }}>Mensagem</label>
-                <textarea rows={3} required placeholder="Conte-me sobre seu projeto, local, número de pessoas, expectativas..." className="px-4 py-2.5 sm:py-3 text-sm focus:outline-none transition-colors resize-none"
-                  style={{ background: '#1f1f1f', border: '1px solid rgba(255,255,255,0.08)', color: '#f0ece4' }} />
+                <label className={labelCls} style={{ color: '#8a8a8a' }}>Mensagem</label>
+                <textarea rows={3} required placeholder="Conte-me sobre seu projeto, local, número de pessoas, expectativas..."
+                  className="px-4 py-2.5 sm:py-3 text-sm focus:outline-none transition-colors resize-none placeholder:opacity-30"
+                  style={inputStyle} />
               </div>
-              <button type="submit" className="group flex items-center justify-center gap-3 py-3 sm:py-4 text-xs tracking-widest uppercase font-bold transition-all"
+              <button type="submit"
+                className="group flex items-center justify-center gap-3 py-3 sm:py-4 text-xs tracking-widest uppercase font-bold transition-all hover:opacity-90"
                 style={{ background: ACCENT, color: '#0d0d0d', boxShadow: '0 0 20px rgba(255,92,0,0.25)' }}>
                 Enviar Mensagem <ArrowRight size={14} className="group-hover:translate-x-1 transition-transform" />
               </button>
@@ -708,7 +719,7 @@ function ContactSection({ config, siteConfig }) {
                 <div key={label} className="flex items-center gap-2">
                   <Icon size={13} style={{ color: ACCENT }} className="shrink-0" />
                   <div>
-                    <p className="text-[9px] tracking-widest uppercase font-mono" style={{ color: '#8a8a8a' }}>{label}</p>
+                    <p className={labelCls} style={{ color: '#8a8a8a' }}>{label}</p>
                     <p className="text-xs font-medium mt-0.5" style={{ color: '#f0ece4' }}>{value}</p>
                   </div>
                 </div>
