@@ -8,7 +8,7 @@ import {
 const API = process.env.REACT_APP_API_URL || '';
 const ACCENT = '#ff5c00';
 
-const SECTIONS = ['Home', 'Portfolio', 'Serviços', 'Sobre', 'Novidades', 'Contato'];
+const SECTIONS = ['Home', 'Portfolio', 'Sobre', 'Novidades', 'Contato'];
 
 const WORDS = ['Emociona', 'Conecta', 'Transforma', 'Inspira', 'Permanece'];
 
@@ -756,7 +756,6 @@ export default function SiteV2() {
   const sections = [
     <HomeSection goTo={goTo} depoimentos={depoimentos} config={config} siteConfig={siteConfig} />,
     <PortfolioSection goTo={goTo} portfolioData={portfolioData} categorias={portfolioCategorias} />,
-    <ServicesSection goTo={goTo} siteConfig={siteConfig} />,
     <AboutSection goTo={goTo} config={config} siteConfig={siteConfig} />,
     <NovidadesSection />,
     <ContactSection config={config} siteConfig={siteConfig} />,
