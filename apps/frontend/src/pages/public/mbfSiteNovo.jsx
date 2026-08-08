@@ -417,21 +417,26 @@ function AboutSection({ goTo, config, siteConfig }) {
   const firstName = nomeCompleto.split(' ')[0];
   const lastName = nomeCompleto.split(' ').slice(1).join(' ');
   const fotoUrl = siteConfig?.sobre_foto || 'https://images.unsplash.com/photo-1779912217736-260b6303b6e7?w=900&h=1200&fit=crop&auto=format';
-  const bio = siteConfig?.sobre_bio || 'A fotografia é muito mais do que apertar um botão. É sobre capturar a luz e a sombra, a cor e a textura, a emoção e a expressão.';
+  const bio = siteConfig?.sobre_bio || '';
   const citacao = siteConfig?.sobre_citacao || 'O escritor e o fotógrafo utilizam as mesmas ferramentas, mas enquanto um descreve uma imagem com mil palavras o outro descreve mil palavras com uma imagem.';
   const citacaoAutor = siteConfig?.sobre_citacao_autor || 'Jefferson Luiz Maleski';
   const badgeTexto = siteConfig?.sobre_badge_texto || '12 Anos';
   const badgeSub = siteConfig?.sobre_badge_sub || 'de experiência';
 
+  const defaultBio = `<p>A fotografia é muito mais do que apertar um botão. É sobre capturar a luz e a sombra, a cor e a textura, a <span style="color:#f0ece4;font-weight:500">emoção e a expressão</span>. Cada imagem é uma obra única que reflete minha visão e a personalidade de cada cliente.</p><p>Sou um fotógrafo apaixonado por contar histórias através de imagens. Combino habilidade técnica com uma abordagem pessoal e criativa para criar fotografias autênticas e emocionais — trabalhando junto com cada cliente para entender suas necessidades e criar um ambiente confortável durante a sessão.</p><p>Meu objetivo é capturar a essência única de cada pessoa e transformá-la em <span style="color:#f0ece4;font-weight:500">imagens atemporais</span>. Do primeiro contato à entrega final, me comprometo a oferecer uma experiência excepcional e um resultado que supere as expectativas.</p>`;
+
+  const bioHtml = bio || defaultBio;
+
   return (
     <div className="w-full h-full flex overflow-hidden" style={{ background: '#0d0d0d' }}>
-      {/* Image half (md+) */}
+      {/* Image half — md and up */}
       <div className="hidden md:block w-[42%] relative shrink-0">
         <img src={fotoUrl} alt={nomeCompleto} className="w-full h-full object-cover" />
         {/* Fade lateral direito */}
         <div className="absolute inset-0" style={{ background: 'linear-gradient(to right, transparent, transparent, #0d0d0d)' }} />
         {/* Fade na base */}
         <div className="absolute inset-0" style={{ background: 'linear-gradient(to bottom, transparent, rgba(13,13,13,0.6))' }} />
+        {/* Floating badge */}
         <div className="absolute bottom-10 left-8 px-5 py-4" style={{ background: ACCENT, boxShadow: '0 0 40px rgba(255,92,0,0.5)' }}>
           <div className="flex items-center gap-3">
             <Camera size={20} style={{ color: '#0d0d0d' }} />
@@ -446,19 +451,35 @@ function AboutSection({ goTo, config, siteConfig }) {
       {/* Text half */}
       <div className="flex-1 overflow-y-auto" style={{ scrollbarWidth: 'none' }}>
         <div className="min-h-full flex flex-col justify-center pl-4 sm:pl-6 lg:pl-8 pr-4 sm:pr-8 lg:pr-[152px] py-6">
+
+          {/* Mobile photo + badge */}
+          <div className="md:hidden flex items-center gap-4 mb-5">
+            <div className="relative w-16 h-16 overflow-hidden shrink-0">
+              <img src={fotoUrl} alt={nomeCompleto} className="w-full h-full object-cover" />
+            </div>
+            <div className="flex items-center gap-2 px-3 py-2" style={{ background: ACCENT }}>
+              <Camera size={14} style={{ color: '#0d0d0d' }} />
+              <div>
+                <p className="font-['Barlow_Condensed',sans-serif] font-black text-sm uppercase leading-none" style={{ color: '#0d0d0d' }}>{badgeTexto}</p>
+                <p className="font-mono text-[8px] tracking-widest uppercase opacity-80" style={{ color: '#0d0d0d' }}>{badgeSub}</p>
+              </div>
+            </div>
+          </div>
+
           <Label>Sobre o Fotógrafo</Label>
           <SectionTitle className="text-3xl sm:text-4xl md:text-5xl lg:text-7xl mb-5 sm:mb-8">
             <span style={{ color: '#f0ece4' }}>{firstName} </span>
             <span style={{ WebkitTextStroke: `2px ${ACCENT}`, color: 'transparent' }}>{lastName}</span>
           </SectionTitle>
 
+          {/* Bio */}
           <div className="space-y-3 sm:space-y-4 font-light leading-relaxed w-full text-justify text-sm sm:text-base [&_b]:text-[#f0ece4] [&_b]:font-medium [&_strong]:text-[#f0ece4] [&_strong]:font-medium [&_p]:mb-3" style={{ color: '#8a8a8a' }}
-            dangerouslySetInnerHTML={{ __html: bio }} />
+            dangerouslySetInnerHTML={{ __html: bioHtml }} />
 
           {/* Quote */}
           <div className="mt-5 sm:mt-7 w-full pl-4 sm:pl-5 py-1" style={{ borderLeft: `2px solid ${ACCENT}` }}>
             <Quote size={18} style={{ color: 'rgba(255,92,0,0.4)' }} className="mb-2" />
-            <div className="text-xs sm:text-sm font-light leading-relaxed italic" style={{ color: 'rgba(240,236,228,0.75)' }}
+            <div className="text-xs sm:text-sm font-light leading-relaxed italic [&_b]:font-normal" style={{ color: 'rgba(240,236,228,0.75)' }}
               dangerouslySetInnerHTML={{ __html: citacao }} />
             <p className="font-mono text-[9px] tracking-widest uppercase mt-3" style={{ color: ACCENT }}>— {citacaoAutor}</p>
           </div>
@@ -466,7 +487,7 @@ function AboutSection({ goTo, config, siteConfig }) {
           {/* Skills */}
           <div className="mt-5 sm:mt-8 grid grid-cols-3 gap-3 sm:gap-4 w-full">
             {[{ icon: Eye, label: 'Visão Artística' }, { icon: Clock, label: 'Pontualidade' }, { icon: Camera, label: 'Alta Qualidade' }].map(({ icon: Icon, label }) => (
-              <div key={label} className="p-2 sm:p-3 flex flex-col items-center gap-2 transition-colors" style={{ border: '1px solid rgba(255,255,255,0.08)' }}>
+              <div key={label} className="p-2 sm:p-3 flex flex-col items-center gap-2 transition-colors hover:border-orange-500/50" style={{ border: '1px solid rgba(255,255,255,0.08)' }}>
                 <Icon size={16} style={{ color: ACCENT }} />
                 <span className="font-mono text-[8px] sm:text-[9px] tracking-widest uppercase text-center" style={{ color: '#8a8a8a' }}>{label}</span>
               </div>
