@@ -11,7 +11,7 @@ export default function FloatingCTA() {
   return (
     <Link
       to="/login"
-      className="fixed bottom-6 right-6 z-50 flex items-center gap-2 px-5 py-3 rounded-full
+      className="fixed bottom-20 right-4 lg:bottom-6 lg:right-6 z-50 flex items-center gap-2 px-5 py-3 rounded-full
         bg-[#EA580C] text-white font-medium shadow-lg shadow-[#EA580C]/20
         hover:scale-105 hover:shadow-xl hover:shadow-[#EA580C]/30
         transition-all duration-300 animate-float-in

@@ -13,6 +13,8 @@ body {
    Reduz tamanhos, espaçamentos e densifica
    informações para melhor aproveitamento
    da tela em dispositivos móveis.
+   Escopado a .admin-area para não conflitar
+   com landing page pública.
    ======================================== */
 
 @media (max-width: 768px) {
@@ -21,20 +23,20 @@ body {
     font-size: 14px;
   }
 
-  /* Compact main content area */
-  main {
+  /* Compact main content area (admin only) */
+  .admin-area main {
     padding: 0.75rem !important;
   }
 
-  /* Reduce card padding globally */
-  .mobile-compact .bg-white {
+  /* Reduce card padding globally (admin only) */
+  .admin-area .mobile-compact .bg-white {
     padding: 0.75rem;
   }
 
-  /* Smaller headings on mobile */
-  h1 { font-size: 1.25rem !important; }
-  h2 { font-size: 0.9rem !important; }
-  h3 { font-size: 0.85rem !important; }
+  /* Smaller headings on mobile (admin only) */
+  .admin-area h1 { font-size: 1.25rem !important; }
+  .admin-area h2 { font-size: 0.9rem !important; }
+  .admin-area h3 { font-size: 0.85rem !important; }
 }
 
 @keyframes slide-in {
@@ -48,6 +50,12 @@ body {
   to { transform: translateX(0); }
 }
 .animate-slide-in-right { animation: slide-in-right 0.3s ease-out; }
+
+@keyframes shimmer {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+.animate-shimmer { animation: shimmer 1.5s infinite; }
 
 @keyframes float-in {
   0% { transform: scale(0.8); opacity: 0; }
@@ -72,4 +80,36 @@ body {
   -webkit-line-clamp: 3;
   -webkit-box-orient: vertical;
   overflow: hidden;
+}
+
+
+/* ========================================
+   PREFERS-REDUCED-MOTION
+   Desabilita animações pesadas para usuários
+   que preferem menos movimento (acessibilidade).
+   ======================================== */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  .animate-slide-in,
+  .animate-slide-in-right,
+  .animate-float-in,
+  .animate-shimmer,
+  .animate-film-scroll {
+    animation: none !important;
+  }
+
+  .section-hidden {
+    opacity: 1 !important;
+    transform: none !important;
+    transition: none !important;
+  }
 }
