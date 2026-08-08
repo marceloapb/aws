@@ -121,17 +121,6 @@ function App() {
       {/* Site principal - Layout fullscreen horizontal */}
       <Route path="/" element={<SiteV2 />} />
 
-      {/* Páginas internas do site */}
-      <Route element={<SiteLayout />}>
-        <Route path="/portfolio" element={<PortfolioPage />} />
-        <Route path="/portfolio/:categoriaId" element={<PortfolioGaleria />} />
-        <Route path="/novidades" element={<NovidadesPage />} />
-        <Route path="/novidades/:slug" element={<NovidadeDetalhe />} />
-        <Route path="/sobre" element={<SobrePage />} />
-        <Route path="/contato" element={<ContatoPage />} />
-        <Route path="/p/:slug" element={<SitePage />} />
-      </Route>
-
       <Route path="/login" element={user ? <Navigate to={user.role === 'admin' ? '/admin' : '/cliente'} /> : <Login />} />
       <Route path="/cadastro" element={<Cadastro />} />
       <Route path="/recuperar-senha" element={<RecuperarSenha />} />
