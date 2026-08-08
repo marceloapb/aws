@@ -699,7 +699,7 @@ export default function SiteV2() {
   const [depoimentos, setDepoimentos] = useState([]);
   const [portfolioData, setPortfolioData] = useState([]);
   const [portfolioCategorias, setPortfolioCategorias] = useState([]);
-  const [logoUrl, setLogoUrl] = useState('');
+  const [logoUrl, setLogoUrl] = useState(() => localStorage.getItem('mbf_logo_dark_url') || localStorage.getItem('mbf_logo_url') || '');
 
   // Load data
   useEffect(() => {
@@ -708,7 +708,9 @@ export default function SiteV2() {
       .then(json => {
         const d = json.data || json;
         setConfig(d);
-        setLogoUrl(d?.logo_dark_url || d?.logo_url || '');
+        const logo = d?.logo_dark_url || d?.logo_url || '';
+        setLogoUrl(logo);
+        if (logo) localStorage.setItem('mbf_logo_dark_url', logo);
       })
       .catch(() => {});
 
