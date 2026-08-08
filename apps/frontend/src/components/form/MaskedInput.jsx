@@ -16,8 +16,9 @@ const MASKS = {
  * - type: 'phone' | 'cpf' | 'cnpj' | 'cpfcnpj' | 'cep'
  * - value, onChange, label, required, className, ...rest
  * - showValidation: boolean (mostra ícone de check/erro)
+ * - enterKeyHint: string ('next'|'done'|'search'|'go'|'send')
  */
-export default function MaskedInput({ type, value = '', onChange, label, required, showValidation = true, className = '', ...rest }) {
+export default function MaskedInput({ type, value = '', onChange, label, required, showValidation = true, enterKeyHint = 'next', className = '', ...rest }) {
   const config = MASKS[type];
   if (!config) return <input value={value} onChange={onChange} className={className} {...rest} />;
 
@@ -42,6 +43,7 @@ export default function MaskedInput({ type, value = '', onChange, label, require
           value={value}
           onChange={handleChange}
           placeholder={config.placeholder}
+          enterKeyHint={enterKeyHint}
           className={`w-full px-3 py-2.5 border rounded-lg outline-none focus:ring-2 focus:ring-orange-200 pr-9 ${
             isValid === false ? 'border-red-400' : isValid === true ? 'border-green-400' : 'border-gray-300'
           } ${className}`}

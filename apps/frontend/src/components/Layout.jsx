@@ -17,7 +17,7 @@ export default function Layout() {
   const isClientePortal = location.pathname.startsWith('/cliente');
 
   return (
-    <div className="flex h-screen bg-gray-50">
+    <div className="flex h-screen bg-gray-50 admin-area">
       {/* Mobile overlay */}
       {open && <div className="fixed inset-0 bg-black/50 z-20 lg:hidden" onClick={() => setOpen(false)} />}
 
@@ -65,24 +65,28 @@ export default function Layout() {
               </button>
               {profileOpen && (
                 <>
-                  <div className="fixed inset-0 z-40" onClick={() => setProfileOpen(false)} />
-                  <div className="absolute right-0 top-10 z-50 w-64 bg-white rounded-xl border shadow-lg py-2">
+                  <div className="fixed inset-0 z-40 bg-black/30 sm:bg-transparent" onClick={() => setProfileOpen(false)} />
+                  {/* Desktop: dropdown / Mobile: bottom sheet */}
+                  <div className="fixed inset-x-0 bottom-0 sm:absolute sm:inset-auto sm:right-0 sm:top-10 z-50 w-full sm:w-64 bg-white rounded-t-2xl sm:rounded-xl border shadow-lg py-2 sm:max-w-[calc(100vw-1rem)] animate-slide-in sm:animate-none">
+                    <div className="w-10 h-1 bg-gray-300 rounded-full mx-auto mt-1 mb-2 sm:hidden" />
                     <div className="px-4 py-3 border-b">
                       <p className="text-sm font-medium text-gray-900">{user?.email?.split('@')[0]}</p>
                       <p className="text-xs text-gray-500">{user?.email}</p>
                       <p className="text-xs text-gray-400 mt-0.5">Perfil: {user?.role === 'admin' ? 'Administrador' : 'Cliente'}</p>
                     </div>
-                    <button onClick={() => { setProfileOpen(false); window.location.href='/admin/meu-perfil'; }} className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2">
-                      <UserIcon size={14} /> Meus Dados
+                    <button onClick={() => { setProfileOpen(false); window.location.href='/admin/meu-perfil'; }} className="w-full text-left px-4 py-3 sm:py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-3 sm:gap-2">
+                      <UserIcon size={16} className="sm:w-3.5 sm:h-3.5" /> Meus Dados
                     </button>
-                    <button onClick={() => { setProfileOpen(false); window.location.href='/admin/trocar-senha'; }} className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2">
-                      <Lock size={14} /> Trocar Senha
+                    <button onClick={() => { setProfileOpen(false); window.location.href='/admin/trocar-senha'; }} className="w-full text-left px-4 py-3 sm:py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-3 sm:gap-2">
+                      <Lock size={16} className="sm:w-3.5 sm:h-3.5" /> Trocar Senha
                     </button>
                     <div className="border-t mt-1 pt-1">
-                      <button onClick={() => { setProfileOpen(false); logout(); }} className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2">
-                        <LogOut size={14} /> Sair
+                      <button onClick={() => { setProfileOpen(false); logout(); }} className="w-full text-left px-4 py-3 sm:py-2 text-sm text-red-600 hover:bg-red-50 flex items-center gap-3 sm:gap-2">
+                        <LogOut size={16} className="sm:w-3.5 sm:h-3.5" /> Sair
                       </button>
                     </div>
+                    {/* Safe area padding for iPhone */}
+                    <div className="h-[env(safe-area-inset-bottom)] sm:hidden" />
                   </div>
                 </>
               )}

@@ -8,8 +8,9 @@ import React from 'react';
  * @param {string} props.error - mensagem de erro
  * @param {string} props.hint - texto de ajuda
  * @param {string} props.icon - ícone à esquerda (componente)
+ * @param {string} props.enterKeyHint - hint para o botão Enter do teclado mobile ('next'|'done'|'search'|'go'|'send')
  */
-export default function Input({ label, required, error, hint, icon: Icon, className = '', ...props }) {
+export default function Input({ label, required, error, hint, icon: Icon, enterKeyHint, className = '', ...props }) {
   return (
     <div>
       {label && (
@@ -27,6 +28,7 @@ export default function Input({ label, required, error, hint, icon: Icon, classN
           className={`w-full px-3 py-2.5 border rounded-lg text-sm outline-none transition-colors focus:ring-2 focus:ring-orange-200 ${
             Icon ? 'pl-9' : ''
           } ${error ? 'border-red-400 focus:ring-red-200' : 'border-gray-300'} ${className}`}
+          enterKeyHint={enterKeyHint}
           {...props}
         />
       </div>

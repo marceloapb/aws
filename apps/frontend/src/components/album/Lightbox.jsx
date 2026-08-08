@@ -51,12 +51,14 @@ export default function Lightbox({ fotos = [], startIndex = 0, onClose }) {
     setZoom((z) => z === 1 ? 2 : 1);
   };
 
-  // Touch swipe
+  // Touch swipe with haptic feedback
   const handleTouchStart = (e) => { setTouchStart(e.touches[0].clientX); };
   const handleTouchEnd = (e) => {
     if (touchStart === null) return;
     const diff = e.changedTouches[0].clientX - touchStart;
     if (Math.abs(diff) > 60) {
+      // Haptic feedback on successful swipe
+      if (navigator.vibrate) navigator.vibrate(10);
       if (diff > 0) goTo(currentIndex - 1);
       else goTo(currentIndex + 1);
     }
@@ -104,7 +106,7 @@ export default function Lightbox({ fotos = [], startIndex = 0, onClose }) {
 
       {/* Image */}
       <div
-        className="flex items-center justify-center w-full h-full p-16"
+        className="flex items-center justify-center w-full h-full p-4 sm:p-8 lg:p-16"
         onTouchStart={handleTouchStart}
         onTouchEnd={handleTouchEnd}
         onDoubleClick={handleDoubleClick}

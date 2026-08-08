@@ -257,7 +257,7 @@ export default function HomePage() {
         ref={filmStripRef}
         className={`py-12 bg-stone-950 border-y border-stone-800/50 overflow-hidden section-hidden ${filmStripVisible ? 'section-visible' : ''}`}
       >
-        <div className="flex items-center gap-4 animate-film-scroll" style={{ width: 'max-content' }}>
+        <div className="flex items-center gap-4 animate-film-scroll" style={{ width: 'max-content', touchAction: 'pan-y' }}>
           {/* Duplicate items for infinite scroll effect */}
           {[...Array(filmStripImages.length > 0 ? 2 : 2)].map((_, setIdx) => (
             <React.Fragment key={setIdx}>
