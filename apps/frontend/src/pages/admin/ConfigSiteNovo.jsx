@@ -57,10 +57,27 @@ export default function ConfigSiteNovo() {
 
   const loadConfig = async () => {
     try {
+      // Load v2-config (if already saved)
       const res = await authFetch('/admin/site/v2-config');
       const json = await res.json();
       if (json.success && json.data) {
         setForm(prev => ({ ...prev, ...json.data }));
+      } else {
+        // Pre-populate from existing configs (empresa + site)
+        const [configRes, siteRes] = await Promise.all([
+          authFetch('/admin/configuracoes').then(r => r.json()).catch(() => null),
+          authFetch('/admin/site/config').then(r => r.json()).catch(() => null),
+        ]);
+        const empresa = configRes?.success ? configRes.data : {};
+        const site = siteRes?.success ? siteRes.data : {};
+        setForm(prev => ({
+          ...prev,
+          contato_email: empresa?.email || empresa?.SES_FROM_EMAIL || '',
+          contato_whatsapp: empresa?.whatsappBusiness || empresa?.telefone || '',
+          contato_instagram: empresa?.instagram || '',
+          contato_endereco: empresa?.cidade ? `${empresa.cidade}, ${empresa.estado || 'SP'}` : '',
+          sobre_bio: empresa?.descricao || empresa?.bio || '',
+        }));
       }
     } catch {}
     setLoading(false);
@@ -436,6 +453,16 @@ export default function ConfigSiteNovo() {
                 <option value="Raleway">Raleway</option>
                 <option value="Roboto Condensed">Roboto Condensed</option>
               </select>
+              {/* Font preview */}
+              <div className="mt-3 p-4 rounded-lg border border-gray-200" style={{ background: form.cor_background }}>
+                <p className="text-2xl font-black uppercase tracking-wide" style={{ fontFamily: `'${form.fonte_titulo}', sans-serif`, color: form.cor_texto }}>
+                  Fotografia que Emociona
+                </p>
+                <p className="text-sm mt-1" style={{ fontFamily: `'${form.fonte_titulo}', sans-serif`, color: form.cor_accent }}>
+                  MARCELO BLOISE
+                </p>
+              </div>
+              <link href={`https://fonts.googleapis.com/css2?family=${form.fonte_titulo.replace(/ /g, '+')}:wght@400;700;900&display=swap`} rel="stylesheet" />
             </div>
           </div>
         )}
