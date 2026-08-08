@@ -428,7 +428,10 @@ function AboutSection({ goTo, config, siteConfig }) {
       {/* Image half (md+) */}
       <div className="hidden md:block w-[42%] relative shrink-0">
         <img src={fotoUrl} alt={nomeCompleto} className="w-full h-full object-cover" />
-        <div className="absolute inset-0" style={{ background: 'linear-gradient(to right, transparent, rgba(13,13,13,0.4))' }} />
+        {/* Fade lateral direito */}
+        <div className="absolute inset-0" style={{ background: 'linear-gradient(to right, transparent, transparent, #0d0d0d)' }} />
+        {/* Fade na base */}
+        <div className="absolute inset-0" style={{ background: 'linear-gradient(to bottom, transparent, rgba(13,13,13,0.6))' }} />
         <div className="absolute bottom-10 left-8 px-5 py-4" style={{ background: ACCENT, boxShadow: '0 0 40px rgba(255,92,0,0.5)' }}>
           <div className="flex items-center gap-3">
             <Camera size={20} style={{ color: '#0d0d0d' }} />
