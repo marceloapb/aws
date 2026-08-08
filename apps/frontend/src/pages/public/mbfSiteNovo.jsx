@@ -82,21 +82,30 @@ function SectionTitle({ children, className = '' }) {
 // HOME SECTION
 // ══════════════════════════════════════════════════════════════
 
-function HomeSection({ goTo, depoimentos, config }) {
+function HomeSection({ goTo, depoimentos, config, siteConfig }) {
   const [entered, setEntered] = useState(false);
   const [imgIdx, setImgIdx] = useState(0);
   const [wordIdx, setWordIdx] = useState(0);
   const [tIdx, setTIdx] = useState(0);
 
+  const heroImgs = siteConfig?.hero_imagens?.length > 0 ? siteConfig.hero_imagens : HERO_IMGS;
+  const words = siteConfig?.hero_palavras?.length > 0 ? siteConfig.hero_palavras : WORDS;
+  const heroTitulo = siteConfig?.hero_titulo || 'Fotografia que';
+  const heroSub = siteConfig?.hero_subtitulo || 'Cada clique é uma história. Capturo momentos que você vai querer guardar para sempre.';
+  const ctaTexto = siteConfig?.hero_cta_texto || 'Faça um Orçamento';
+  const ctaUrl = siteConfig?.hero_cta_url || '/contato';
+  const stats = siteConfig?.stats?.length > 0 ? siteConfig.stats : [{ numero: '12+', label: 'Anos' }, { numero: '800+', label: 'Sessões' }, { numero: '200+', label: 'Casamentos' }, { numero: '98%', label: 'Satisfação' }];
+  const accent = siteConfig?.cor_accent || ACCENT;
+
   useEffect(() => { setTimeout(() => setEntered(true), 60); }, []);
-  useEffect(() => { const t = setInterval(() => setImgIdx(i => (i + 1) % HERO_IMGS.length), 5000); return () => clearInterval(t); }, []);
-  useEffect(() => { const t = setInterval(() => setWordIdx(i => (i + 1) % WORDS.length), 2200); return () => clearInterval(t); }, []);
+  useEffect(() => { const t = setInterval(() => setImgIdx(i => (i + 1) % heroImgs.length), 5000); return () => clearInterval(t); }, [heroImgs.length]);
+  useEffect(() => { const t = setInterval(() => setWordIdx(i => (i + 1) % words.length), 2200); return () => clearInterval(t); }, [words.length]);
   useEffect(() => { if (depoimentos.length > 0) { const t = setInterval(() => setTIdx(i => (i + 1) % depoimentos.length), 4500); return () => clearInterval(t); } }, [depoimentos.length]);
 
   return (
     <div className="relative w-full h-full overflow-hidden" style={{ background: '#0d0d0d' }}>
       {/* Cycling background */}
-      {HERO_IMGS.map((src, i) => (
+      {heroImgs.map((src, i) => (
         <img key={src} src={src} alt="" className="absolute inset-0 w-full h-full object-cover transition-opacity duration-[1500ms]"
           style={{ opacity: i === imgIdx ? 0.45 : 0, transform: 'scale(1.04)' }} />
       ))}
@@ -119,9 +128,9 @@ function HomeSection({ goTo, depoimentos, config }) {
         {/* Headline */}
         <div style={{ opacity: entered ? 1 : 0, transform: entered ? 'none' : 'translateY(24px)', transition: 'opacity 0.7s 0.2s, transform 0.7s 0.2s' }}>
           <h1 className="font-['Barlow_Condensed',sans-serif] font-black uppercase leading-[0.82] tracking-tight">
-            <span className="block text-[clamp(2rem,6vw,6.5rem)]" style={{ color: '#f0ece4' }}>Fotografia que</span>
-            <span className="block text-[clamp(2.4rem,8vw,8rem)]" style={{ color: ACCENT, textShadow: '0 0 60px rgba(255,92,0,0.35)' }}>
-              {WORDS[wordIdx]}
+            <span className="block text-[clamp(2rem,6vw,6.5rem)]" style={{ color: '#f0ece4' }}>{heroTitulo}</span>
+            <span className="block text-[clamp(2.4rem,8vw,8rem)]" style={{ color: accent, textShadow: '0 0 60px rgba(255,92,0,0.35)' }}>
+              {words[wordIdx]}
             </span>
           </h1>
         </div>
@@ -129,17 +138,17 @@ function HomeSection({ goTo, depoimentos, config }) {
         {/* Sub */}
         <div style={{ opacity: entered ? 1 : 0, transform: entered ? 'none' : 'translateY(16px)', transition: 'opacity 0.7s 0.38s, transform 0.7s 0.38s' }}>
           <p className="mt-3 text-sm max-w-sm font-light leading-relaxed" style={{ color: '#8a8a8a' }}>
-            Cada clique é uma história. Capturo momentos que você vai querer guardar para sempre.
+            {heroSub}
           </p>
         </div>
 
         {/* CTAs */}
         <div style={{ opacity: entered ? 1 : 0, transform: entered ? 'none' : 'translateY(14px)', transition: 'opacity 0.7s 0.52s, transform 0.7s 0.52s' }}>
           <div className="mt-4 flex flex-wrap gap-3">
-            <a href="/contato"
+            <a href={ctaUrl}
               className="group flex items-center gap-3 text-xs tracking-widest uppercase font-black px-5 sm:px-7 py-3 hover:opacity-90 transition-all"
-              style={{ background: ACCENT, color: '#0d0d0d', boxShadow: '0 0 35px rgba(255,92,0,0.4)' }}>
-              Faça um Orçamento <ArrowRight size={14} className="group-hover:translate-x-1.5 transition-transform" />
+              style={{ background: accent, color: '#0d0d0d', boxShadow: '0 0 35px rgba(255,92,0,0.4)' }}>
+              {ctaTexto} <ArrowRight size={14} className="group-hover:translate-x-1.5 transition-transform" />
             </a>
           </div>
         </div>
@@ -147,10 +156,10 @@ function HomeSection({ goTo, depoimentos, config }) {
         {/* Stats */}
         <div style={{ opacity: entered ? 1 : 0, transition: 'opacity 0.8s 0.72s' }}>
           <div className="mt-5 pt-5 flex flex-wrap gap-5 sm:gap-7" style={{ borderTop: '1px solid rgba(255,255,255,0.08)' }}>
-            {[['12+', 'Anos'], ['800+', 'Sessões'], ['200+', 'Casamentos'], ['98%', 'Satisfação']].map(([n, l]) => (
-              <div key={l}>
-                <span className="font-['Barlow_Condensed',sans-serif] font-black text-[1.5rem] sm:text-[1.9rem] leading-none" style={{ color: ACCENT }}>{n}</span>
-                <p className="text-[9px] tracking-widest uppercase font-mono mt-0.5" style={{ color: '#8a8a8a' }}>{l}</p>
+            {stats.map(({ numero, label }) => (
+              <div key={label}>
+                <span className="font-['Barlow_Condensed',sans-serif] font-black text-[1.5rem] sm:text-[1.9rem] leading-none" style={{ color: accent }}>{numero}</span>
+                <p className="text-[9px] tracking-widest uppercase font-mono mt-0.5" style={{ color: '#8a8a8a' }}>{label}</p>
               </div>
             ))}
           </div>
@@ -181,7 +190,7 @@ function HomeSection({ goTo, depoimentos, config }) {
 
       {/* Right photo strip (lg only) */}
       <div className="absolute right-0 top-0 bottom-0 w-[28%] hidden lg:flex flex-col gap-1 overflow-hidden">
-        {HERO_IMGS.map((src, i) => (
+        {heroImgs.slice(0, 3).map((src, i) => (
           <div key={i} className="flex-1 overflow-hidden cursor-pointer group" onClick={() => goTo(1)}>
             <img src={src} alt="" className="w-full h-full object-cover opacity-60 group-hover:opacity-90 group-hover:scale-105 transition-all duration-500" />
           </div>
@@ -275,9 +284,12 @@ function PortfolioSection({ goTo, portfolioData }) {
 // SERVICES SECTION
 // ══════════════════════════════════════════════════════════════
 
-function ServicesSection({ goTo }) {
+function ServicesSection({ goTo, siteConfig }) {
   const [active, setActive] = useState(0);
-  const s = SERVICES_DATA[active];
+  const servicos = siteConfig?.servicos?.length > 0
+    ? siteConfig.servicos.map((sv, i) => ({ ...sv, number: String(i + 1).padStart(2, '0'), detail: sv.preco || '' }))
+    : SERVICES_DATA;
+  const s = servicos[active];
 
   return (
     <div className="w-full h-full flex flex-col overflow-hidden" style={{ background: '#0d0d0d' }}>
@@ -289,7 +301,7 @@ function ServicesSection({ goTo }) {
       <div className="flex-1 flex flex-col md:grid md:grid-cols-2 min-h-0">
         {/* List */}
         <div className="flex flex-col justify-center px-4 sm:px-8 lg:px-16 py-3 gap-0.5 overflow-y-auto" style={{ scrollbarWidth: 'none', borderRight: '1px solid rgba(255,255,255,0.04)' }}>
-          {SERVICES_DATA.map((sv, i) => (
+          {servicos.map((sv, i) => (
             <div key={sv.number} onClick={() => setActive(i)} role="button" tabIndex={0}
               className="group flex flex-col text-left transition-all duration-250 px-4 py-3 sm:py-4 cursor-pointer"
               style={{ borderLeft: `2px solid ${active === i ? ACCENT : 'transparent'}`, background: active === i ? '#141414' : 'transparent' }}>
@@ -337,23 +349,29 @@ function ServicesSection({ goTo }) {
 // ABOUT SECTION
 // ══════════════════════════════════════════════════════════════
 
-function AboutSection({ goTo, config }) {
+function AboutSection({ goTo, config, siteConfig }) {
   const nomeCompleto = (config?.nome || 'Marcelo Bloise').replace(/\s*Fotografia\s*/i, '').trim();
   const firstName = nomeCompleto.split(' ')[0];
   const lastName = nomeCompleto.split(' ').slice(1).join(' ');
+  const fotoUrl = siteConfig?.sobre_foto || 'https://images.unsplash.com/photo-1779912217736-260b6303b6e7?w=900&h=1200&fit=crop&auto=format';
+  const bio = siteConfig?.sobre_bio || 'A fotografia é muito mais do que apertar um botão. É sobre capturar a luz e a sombra, a cor e a textura, a emoção e a expressão.';
+  const citacao = siteConfig?.sobre_citacao || 'O escritor e o fotógrafo utilizam as mesmas ferramentas, mas enquanto um descreve uma imagem com mil palavras o outro descreve mil palavras com uma imagem.';
+  const citacaoAutor = siteConfig?.sobre_citacao_autor || 'Jefferson Luiz Maleski';
+  const badgeTexto = siteConfig?.sobre_badge_texto || '12 Anos';
+  const badgeSub = siteConfig?.sobre_badge_sub || 'de experiência';
 
   return (
     <div className="w-full h-full flex overflow-hidden" style={{ background: '#0d0d0d' }}>
       {/* Image half (md+) */}
       <div className="hidden md:block w-[42%] relative shrink-0">
-        <img src="https://images.unsplash.com/photo-1779912217736-260b6303b6e7?w=900&h=1200&fit=crop&auto=format" alt={nomeCompleto} className="w-full h-full object-cover" />
+        <img src={fotoUrl} alt={nomeCompleto} className="w-full h-full object-cover" />
         <div className="absolute inset-0" style={{ background: 'linear-gradient(to right, transparent, rgba(13,13,13,0.4))' }} />
         <div className="absolute bottom-10 left-8 px-5 py-4" style={{ background: ACCENT, boxShadow: '0 0 40px rgba(255,92,0,0.5)' }}>
           <div className="flex items-center gap-3">
             <Camera size={20} style={{ color: '#0d0d0d' }} />
             <div>
-              <p className="font-['Barlow_Condensed',sans-serif] font-black text-lg uppercase leading-none" style={{ color: '#0d0d0d' }}>12 Anos</p>
-              <p className="font-mono text-[9px] tracking-widest uppercase opacity-80" style={{ color: '#0d0d0d' }}>de experiência</p>
+              <p className="font-['Barlow_Condensed',sans-serif] font-black text-lg uppercase leading-none" style={{ color: '#0d0d0d' }}>{badgeTexto}</p>
+              <p className="font-mono text-[9px] tracking-widest uppercase opacity-80" style={{ color: '#0d0d0d' }}>{badgeSub}</p>
             </div>
           </div>
         </div>
@@ -369,18 +387,16 @@ function AboutSection({ goTo, config }) {
           </SectionTitle>
 
           <div className="space-y-3 sm:space-y-4 font-light leading-relaxed w-full text-justify text-sm sm:text-base" style={{ color: '#8a8a8a' }}>
-            <p>A fotografia é muito mais do que apertar um botão. É sobre capturar a luz e a sombra, a cor e a textura, a <span style={{ color: '#f0ece4', fontWeight: 500 }}>emoção e a expressão</span>. Cada imagem é uma obra única que reflete minha visão e a personalidade de cada cliente.</p>
-            <p>Sou um fotógrafo apaixonado por contar histórias através de imagens. Combino habilidade técnica com uma abordagem pessoal e criativa para criar fotografias autênticas e emocionais.</p>
-            <p>Meu objetivo é capturar a essência única de cada pessoa e transformá-la em <span style={{ color: '#f0ece4', fontWeight: 500 }}>imagens atemporais</span>.</p>
+            {bio.split('\n').filter(Boolean).map((p, i) => <p key={i}>{p}</p>)}
           </div>
 
           {/* Quote */}
           <div className="mt-5 sm:mt-7 w-full pl-4 sm:pl-5 py-1" style={{ borderLeft: `2px solid ${ACCENT}` }}>
             <Quote size={18} style={{ color: 'rgba(255,92,0,0.4)' }} className="mb-2" />
             <p className="text-xs sm:text-sm font-light leading-relaxed italic" style={{ color: 'rgba(240,236,228,0.75)' }}>
-              "O escritor e o fotógrafo utilizam as mesmas ferramentas, mas enquanto um descreve uma imagem com mil palavras o outro descreve mil palavras com uma imagem."
+              "{citacao}"
             </p>
-            <p className="font-mono text-[9px] tracking-widest uppercase mt-3" style={{ color: ACCENT }}>— Jefferson Luiz Maleski</p>
+            <p className="font-mono text-[9px] tracking-widest uppercase mt-3" style={{ color: ACCENT }}>— {citacaoAutor}</p>
           </div>
 
           {/* Skills */}
@@ -508,8 +524,14 @@ function NovidadesSection() {
 // CONTACT SECTION
 // ══════════════════════════════════════════════════════════════
 
-function ContactSection({ config }) {
+function ContactSection({ config, siteConfig }) {
   const [sent, setSent] = useState(false);
+  const contatoTitulo = siteConfig?.contato_titulo || 'Vamos criar algo único';
+  const contatoSub = siteConfig?.contato_subtitulo || 'Cada projeto começa com uma conversa. Conte-me sobre o seu momento especial.';
+  const contatoEmail = siteConfig?.contato_email || 'contato@marcelobloise.com.br';
+  const contatoWhatsapp = siteConfig?.contato_whatsapp || '+55 (11) 99481-2037';
+  const contatoInstagram = siteConfig?.contato_instagram || '@marcelobloisefoto';
+  const contatoEndereco = siteConfig?.contato_endereco || 'São Paulo, SP — Brasil';
 
   return (
     <div className="w-full h-full flex overflow-hidden" style={{ background: '#0d0d0d' }}>
@@ -518,19 +540,19 @@ function ContactSection({ config }) {
         <div>
           <Label>Contato</Label>
           <SectionTitle className="text-4xl md:text-5xl lg:text-6xl mb-8">
-            <span style={{ color: '#f0ece4' }}>Vamos criar</span><br /><span style={{ color: ACCENT }}>algo único</span>
+            <span style={{ color: '#f0ece4' }}>{contatoTitulo.split(' ').slice(0, 2).join(' ')}</span><br /><span style={{ color: ACCENT }}>{contatoTitulo.split(' ').slice(2).join(' ')}</span>
           </SectionTitle>
           <p className="font-light leading-relaxed text-sm max-w-xs" style={{ color: '#8a8a8a' }}>
-            Cada projeto começa com uma conversa. Conte-me sobre o seu momento especial.
+            {contatoSub}
           </p>
         </div>
 
         <div className="space-y-5">
           {[
-            { Icon: Mail, label: 'E-mail', value: 'contato@marcelobloise.com.br' },
-            { Icon: Phone, label: 'WhatsApp', value: '+55 (11) 99481-2037' },
-            { Icon: MapPin, label: 'Localização', value: 'São Paulo, SP — Brasil' },
-            { Icon: Instagram, label: 'Instagram', value: '@marcelobloisefoto' },
+            { Icon: Mail, label: 'E-mail', value: contatoEmail },
+            { Icon: Phone, label: 'WhatsApp', value: contatoWhatsapp },
+            { Icon: MapPin, label: 'Localização', value: contatoEndereco },
+            { Icon: Instagram, label: 'Instagram', value: contatoInstagram },
           ].map(({ Icon, label, value }) => (
             <div key={label} className="flex items-start gap-3 group">
               <div className="w-8 h-8 flex items-center justify-center shrink-0 transition-colors" style={{ border: '1px solid rgba(255,255,255,0.08)' }}>
@@ -609,6 +631,7 @@ export default function SiteV2() {
   const [current, setCurrent] = useState(0);
   const [mobileMenu, setMobileMenu] = useState(false);
   const [config, setConfig] = useState(null);
+  const [siteConfig, setSiteConfig] = useState(null);
   const [depoimentos, setDepoimentos] = useState([]);
   const [portfolioData, setPortfolioData] = useState([]);
   const [logoUrl, setLogoUrl] = useState('');
@@ -622,6 +645,12 @@ export default function SiteV2() {
         setConfig(d);
         setLogoUrl(d?.logo_dark_url || d?.logo_url || '');
       })
+      .catch(() => {});
+
+    // Load site v2 config (parametrized)
+    fetch(`${API}/public/site/v2-config`)
+      .then(r => r.json())
+      .then(json => { if (json.success && json.data) setSiteConfig(json.data); })
       .catch(() => {});
 
     fetch(`${API}/public/site/depoimentos`)
@@ -659,12 +688,12 @@ export default function SiteV2() {
   const nome = config?.nome || 'Marcelo Bloise Fotografia';
 
   const sections = [
-    <HomeSection goTo={goTo} depoimentos={depoimentos} config={config} />,
+    <HomeSection goTo={goTo} depoimentos={depoimentos} config={config} siteConfig={siteConfig} />,
     <PortfolioSection goTo={goTo} portfolioData={portfolioData} />,
-    <ServicesSection goTo={goTo} />,
-    <AboutSection goTo={goTo} config={config} />,
+    <ServicesSection goTo={goTo} siteConfig={siteConfig} />,
+    <AboutSection goTo={goTo} config={config} siteConfig={siteConfig} />,
     <NovidadesSection />,
-    <ContactSection config={config} />,
+    <ContactSection config={config} siteConfig={siteConfig} />,
   ];
 
   return (

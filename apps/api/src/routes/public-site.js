@@ -132,6 +132,23 @@ router.get('/config', async (req, res) => {
   }
 });
 
+// ─── GET /v2-config — Config pública do site novo ───────────
+
+router.get('/v2-config', async (req, res) => {
+  try {
+    const result = await dynamo.send(new GetCommand({
+      TableName: TABLE,
+      Key: { PK: `TENANT#${TENANT}`, SK: 'CONFIG#SITE_V2' },
+    }));
+    if (!result.Item) return res.json({ success: true, data: null });
+    const { PK, SK, ...data } = result.Item;
+    res.set('Cache-Control', 'public, max-age=300');
+    res.json({ success: true, data });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
 // ─── GET /seo — Configuração SEO pública ────────────────────
 
 router.get('/seo', async (req, res) => {

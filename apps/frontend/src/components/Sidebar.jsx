@@ -38,6 +38,7 @@ const adminSections = [
     label: 'Marketing',
     links: [
       { to: '/admin/site-builder', icon: Globe, label: 'Site Builder' },
+      { to: '/admin/site-config', icon: Settings, label: 'Configurar Site' },
       { to: '/admin/novidades', icon: FileText, label: 'Novidades' },
       { to: '/admin/feedback', icon: Star, label: 'Feedback' },
       { to: '/admin/instagram', icon: Instagram, label: 'Instagram' },

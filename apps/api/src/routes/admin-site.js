@@ -140,6 +140,47 @@ router.put('/paginas/:tipo', async (req, res) => {
   }
 });
 
+// ─── GET /v2-config — Config do site novo ───────────────────
+
+router.get('/v2-config', async (req, res) => {
+  try {
+    const result = await dynamo.send(new GetCommand({
+      TableName: TABLE,
+      Key: { PK: `TENANT#${TENANT}`, SK: 'CONFIG#SITE_V2' },
+    }));
+    if (!result.Item) return res.json({ success: true, data: null });
+    const { PK, SK, ...data } = result.Item;
+    res.json({ success: true, data });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// ─── PUT /v2-config — Salvar config do site novo ────────────
+
+router.put('/v2-config', async (req, res) => {
+  try {
+    const now = new Date().toISOString();
+    const item = {
+      PK: `TENANT#${TENANT}`,
+      SK: 'CONFIG#SITE_V2',
+      ...req.body,
+      updated_at: now,
+    };
+    // Remove PK/SK do body se vieram
+    delete item.PK;
+    delete item.SK;
+    item.PK = `TENANT#${TENANT}`;
+    item.SK = 'CONFIG#SITE_V2';
+
+    await dynamo.send(new PutCommand({ TableName: TABLE, Item: item }));
+    const { PK: _pk, SK: _sk, ...data } = item;
+    res.json({ success: true, data });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
 // ─── GET /seo — Obter configuração SEO ──────────────────────
 
 router.get('/seo', async (req, res) => {

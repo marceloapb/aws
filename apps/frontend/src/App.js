@@ -68,6 +68,7 @@ import Novidades from './pages/admin/Novidades';
 import NovidadesEditor from './pages/admin/NovidadesEditor';
 import CmsEditor from './pages/admin/CmsEditor';
 import SiteBuilder from './pages/admin/SiteBuilder';
+import ConfigSiteNovo from './pages/admin/ConfigSiteNovo';
 import MeusOrcamentos from './pages/cliente/MeusOrcamentos';
 import SolicitarOrcamento from './pages/cliente/SolicitarOrcamento';
 import OrcamentoView from './pages/cliente/OrcamentoView';
@@ -204,6 +205,7 @@ function App() {
         <Route path="novidades/:id/editar" element={<NovidadesEditor />} />
         <Route path="cms" element={<CmsEditor />} />
         <Route path="site-builder" element={<SiteBuilder />} />
+        <Route path="site-config" element={<ConfigSiteNovo />} />
         <Route path="import" element={<ImportCSV />} />
         <Route path="storage" element={<Storage />} />
         <Route path="notificacoes" element={<Notificacoes />} />
