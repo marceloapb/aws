@@ -591,7 +591,7 @@ function NovidadesSection() {
 function ContactSection({ config, siteConfig }) {
   const [sent, setSent] = useState(false);
   const contatoTitulo = siteConfig?.contato_titulo || 'Vamos criar algo único';
-  const contatoSub = siteConfig?.contato_subtitulo || 'Cada projeto começa com uma conversa. Conte-me sobre o seu momento especial e vamos construir juntos imagens que durarão para sempre.';
+  const contatoSub = siteConfig?.contato_subtitulo || 'Cada projeto começa com uma conversa. Conte-me sobre o seu momento especial.';
   const contatoEmail = siteConfig?.contato_email || 'contato@marcelobloise.com.br';
   const contatoWhatsapp = siteConfig?.contato_whatsapp || '+55 (11) 99481-2037';
   const contatoInstagram = siteConfig?.contato_instagram || '@marcelobloisefoto';
@@ -601,132 +601,145 @@ function ContactSection({ config, siteConfig }) {
   const labelCls = "text-[9px] tracking-widest uppercase font-mono";
 
   return (
-    <div className="w-full h-full flex overflow-hidden" style={{ background: '#0d0d0d' }}>
-      {/* Left — info (md and up) */}
-      <div className="hidden md:flex w-2/5 shrink-0 flex-col justify-between px-8 lg:px-14 py-10" style={{ borderRight: '1px solid rgba(255,255,255,0.04)', background: 'rgba(20,20,20,0.3)' }}>
-        <div>
-          <Label>Contato</Label>
-          <SectionTitle className="text-4xl md:text-5xl lg:text-6xl mb-8">
-            <span style={{ color: '#f0ece4' }}>{contatoTitulo.split(' ').slice(0, 2).join(' ')}</span><br />
-            <span style={{ color: ACCENT }}>{contatoTitulo.split(' ').slice(2).join(' ')}</span>
-          </SectionTitle>
-          <p className="font-light leading-relaxed text-sm max-w-xs" style={{ color: '#8a8a8a' }}>
-            {contatoSub}
-          </p>
-        </div>
-
-        <div className="space-y-5">
-          {[
-            { Icon: Mail, label: 'E-mail', value: contatoEmail },
-            { Icon: Phone, label: 'WhatsApp', value: contatoWhatsapp },
-            { Icon: MapPin, label: 'Localização', value: contatoEndereco },
-            { Icon: Instagram, label: 'Instagram', value: contatoInstagram },
-          ].map(({ Icon, label, value }) => (
-            <div key={label} className="flex items-start gap-3 group cursor-default">
-              <div className="w-8 h-8 flex items-center justify-center shrink-0 transition-colors"
-                style={{ border: '1px solid rgba(255,255,255,0.08)' }}>
-                <Icon size={13} className="transition-colors" style={{ color: '#8a8a8a' }} />
-              </div>
-              <div>
-                <p className={labelCls} style={{ color: '#8a8a8a' }}>{label}</p>
-                <p className="text-sm font-medium mt-0.5" style={{ color: '#f0ece4' }}>{value}</p>
-              </div>
-            </div>
-          ))}
-        </div>
-
-        <div className="pt-6" style={{ borderTop: '1px solid rgba(255,255,255,0.04)' }}>
-          <p className="font-mono text-[9px] tracking-widest uppercase mb-3" style={{ color: '#8a8a8a' }}>Resposta em até</p>
-          <p className="font-['Barlow_Condensed',sans-serif] font-black text-4xl" style={{ color: ACCENT }}>24 horas</p>
-        </div>
+    <div className="w-full h-full flex flex-col overflow-hidden" style={{ background: '#0d0d0d' }}>
+      {/* Top title */}
+      <div className="px-4 sm:px-8 lg:px-16 pt-5 pb-4 shrink-0" style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+        <Label>Contato</Label>
+        <SectionTitle className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl">
+          <span style={{ color: '#f0ece4' }}>{contatoTitulo.split(' ').slice(0, 2).join(' ')} </span>
+          <span style={{ color: ACCENT }}>{contatoTitulo.split(' ').slice(2).join(' ')}</span>
+        </SectionTitle>
       </div>
 
-      {/* Right — form */}
-      <div className="flex-1 flex flex-col justify-center px-4 sm:px-8 lg:px-14 py-6 overflow-y-auto" style={{ scrollbarWidth: 'none' }}>
-        {sent ? (
-          <div className="flex flex-col items-center justify-center h-full gap-5 text-center">
-            <div className="w-16 h-16 flex items-center justify-center" style={{ background: ACCENT, boxShadow: '0 0 40px rgba(255,92,0,0.5)' }}>
-              <ArrowRight size={28} style={{ color: '#0d0d0d' }} />
+      {/* Main content: photo left + form right */}
+      <div className="flex-1 flex flex-col md:flex-row min-h-0 overflow-hidden">
+        {/* Left: photo + contact info overlay */}
+        <div className="hidden md:block md:w-1/2 relative">
+          <img src="https://images.unsplash.com/photo-1502920917128-1aa500764cbd?w=800&h=1000&fit=crop&auto=format" alt="" className="absolute inset-0 w-full h-full object-cover" />
+          {/* Gradient overlay */}
+          <div className="absolute inset-0" style={{ background: 'linear-gradient(to top, rgba(13,13,13,0.95), rgba(13,13,13,0.3), rgba(13,13,13,0.1))' }} />
+          <div className="absolute inset-0" style={{ background: 'linear-gradient(to right, transparent, transparent, rgba(13,13,13,0.6))' }} />
+
+          {/* Contact info at bottom */}
+          <div className="absolute bottom-0 left-0 right-0 p-6 sm:p-8 space-y-4">
+            {[
+              { Icon: Mail, label: 'E-mail', value: contatoEmail },
+              { Icon: Phone, label: 'WhatsApp', value: contatoWhatsapp },
+              { Icon: MapPin, label: 'Localização', value: contatoEndereco },
+              { Icon: Instagram, label: 'Instagram', value: contatoInstagram },
+            ].map(({ Icon, label, value }) => (
+              <div key={label} className="flex items-center gap-3">
+                <div className="w-8 h-8 flex items-center justify-center shrink-0" style={{ border: '1px solid rgba(255,255,255,0.15)' }}>
+                  <Icon size={13} style={{ color: '#8a8a8a' }} />
+                </div>
+                <div>
+                  <p className={labelCls} style={{ color: '#8a8a8a' }}>{label}</p>
+                  <p className="text-sm font-medium" style={{ color: '#f0ece4' }}>{value}</p>
+                </div>
+              </div>
+            ))}
+
+            <div className="pt-4 mt-4" style={{ borderTop: '1px solid rgba(255,255,255,0.08)' }}>
+              <p className="font-mono text-[9px] tracking-widest uppercase mb-1" style={{ color: '#8a8a8a' }}>Resposta em até</p>
+              <p className="font-['Barlow_Condensed',sans-serif] font-black text-3xl" style={{ color: ACCENT }}>24 horas</p>
             </div>
-            <SectionTitle className="text-4xl" style={{ color: '#f0ece4' }}>Mensagem<br />enviada!</SectionTitle>
-            <p className="font-light" style={{ color: '#8a8a8a' }}>Responderei em até 24 horas. Obrigado pelo contato!</p>
-            <button onClick={() => setSent(false)} className="px-6 py-2.5 text-xs tracking-widest uppercase font-bold transition-all hover:text-orange-400"
-              style={{ border: '1px solid rgba(255,255,255,0.08)', color: '#8a8a8a' }}>
-              Nova mensagem
-            </button>
           </div>
-        ) : (
-          <>
-            <div className="md:hidden mb-5">
-              <Label>Contato</Label>
-              <SectionTitle className="text-3xl sm:text-4xl mb-2" style={{ color: '#f0ece4' }}>Fale Comigo</SectionTitle>
+        </div>
+
+        {/* Right: form */}
+        <div className="flex-1 flex flex-col justify-center px-4 sm:px-8 lg:px-14 py-6 overflow-y-auto" style={{ scrollbarWidth: 'none' }}>
+          {sent ? (
+            <div className="flex flex-col items-center justify-center h-full gap-5 text-center">
+              <div className="w-16 h-16 flex items-center justify-center" style={{ background: ACCENT, boxShadow: '0 0 40px rgba(255,92,0,0.5)' }}>
+                <ArrowRight size={28} style={{ color: '#0d0d0d' }} />
+              </div>
+              <SectionTitle className="text-4xl" style={{ color: '#f0ece4' }}>Mensagem<br />enviada!</SectionTitle>
+              <p className="font-light" style={{ color: '#8a8a8a' }}>Responderei em até 24 horas. Obrigado pelo contato!</p>
+              <button onClick={() => setSent(false)} className="px-6 py-2.5 text-xs tracking-widest uppercase font-bold transition-all hover:text-orange-400"
+                style={{ border: '1px solid rgba(255,255,255,0.08)', color: '#8a8a8a' }}>
+                Nova mensagem
+              </button>
             </div>
-            <form onSubmit={e => { e.preventDefault(); setSent(true); }} className="flex flex-col gap-3 sm:gap-4 max-w-lg w-full">
-              <div className="grid sm:grid-cols-2 gap-3 sm:gap-4">
-                {[['Nome completo', 'text', 'Seu nome'], ['E-mail', 'email', 'seu@email.com']].map(([label, type, ph]) => (
-                  <div key={label} className="flex flex-col gap-1.5">
-                    <label className={labelCls} style={{ color: '#8a8a8a' }}>{label}</label>
-                    <input type={type} placeholder={ph} required
-                      className="px-4 py-2.5 sm:py-3 text-sm focus:outline-none transition-colors placeholder:opacity-30"
+          ) : (
+            <>
+              {/* Mobile: show contact info above form */}
+              <div className="md:hidden mb-5">
+                <p className="font-light text-sm mb-4" style={{ color: '#8a8a8a' }}>{contatoSub}</p>
+              </div>
+
+              <form onSubmit={e => { e.preventDefault(); setSent(true); }} className="flex flex-col gap-3 sm:gap-4 w-full">
+                <div className="grid sm:grid-cols-2 gap-3 sm:gap-4">
+                  <div className="flex flex-col gap-1.5">
+                    <label className={labelCls} style={{ color: '#8a8a8a' }}>Nome</label>
+                    <input type="text" placeholder="Seu nome" required
+                      className="px-4 py-3 text-sm focus:outline-none transition-colors placeholder:opacity-35"
                       style={inputStyle} />
                   </div>
-                ))}
-              </div>
-              <div className="grid sm:grid-cols-2 gap-3 sm:gap-4">
+                  <div className="flex flex-col gap-1.5">
+                    <label className={labelCls} style={{ color: '#8a8a8a' }}>E-mail</label>
+                    <input type="email" placeholder="seu@email.com" required
+                      className="px-4 py-3 text-sm focus:outline-none transition-colors placeholder:opacity-35"
+                      style={inputStyle} />
+                  </div>
+                </div>
+                <div className="grid sm:grid-cols-2 gap-3 sm:gap-4">
+                  <div className="flex flex-col gap-1.5">
+                    <label className={labelCls} style={{ color: '#8a8a8a' }}>WhatsApp</label>
+                    <input type="tel" placeholder="+55 (11) 00000-0000"
+                      className="px-4 py-3 text-sm focus:outline-none transition-colors placeholder:opacity-35"
+                      style={inputStyle} />
+                  </div>
+                  <div className="flex flex-col gap-1.5">
+                    <label className={labelCls} style={{ color: '#8a8a8a' }}>Tipo de Projeto</label>
+                    <select className="px-4 py-3 text-sm focus:outline-none transition-colors appearance-none cursor-pointer"
+                      style={inputStyle}>
+                      <option value="">Selecione</option>
+                      <option>Casamento</option>
+                      <option>Editorial / Urbano</option>
+                      <option>Ensaio</option>
+                      <option>Evento Corporativo</option>
+                      <option>Retrato</option>
+                      <option>Outro</option>
+                    </select>
+                  </div>
+                </div>
                 <div className="flex flex-col gap-1.5">
-                  <label className={labelCls} style={{ color: '#8a8a8a' }}>Telefone / WhatsApp</label>
-                  <input type="tel" placeholder="+55 (11) 00000-0000"
-                    className="px-4 py-2.5 sm:py-3 text-sm focus:outline-none transition-colors placeholder:opacity-30"
+                  <label className={labelCls} style={{ color: '#8a8a8a' }}>Data Prevista</label>
+                  <input type="date" className="px-4 py-3 text-sm focus:outline-none transition-colors"
                     style={inputStyle} />
                 </div>
                 <div className="flex flex-col gap-1.5">
-                  <label className={labelCls} style={{ color: '#8a8a8a' }}>Tipo de Projeto</label>
-                  <select className="px-4 py-2.5 sm:py-3 text-sm focus:outline-none transition-colors appearance-none cursor-pointer"
-                    style={inputStyle}>
-                    <option value="">Selecione</option>
-                    <option>Retrato</option>
-                    <option>Casamento</option>
-                    <option>Evento Corporativo</option>
-                    <option>Editorial / Urbano</option>
-                    <option>Outro</option>
-                  </select>
+                  <label className={labelCls} style={{ color: '#8a8a8a' }}>Mensagem</label>
+                  <textarea rows={4} required placeholder="Conte-me sobre seu projeto, local, número de pessoas, expectativas..."
+                    className="px-4 py-3 text-sm focus:outline-none transition-colors resize-none placeholder:opacity-35"
+                    style={inputStyle} />
                 </div>
-              </div>
-              <div className="flex flex-col gap-1.5">
-                <label className={labelCls} style={{ color: '#8a8a8a' }}>Data prevista</label>
-                <input type="date" className="px-4 py-2.5 sm:py-3 text-sm focus:outline-none transition-colors"
-                  style={inputStyle} />
-              </div>
-              <div className="flex flex-col gap-1.5">
-                <label className={labelCls} style={{ color: '#8a8a8a' }}>Mensagem</label>
-                <textarea rows={3} required placeholder="Conte-me sobre seu projeto, local, número de pessoas, expectativas..."
-                  className="px-4 py-2.5 sm:py-3 text-sm focus:outline-none transition-colors resize-none placeholder:opacity-30"
-                  style={inputStyle} />
-              </div>
-              <button type="submit"
-                className="group flex items-center justify-center gap-3 py-3 sm:py-4 text-xs tracking-widest uppercase font-bold transition-all hover:opacity-90"
-                style={{ background: ACCENT, color: '#0d0d0d', boxShadow: '0 0 20px rgba(255,92,0,0.25)' }}>
-                Enviar Mensagem <ArrowRight size={14} className="group-hover:translate-x-1 transition-transform" />
-              </button>
-            </form>
+                <button type="submit"
+                  className="group flex items-center justify-center gap-3 py-3.5 text-xs tracking-widest uppercase font-bold transition-all hover:opacity-90"
+                  style={{ background: ACCENT, color: '#0d0d0d' }}>
+                  Enviar Mensagem <ArrowRight size={14} className="group-hover:translate-x-1 transition-transform" />
+                </button>
+              </form>
 
-            {/* Mobile contact snippet */}
-            <div className="md:hidden mt-5 pt-5 grid grid-cols-2 gap-4" style={{ borderTop: '1px solid rgba(255,255,255,0.04)' }}>
-              {[
-                { Icon: Phone, label: 'WhatsApp', value: contatoWhatsapp },
-                { Icon: Instagram, label: 'Instagram', value: contatoInstagram },
-              ].map(({ Icon, label, value }) => (
-                <div key={label} className="flex items-center gap-2">
-                  <Icon size={13} style={{ color: ACCENT }} className="shrink-0" />
-                  <div>
-                    <p className={labelCls} style={{ color: '#8a8a8a' }}>{label}</p>
-                    <p className="text-xs font-medium mt-0.5" style={{ color: '#f0ece4' }}>{value}</p>
+              {/* Mobile contact snippet */}
+              <div className="md:hidden mt-5 pt-5 space-y-3" style={{ borderTop: '1px solid rgba(255,255,255,0.04)' }}>
+                {[
+                  { Icon: Phone, label: 'WhatsApp', value: contatoWhatsapp },
+                  { Icon: Mail, label: 'E-mail', value: contatoEmail },
+                  { Icon: Instagram, label: 'Instagram', value: contatoInstagram },
+                ].map(({ Icon, label, value }) => (
+                  <div key={label} className="flex items-center gap-2">
+                    <Icon size={13} style={{ color: ACCENT }} className="shrink-0" />
+                    <div>
+                      <p className={labelCls} style={{ color: '#8a8a8a' }}>{label}</p>
+                      <p className="text-xs font-medium" style={{ color: '#f0ece4' }}>{value}</p>
+                    </div>
                   </div>
-                </div>
-              ))}
-            </div>
-          </>
-        )}
+                ))}
+              </div>
+            </>
+          )}
+        </div>
       </div>
     </div>
   );
