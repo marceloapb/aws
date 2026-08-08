@@ -73,11 +73,13 @@ export default function ConfigSiteNovo() {
         const site = siteRes?.success ? siteRes.data : {};
         setForm(prev => ({
           ...prev,
-          contato_email: empresa?.email || empresa?.SES_FROM_EMAIL || '',
-          contato_whatsapp: empresa?.whatsappBusiness || empresa?.telefone || '',
-          contato_instagram: empresa?.instagram || '',
-          contato_endereco: empresa?.cidade ? `${empresa.cidade}, ${empresa.estado || 'SP'}` : '',
-          sobre_bio: empresa?.descricao || empresa?.bio || '',
+          contato_email: empresa?.email || empresa?.SES_FROM_EMAIL || prev.contato_email,
+          contato_whatsapp: empresa?.whatsappBusiness || empresa?.telefone || prev.contato_whatsapp,
+          contato_instagram: empresa?.instagram || prev.contato_instagram,
+          contato_endereco: empresa?.cidade ? `${empresa.cidade}, ${empresa.estado || 'SP'}` : prev.contato_endereco,
+          sobre_bio: empresa?.descricao || empresa?.bio || 'A fotografia é muito mais do que apertar um botão. É sobre capturar a luz e a sombra, a cor e a textura, a emoção e a expressão. Cada imagem é uma obra única que reflete minha visão e a personalidade de cada cliente.\n\nSou um fotógrafo apaixonado por contar histórias através de imagens. Combino habilidade técnica com uma abordagem pessoal e criativa para criar fotografias autênticas e emocionais.\n\nMeu objetivo é capturar a essência única de cada pessoa e transformá-la em imagens atemporais.',
+          sobre_citacao: 'O escritor e o fotógrafo utilizam as mesmas ferramentas, mas enquanto um descreve uma imagem com mil palavras o outro descreve mil palavras com uma imagem.',
+          sobre_citacao_autor: 'Jefferson Luiz Maleski',
         }));
       }
     } catch {}
