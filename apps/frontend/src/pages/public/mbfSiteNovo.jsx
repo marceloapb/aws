@@ -449,16 +449,14 @@ function AboutSection({ goTo, config, siteConfig }) {
             <span style={{ WebkitTextStroke: `2px ${ACCENT}`, color: 'transparent' }}>{lastName}</span>
           </SectionTitle>
 
-          <div className="space-y-3 sm:space-y-4 font-light leading-relaxed w-full text-justify text-sm sm:text-base" style={{ color: '#8a8a8a' }}>
-            {bio.split('\n').filter(Boolean).map((p, i) => <p key={i}>{p}</p>)}
-          </div>
+          <div className="space-y-3 sm:space-y-4 font-light leading-relaxed w-full text-justify text-sm sm:text-base [&_b]:text-[#f0ece4] [&_b]:font-medium [&_strong]:text-[#f0ece4] [&_strong]:font-medium [&_p]:mb-3" style={{ color: '#8a8a8a' }}
+            dangerouslySetInnerHTML={{ __html: bio }} />
 
           {/* Quote */}
           <div className="mt-5 sm:mt-7 w-full pl-4 sm:pl-5 py-1" style={{ borderLeft: `2px solid ${ACCENT}` }}>
             <Quote size={18} style={{ color: 'rgba(255,92,0,0.4)' }} className="mb-2" />
-            <p className="text-xs sm:text-sm font-light leading-relaxed italic" style={{ color: 'rgba(240,236,228,0.75)' }}>
-              "{citacao}"
-            </p>
+            <div className="text-xs sm:text-sm font-light leading-relaxed italic" style={{ color: 'rgba(240,236,228,0.75)' }}
+              dangerouslySetInnerHTML={{ __html: citacao }} />
             <p className="font-mono text-[9px] tracking-widest uppercase mt-3" style={{ color: ACCENT }}>— {citacaoAutor}</p>
           </div>
 
