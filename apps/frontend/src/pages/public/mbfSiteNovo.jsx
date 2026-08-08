@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
-  ArrowRight, ArrowUpRight, Camera, Instagram, Mail, Phone,
+  ArrowRight, ArrowUpRight, ArrowLeft, Camera, Instagram, Mail, Phone,
   MapPin, ChevronLeft, ChevronRight, Menu, X, Quote, Star,
   Eye, Clock
 } from 'lucide-react';
@@ -211,69 +211,132 @@ function HomeSection({ goTo, depoimentos, config, siteConfig }) {
 // PORTFOLIO SECTION
 // ══════════════════════════════════════════════════════════════
 
-function PortfolioSection({ goTo, portfolioData }) {
-  const [filter, setFilter] = useState('Todos');
-  const [selected, setSelected] = useState(null);
-  const items = portfolioData.length > 0 ? portfolioData : PORTFOLIO_PLACEHOLDER;
-  const categories = ['Todos', ...new Set(items.map(p => p.category))];
-  const filtered = filter === 'Todos' ? items : items.filter(p => p.category === filter);
+function PortfolioSection({ goTo, portfolioData, categorias: rawCategorias }) {
+  const [selectedGaleria, setSelectedGaleria] = useState(null);
+  const [selectedFoto, setSelectedFoto] = useState(null);
 
-  return (
-    <div className="w-full h-full flex flex-col overflow-hidden" style={{ background: '#0d0d0d' }}>
-      {/* Lightbox */}
-      {selected && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ background: 'rgba(13,13,13,0.97)' }} onClick={() => setSelected(null)}>
-          <button className="absolute top-4 right-4 sm:top-6 sm:right-8 w-10 h-10 flex items-center justify-center transition-all" style={{ border: '1px solid rgba(255,255,255,0.08)', color: '#f0ece4' }}>
-            <X size={18} />
-          </button>
-          <div className="max-w-3xl max-h-[85vh] flex flex-col items-center gap-5 p-4 sm:p-6 w-full" onClick={e => e.stopPropagation()}>
-            <img src={selected.img} alt={selected.title} className="max-h-[72vh] object-contain shadow-2xl" />
-            <div className="flex gap-4 items-center">
-              <span className="font-mono text-[10px] tracking-widest uppercase" style={{ color: ACCENT }}>{selected.category}</span>
-              <span className="w-px h-3" style={{ background: 'rgba(255,255,255,0.08)' }} />
-              <span className="font-['Barlow_Condensed',sans-serif] font-bold text-xl uppercase tracking-wide" style={{ color: '#f0ece4' }}>{selected.title}</span>
-            </div>
-          </div>
-        </div>
-      )}
+  // Build categorias from raw data
+  const categorias = rawCategorias || [];
 
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between px-4 sm:px-8 lg:px-16 pt-5 pb-4 shrink-0 gap-3" style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
-        <div>
-          <Label>Portfolio</Label>
-          <SectionTitle className="text-3xl sm:text-4xl md:text-5xl" style={{ color: '#f0ece4' }}>Trabalhos Selecionados</SectionTitle>
-        </div>
-        <div className="flex gap-2 flex-wrap">
-          {categories.map(f => (
-            <button key={f} onClick={() => setFilter(f)}
-              className="px-3 sm:px-4 py-1.5 text-[10px] tracking-widest uppercase font-bold transition-all duration-200"
-              style={filter === f
-                ? { background: ACCENT, color: '#0d0d0d', boxShadow: '0 0 16px rgba(255,92,0,0.3)' }
-                : { border: '1px solid rgba(255,255,255,0.08)', color: '#8a8a8a' }}>
-              {f}
-            </button>
-          ))}
+  // ── Lightbox ──
+  if (selectedFoto) {
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ background: 'rgba(13,13,13,0.97)' }} onClick={() => setSelectedFoto(null)}>
+        <button className="absolute top-4 right-4 sm:top-6 sm:right-8 w-10 h-10 flex items-center justify-center transition-all"
+          style={{ border: '1px solid rgba(255,255,255,0.15)', color: '#f0ece4' }}>
+          <X size={18} />
+        </button>
+        <div className="max-w-4xl max-h-[85vh] flex flex-col items-center gap-5 p-4 sm:p-6 w-full" onClick={e => e.stopPropagation()}>
+          <img src={selectedFoto.img_full || selectedFoto.img} alt={selectedFoto.title} className="max-h-[75vh] object-contain shadow-2xl" />
+          {selectedFoto.title && (
+            <p className="font-['Barlow_Condensed',sans-serif] font-bold text-lg uppercase tracking-wide" style={{ color: '#f0ece4' }}>{selectedFoto.title}</p>
+          )}
         </div>
       </div>
+    );
+  }
 
-      {/* Grid */}
-      <div className="flex-1 overflow-y-auto px-4 sm:px-8 lg:px-16 py-5" style={{ scrollbarWidth: 'none' }}>
-        <div className="columns-2 md:columns-3 lg:columns-4 gap-3 space-y-3">
-          {filtered.map(item => (
-            <div key={item.id} className="break-inside-avoid relative group overflow-hidden cursor-pointer" onClick={() => setSelected(item)} style={{ background: '#1f1f1f' }}>
-              <img src={item.img} alt={item.title} className="w-full object-cover transition-transform duration-700 group-hover:scale-[1.07]" loading="lazy" />
-              <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-400 flex flex-col justify-end p-3"
-                style={{ background: 'linear-gradient(to top, rgba(13,13,13,0.95), rgba(13,13,13,0.2), transparent)' }}>
-                <span className="font-mono text-[9px] tracking-[0.35em] uppercase" style={{ color: ACCENT }}>{item.category}</span>
-                <p className="font-['Barlow_Condensed',sans-serif] font-bold text-base uppercase leading-tight" style={{ color: '#f0ece4' }}>{item.title}</p>
-                <div className="flex items-center gap-2 mt-1.5">
-                  <Eye size={11} style={{ color: ACCENT }} />
-                  <span className="font-mono text-[9px] tracking-widest uppercase" style={{ color: ACCENT }}>Ver foto</span>
-                </div>
-              </div>
-            </div>
-          ))}
+  // ── Galeria aberta (fotos da categoria) ──
+  if (selectedGaleria) {
+    const fotos = (selectedGaleria.fotos || []).map((f, i) => ({
+      id: `${selectedGaleria.id}-${i}`,
+      title: f.titulo || '',
+      img: f.url || f.thumb_url || '',
+      img_full: f.url_full || f.url || f.thumb_url || '',
+    }));
+
+    return (
+      <div className="w-full h-full flex flex-col overflow-hidden" style={{ background: '#0d0d0d' }}>
+        {/* Header */}
+        <div className="px-4 sm:px-8 lg:px-16 pt-5 pb-4 shrink-0" style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+          <button onClick={() => setSelectedGaleria(null)}
+            className="flex items-center gap-2 text-sm font-medium mb-3 transition-colors hover:opacity-80" style={{ color: ACCENT }}>
+            <ArrowLeft size={14} /> Voltar às galerias
+          </button>
+          <Label>{selectedGaleria.nome}</Label>
+          <SectionTitle className="text-3xl sm:text-4xl md:text-5xl" style={{ color: '#f0ece4' }}>{selectedGaleria.nome}</SectionTitle>
+          <p className="font-mono text-[10px] tracking-widest uppercase mt-2" style={{ color: '#8a8a8a' }}>{fotos.length} foto{fotos.length !== 1 ? 's' : ''}</p>
         </div>
+
+        {/* Masonry grid */}
+        <div className="flex-1 overflow-y-auto px-4 sm:px-8 lg:px-16 py-5" style={{ scrollbarWidth: 'none' }}>
+          {fotos.length === 0 ? (
+            <div className="flex items-center justify-center h-full">
+              <p className="font-mono text-sm" style={{ color: '#8a8a8a' }}>Nenhuma foto nesta galeria.</p>
+            </div>
+          ) : (
+            <div className="columns-2 md:columns-3 lg:columns-4 gap-3 space-y-3">
+              {fotos.map(foto => (
+                <div key={foto.id} className="break-inside-avoid relative group overflow-hidden cursor-pointer"
+                  onClick={() => setSelectedFoto(foto)} style={{ background: '#1f1f1f' }}>
+                  <img src={foto.img} alt={foto.title} loading="lazy"
+                    className="w-full object-cover transition-transform duration-700 group-hover:scale-[1.07]" />
+                  <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-end p-3"
+                    style={{ background: 'linear-gradient(to top, rgba(13,13,13,0.95), rgba(13,13,13,0.2), transparent)' }}>
+                    {foto.title && <p className="font-['Barlow_Condensed',sans-serif] font-bold text-sm uppercase leading-tight" style={{ color: '#f0ece4' }}>{foto.title}</p>}
+                    <div className="flex items-center gap-2 mt-1.5">
+                      <Eye size={11} style={{ color: ACCENT }} />
+                      <span className="font-mono text-[9px] tracking-widest uppercase" style={{ color: ACCENT }}>Ver foto</span>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // ── Listagem de galerias (categorias) ──
+  return (
+    <div className="w-full h-full flex flex-col overflow-hidden" style={{ background: '#0d0d0d' }}>
+      {/* Header */}
+      <div className="px-4 sm:px-8 lg:px-16 pt-5 pb-4 shrink-0" style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+        <Label>Portfolio</Label>
+        <SectionTitle className="text-3xl sm:text-4xl md:text-5xl" style={{ color: '#f0ece4' }}>Galerias</SectionTitle>
+        <p className="text-sm mt-2" style={{ color: '#8a8a8a' }}>Selecione uma galeria para ver as fotos.</p>
+      </div>
+
+      {/* Grid de galerias */}
+      <div className="flex-1 overflow-y-auto px-4 sm:px-8 lg:px-16 py-5" style={{ scrollbarWidth: 'none' }}>
+        {categorias.length === 0 ? (
+          <div className="flex items-center justify-center h-full">
+            <p className="font-mono text-sm" style={{ color: '#8a8a8a' }}>Nenhuma galeria disponível.</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {categorias.map(cat => {
+              const capa = cat.fotos?.[0];
+              const qtd = (cat.fotos || []).length;
+              return (
+                <div key={cat.id} onClick={() => setSelectedGaleria(cat)}
+                  className="group relative aspect-[4/3] overflow-hidden cursor-pointer" style={{ background: '#1f1f1f' }}>
+                  {(capa?.url || capa?.thumb_url) ? (
+                    <img src={capa.url || capa.thumb_url} alt={cat.nome} loading="lazy"
+                      className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" />
+                  ) : (
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <Camera size={40} style={{ color: '#333' }} />
+                    </div>
+                  )}
+                  <div className="absolute inset-0" style={{ background: 'linear-gradient(to top, rgba(13,13,13,0.9), rgba(13,13,13,0.1), transparent)' }} />
+                  <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300" style={{ background: 'rgba(255,92,0,0.08)' }} />
+                  <div className="absolute bottom-0 left-0 right-0 p-4 sm:p-5">
+                    <h2 className="font-['Barlow_Condensed',sans-serif] font-black text-xl uppercase tracking-wide group-hover:text-orange-400 transition-colors" style={{ color: '#f0ece4' }}>
+                      {cat.nome}
+                    </h2>
+                    {cat.texto && <p className="text-xs mt-1 line-clamp-1" style={{ color: '#aaa' }}>{cat.texto}</p>}
+                    <p className="font-mono text-[9px] tracking-widest uppercase mt-2" style={{ color: '#8a8a8a' }}>{qtd} foto{qtd !== 1 ? 's' : ''}</p>
+                  </div>
+                  <div className="absolute top-3 right-3 w-7 h-7 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity" style={{ background: ACCENT }}>
+                    <ArrowUpRight size={12} style={{ color: '#0d0d0d' }} />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
     </div>
   );
@@ -634,6 +697,7 @@ export default function SiteV2() {
   const [siteConfig, setSiteConfig] = useState(null);
   const [depoimentos, setDepoimentos] = useState([]);
   const [portfolioData, setPortfolioData] = useState([]);
+  const [portfolioCategorias, setPortfolioCategorias] = useState([]);
   const [logoUrl, setLogoUrl] = useState('');
 
   // Load data
@@ -664,6 +728,7 @@ export default function SiteV2() {
       .then(json => {
         const portfolio = json.data || json;
         if (portfolio?.categorias && portfolio.categorias.length > 0) {
+          setPortfolioCategorias(portfolio.categorias);
           const allFotos = [];
           portfolio.categorias.forEach(cat => {
             (cat.fotos || []).forEach((f, i) => {
@@ -689,7 +754,7 @@ export default function SiteV2() {
 
   const sections = [
     <HomeSection goTo={goTo} depoimentos={depoimentos} config={config} siteConfig={siteConfig} />,
-    <PortfolioSection goTo={goTo} portfolioData={portfolioData} />,
+    <PortfolioSection goTo={goTo} portfolioData={portfolioData} categorias={portfolioCategorias} />,
     <ServicesSection goTo={goTo} siteConfig={siteConfig} />,
     <AboutSection goTo={goTo} config={config} siteConfig={siteConfig} />,
     <NovidadesSection />,
