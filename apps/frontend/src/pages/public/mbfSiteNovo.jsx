@@ -265,12 +265,12 @@ function PortfolioSection({ goTo, portfolioData, categorias: rawCategorias }) {
               <p className="font-mono text-sm" style={{ color: '#8a8a8a' }}>Nenhuma foto nesta galeria.</p>
             </div>
           ) : (
-            <div className="columns-2 md:columns-3 lg:columns-4 gap-3 space-y-3">
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
               {fotos.map(foto => (
-                <div key={foto.id} className="break-inside-avoid relative group overflow-hidden cursor-pointer"
+                <div key={foto.id} className="relative group overflow-hidden cursor-pointer aspect-[3/4]"
                   onClick={() => setSelectedFoto(foto)} style={{ background: '#1f1f1f' }}>
                   <img src={foto.img} alt={foto.title} loading="lazy"
-                    className="w-full object-cover transition-transform duration-700 group-hover:scale-[1.07]" />
+                    className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-[1.07]" />
                   <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-end p-3"
                     style={{ background: 'linear-gradient(to top, rgba(13,13,13,0.95), rgba(13,13,13,0.2), transparent)' }}>
                     {foto.title && <p className="font-['Barlow_Condensed',sans-serif] font-bold text-sm uppercase leading-tight" style={{ color: '#f0ece4' }}>{foto.title}</p>}
