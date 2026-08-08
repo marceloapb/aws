@@ -453,14 +453,35 @@ export default function ConfigSiteNovo() {
               <label className="block text-sm font-medium text-gray-700 mb-1">Fonte dos Títulos</label>
               <select value={form.fonte_titulo} onChange={e => update('fonte_titulo', e.target.value)}
                 className="w-full px-3 py-2 border rounded-lg text-sm">
+                <option value="Abril Fatface">Abril Fatface</option>
+                <option value="Anton">Anton</option>
+                <option value="Archivo Black">Archivo Black</option>
                 <option value="Barlow Condensed">Barlow Condensed</option>
+                <option value="Bebas Neue">Bebas Neue</option>
+                <option value="Cinzel">Cinzel</option>
+                <option value="Cormorant Garamond">Cormorant Garamond</option>
+                <option value="DM Sans">DM Sans</option>
+                <option value="Fjalla One">Fjalla One</option>
                 <option value="Inter">Inter</option>
+                <option value="Josefin Sans">Josefin Sans</option>
+                <option value="Lato">Lato</option>
+                <option value="Lora">Lora</option>
                 <option value="Montserrat">Montserrat</option>
+                <option value="Nunito">Nunito</option>
+                <option value="Open Sans">Open Sans</option>
                 <option value="Oswald">Oswald</option>
                 <option value="Playfair Display">Playfair Display</option>
                 <option value="Poppins">Poppins</option>
+                <option value="Quicksand">Quicksand</option>
                 <option value="Raleway">Raleway</option>
+                <option value="Roboto">Roboto</option>
                 <option value="Roboto Condensed">Roboto Condensed</option>
+                <option value="Rubik">Rubik</option>
+                <option value="Source Sans 3">Source Sans 3</option>
+                <option value="Space Grotesk">Space Grotesk</option>
+                <option value="Teko">Teko</option>
+                <option value="Titillium Web">Titillium Web</option>
+                <option value="Work Sans">Work Sans</option>
               </select>
               {/* Font preview */}
               <div className="mt-3 p-4 rounded-lg border border-gray-200" style={{ background: form.cor_background }}>
