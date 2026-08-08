@@ -346,7 +346,7 @@ function AboutSection({ goTo, config }) {
     <div className="w-full h-full flex overflow-hidden" style={{ background: '#0d0d0d' }}>
       {/* Image half (md+) */}
       <div className="hidden md:block w-[42%] relative shrink-0">
-        <img src="https://images.unsplash.com/photo-1779912217736-260b6303b6e7?w=900&h=1200&fit=crop&auto=format" alt={nome} className="w-full h-full object-cover" />
+        <img src="https://images.unsplash.com/photo-1779912217736-260b6303b6e7?w=900&h=1200&fit=crop&auto=format" alt={nomeCompleto} className="w-full h-full object-cover" />
         <div className="absolute inset-0" style={{ background: 'linear-gradient(to right, transparent, rgba(13,13,13,0.4))' }} />
         <div className="absolute bottom-10 left-8 px-5 py-4" style={{ background: ACCENT, boxShadow: '0 0 40px rgba(255,92,0,0.5)' }}>
           <div className="flex items-center gap-3">
