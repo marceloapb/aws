@@ -338,9 +338,9 @@ function ServicesSection({ goTo }) {
 // ══════════════════════════════════════════════════════════════
 
 function AboutSection({ goTo, config }) {
-  const nome = config?.nome || 'Marcelo Bloise';
-  const firstName = nome.split(' ')[0];
-  const lastName = nome.split(' ').slice(1).join(' ');
+  const nomeCompleto = (config?.nome || 'Marcelo Bloise').replace(/\s*Fotografia\s*/i, '').trim();
+  const firstName = nomeCompleto.split(' ')[0];
+  const lastName = nomeCompleto.split(' ').slice(1).join(' ');
 
   return (
     <div className="w-full h-full flex overflow-hidden" style={{ background: '#0d0d0d' }}>
